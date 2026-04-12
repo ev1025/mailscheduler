@@ -1,0 +1,240 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+
+type Theme = "system" | "light" | "dark";
+
+function ApiSection({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border rounded-lg">
+      <button
+        className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium hover:bg-accent/50 transition-colors"
+        onClick={() => setOpen(!open)}
+      >
+        {title}
+        {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+      </button>
+      {open && <div className="px-4 pb-4 pt-1 border-t">{children}</div>}
+    </div>
+  );
+}
+
+export default function SettingsPage() {
+  const [tab, setTab] = useState<"general" | "api">("general");
+  const [theme, setTheme] = useState<Theme>("system");
+
+  useEffect(() => {
+    const saved = localStorage.getItem("theme") as Theme | null;
+    if (saved) setTheme(saved);
+  }, []);
+
+  const applyTheme = (t: Theme) => {
+    setTheme(t);
+    localStorage.setItem("theme", t);
+    const root = document.documentElement;
+    if (t === "dark") root.classList.add("dark");
+    else if (t === "light") root.classList.remove("dark");
+    else {
+      if (window.matchMedia("(prefers-color-scheme: dark)").matches) root.classList.add("dark");
+      else root.classList.remove("dark");
+    }
+  };
+
+  const kmaExpiry = "2028-04-12";
+  const daysLeft = Math.ceil((new Date(kmaExpiry).getTime() - Date.now()) / 86400000);
+
+  return (
+    <div className="p-4 md:p-6 max-w-2xl">
+      <h2 className="text-xl font-bold mb-4">설정</h2>
+
+      {/* 탭 */}
+      <div className="flex border-b mb-6">
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === "general" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setTab("general")}
+        >
+          일반
+        </button>
+        <button
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            tab === "api" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setTab("api")}
+        >
+          API
+        </button>
+      </div>
+
+      {tab === "general" ? (
+        <div className="flex flex-col gap-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">테마</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                {([
+                  { value: "system" as Theme, icon: Monitor, label: "시스템" },
+                  { value: "light" as Theme, icon: Sun, label: "라이트" },
+                  { value: "dark" as Theme, icon: Moon, label: "다크" },
+                ]).map(({ value, icon: Icon, label }) => (
+                  <Button
+                    key={value}
+                    variant={theme === value ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => applyTheme(value)}
+                  >
+                    <Icon className="h-4 w-4 mr-1.5" />
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">앱 정보</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">프레임워크</span>
+                <span>Next.js 16 + React</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">UI 라이브러리</span>
+                <span>shadcn/ui + Tailwind CSS</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">날씨 위치</span>
+                <span>서울 (37.57°N, 126.98°E)</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {/* 데이터베이스 */}
+          <ApiSection title="데이터베이스 — Supabase">
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">서비스</span>
+                <span>Supabase (PostgreSQL)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">요금제</span>
+                <Badge variant="secondary" className="text-xs">무료 티어</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">만료</span>
+                <Badge variant="secondary" className="text-xs">만료 없음</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                <span>관리 사이트</span>
+                <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                  supabase.com <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          </ApiSection>
+
+          {/* 날씨 API */}
+          <ApiSection title="날씨 API" defaultOpen>
+            <div className="flex flex-col gap-4 text-sm">
+              {/* 기상청 단기예보 */}
+              <div className="flex flex-col gap-2">
+                <p className="font-medium text-xs text-muted-foreground">기상청 단기예보</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">API 이름</span>
+                  <span className="text-xs">VilageFcstInfoService_2.0</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">만료일</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs">{kmaExpiry}</span>
+                    <Badge variant={daysLeft > 30 ? "secondary" : "destructive"} className="text-xs">
+                      {daysLeft > 0 ? `${daysLeft}일 남음` : "만료됨"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* 기상청 중기예보 */}
+              <div className="flex flex-col gap-2">
+                <p className="font-medium text-xs text-muted-foreground">기상청 중기예보</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">API 이름</span>
+                  <span className="text-xs">MidFcstInfoService</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">만료일</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs">{kmaExpiry}</span>
+                    <Badge variant={daysLeft > 30 ? "secondary" : "destructive"} className="text-xs">
+                      {daysLeft > 0 ? `${daysLeft}일 남음` : "만료됨"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* 갱신 안내 */}
+              <div className="flex flex-col gap-1.5 pt-2 border-t text-xs text-muted-foreground">
+                <div className="flex items-center justify-between">
+                  <span>갱신 사이트</span>
+                  <a href="https://www.data.go.kr" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                    공공데이터포털 (data.go.kr) <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>로그인 방법</span>
+                  <span>네이버 간편로그인</span>
+                </div>
+              </div>
+
+              {/* Open-Meteo */}
+              <div className="flex flex-col gap-2 pt-2 border-t">
+                <p className="font-medium text-xs text-muted-foreground">Open-Meteo (과거 날씨 + 장기 예보)</p>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">요금</span>
+                  <Badge variant="secondary" className="text-xs">무료 (키 불필요)</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">만료</span>
+                  <Badge variant="secondary" className="text-xs">만료 없음</Badge>
+                </div>
+              </div>
+            </div>
+          </ApiSection>
+
+          {/* 호스팅 */}
+          <ApiSection title="호스팅 — Vercel">
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">요금제</span>
+                <Badge variant="secondary" className="text-xs">Hobby (무료)</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">만료</span>
+                <Badge variant="secondary" className="text-xs">만료 없음</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                <span>관리 사이트</span>
+                <a href="https://vercel.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                  vercel.com <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          </ApiSection>
+        </div>
+      )}
+    </div>
+  );
+}
