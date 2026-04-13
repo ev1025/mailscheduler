@@ -40,34 +40,44 @@ export default function WeatherIcon({
   }
 
   if (compact) {
-    // 모바일: 아이콘+최고온만, 데스크톱: 아이콘+최저/최고+설명
+    // 모바일: 아이콘+최고온만 1줄
+    // 데스크톱: 아이콘+최저/최고 1줄 + 설명 2줄 (줄바꿈)
     return (
-      <div className="flex items-center gap-0.5 leading-none shrink-0 max-w-full overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={getWeatherIconUrl(weather.weather_icon)}
-          alt={weather.weather_description}
-          className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0"
-        />
-        {/* 모바일: 최고온만 */}
-        <span className="text-[9px] text-red-500 md:hidden shrink-0">
-          {weather.temperature_max}°
-        </span>
-        {/* 데스크톱: 최저/최고 */}
-        <span className="hidden md:inline text-[9px] text-blue-500 shrink-0">
-          {weather.temperature_min}°
-        </span>
-        <span className="hidden md:inline text-[9px] text-muted-foreground shrink-0">
-          /
-        </span>
-        <span className="hidden md:inline text-[9px] text-red-500 shrink-0">
-          {weather.temperature_max}°
-        </span>
-        {/* 데스크톱: 설명 */}
-        <span className="hidden lg:inline text-[9px] text-muted-foreground truncate">
-          {weather.weather_description}
-        </span>
-      </div>
+      <>
+        {/* 모바일 */}
+        <div className="flex md:hidden items-center gap-0.5 leading-none shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={getWeatherIconUrl(weather.weather_icon)}
+            alt={weather.weather_description}
+            className="h-3.5 w-3.5 shrink-0"
+          />
+          <span className="text-[9px] text-red-500 shrink-0">
+            {weather.temperature_max}°
+          </span>
+        </div>
+        {/* 데스크톱: 2줄 세로 구조 */}
+        <div className="hidden md:flex flex-col items-end gap-0 leading-none">
+          <div className="flex items-center gap-0.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={getWeatherIconUrl(weather.weather_icon)}
+              alt={weather.weather_description}
+              className="h-4 w-4"
+            />
+            <span className="text-[9px] text-blue-500">
+              {weather.temperature_min}°
+            </span>
+            <span className="text-[9px] text-muted-foreground">/</span>
+            <span className="text-[9px] text-red-500">
+              {weather.temperature_max}°
+            </span>
+          </div>
+          <span className="text-[8px] text-muted-foreground">
+            {weather.weather_description}
+          </span>
+        </div>
+      </>
     );
   }
 
