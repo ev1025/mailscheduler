@@ -10,7 +10,7 @@ import {
   FileText,
   Archive,
   Trash2,
-  X,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -344,115 +344,125 @@ export default function KnowledgePage() {
       >
         {selectedItem ? (
           <>
-            <div className="p-2 md:p-3 border-b flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setMobileSidebar(true)}
-                className="md:hidden text-muted-foreground hover:text-foreground px-2"
-              >
-                ← 목록
-              </button>
-              <Input
-                value={editTitle}
-                onChange={(e) => {
-                  setEditTitle(e.target.value);
-                  setDirty(true);
-                }}
-                className="flex-1 h-8 text-sm font-semibold border-none bg-transparent focus-visible:ring-0 px-2"
-                placeholder="제목"
-              />
-              <button
-                type="button"
-                onClick={togglePin}
-                className={`p-1.5 rounded hover:bg-accent ${
-                  selectedItem.pinned
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                }`}
-                title="핀 고정"
-              >
-                <Pin className="h-3.5 w-3.5" />
-              </button>
-
-              {/* 임시저장 드롭다운 */}
-              <Popover open={draftsOpen} onOpenChange={setDraftsOpen}>
-                <PopoverTrigger
-                  className="relative p-1.5 rounded hover:bg-accent text-muted-foreground"
-                  title="임시저장 목록"
+            <div className="border-b flex flex-col">
+              {/* 1행: 뒤로 + 제목 + 핀 */}
+              <div className="flex items-center gap-2 px-2 md:px-3 pt-2 pb-1">
+                <button
+                  type="button"
+                  onClick={() => setMobileSidebar(true)}
+                  className="md:hidden shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  title="목록"
                 >
-                  <Archive className="h-3.5 w-3.5" />
-                  {drafts.length > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-[8px] font-bold text-primary-foreground">
-                      {drafts.length}
-                    </span>
-                  )}
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-0 max-h-80 overflow-y-auto" align="end">
-                  <div className="p-2 border-b flex items-center justify-between">
-                    <span className="text-xs font-semibold">임시저장 ({drafts.length})</span>
-                  </div>
-                  {drafts.length === 0 ? (
-                    <p className="text-xs text-muted-foreground text-center py-6">
-                      임시저장된 글이 없습니다
-                    </p>
-                  ) : (
-                    <div className="flex flex-col">
-                      {drafts.map((d) => (
-                        <div
-                          key={d.id}
-                          className="group flex items-start gap-2 border-b p-2 hover:bg-accent cursor-pointer"
-                          onClick={() => handleLoadDraft(d)}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium line-clamp-1">
-                              {d.title}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">
-                              {new Date(d.savedAt).toLocaleString("ko-KR", {
-                                month: "2-digit",
-                                day: "2-digit",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                              {d.source_id ? " · 수정본" : " · 신규"}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteDraft(d.id);
-                            }}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                <Input
+                  value={editTitle}
+                  onChange={(e) => {
+                    setEditTitle(e.target.value);
+                    setDirty(true);
+                  }}
+                  className="flex-1 h-8 text-sm md:text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0"
+                  placeholder="제목"
+                />
+                <button
+                  type="button"
+                  onClick={togglePin}
+                  className={`shrink-0 p-1.5 rounded hover:bg-accent ${
+                    selectedItem.pinned
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  }`}
+                  title="핀 고정"
+                >
+                  <Pin className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* 2행: 임시저장 드롭다운 / 임시저장 / 저장 */}
+              <div className="flex items-center justify-end gap-1.5 px-2 md:px-3 pb-2">
+                <Popover open={draftsOpen} onOpenChange={setDraftsOpen}>
+                  <PopoverTrigger
+                    className="relative flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
+                    title="임시저장 목록"
+                  >
+                    <Archive className="h-3 w-3" />
+                    <span>목록</span>
+                    {drafts.length > 0 && (
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
+                        {drafts.length}
+                      </span>
+                    )}
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="w-72 p-0 max-h-80 overflow-y-auto"
+                    align="end"
+                  >
+                    <div className="p-2 border-b flex items-center justify-between">
+                      <span className="text-xs font-semibold">
+                        임시저장 ({drafts.length})
+                      </span>
                     </div>
-                  )}
-                </PopoverContent>
-              </Popover>
+                    {drafts.length === 0 ? (
+                      <p className="text-xs text-muted-foreground text-center py-6">
+                        임시저장된 글이 없습니다
+                      </p>
+                    ) : (
+                      <div className="flex flex-col">
+                        {drafts.map((d) => (
+                          <div
+                            key={d.id}
+                            className="group flex items-start gap-2 border-b p-2 hover:bg-accent cursor-pointer"
+                            onClick={() => handleLoadDraft(d)}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium line-clamp-1">
+                                {d.title}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                                {new Date(d.savedAt).toLocaleString("ko-KR", {
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                                {d.source_id ? " · 수정본" : " · 신규"}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteDraft(d.id);
+                              }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </PopoverContent>
+                </Popover>
 
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleSaveDraft}
-                className="h-7 text-xs"
-                title="임시저장"
-              >
-                임시저장
-              </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSaveDraft}
+                  className="h-7 text-xs"
+                >
+                  임시저장
+                </Button>
 
-              {dirty && (
                 <Button
                   size="sm"
                   onClick={handleSave}
+                  disabled={!dirty}
                   className="h-7 text-xs"
                 >
                   <Save className="mr-1 h-3 w-3" /> 저장
                 </Button>
-              )}
+              </div>
             </div>
             <div className="flex-1 overflow-hidden">
               <RichEditor
