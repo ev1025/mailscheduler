@@ -9,16 +9,31 @@ import {
   Crown,
   ChevronDown,
   ChevronRight,
+  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useProducts } from "@/hooks/use-products";
 import ProductForm from "@/components/products/product-form";
 import ProductDetailDialog from "@/components/products/product-detail-dialog";
-import { computeUnitPrice } from "@/hooks/use-product-purchases";
-import type { Product, ProductCategory, ProductPurchase } from "@/types";
+import type { Product, ProductCategory } from "@/types";
 import { toast } from "sonner";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -42,10 +57,115 @@ const CATEGORIES: (ProductCategory | "전체")[] = [
   "기타",
 ];
 
-// 제품별 최저단가 요약
 interface ProductStat {
-  bestUnitPrice: number | null;
-  purchaseCount: number;
+  minPrice: number | null;
+}
+
+function ProductRow({
+  p,
+  idx,
+  stat,
+  onOpenDetail,
+  onEdit,
+  onDelete,
+}: {
+  p: Product;
+  idx: number;
+  stat?: ProductStat;
+  onOpenDetail: (p: Product) => void;
+  onEdit: (p: Product) => void;
+  onDelete: (p: Product) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: p.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className="border-t hover:bg-accent/40 cursor-pointer group"
+      onClick={() => onOpenDetail(p)}
+    >
+      <td className="text-center px-1 py-2 whitespace-nowrap w-6">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          className="text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing touch-none"
+        >
+          <GripVertical className="h-3 w-3" />
+        </button>
+      </td>
+      <td className="text-center px-2 py-2 whitespace-nowrap w-10">
+        <span
+          className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
+            idx === 0
+              ? "bg-yellow-100 text-yellow-700"
+              : idx === 1
+                ? "bg-gray-100 text-gray-700"
+                : idx === 2
+                  ? "bg-orange-100 text-orange-700"
+                  : "text-muted-foreground"
+          }`}
+        >
+          {idx + 1}
+        </span>
+      </td>
+      <td className="px-2 py-2 w-auto">
+        <div className="flex items-center gap-1.5 min-w-0">
+          {p.is_active && (
+            <span
+              className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0"
+              title="고정비 등록됨"
+            />
+          )}
+          <span className="font-medium break-words">{p.name}</span>
+          {idx === 0 && stat?.minPrice && (
+            <Crown className="h-3 w-3 text-yellow-500 shrink-0" />
+          )}
+        </div>
+      </td>
+      <td className="px-2 py-2 text-muted-foreground hidden sm:table-cell whitespace-nowrap">
+        {p.brand || "-"}
+      </td>
+      <td className="px-2 py-2 text-right whitespace-nowrap font-semibold">
+        {stat?.minPrice
+          ? `₩${stat.minPrice.toLocaleString()}`
+          : "-"}
+      </td>
+      <td className="px-1 py-2 w-8">
+        <button
+          type="button"
+          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(p);
+          }}
+          title="수정"
+        >
+          <ExternalLink className="h-3 w-3" />
+        </button>
+      </td>
+      <td className="px-1 py-2 w-8">
+        <button
+          type="button"
+          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(p);
+          }}
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </td>
+    </tr>
+  );
 }
 
 export default function ProductsPage() {
@@ -60,8 +180,10 @@ export default function ProductsPage() {
   >("전체");
   const [stats, setStats] = useState<Record<string, ProductStat>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  // 커스텀 순서 (sub-category별)
+  const [customOrder, setCustomOrder] = useState<Record<string, string[]>>({});
 
-  // 모든 제품의 최저단가 계산 (한 번의 쿼리로)
+  // 제품 ID별 최저 가격
   useEffect(() => {
     if (products.length === 0) {
       setStats({});
@@ -70,20 +192,15 @@ export default function ProductsPage() {
     const productIds = products.map((p) => p.id);
     supabase
       .from("product_purchases")
-      .select("product_id, total_price, points, quantity")
+      .select("product_id, total_price")
       .in("product_id", productIds)
       .then(({ data }) => {
         if (!data) return;
         const map: Record<string, ProductStat> = {};
-        for (const p of data as (ProductPurchase & { product_id: string })[]) {
-          const up = computeUnitPrice(p as ProductPurchase);
-          const s = map[p.product_id] || {
-            bestUnitPrice: null,
-            purchaseCount: 0,
-          };
-          s.purchaseCount += 1;
-          if (s.bestUnitPrice === null || up < s.bestUnitPrice) {
-            s.bestUnitPrice = up;
+        for (const p of data as { product_id: string; total_price: number }[]) {
+          const s = map[p.product_id] || { minPrice: null };
+          if (s.minPrice === null || p.total_price < s.minPrice) {
+            s.minPrice = p.total_price;
           }
           map[p.product_id] = s;
         }
@@ -91,7 +208,6 @@ export default function ProductsPage() {
       });
   }, [products]);
 
-  // 필터링된 제품
   const filtered = useMemo(() => {
     return products.filter((p) => {
       if (categoryFilter !== "전체" && p.category !== categoryFilter)
@@ -108,7 +224,7 @@ export default function ProductsPage() {
     });
   }, [products, categoryFilter, search]);
 
-  // 카테고리 → 소분류 → 제품들 그룹핑
+  // 카테고리 → 소분류 → 제품들
   const grouped = useMemo(() => {
     const g: Record<string, Record<string, Product[]>> = {};
     for (const p of filtered) {
@@ -118,18 +234,31 @@ export default function ProductsPage() {
       if (!g[cat][sub]) g[cat][sub] = [];
       g[cat][sub].push(p);
     }
-    // 각 소분류 내에서 최저단가순 정렬 (랭킹)
+    // 정렬: 커스텀 순서 우선, 없으면 최저가순
     for (const cat of Object.keys(g)) {
       for (const sub of Object.keys(g[cat])) {
-        g[cat][sub].sort((a, b) => {
-          const ap = stats[a.id]?.bestUnitPrice ?? Infinity;
-          const bp = stats[b.id]?.bestUnitPrice ?? Infinity;
-          return ap - bp;
-        });
+        const key = `${cat}::${sub}`;
+        const order = customOrder[key];
+        if (order) {
+          g[cat][sub].sort((a, b) => {
+            const ai = order.indexOf(a.id);
+            const bi = order.indexOf(b.id);
+            if (ai === -1 && bi === -1) return 0;
+            if (ai === -1) return 1;
+            if (bi === -1) return -1;
+            return ai - bi;
+          });
+        } else {
+          g[cat][sub].sort((a, b) => {
+            const ap = stats[a.id]?.minPrice ?? Infinity;
+            const bp = stats[b.id]?.minPrice ?? Infinity;
+            return ap - bp;
+          });
+        }
       }
     }
     return g;
-  }, [filtered, stats]);
+  }, [filtered, stats, customOrder]);
 
   const toggleGroup = (key: string) => {
     setExpandedGroups((prev) => {
@@ -140,7 +269,6 @@ export default function ProductsPage() {
     });
   };
 
-  // 그룹 전체 자동 펼침 (필터 변경 시)
   useEffect(() => {
     const keys = new Set<string>();
     for (const cat of Object.keys(grouped)) {
@@ -149,6 +277,7 @@ export default function ProductsPage() {
       }
     }
     setExpandedGroups(keys);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryFilter, search]);
 
   const handleSave = async (
@@ -156,13 +285,29 @@ export default function ProductsPage() {
   ) => {
     if (editing) {
       const result = await updateProduct(editing.id, data);
-      if (!result.error) toast.success("수정되었습니다");
-      return result;
+      return { error: result.error, data: { ...editing, ...data } as Product };
     } else {
       const result = await addProduct(data);
-      if (!result.error) toast.success("추가되었습니다");
-      return { error: result.error };
+      return result;
     }
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleDragEnd = (e: DragEndEvent, groupKey: string) => {
+    if (!e.over || e.active.id === e.over.id) return;
+    const [cat, sub] = groupKey.split("::");
+    const list = grouped[cat][sub];
+    const oldIdx = list.findIndex((p) => p.id === e.active.id);
+    const newIdx = list.findIndex((p) => p.id === e.over!.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(list, oldIdx, newIdx);
+    setCustomOrder((prev) => ({
+      ...prev,
+      [groupKey]: reordered.map((p) => p.id),
+    }));
   };
 
   return (
@@ -275,121 +420,75 @@ export default function ProductsPage() {
                           variant="outline"
                           className="text-[10px] h-4 ml-auto"
                         >
-                          {list.length}개 제품
+                          {list.length}개
                         </Badge>
                       </button>
                       {expanded && (
-                        <div className="border-t">
-                          <table className="w-full text-xs">
-                            <thead className="bg-muted/30 text-muted-foreground">
-                              <tr>
-                                <th className="text-center px-2 py-2 font-medium w-10">
-                                  순위
-                                </th>
-                                <th className="text-left px-2 py-2 font-medium">
-                                  제품
-                                </th>
-                                <th className="text-left px-2 py-2 font-medium hidden sm:table-cell">
-                                  브랜드
-                                </th>
-                                <th className="text-right px-2 py-2 font-medium whitespace-nowrap">
-                                  최저단가
-                                </th>
-                                <th className="text-right px-2 py-2 font-medium hidden md:table-cell whitespace-nowrap">
-                                  구매
-                                </th>
-                                <th className="w-8"></th>
-                                <th className="w-8"></th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {list.map((p, idx) => {
-                                const stat = stats[p.id];
-                                const isTop3 = idx < 3;
-                                return (
-                                  <tr
-                                    key={p.id}
-                                    className="border-t hover:bg-accent/40 cursor-pointer group"
-                                    onClick={() => setDetailProduct(p)}
-                                  >
-                                    <td className="text-center px-2 py-2 whitespace-nowrap">
-                                      <span
-                                        className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
-                                          idx === 0
-                                            ? "bg-yellow-100 text-yellow-700"
-                                            : idx === 1
-                                              ? "bg-gray-100 text-gray-700"
-                                              : idx === 2
-                                                ? "bg-orange-100 text-orange-700"
-                                                : "text-muted-foreground"
-                                        }`}
-                                      >
-                                        {isTop3 ? idx + 1 : idx + 1}
-                                      </span>
-                                    </td>
-                                    <td className="px-2 py-2">
-                                      <div className="flex items-center gap-1.5">
-                                        {p.is_active && (
-                                          <span
-                                            className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0"
-                                            title="사용 중"
-                                          />
-                                        )}
-                                        <span className="font-medium line-clamp-1">
-                                          {p.name}
-                                        </span>
-                                        {idx === 0 && stat?.bestUnitPrice && (
-                                          <Crown className="h-3 w-3 text-yellow-500 shrink-0" />
-                                        )}
-                                      </div>
-                                    </td>
-                                    <td className="px-2 py-2 text-muted-foreground hidden sm:table-cell">
-                                      {p.brand || "-"}
-                                    </td>
-                                    <td className="px-2 py-2 text-right whitespace-nowrap font-medium">
-                                      {stat?.bestUnitPrice
-                                        ? `₩${Math.round(stat.bestUnitPrice).toLocaleString()}`
-                                        : "-"}
-                                    </td>
-                                    <td className="px-2 py-2 text-right text-muted-foreground hidden md:table-cell whitespace-nowrap">
-                                      {stat?.purchaseCount ?? 0}회
-                                    </td>
-                                    <td className="px-1 py-2">
-                                      {p.link && (
-                                        <a
-                                          href={p.link}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          onClick={(e) => e.stopPropagation()}
-                                          className="text-muted-foreground hover:text-primary"
-                                          title="구매링크"
-                                        >
-                                          <ExternalLink className="h-3 w-3" />
-                                        </a>
-                                      )}
-                                    </td>
-                                    <td className="px-1 py-2">
-                                      <button
-                                        type="button"
-                                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-                                        onClick={async (e) => {
-                                          e.stopPropagation();
-                                          if (
-                                            confirm(`"${p.name}" 삭제할까요?`)
-                                          ) {
-                                            await deleteProduct(p.id);
-                                            toast.success("삭제되었습니다");
-                                          }
-                                        }}
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </button>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
+                        <div className="border-t overflow-x-auto">
+                          <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragEnd={(e) => handleDragEnd(e, groupKey)}
+                          >
+                            <table className="w-full text-xs" style={{ tableLayout: "auto" }}>
+                              <colgroup>
+                                <col style={{ width: "1.5rem" }} />
+                                <col style={{ width: "2.5rem" }} />
+                                <col />
+                                <col className="hidden sm:table-column" />
+                                <col style={{ width: "1%" }} />
+                                <col style={{ width: "2rem" }} />
+                                <col style={{ width: "2rem" }} />
+                              </colgroup>
+                              <thead className="bg-muted/30 text-muted-foreground">
+                                <tr>
+                                  <th></th>
+                                  <th className="text-center px-2 py-2 font-medium">
+                                    순위
+                                  </th>
+                                  <th className="text-left px-2 py-2 font-medium">
+                                    제품
+                                  </th>
+                                  <th className="text-left px-2 py-2 font-medium hidden sm:table-cell whitespace-nowrap">
+                                    브랜드
+                                  </th>
+                                  <th className="text-right px-2 py-2 font-medium whitespace-nowrap">
+                                    가격
+                                  </th>
+                                  <th></th>
+                                  <th></th>
+                                </tr>
+                              </thead>
+                              <SortableContext
+                                items={list.map((p) => p.id)}
+                                strategy={verticalListSortingStrategy}
+                              >
+                                <tbody>
+                                  {list.map((p, idx) => (
+                                    <ProductRow
+                                      key={p.id}
+                                      p={p}
+                                      idx={idx}
+                                      stat={stats[p.id]}
+                                      onOpenDetail={setDetailProduct}
+                                      onEdit={(prod) => {
+                                        setEditing(prod);
+                                        setFormOpen(true);
+                                      }}
+                                      onDelete={async (prod) => {
+                                        if (
+                                          confirm(`"${prod.name}" 삭제할까요?`)
+                                        ) {
+                                          await deleteProduct(prod.id);
+                                          toast.success("삭제되었습니다");
+                                        }
+                                      }}
+                                    />
+                                  ))}
+                                </tbody>
+                              </SortableContext>
+                            </table>
+                          </DndContext>
                         </div>
                       )}
                     </div>
@@ -411,12 +510,6 @@ export default function ProductsPage() {
         open={!!detailProduct}
         onOpenChange={(o) => !o && setDetailProduct(null)}
         product={detailProduct}
-        onUpdate={(updates) => {
-          if (detailProduct) {
-            updateProduct(detailProduct.id, updates);
-            setDetailProduct({ ...detailProduct, ...updates });
-          }
-        }}
       />
     </div>
   );
