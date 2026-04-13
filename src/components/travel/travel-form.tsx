@@ -95,10 +95,6 @@ export default function TravelForm({
   const [notes, setNotes] = useState("");
   const [visited, setVisited] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [mood, setMood] = useState<string>("");
-  const [priceTier, setPriceTier] = useState<number | null>(null);
-  const [rating, setRating] = useState<number | null>(null);
-  const [coupleNotes, setCoupleNotes] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -111,10 +107,6 @@ export default function TravelForm({
       setSelectedTags(item.tag ? item.tag.split(",") : []);
       setNotes(item.notes || "");
       setVisited(item.visited);
-      setMood(item.mood || "");
-      setPriceTier(item.price_tier ?? null);
-      setRating(item.rating ?? null);
-      setCoupleNotes(item.couple_notes || "");
     } else {
       setTitle("");
       setColor(categoryColors["놀거리"]);
@@ -124,10 +116,6 @@ export default function TravelForm({
       setSelectedTags([]);
       setNotes("");
       setVisited(false);
-      setMood("");
-      setPriceTier(null);
-      setRating(null);
-      setCoupleNotes("");
     }
   }, [item, open]);
 
@@ -158,11 +146,11 @@ export default function TravelForm({
       month,
       color,
       visited_dates: visited ? (item?.visited_dates ?? null) : null,
-      mood: (mood || null) as TravelItem["mood"],
-      price_tier: priceTier,
-      rating: rating,
-      couple_notes: coupleNotes.trim() || null,
-      cover_image_url: item?.cover_image_url ?? null,
+      mood: null,
+      price_tier: null,
+      rating: null,
+      couple_notes: null,
+      cover_image_url: null,
     });
     setSaving(false);
     if (error) {
@@ -287,80 +275,9 @@ export default function TravelForm({
           </div>
 
           {/* 여행 내용 */}
-          {/* 데이트/여행 상세: 분위기 / 가격대 / 별점 */}
-          <div className="grid grid-cols-3 gap-2">
-            <div className="flex flex-col gap-1">
-              <Label className="text-[11px] text-muted-foreground">분위기</Label>
-              <div className="flex flex-wrap gap-1">
-                {(["로맨틱", "캐주얼", "활동적", "조용"] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMood(mood === m ? "" : m)}
-                    className={`rounded-full border px-1.5 py-0.5 text-[10px] transition-colors ${
-                      mood === m
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label className="text-[11px] text-muted-foreground">가격대</Label>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setPriceTier(priceTier === n ? null : n)}
-                    className={`flex-1 rounded-md border py-1 text-xs transition-colors ${
-                      priceTier === n
-                        ? "border-primary bg-primary/10 text-primary font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {"₩".repeat(n)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label className="text-[11px] text-muted-foreground">별점</Label>
-              <div className="flex h-8 items-center">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setRating(rating === n ? null : n)}
-                    className="text-lg leading-none transition-colors"
-                    style={{
-                      color:
-                        rating && n <= rating ? "#F59E0B" : "#CBD5E1",
-                    }}
-                  >
-                    ★
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">여행 내용</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="여행 관련 메모" rows={3} />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">함께한 메모 💕</Label>
-            <Textarea
-              value={coupleNotes}
-              onChange={(e) => setCoupleNotes(e.target.value)}
-              placeholder="함께 간 날 느낀 점, 에피소드 등"
-              rows={2}
-            />
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="여행 관련 메모" rows={4} />
           </div>
 
           {/* 가본 날 (캘린더 추가 이력) */}

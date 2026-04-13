@@ -143,20 +143,29 @@ export default function CalendarPage() {
 
   return (
     <div className="p-4 md:p-6">
-      {/* 상단: MonthPicker + 사용자 토글 */}
+      {/* 상단: MonthPicker (중앙) + 공유 관리 (우측) */}
       {view !== "travel" && (
         <>
-          <div className="mb-3 flex justify-center">
+          <div className="mb-3 relative flex justify-center items-center">
             <MonthPicker
               year={year}
               month={month}
               onYearChange={setYear}
               onMonthChange={setMonth}
             />
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              title="캘린더 공유"
+              className="absolute right-0 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            >
+              <Share2 className="h-4 w-4" />
+            </button>
           </div>
-          <div className="mb-3 flex flex-wrap items-center justify-center gap-1.5">
-            {viewableUserIds.length > 1 &&
-              users
+          {/* 사용자 필터 (본인 + 공유받은 사람) */}
+          {viewableUserIds.length > 1 && (
+            <div className="mb-3 flex flex-wrap items-center justify-center gap-1.5">
+              {users
                 .filter((u) => viewableUserIds.includes(u.id))
                 .map((u) => {
                   const active = visibleUserIds.includes(u.id);
@@ -190,16 +199,8 @@ export default function CalendarPage() {
                     </button>
                   );
                 })}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShareOpen(true)}
-              className="h-7 text-xs"
-            >
-              <Share2 className="mr-1 h-3 w-3" />
-              공유 관리
-            </Button>
-          </div>
+            </div>
+          )}
         </>
       )}
 

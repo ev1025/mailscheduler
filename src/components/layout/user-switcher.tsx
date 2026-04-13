@@ -331,6 +331,19 @@ export default function UserSwitcher({
               <Plus className="h-4 w-4" />새 프로필 만들기
             </button>
 
+            {/* 자동 로그인 체크박스 - 프로필 클릭 전 설정 */}
+            {users.length > 0 && (
+              <label className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                이 기기에서 자동 로그인 유지
+              </label>
+            )}
+
             {currentId && (
               <button
                 type="button"

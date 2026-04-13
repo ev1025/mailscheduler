@@ -156,6 +156,14 @@ export function useAppUsers() {
       .select()
       .single();
     if (error || !data) {
+      // 비밀번호가 있는데 저장 실패 → password 컬럼이 없는 상황. 명확히 거부
+      if (passwordHash) {
+        return {
+          data: null,
+          error:
+            "비밀번호 저장 실패: Supabase SQL Editor에서 supabase-v2-auth.sql을 먼저 실행하세요",
+        };
+      }
       // password 컬럼 없을 때 재시도 (avatar_url만)
       const { data: retryData, error: retryErr } = await supabase
         .from("app_users")
