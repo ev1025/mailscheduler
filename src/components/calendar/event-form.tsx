@@ -307,42 +307,46 @@ export default function EventForm({
 
           {/* 날짜 */}
           <div className="flex items-center gap-2">
-            <Label className="w-12 shrink-0 text-xs text-muted-foreground">날짜</Label>
-            <div className="flex items-center gap-1.5 flex-1">
-              <DatePicker value={startDate} onChange={setStartDate} className="h-8 flex-1" />
+            <Label className="w-10 shrink-0 text-xs text-muted-foreground">날짜</Label>
+            <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
+              <DatePicker value={startDate} onChange={setStartDate} className="h-8 min-w-0 text-xs" />
               <span className="text-xs text-muted-foreground">~</span>
               {showEndDate ? (
-                <div className="flex items-center gap-1 flex-1">
-                  <DatePicker value={endDate} onChange={setEndDate} className="h-8 flex-1" />
-                  <button type="button" className="text-muted-foreground hover:text-foreground shrink-0" onClick={() => { setShowEndDate(false); setEndDate(""); }}>
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                <DatePicker value={endDate} onChange={setEndDate} className="h-8 min-w-0 text-xs" />
               ) : (
-                <button type="button" className="h-8 rounded-md border border-dashed text-xs text-muted-foreground hover:border-foreground hover:text-foreground transition-colors flex-1" onClick={() => setShowEndDate(true)}>
+                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-[11px] text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndDate(true)}>
                   종료 설정
                 </button>
+              )}
+              {showEndDate ? (
+                <button type="button" className="text-muted-foreground hover:text-foreground shrink-0 p-0.5" onClick={() => { setShowEndDate(false); setEndDate(""); }}>
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <span className="w-4" />
               )}
             </div>
           </div>
 
           {/* 시간 */}
           <div className="flex items-center gap-2">
-            <Label className="w-12 shrink-0 text-xs text-muted-foreground">시간</Label>
-            <div className="flex items-center gap-1.5 flex-1">
-              <TimePicker value={startTime} onChange={setStartTime} className="h-8 flex-1" />
+            <Label className="w-10 shrink-0 text-xs text-muted-foreground">시간</Label>
+            <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
+              <TimePicker value={startTime} onChange={setStartTime} className="h-8 min-w-0 text-xs" />
               <span className="text-xs text-muted-foreground">~</span>
               {showEndTime ? (
-                <div className="flex items-center gap-1 flex-1">
-                  <TimePicker value={endTime} onChange={setEndTime} className="h-8 flex-1" />
-                  <button type="button" className="text-muted-foreground hover:text-foreground shrink-0" onClick={() => { setShowEndTime(false); setEndTime(""); }}>
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                <TimePicker value={endTime} onChange={setEndTime} className="h-8 min-w-0 text-xs" />
               ) : (
-                <button type="button" className="h-8 rounded-md border border-dashed text-xs text-muted-foreground hover:border-foreground hover:text-foreground transition-colors flex-1" onClick={() => setShowEndTime(true)}>
+                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-[11px] text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndTime(true)}>
                   종료 설정
                 </button>
+              )}
+              {showEndTime ? (
+                <button type="button" className="text-muted-foreground hover:text-foreground shrink-0 p-0.5" onClick={() => { setShowEndTime(false); setEndTime(""); }}>
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : (
+                <span className="w-4" />
               )}
             </div>
           </div>

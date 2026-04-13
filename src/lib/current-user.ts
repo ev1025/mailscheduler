@@ -17,7 +17,37 @@ export interface AppUser {
 const STORAGE_KEY = "current_user_id";
 const SESSION_KEY = "auth_session_user";
 const REMEMBER_KEY = "auth_remember";
+const REMEMBERED_USERS_KEY = "remembered_users";
 const LOCAL_USERS_KEY = "app_users_local";
+
+// 이 기기에서 자동 로그인 허용된 프로필 id 목록
+export function getRememberedUsers(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(REMEMBERED_USERS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+export function addRememberedUser(id: string) {
+  if (typeof window === "undefined") return;
+  const set = new Set(getRememberedUsers());
+  set.add(id);
+  localStorage.setItem(REMEMBERED_USERS_KEY, JSON.stringify(Array.from(set)));
+}
+
+export function removeRememberedUser(id: string) {
+  if (typeof window === "undefined") return;
+  const next = getRememberedUsers().filter((x) => x !== id);
+  localStorage.setItem(REMEMBERED_USERS_KEY, JSON.stringify(next));
+}
+
+export function isRemembered(id: string): boolean {
+  return getRememberedUsers().includes(id);
+}
 
 type Listener = (id: string | null) => void;
 const listeners = new Set<Listener>();
@@ -223,8 +253,18 @@ export function useAppUsers() {
       .from("app_users")
       .update(updates)
       .eq("id", id);
-    if (!error) await fetchUsers();
-    return { error };
+    if (error) {
+      // password 컬럼 없을 때 패스워드 필드 제거하고 재시도 + 경고
+      if (updates.password_hash || updates.password_salt) {
+        return {
+          error:
+            "비밀번호 저장 실패: supabase-v2-auth.sql을 실행하세요",
+        };
+      }
+      return { error: error.message || String(error) };
+    }
+    await fetchUsers();
+    return { error: null };
   };
 
   const deleteUser = async (id: string) => {

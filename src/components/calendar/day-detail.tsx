@@ -26,6 +26,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { CalendarEvent, EventTag, WeatherData } from "@/types";
+import { useTravelTags } from "@/hooks/use-travel-tags";
 import { format, parseISO, isSameDay, isWithinInterval } from "date-fns";
 import { ko } from "date-fns/locale";
 import WeatherIcon from "./weather-icon";
@@ -126,8 +127,12 @@ export default function DayDetail({
   onDeleteEvent,
   onReorder,
 }: DayDetailProps) {
+  const { tags: travelTags } = useTravelTags();
   const tagColorMap: Record<string, string> = {};
   for (const t of tagList) tagColorMap[t.name] = t.color;
+  for (const t of travelTags) {
+    if (!tagColorMap[t.name]) tagColorMap[t.name] = t.color;
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -157,9 +162,15 @@ export default function DayDetail({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex items-center gap-2 pr-8">
-            <DialogTitle className="text-base">{dateLabel}</DialogTitle>
-            {weather && <WeatherIcon weather={weather} showRange />}
+          <div className="flex items-center justify-between gap-2 pr-6">
+            <DialogTitle className="text-sm md:text-base whitespace-nowrap">
+              {dateLabel}
+            </DialogTitle>
+            {weather && (
+              <div className="shrink-0">
+                <WeatherIcon weather={weather} showRange />
+              </div>
+            )}
           </div>
         </DialogHeader>
         <div className="flex flex-col gap-2">

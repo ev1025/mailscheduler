@@ -26,6 +26,9 @@ import {
   useCurrentUserId,
   setCurrentUserId,
   logout,
+  isRemembered,
+  addRememberedUser,
+  removeRememberedUser,
   type AppUser,
 } from "@/lib/current-user";
 import { hashPassword, generateSalt } from "@/lib/auth";
@@ -118,16 +121,16 @@ export default function UserSwitcher({
       toast.error("이름을 입력하세요");
       return;
     }
+    if (!password || password.length < 4) {
+      toast.error("비밀번호는 4자 이상이어야 합니다");
+      return;
+    }
     if (password !== passwordConfirm) {
       toast.error("비밀번호가 일치하지 않습니다");
       return;
     }
-    let hash: string | undefined;
-    let salt: string | undefined;
-    if (password) {
-      salt = generateSalt();
-      hash = await hashPassword(password, salt);
-    }
+    const salt = generateSalt();
+    const hash = await hashPassword(password, salt);
     const { data, error } = await addUser(
       name.trim(),
       color,
@@ -137,39 +140,41 @@ export default function UserSwitcher({
       salt
     );
     if (error || !data) {
-      toast.error("프로필 생성 실패");
+      toast.error(
+        typeof error === "string" ? error : "프로필 생성 실패 — SQL 확인 필요"
+      );
       return;
     }
     toast.success(`${data.name} 프로필 생성됨`);
-    // 자동 로그인
-    setCurrentUserId(data.id, remember);
+    // 생성자는 일단 로그인 (비번 없이), remember는 로그인 모달에서 설정
+    setCurrentUserId(data.id, true);
+    addRememberedUser(data.id); // 생성자 자신은 자동 로그인 기본 허용
     onOpenChange(false);
   };
 
   const startLogin = (u: AppUser) => {
-    // 비밀번호가 설정된 사용자는 항상 비번 입력
-    if (u.password_hash) {
-      setTargetUser(u);
-      setMode("login");
-      setPassword("");
+    // 이 기기에서 자동 로그인이 허용된 프로필이면 비번 스킵
+    if (isRemembered(u.id)) {
+      setCurrentUserId(u.id, true);
+      onOpenChange(false);
       return;
     }
-    // 비번 없음: 자동 로그인 체크 시 바로 입장, 해제 상태면 경고 후 입장
-    if (!remember) {
-      const ok = confirm(
-        `"${u.name}" 프로필은 비밀번호가 설정되어 있지 않습니다.\n\n보안을 위해 프로필을 수정해서 비밀번호를 설정하는 걸 권장합니다.\n\n이대로 로그인할까요?`
-      );
-      if (!ok) return;
-    }
-    setCurrentUserId(u.id, remember);
-    onOpenChange(false);
+    // 그 외에는 항상 비밀번호 입력
+    setTargetUser(u);
+    setMode("login");
+    setPassword("");
   };
 
   const handleLogin = async () => {
     if (!targetUser) return;
     if (!targetUser.password_salt || !targetUser.password_hash) {
-      setCurrentUserId(targetUser.id, remember);
-      onOpenChange(false);
+      toast.error(
+        "이 프로필은 비밀번호가 설정되지 않았습니다. 프로필 수정에서 비밀번호를 설정하세요."
+      );
+      return;
+    }
+    if (!password) {
+      toast.error("비밀번호를 입력하세요");
       return;
     }
     const hash = await hashPassword(password, targetUser.password_salt);
@@ -177,7 +182,9 @@ export default function UserSwitcher({
       toast.error("비밀번호가 틀렸어요");
       return;
     }
-    setCurrentUserId(targetUser.id, remember);
+    setCurrentUserId(targetUser.id, true);
+    if (remember) addRememberedUser(targetUser.id);
+    else removeRememberedUser(targetUser.id);
     onOpenChange(false);
     toast.success(`${targetUser.name}님 환영합니다`);
   };
@@ -201,7 +208,12 @@ export default function UserSwitcher({
       color,
       avatar_url: avatarUrl || null,
     };
+    let expectedHash: string | undefined;
     if (password) {
+      if (password.length < 4) {
+        toast.error("비밀번호는 4자 이상이어야 합니다");
+        return;
+      }
       if (password !== passwordConfirm) {
         toast.error("비밀번호가 일치하지 않습니다");
         return;
@@ -210,13 +222,35 @@ export default function UserSwitcher({
       const hash = await hashPassword(password, salt);
       updates.password_hash = hash;
       updates.password_salt = salt;
+      expectedHash = hash;
     }
-    await updateUser(targetUser.id, updates);
+    const { error } = await updateUser(targetUser.id, updates);
+    if (error) {
+      toast.error(typeof error === "string" ? error : "저장 실패");
+      return;
+    }
+    // 비밀번호 저장 검증: DB에서 직접 읽어서 password_hash가 실제로 저장됐는지 확인
+    if (expectedHash) {
+      const { supabase } = await import("@/lib/supabase");
+      const { data: verified } = await supabase
+        .from("app_users")
+        .select("password_hash")
+        .eq("id", targetUser.id)
+        .single();
+      if (!verified || verified.password_hash !== expectedHash) {
+        toast.error(
+          "⚠️ 비밀번호가 DB에 저장되지 않았습니다.\n\nSupabase SQL Editor에서 아래를 실행하세요:\n\nALTER TABLE app_users ADD COLUMN IF NOT EXISTS password_hash TEXT;\nALTER TABLE app_users ADD COLUMN IF NOT EXISTS password_salt TEXT;",
+          { duration: 10000 }
+        );
+        return;
+      }
+    }
     toast.success("수정되었습니다");
     setMode("list");
   };
 
   const handleLogout = () => {
+    if (currentId) removeRememberedUser(currentId);
     logout();
     setMode("list");
     toast.success("로그아웃되었습니다");
@@ -291,11 +325,15 @@ export default function UserSwitcher({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1">
                       <span className="font-medium">{u.name}</span>
-                      {u.password_hash ? (
+                      {isRemembered(u.id) ? (
+                        <span className="text-[9px] text-green-600 border border-green-300 bg-green-50 rounded px-1">
+                          자동 로그인
+                        </span>
+                      ) : u.password_hash ? (
                         <Lock className="h-3 w-3 text-primary" />
                       ) : (
                         <span className="text-[9px] text-orange-500 border border-orange-300 bg-orange-50 rounded px-1">
-                          비번 없음
+                          비번 설정 필요
                         </span>
                       )}
                     </div>
@@ -325,6 +363,7 @@ export default function UserSwitcher({
                         )
                       ) {
                         deleteUser(u.id);
+                        removeRememberedUser(u.id);
                         if (u.id === currentId) logout();
                       }
                     }}
@@ -343,19 +382,6 @@ export default function UserSwitcher({
             >
               <Plus className="h-4 w-4" />새 프로필 만들기
             </button>
-
-            {/* 자동 로그인 체크박스 - 프로필 클릭 전 설정 */}
-            {users.length > 0 && (
-              <label className="flex items-center justify-center gap-2 pt-2 text-xs text-muted-foreground cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                  className="h-3.5 w-3.5"
-                />
-                이 기기에서 자동 로그인 유지
-              </label>
-            )}
 
             {currentId && (
               <button
@@ -555,17 +581,6 @@ export default function UserSwitcher({
                 />
               )}
             </div>
-
-            {mode === "create" && (
-              <label className="flex items-center gap-2 text-xs cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={remember}
-                  onChange={(e) => setRemember(e.target.checked)}
-                />
-                자동 로그인 (이 기기에서)
-              </label>
-            )}
 
             <div className="flex gap-2 justify-end">
               <Button
