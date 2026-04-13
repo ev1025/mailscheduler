@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CalendarDays,
   TableProperties,
   Plane,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import MonthPicker from "@/components/layout/month-picker";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useWeather } from "@/hooks/use-weather";
@@ -16,6 +15,7 @@ import DatabaseView from "@/components/calendar/database-view";
 import EventForm from "@/components/calendar/event-form";
 import DayDetail from "@/components/calendar/day-detail";
 import TravelList from "@/components/travel/travel-list";
+import { useCurrentUserId, useAppUsers } from "@/lib/current-user";
 import type { CalendarEvent } from "@/types";
 
 export default function CalendarPage() {
@@ -23,6 +23,21 @@ export default function CalendarPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [view, setView] = useState<"calendar" | "database" | "travel">("calendar");
+  const currentUserId = useCurrentUserId();
+  const { users } = useAppUsers();
+  const [visibleUserIds, setVisibleUserIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (currentUserId && !visibleUserIds.length) {
+      setVisibleUserIds([currentUserId]);
+    }
+  }, [currentUserId, visibleUserIds.length]);
+
+  const toggleVisible = (uid: string) => {
+    setVisibleUserIds((prev) =>
+      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]
+    );
+  };
 
   // 폼 (새 일정 / 수정)
   const [formOpen, setFormOpen] = useState(false);
@@ -35,7 +50,7 @@ export default function CalendarPage() {
 
 
   const { events, loading, addEvent, updateEvent, deleteEvent, batchUpdateSortOrder } =
-    useCalendarEvents(year, month);
+    useCalendarEvents(year, month, visibleUserIds);
   const { weatherMap } = useWeather(year, month);
   const { tags, addTag, deleteTag, updateTagColor } = useEventTags();
 
@@ -122,16 +137,46 @@ export default function CalendarPage() {
 
   return (
     <div className="p-4 md:p-6">
-      {/* 상단: MonthPicker 중앙 */}
+      {/* 상단: MonthPicker + 사용자 토글 */}
       {view !== "travel" && (
-        <div className="mb-3 flex justify-center">
-          <MonthPicker
-            year={year}
-            month={month}
-            onYearChange={setYear}
-            onMonthChange={setMonth}
-          />
-        </div>
+        <>
+          <div className="mb-3 flex justify-center">
+            <MonthPicker
+              year={year}
+              month={month}
+              onYearChange={setYear}
+              onMonthChange={setMonth}
+            />
+          </div>
+          {users.length > 1 && (
+            <div className="mb-3 flex flex-wrap items-center justify-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground mr-1">표시:</span>
+              {users.map((u) => {
+                const active = visibleUserIds.includes(u.id);
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    onClick={() => toggleVisible(u.id)}
+                    className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all"
+                    style={
+                      active
+                        ? {
+                            borderColor: u.color,
+                            backgroundColor: u.color + "20",
+                            color: u.color,
+                          }
+                        : { opacity: 0.5 }
+                    }
+                  >
+                    <span>{u.emoji || u.name[0]}</span>
+                    <span className="font-medium">{u.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       {/* 탭: 달력 / DB */}

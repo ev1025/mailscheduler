@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Expense, ExpenseCategory } from "@/types";
+import { useCurrentUserId } from "@/lib/current-user";
 
 export function useTransactions(year: number, month: number) {
+  const userId = useCurrentUserId();
   const [transactions, setTransactions] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,17 +27,30 @@ export function useTransactions(year: number, month: number) {
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("expenses")
       .select("*, category:expense_categories(*)")
       .gte("date", startDate)
       .lt("date", endDate)
       .order("date", { ascending: false })
       .order("created_at", { ascending: false });
+    if (userId) query = query.eq("user_id", userId);
+    const { data, error } = await query;
 
-    if (!error && data) setTransactions(data);
+    if (error) {
+      const fallback = await supabase
+        .from("expenses")
+        .select("*, category:expense_categories(*)")
+        .gte("date", startDate)
+        .lt("date", endDate)
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (fallback.data) setTransactions(fallback.data);
+    } else if (data) {
+      setTransactions(data);
+    }
     setLoading(false);
-  }, [startDate, endDate]);
+  }, [startDate, endDate, userId]);
 
   useEffect(() => {
     fetchCategories();
@@ -48,9 +63,16 @@ export function useTransactions(year: number, month: number) {
   const addTransaction = async (
     tx: Omit<Expense, "id" | "created_at" | "category">
   ) => {
-    const { error } = await supabase.from("expenses").insert(tx);
-    if (!error) await fetchTransactions();
-    return { error };
+    const { error } = await supabase
+      .from("expenses")
+      .insert({ ...tx, user_id: userId });
+    if (error) {
+      const retry = await supabase.from("expenses").insert(tx);
+      if (!retry.error) await fetchTransactions();
+      return { error: retry.error };
+    }
+    await fetchTransactions();
+    return { error: null };
   };
 
   const updateTransaction = async (

@@ -23,7 +23,7 @@ import { X } from "lucide-react";
 import { toast } from "sonner";
 import type { TravelItem, TravelCategory, TravelTag, EventTag } from "@/types";
 
-const CATEGORIES: TravelCategory[] = ["자연", "숙소", "식당", "놀거리", "기타"];
+const CATEGORIES: TravelCategory[] = ["자연", "숙소", "식당", "놀거리", "데이트", "공연", "쇼핑", "기타"];
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
 const DEFAULT_CATEGORY_COLORS: Record<TravelCategory, string> = {
@@ -31,6 +31,9 @@ const DEFAULT_CATEGORY_COLORS: Record<TravelCategory, string> = {
   숙소: "#A855F7",
   식당: "#F59E0B",
   놀거리: "#3B82F6",
+  데이트: "#EC4899",
+  공연: "#8B5CF6",
+  쇼핑: "#06B6D4",
   기타: "#6B7280",
 };
 
@@ -143,6 +146,11 @@ export default function TravelForm({
       month,
       color,
       visited_dates: visited ? (item?.visited_dates ?? null) : null,
+      mood: item?.mood ?? null,
+      price_tier: item?.price_tier ?? null,
+      rating: item?.rating ?? null,
+      couple_notes: item?.couple_notes ?? null,
+      cover_image_url: item?.cover_image_url ?? null,
     });
     setSaving(false);
     if (error) {

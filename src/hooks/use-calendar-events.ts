@@ -3,9 +3,22 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { CalendarEvent } from "@/types";
+import { useCurrentUserId, useAppUsers } from "@/lib/current-user";
+import { notifyUsers } from "./use-notifications";
 
-export function useCalendarEvents(year: number, month: number) {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+export interface SharedEvent extends CalendarEvent {
+  user_id?: string | null;
+  shared_with?: string[] | null;
+}
+
+export function useCalendarEvents(
+  year: number,
+  month: number,
+  visibleUserIds: string[] = []
+) {
+  const currentUserId = useCurrentUserId();
+  const { users } = useAppUsers();
+  const [events, setEvents] = useState<SharedEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
@@ -16,63 +29,114 @@ export function useCalendarEvents(year: number, month: number) {
 
   const fetchEvents = useCallback(async () => {
     setLoading(true);
+    if (visibleUserIds.length === 0) {
+      setEvents([]);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("calendar_events")
       .select("*")
       .gte("start_date", startDate)
       .lt("start_date", endDate)
+      .in("user_id", visibleUserIds)
       .order("start_date")
       .order("sort_order")
       .order("created_at");
 
-    if (!error && data) setEvents(data);
+    if (error) {
+      // user_id 컬럼이 아직 없는 경우 fallback
+      const fallback = await supabase
+        .from("calendar_events")
+        .select("*")
+        .gte("start_date", startDate)
+        .lt("start_date", endDate)
+        .order("start_date")
+        .order("sort_order")
+        .order("created_at");
+      if (fallback.data) setEvents(fallback.data as SharedEvent[]);
+    } else if (data) {
+      setEvents(data as SharedEvent[]);
+    }
     setLoading(false);
-  }, [startDate, endDate]);
+  }, [startDate, endDate, visibleUserIds]);
 
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
 
-  // tag/repeat 필드를 안전하게 분리 (DB에 컬럼이 없을 수 있음)
   function safeData(data: Record<string, unknown>) {
-    const { tag, repeat, sort_order, ...rest } = data;
+    const { tag, repeat, sort_order, shared_with, ...rest } = data;
     const result: Record<string, unknown> = { ...rest };
     if (tag !== undefined && tag !== null && tag !== "") result.tag = tag;
-    if (repeat !== undefined && repeat !== null && repeat !== "none") result.repeat = repeat;
-    if (sort_order !== undefined && sort_order !== null) result.sort_order = sort_order;
+    if (repeat !== undefined && repeat !== null && repeat !== "none")
+      result.repeat = repeat;
+    if (sort_order !== undefined && sort_order !== null)
+      result.sort_order = sort_order;
+    if (shared_with !== undefined) result.shared_with = shared_with;
     return result;
   }
 
   const addEvent = async (
-    event: Omit<CalendarEvent, "id" | "created_at">
+    event: Omit<CalendarEvent, "id" | "created_at"> & {
+      shared_with?: string[] | null;
+    }
   ) => {
-    // 먼저 tag 포함해서 시도, 실패하면 tag 빼고 재시도
+    const payload = {
+      ...event,
+      user_id: currentUserId,
+    };
     const { error } = await supabase
       .from("calendar_events")
-      .insert(safeData(event as Record<string, unknown>));
+      .insert(safeData(payload as Record<string, unknown>));
     if (error) {
-      // tag/repeat 컬럼이 없는 경우 빼고 재시도
-      const { tag, repeat, sort_order, ...rest } = event;
+      const { tag, repeat, sort_order, shared_with, ...rest } = event;
+      void tag;
+      void repeat;
+      void sort_order;
+      void shared_with;
       const { error: retryError } = await supabase
         .from("calendar_events")
         .insert(rest);
       if (!retryError) await fetchEvents();
       return { error: retryError };
     }
+
+    // 공유 대상에게 알림
+    const sharedWith = event.shared_with || [];
+    if (sharedWith.length && currentUserId) {
+      const actorName =
+        users.find((u) => u.id === currentUserId)?.name || "누군가";
+      await notifyUsers(
+        sharedWith,
+        currentUserId,
+        "event_shared",
+        `${actorName}님이 일정을 공유했어요`,
+        event.title,
+        "/calendar"
+      );
+    }
+
     await fetchEvents();
     return { error: null };
   };
 
   const updateEvent = async (
     id: string,
-    updates: Partial<Omit<CalendarEvent, "id" | "created_at">>
+    updates: Partial<Omit<CalendarEvent, "id" | "created_at">> & {
+      shared_with?: string[] | null;
+    }
   ) => {
     const { error } = await supabase
       .from("calendar_events")
       .update(safeData(updates as Record<string, unknown>))
       .eq("id", id);
     if (error) {
-      const { tag, repeat, sort_order, ...rest } = updates;
+      const { tag, repeat, sort_order, shared_with, ...rest } = updates;
+      void tag;
+      void repeat;
+      void sort_order;
+      void shared_with;
       const { error: retryError } = await supabase
         .from("calendar_events")
         .update(rest)
@@ -85,7 +149,6 @@ export function useCalendarEvents(year: number, month: number) {
   };
 
   const deleteEvent = async (id: string) => {
-    // 먼저 이벤트 정보 조회 (여행 항목 연동 해제용)
     const { data: ev } = await supabase
       .from("calendar_events")
       .select("title, start_date")
@@ -98,15 +161,20 @@ export function useCalendarEvents(year: number, month: number) {
       .eq("id", id);
 
     if (!error && ev) {
-      // 동일 제목의 travel_items 중 visited_dates에 해당 날짜가 포함된 항목에서 날짜 제거
       const { data: travelMatches } = await supabase
         .from("travel_items")
         .select("id, visited_dates")
         .eq("title", ev.title);
 
       if (travelMatches) {
-        for (const item of travelMatches as { id: string; visited_dates: string[] | null }[]) {
-          if (item.visited_dates && item.visited_dates.includes(ev.start_date)) {
+        for (const item of travelMatches as {
+          id: string;
+          visited_dates: string[] | null;
+        }[]) {
+          if (
+            item.visited_dates &&
+            item.visited_dates.includes(ev.start_date)
+          ) {
             const next = item.visited_dates.filter((d) => d !== ev.start_date);
             await supabase
               .from("travel_items")
@@ -125,15 +193,25 @@ export function useCalendarEvents(year: number, month: number) {
     return { error };
   };
 
-  // 순서 일괄 업데이트 (fetch 1회만)
   const batchUpdateSortOrder = async (ids: string[]) => {
     await Promise.all(
       ids.map((id, i) =>
-        supabase.from("calendar_events").update({ sort_order: i }).eq("id", id)
+        supabase
+          .from("calendar_events")
+          .update({ sort_order: i })
+          .eq("id", id)
       )
     );
     await fetchEvents();
   };
 
-  return { events, loading, addEvent, updateEvent, deleteEvent, batchUpdateSortOrder, refetch: fetchEvents };
+  return {
+    events,
+    loading,
+    addEvent,
+    updateEvent,
+    deleteEvent,
+    batchUpdateSortOrder,
+    refetch: fetchEvents,
+  };
 }
