@@ -12,6 +12,7 @@ export interface AppUser {
 }
 
 const STORAGE_KEY = "current_user_id";
+const LOCAL_USERS_KEY = "app_users_local";
 
 type Listener = (id: string | null) => void;
 const listeners = new Set<Listener>();
@@ -45,9 +46,31 @@ export function useCurrentUserId() {
   return id;
 }
 
+// --- localStorage fallback (when app_users table doesn't exist yet) ---
+function loadLocalUsers(): AppUser[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(LOCAL_USERS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalUsers(users: AppUser[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(LOCAL_USERS_KEY, JSON.stringify(users));
+}
+
+function generateLocalId() {
+  return "local_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
 export function useAppUsers() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [useLocal, setUseLocal] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -55,7 +78,14 @@ export function useAppUsers() {
       .from("app_users")
       .select("*")
       .order("created_at");
-    if (!error && data) setUsers(data as AppUser[]);
+    if (error || !data) {
+      // Supabase 테이블 없음 → localStorage fallback
+      setUseLocal(true);
+      setUsers(loadLocalUsers());
+    } else {
+      setUseLocal(false);
+      setUsers(data as AppUser[]);
+    }
     setLoading(false);
   }, []);
 
@@ -64,16 +94,40 @@ export function useAppUsers() {
   }, [fetchUsers]);
 
   const addUser = async (name: string, color: string, emoji?: string) => {
+    // 먼저 Supabase 시도
     const { data, error } = await supabase
       .from("app_users")
       .insert({ name, color, emoji: emoji || null })
       .select()
       .single();
-    if (!error) await fetchUsers();
-    return { data: data as AppUser | null, error };
+    if (error || !data) {
+      // Fallback: localStorage
+      const newUser: AppUser = {
+        id: generateLocalId(),
+        name,
+        color,
+        emoji: emoji || null,
+        created_at: new Date().toISOString(),
+      };
+      const next = [...loadLocalUsers(), newUser];
+      saveLocalUsers(next);
+      setUsers(next);
+      setUseLocal(true);
+      return { data: newUser, error: null };
+    }
+    await fetchUsers();
+    return { data: data as AppUser, error: null };
   };
 
   const updateUser = async (id: string, updates: Partial<AppUser>) => {
+    if (id.startsWith("local_") || useLocal) {
+      const next = loadLocalUsers().map((u) =>
+        u.id === id ? { ...u, ...updates } : u
+      );
+      saveLocalUsers(next);
+      setUsers(next);
+      return { error: null };
+    }
     const { error } = await supabase
       .from("app_users")
       .update(updates)
@@ -83,12 +137,26 @@ export function useAppUsers() {
   };
 
   const deleteUser = async (id: string) => {
+    if (id.startsWith("local_") || useLocal) {
+      const next = loadLocalUsers().filter((u) => u.id !== id);
+      saveLocalUsers(next);
+      setUsers(next);
+      return { error: null };
+    }
     const { error } = await supabase.from("app_users").delete().eq("id", id);
     if (!error) await fetchUsers();
     return { error };
   };
 
-  return { users, loading, addUser, updateUser, deleteUser, refetch: fetchUsers };
+  return {
+    users,
+    loading,
+    useLocal,
+    addUser,
+    updateUser,
+    deleteUser,
+    refetch: fetchUsers,
+  };
 }
 
 export function useCurrentUser() {

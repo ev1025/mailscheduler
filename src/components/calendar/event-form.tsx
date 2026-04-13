@@ -30,6 +30,7 @@ import ColorPickerPanel from "@/components/ui/color-picker";
 import WeatherIcon from "./weather-icon";
 import DatePicker from "@/components/ui/date-picker";
 import TagInput from "@/components/ui/tag-input";
+import { useAppUsers, useCurrentUserId } from "@/lib/current-user";
 import type { CalendarEvent, EventTag, RepeatType } from "@/types";
 
 const COLORS = [
@@ -147,6 +148,9 @@ export default function EventForm({
   const [saving, setSaving] = useState(false);
   const [drafts, setDrafts] = useState<DraftData[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
+  const [sharedWith, setSharedWith] = useState<string[]>([]);
+  const currentUserId = useCurrentUserId();
+  const { users } = useAppUsers();
 
   useEffect(() => {
     if (!open) return;
@@ -166,8 +170,13 @@ export default function EventForm({
 
       setShowEndDate(!!event.end_date);
       setShowEndTime(!!event.end_time);
+      setSharedWith(
+        (event as unknown as { shared_with?: string[] | null }).shared_with ||
+          []
+      );
     } else {
       resetForm();
+      setSharedWith([]);
     }
     setShowDrafts(false);
   }, [event, defaultDate, open]);
@@ -227,17 +236,21 @@ export default function EventForm({
 
     setSaving(true);
     const rc = repeat !== "none" && !event ? repeatCount : undefined;
-    const { error } = await onSave({
-      title: title.trim(),
-      description: description.trim() || null,
-      start_date: startDate,
-      end_date: endDate || null,
-      start_time: startTime || null,
-      end_time: endTime || null,
-      color,
-      tag: selectedTags.length > 0 ? selectedTags.join(",") : null,
-      repeat: repeat === "none" ? null : repeat,
-    }, rc);
+    const { error } = await onSave(
+      {
+        title: title.trim(),
+        description: description.trim() || null,
+        start_date: startDate,
+        end_date: endDate || null,
+        start_time: startTime || null,
+        end_time: endTime || null,
+        color,
+        tag: selectedTags.length > 0 ? selectedTags.join(",") : null,
+        repeat: repeat === "none" ? null : repeat,
+        ...(sharedWith.length > 0 ? { shared_with: sharedWith } : {}),
+      } as Omit<CalendarEvent, "id" | "created_at">,
+      rc
+    );
     setSaving(false);
     if (!error) {
       onOpenChange(false);
@@ -373,6 +386,51 @@ export default function EventForm({
               onUpdateTagColor={onUpdateTagColor}
             />
           </div>
+
+          {/* 공유 대상 */}
+          {users.length > 1 && (
+            <div className="flex flex-col gap-1.5">
+              <Label>공유</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {users
+                  .filter((u) => u.id !== currentUserId)
+                  .map((u) => {
+                    const active = sharedWith.includes(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() =>
+                          setSharedWith((prev) =>
+                            prev.includes(u.id)
+                              ? prev.filter((x) => x !== u.id)
+                              : [...prev, u.id]
+                          )
+                        }
+                        className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all"
+                        style={
+                          active
+                            ? {
+                                borderColor: u.color,
+                                backgroundColor: u.color + "20",
+                                color: u.color,
+                              }
+                            : { opacity: 0.5 }
+                        }
+                      >
+                        <span>{u.emoji || u.name[0]}</span>
+                        <span className="font-medium">{u.name}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+              {sharedWith.length > 0 && (
+                <p className="text-[10px] text-muted-foreground">
+                  저장 시 알림이 전송됩니다
+                </p>
+              )}
+            </div>
+          )}
 
           {/* 설명 */}
           <div className="flex flex-col gap-1.5">

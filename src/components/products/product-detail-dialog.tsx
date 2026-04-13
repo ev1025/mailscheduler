@@ -25,6 +25,9 @@ import {
   useProductPurchases,
   computeUnitPrice,
 } from "@/hooks/use-product-purchases";
+import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
+import { useTransactions } from "@/hooks/use-transactions";
+import { toast } from "sonner";
 import type { Product } from "@/types";
 
 interface Props {
@@ -43,6 +46,14 @@ export default function ProductDetailDialog({
   const { purchases, addPurchase, deletePurchase } = useProductPurchases(
     product?.id || null
   );
+  const { upsertFixedFromProduct, deleteFixedByProduct } = useFixedExpenses();
+  const now = new Date();
+  const { categories } = useTransactions(now.getFullYear(), now.getMonth() + 1);
+  const [monthlyCost, setMonthlyCost] = useState("");
+
+  useEffect(() => {
+    if (product) setMonthlyCost(String(product.monthly_cost ?? ""));
+  }, [product]);
 
   const [showForm, setShowForm] = useState(false);
   const [totalPrice, setTotalPrice] = useState("");
@@ -97,8 +108,61 @@ export default function ProductDetailDialog({
       price: Math.round(computeUnitPrice(p)),
     }));
 
-  const toggleActive = () => {
-    onUpdate({ is_active: !product.is_active });
+  const toggleActive = async () => {
+    const nextActive = !product.is_active;
+    onUpdate({ is_active: nextActive });
+    if (nextActive) {
+      const cost = parseInt(monthlyCost) || 0;
+      if (cost <= 0) {
+        toast.info("월간비용을 먼저 입력하세요");
+        return;
+      }
+      // 기본 카테고리 찾기 (식비/기타지출 등)
+      const expenseCat =
+        categories.find(
+          (c) =>
+            c.type === "expense" &&
+            (c.name === "기타지출" || c.name.includes("생활"))
+        ) || categories.find((c) => c.type === "expense");
+      if (!expenseCat) {
+        toast.error("가계부 카테고리를 먼저 설정하세요");
+        return;
+      }
+      const { error } = await upsertFixedFromProduct({
+        productId: product.id,
+        productName: product.name,
+        monthlyCost: cost,
+        paymentDay: product.default_payment_day || 11,
+        categoryId: expenseCat.id,
+      });
+      if (!error) toast.success(`가계부 고정비에 ₩${cost.toLocaleString()}/월 등록`);
+    } else {
+      await deleteFixedByProduct(product.id);
+      toast.success("고정비에서 제거됨");
+    }
+  };
+
+  const handleMonthlyCostSave = async () => {
+    const cost = parseInt(monthlyCost) || 0;
+    onUpdate({ monthly_cost: cost });
+    if (product.is_active && cost > 0) {
+      const expenseCat =
+        categories.find(
+          (c) =>
+            c.type === "expense" &&
+            (c.name === "기타지출" || c.name.includes("생활"))
+        ) || categories.find((c) => c.type === "expense");
+      if (expenseCat) {
+        await upsertFixedFromProduct({
+          productId: product.id,
+          productName: product.name,
+          monthlyCost: cost,
+          paymentDay: product.default_payment_day || 11,
+          categoryId: expenseCat.id,
+        });
+        toast.success("고정비 갱신됨");
+      }
+    }
   };
 
   return (
@@ -141,6 +205,34 @@ export default function ProductDetailDialog({
               {product.notes}
             </div>
           )}
+
+          {/* 월간비용 → 고정비 연동 */}
+          <div className="flex items-end gap-2 rounded-lg border p-3 bg-blue-50/30">
+            <div className="flex-1 flex flex-col gap-1">
+              <Label className="text-[11px] text-muted-foreground">
+                월간 비용 (고정비 자동 등록용)
+              </Label>
+              <Input
+                type="number"
+                value={monthlyCost}
+                onChange={(e) => setMonthlyCost(e.target.value)}
+                placeholder="예: 38000"
+                className="h-8"
+              />
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleMonthlyCostSave}
+              className="h-8"
+            >
+              저장
+            </Button>
+          </div>
+          <p className="text-[10px] text-muted-foreground -mt-2">
+            💳 사용 중으로 켜면 가계부 고정비에 매월{" "}
+            {product.default_payment_day || 11}일 결제로 자동 등록됩니다
+          </p>
 
           {chartData.length >= 2 && (
             <div className="rounded-lg border p-3">

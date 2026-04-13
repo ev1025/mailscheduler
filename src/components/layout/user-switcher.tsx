@@ -54,7 +54,11 @@ export default function UserSwitcher({
     if (!newName.trim()) return;
     const color = PALETTE[users.length % PALETTE.length];
     const emoji = EMOJIS[users.length % EMOJIS.length];
-    const { data } = await addUser(newName.trim(), color, emoji);
+    const { data, error } = await addUser(newName.trim(), color, emoji);
+    if (error) {
+      alert("사용자 추가 실패: " + String(error));
+      return;
+    }
     if (data) {
       setNewName("");
       setAdding(false);
