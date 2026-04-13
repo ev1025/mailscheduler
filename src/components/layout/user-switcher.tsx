@@ -147,15 +147,22 @@ export default function UserSwitcher({
   };
 
   const startLogin = (u: AppUser) => {
-    // 비밀번호 없는 사용자면 바로 로그인
-    if (!u.password_hash) {
-      setCurrentUserId(u.id, remember);
-      onOpenChange(false);
+    // 비밀번호가 설정된 사용자는 항상 비번 입력
+    if (u.password_hash) {
+      setTargetUser(u);
+      setMode("login");
+      setPassword("");
       return;
     }
-    setTargetUser(u);
-    setMode("login");
-    setPassword("");
+    // 비번 없음: 자동 로그인 체크 시 바로 입장, 해제 상태면 경고 후 입장
+    if (!remember) {
+      const ok = confirm(
+        `"${u.name}" 프로필은 비밀번호가 설정되어 있지 않습니다.\n\n보안을 위해 프로필을 수정해서 비밀번호를 설정하는 걸 권장합니다.\n\n이대로 로그인할까요?`
+      );
+      if (!ok) return;
+    }
+    setCurrentUserId(u.id, remember);
+    onOpenChange(false);
   };
 
   const handleLogin = async () => {
@@ -282,10 +289,16 @@ export default function UserSwitcher({
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="font-medium">{u.name}</span>
-                    {u.password_hash && (
-                      <Lock className="inline h-3 w-3 ml-1 text-muted-foreground" />
-                    )}
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium">{u.name}</span>
+                      {u.password_hash ? (
+                        <Lock className="h-3 w-3 text-primary" />
+                      ) : (
+                        <span className="text-[9px] text-orange-500 border border-orange-300 bg-orange-50 rounded px-1">
+                          비번 없음
+                        </span>
+                      )}
+                    </div>
                   </div>
                   {isCurrent && (
                     <span className="text-xs text-primary">접속 중</span>

@@ -1,9 +1,24 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Pin, Save, Folder, FileText } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Pin,
+  Save,
+  Folder,
+  FileText,
+  Archive,
+  Trash2,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useKnowledgeFolders } from "@/hooks/use-knowledge-folders";
 import {
   useKnowledgeItems,
@@ -13,6 +28,34 @@ import KnowledgeTree from "@/components/knowledge/knowledge-tree";
 import RichEditor from "@/components/knowledge/rich-editor";
 import type { KnowledgeItem } from "@/types";
 import { toast } from "sonner";
+
+// --- 임시저장 (localStorage) ---
+const DRAFTS_KEY = "knowledge_drafts";
+
+interface Draft {
+  id: string;
+  source_id: string | null; // 수정 중이던 노트 id (신규면 null)
+  folder_id: string | null;
+  title: string;
+  content: string;
+  savedAt: string;
+}
+
+function loadDrafts(): Draft[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(DRAFTS_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw);
+  } catch {
+    return [];
+  }
+}
+
+function saveDrafts(drafts: Draft[]) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts.slice(0, 20)));
+}
 
 export default function KnowledgePage() {
   const {
@@ -34,6 +77,12 @@ export default function KnowledgePage() {
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
   const [mobileSidebar, setMobileSidebar] = useState(true);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [draftsOpen, setDraftsOpen] = useState(false);
+
+  useEffect(() => {
+    setDrafts(loadDrafts());
+  }, []);
 
   const selectedItem = useMemo(
     () =>
@@ -97,6 +146,64 @@ export default function KnowledgePage() {
     });
     setDirty(false);
     toast.success("저장되었습니다");
+  };
+
+  const handleSaveDraft = () => {
+    if (!editTitle.trim() && !editContent.trim()) {
+      toast.error("내용이 비어있습니다");
+      return;
+    }
+    const draft: Draft = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      source_id: selectedItem?.id || null,
+      folder_id: selectedItem?.folder_id || null,
+      title: editTitle || "(제목 없음)",
+      content: editContent,
+      savedAt: new Date().toISOString(),
+    };
+    const next = [draft, ...drafts];
+    saveDrafts(next);
+    setDrafts(next);
+    toast.success("임시저장됨");
+  };
+
+  const handleLoadDraft = (d: Draft) => {
+    if (dirty && !confirm("작성 중인 내용이 사라집니다. 계속할까요?")) return;
+    if (d.source_id) {
+      // 기존 노트 수정본
+      setSelectedItemId(d.source_id);
+      // 비동기 로드 후 덮어쓰기 위해 타이밍 우회
+      setTimeout(() => {
+        setEditTitle(d.title);
+        setEditContent(d.content);
+        setDirty(true);
+      }, 50);
+    } else {
+      // 신규 임시저장본 → 바로 새 노트 만들고 채우기
+      addItem({
+        folder_id: d.folder_id,
+        title: d.title,
+        content: d.content,
+        excerpt: null,
+        tags: null,
+        pinned: false,
+        type: "note",
+        url: null,
+      }).then(({ data }) => {
+        if (data) {
+          setSelectedItemId(data.id);
+          setEditTitle(d.title);
+          setEditContent(d.content);
+        }
+      });
+    }
+    setDraftsOpen(false);
+  };
+
+  const handleDeleteDraft = (id: string) => {
+    const next = drafts.filter((d) => d.id !== id);
+    saveDrafts(next);
+    setDrafts(next);
   };
 
   const handleDelete = async (id: string) => {
@@ -266,6 +373,77 @@ export default function KnowledgePage() {
               >
                 <Pin className="h-3.5 w-3.5" />
               </button>
+
+              {/* 임시저장 드롭다운 */}
+              <Popover open={draftsOpen} onOpenChange={setDraftsOpen}>
+                <PopoverTrigger
+                  className="relative p-1.5 rounded hover:bg-accent text-muted-foreground"
+                  title="임시저장 목록"
+                >
+                  <Archive className="h-3.5 w-3.5" />
+                  {drafts.length > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-[8px] font-bold text-primary-foreground">
+                      {drafts.length}
+                    </span>
+                  )}
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0 max-h-80 overflow-y-auto" align="end">
+                  <div className="p-2 border-b flex items-center justify-between">
+                    <span className="text-xs font-semibold">임시저장 ({drafts.length})</span>
+                  </div>
+                  {drafts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-6">
+                      임시저장된 글이 없습니다
+                    </p>
+                  ) : (
+                    <div className="flex flex-col">
+                      {drafts.map((d) => (
+                        <div
+                          key={d.id}
+                          className="group flex items-start gap-2 border-b p-2 hover:bg-accent cursor-pointer"
+                          onClick={() => handleLoadDraft(d)}
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium line-clamp-1">
+                              {d.title}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {new Date(d.savedAt).toLocaleString("ko-KR", {
+                                month: "2-digit",
+                                day: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                              {d.source_id ? " · 수정본" : " · 신규"}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteDraft(d.id);
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </PopoverContent>
+              </Popover>
+
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleSaveDraft}
+                className="h-7 text-xs"
+                title="임시저장"
+              >
+                임시저장
+              </Button>
+
               {dirty && (
                 <Button
                   size="sm"

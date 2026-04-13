@@ -317,3 +317,31 @@
   pointer-events: none;
   height: 0;
 }
+
+/* Global Drag Handle (각 줄 드래그 재배치) */
+.drag-handle {
+  position: fixed;
+  opacity: 1;
+  transition: opacity ease-in 0.2s;
+  border-radius: 0.25rem;
+  background-image: url("data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 16 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M4 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM4 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM4 14a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM8.5 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM8.5 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2zM8.5 14a1 1 0 1 0 0-2 1 1 0 0 0 0 2z' fill='%23999'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-color: #f1f5f9;
+  width: 1.25rem;
+  height: 1.5rem;
+  z-index: 50;
+  cursor: grab;
+}
+.drag-handle:hover {
+  background-color: #e2e8f0;
+  transition: background-color 0.2s;
+}
+.drag-handle:active {
+  background-color: #cbd5e1;
+  cursor: grabbing;
+}
+.drag-handle.hide {
+  opacity: 0;
+  pointer-events: none;
+}

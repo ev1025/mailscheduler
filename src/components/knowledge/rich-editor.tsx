@@ -9,6 +9,8 @@ import { TextStyle, Color } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import GlobalDragHandle from "tiptap-extension-global-drag-handle";
+import AutoJoiner from "tiptap-extension-auto-joiner";
 import {
   Bold,
   Italic,
@@ -90,9 +92,33 @@ function Toolbar({ editor }: { editor: Editor }) {
   };
 
   const addLink = () => {
-    const url = prompt("링크 URL:");
-    if (url) {
-      editor.chain().focus().setLink({ href: url }).run();
+    const prev = (editor.getAttributes("link").href as string | undefined) || "";
+    const url = window.prompt("링크 URL (비우면 제거):", prev);
+    if (url === null) return;
+    if (url === "") {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+    const sel = editor.state.selection;
+    const hasSelection = sel.from !== sel.to;
+    if (hasSelection) {
+      editor
+        .chain()
+        .focus()
+        .extendMarkRange("link")
+        .setLink({ href: url })
+        .run();
+    } else {
+      // 선택 영역 없으면 URL 자체를 링크 텍스트로 삽입
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "text",
+          text: url,
+          marks: [{ type: "link", attrs: { href: url } }],
+        })
+        .run();
     }
   };
 
@@ -290,10 +316,15 @@ export default function RichEditor({ content, onChange, placeholder }: Props) {
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       TextStyle,
       Color,
-      Link.configure({ openOnClick: false }),
+      Link.configure({ openOnClick: false, autolink: true }),
       Placeholder.configure({
         placeholder: placeholder || "내용을 입력하세요...",
       }),
+      GlobalDragHandle.configure({
+        dragHandleWidth: 20,
+        scrollTreshold: 100,
+      }),
+      AutoJoiner,
     ],
     content,
     onUpdate: ({ editor }) => {
