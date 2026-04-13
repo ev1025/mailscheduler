@@ -444,7 +444,7 @@ export default function UserSwitcher({
                 checked={remember}
                 onChange={(e) => setRemember(e.target.checked)}
               />
-              자동 로그인 (이 기기에서)
+              자동 로그인
             </label>
 
             <Button onClick={handleLogin} className="w-full">
