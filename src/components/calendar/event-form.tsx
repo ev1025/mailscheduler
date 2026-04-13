@@ -387,50 +387,6 @@ export default function EventForm({
             />
           </div>
 
-          {/* 공유 대상 */}
-          {users.length > 1 && (
-            <div className="flex flex-col gap-1.5">
-              <Label>공유</Label>
-              <div className="flex flex-wrap gap-1.5">
-                {users
-                  .filter((u) => u.id !== currentUserId)
-                  .map((u) => {
-                    const active = sharedWith.includes(u.id);
-                    return (
-                      <button
-                        key={u.id}
-                        type="button"
-                        onClick={() =>
-                          setSharedWith((prev) =>
-                            prev.includes(u.id)
-                              ? prev.filter((x) => x !== u.id)
-                              : [...prev, u.id]
-                          )
-                        }
-                        className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all"
-                        style={
-                          active
-                            ? {
-                                borderColor: u.color,
-                                backgroundColor: u.color + "20",
-                                color: u.color,
-                              }
-                            : { opacity: 0.5 }
-                        }
-                      >
-                        <span>{u.emoji || u.name[0]}</span>
-                        <span className="font-medium">{u.name}</span>
-                      </button>
-                    );
-                  })}
-              </div>
-              {sharedWith.length > 0 && (
-                <p className="text-[10px] text-muted-foreground">
-                  저장 시 알림이 전송됩니다
-                </p>
-              )}
-            </div>
-          )}
 
           {/* 설명 */}
           <div className="flex flex-col gap-1.5">

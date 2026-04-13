@@ -5,18 +5,21 @@ import {
   CalendarDays,
   TableProperties,
   Plane,
+  Share2,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import MonthPicker from "@/components/layout/month-picker";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useWeather } from "@/hooks/use-weather";
 import { useEventTags } from "@/hooks/use-event-tags";
+import { useCalendarShares } from "@/hooks/use-calendar-shares";
 import CalendarView from "@/components/calendar/calendar-view";
 import DatabaseView from "@/components/calendar/database-view";
 import EventForm from "@/components/calendar/event-form";
 import DayDetail from "@/components/calendar/day-detail";
+import ShareManager from "@/components/calendar/share-manager";
 import TravelList from "@/components/travel/travel-list";
 import { useCurrentUserId, useAppUsers } from "@/lib/current-user";
-import { fetchRelatedUserIds } from "@/hooks/use-calendar-events";
 import type { CalendarEvent } from "@/types";
 
 export default function CalendarPage() {
@@ -26,19 +29,15 @@ export default function CalendarPage() {
   const [view, setView] = useState<"calendar" | "database" | "travel">("calendar");
   const currentUserId = useCurrentUserId();
   const { users } = useAppUsers();
+  const { viewableUserIds } = useCalendarShares();
   const [visibleUserIds, setVisibleUserIds] = useState<string[]>([]);
-  const [relatedIds, setRelatedIds] = useState<string[]>([]);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     if (currentUserId && visibleUserIds.length === 0) {
       setVisibleUserIds([currentUserId]);
     }
   }, [currentUserId, visibleUserIds.length]);
-
-  useEffect(() => {
-    if (!currentUserId) return;
-    fetchRelatedUserIds(currentUserId).then(setRelatedIds);
-  }, [currentUserId]);
 
   const toggleVisible = (uid: string) => {
     setVisibleUserIds((prev) =>
@@ -155,10 +154,10 @@ export default function CalendarPage() {
               onMonthChange={setMonth}
             />
           </div>
-          {relatedIds.length > 1 && (
-            <div className="mb-3 flex flex-wrap items-center justify-center gap-1.5">
-              {users
-                .filter((u) => relatedIds.includes(u.id))
+          <div className="mb-3 flex flex-wrap items-center justify-center gap-1.5">
+            {viewableUserIds.length > 1 &&
+              users
+                .filter((u) => viewableUserIds.includes(u.id))
                 .map((u) => {
                   const active = visibleUserIds.includes(u.id);
                   return (
@@ -191,8 +190,16 @@ export default function CalendarPage() {
                     </button>
                   );
                 })}
-            </div>
-          )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShareOpen(true)}
+              className="h-7 text-xs"
+            >
+              <Share2 className="mr-1 h-3 w-3" />
+              공유 관리
+            </Button>
+          </div>
         </>
       )}
 
@@ -321,6 +328,8 @@ export default function CalendarPage() {
           }
         }}
       />
+
+      <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
     </div>
   );
 }

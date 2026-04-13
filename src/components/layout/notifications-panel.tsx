@@ -8,9 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/hooks/use-notifications";
+import { useCalendarShares } from "@/hooks/use-calendar-shares";
 import { useAppUsers } from "@/lib/current-user";
-import { supabase } from "@/lib/supabase";
-import { useCurrentUserId } from "@/lib/current-user";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Check, X } from "lucide-react";
@@ -21,62 +20,44 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-function extractEventId(link: string | null): string | null {
-  if (!link) return null;
-  const match = link.match(/accept=([a-f0-9-]+)/i);
-  return match ? match[1] : null;
-}
-
 export default function NotificationsPanel({ open, onOpenChange }: Props) {
   const { notifications, unreadCount, markAsRead, markAllRead, refetch } =
     useNotifications();
   const { users } = useAppUsers();
-  const currentUserId = useCurrentUserId();
+  const { incoming, accept, reject } = useCalendarShares();
 
   const getActor = (id: string | null) => users.find((u) => u.id === id);
 
-  const handleAccept = async (eventId: string, notificationId: string) => {
-    if (!currentUserId) return;
-    const { data } = await supabase
-      .from("calendar_events")
-      .select("shared_accepted_by, user_id")
-      .eq("id", eventId)
-      .single();
-    if (!data) {
-      toast.error("일정을 찾을 수 없습니다 (삭제됨)");
+  const handleAcceptCalendarShare = async (
+    actorId: string | null,
+    notificationId: string
+  ) => {
+    // 알림의 actor_id(소유자)가 보낸 공유 요청을 찾아서 수락
+    const pending = incoming.find(
+      (s) => s.owner_id === actorId && s.status === "pending"
+    );
+    if (!pending) {
+      toast.error("공유 요청을 찾을 수 없습니다 (이미 처리됐을 수 있어요)");
       await markAsRead(notificationId);
       return;
     }
-    const existing = (data.shared_accepted_by as string[] | null) || [];
-    if (!existing.includes(currentUserId)) {
-      await supabase
-        .from("calendar_events")
-        .update({ shared_accepted_by: [...existing, currentUserId] })
-        .eq("id", eventId);
-    }
+    await accept(pending.id);
     await markAsRead(notificationId);
     await refetch();
-    toast.success("공유 수락됨 — 캘린더에 표시됩니다");
+    toast.success("공유를 수락했습니다 — 캘린더 상단 토글에서 확인하세요");
   };
 
-  const handleReject = async (eventId: string, notificationId: string) => {
-    if (!currentUserId) return;
-    const { data } = await supabase
-      .from("calendar_events")
-      .select("shared_with")
-      .eq("id", eventId)
-      .single();
-    if (data) {
-      const existing = (data.shared_with as string[] | null) || [];
-      const next = existing.filter((id) => id !== currentUserId);
-      await supabase
-        .from("calendar_events")
-        .update({ shared_with: next.length > 0 ? next : null })
-        .eq("id", eventId);
-    }
+  const handleRejectCalendarShare = async (
+    actorId: string | null,
+    notificationId: string
+  ) => {
+    const pending = incoming.find(
+      (s) => s.owner_id === actorId && s.status === "pending"
+    );
+    if (pending) await reject(pending.id);
     await markAsRead(notificationId);
     await refetch();
-    toast.success("공유 거절됨");
+    toast.success("거절됨");
   };
 
   return (
@@ -105,9 +86,7 @@ export default function NotificationsPanel({ open, onOpenChange }: Props) {
           ) : (
             notifications.map((n) => {
               const actor = getActor(n.actor_id);
-              const isShareRequest = n.type === "event_share_request";
-              const eventId = isShareRequest ? extractEventId(n.link) : null;
-
+              const isShareRequest = n.type === "calendar_share_request";
               return (
                 <div
                   key={n.id}
@@ -156,11 +135,13 @@ export default function NotificationsPanel({ open, onOpenChange }: Props) {
                         locale: ko,
                       })}
                     </p>
-                    {isShareRequest && eventId && !n.read && (
+                    {isShareRequest && !n.read && (
                       <div className="mt-2 flex gap-1.5">
                         <Button
                           size="sm"
-                          onClick={() => handleAccept(eventId, n.id)}
+                          onClick={() =>
+                            handleAcceptCalendarShare(n.actor_id, n.id)
+                          }
                           className="h-7 text-xs"
                         >
                           <Check className="mr-1 h-3 w-3" /> 수락
@@ -168,7 +149,9 @@ export default function NotificationsPanel({ open, onOpenChange }: Props) {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleReject(eventId, n.id)}
+                          onClick={() =>
+                            handleRejectCalendarShare(n.actor_id, n.id)
+                          }
                           className="h-7 text-xs"
                         >
                           <X className="mr-1 h-3 w-3" /> 거절
