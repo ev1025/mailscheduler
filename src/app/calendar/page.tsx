@@ -16,6 +16,7 @@ import EventForm from "@/components/calendar/event-form";
 import DayDetail from "@/components/calendar/day-detail";
 import TravelList from "@/components/travel/travel-list";
 import { useCurrentUserId, useAppUsers } from "@/lib/current-user";
+import { fetchRelatedUserIds } from "@/hooks/use-calendar-events";
 import type { CalendarEvent } from "@/types";
 
 export default function CalendarPage() {
@@ -26,12 +27,18 @@ export default function CalendarPage() {
   const currentUserId = useCurrentUserId();
   const { users } = useAppUsers();
   const [visibleUserIds, setVisibleUserIds] = useState<string[]>([]);
+  const [relatedIds, setRelatedIds] = useState<string[]>([]);
 
   useEffect(() => {
-    if (currentUserId && !visibleUserIds.length) {
+    if (currentUserId && visibleUserIds.length === 0) {
       setVisibleUserIds([currentUserId]);
     }
   }, [currentUserId, visibleUserIds.length]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    fetchRelatedUserIds(currentUserId).then(setRelatedIds);
+  }, [currentUserId]);
 
   const toggleVisible = (uid: string) => {
     setVisibleUserIds((prev) =>
@@ -148,32 +155,42 @@ export default function CalendarPage() {
               onMonthChange={setMonth}
             />
           </div>
-          {users.length > 1 && (
+          {relatedIds.length > 1 && (
             <div className="mb-3 flex flex-wrap items-center justify-center gap-1.5">
-              <span className="text-[11px] text-muted-foreground mr-1">표시:</span>
-              {users.map((u) => {
-                const active = visibleUserIds.includes(u.id);
-                return (
-                  <button
-                    key={u.id}
-                    type="button"
-                    onClick={() => toggleVisible(u.id)}
-                    className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all"
-                    style={
-                      active
-                        ? {
-                            borderColor: u.color,
-                            backgroundColor: u.color + "20",
-                            color: u.color,
-                          }
-                        : { opacity: 0.5 }
-                    }
-                  >
-                    <span>{u.emoji || u.name[0]}</span>
-                    <span className="font-medium">{u.name}</span>
-                  </button>
-                );
-              })}
+              {users
+                .filter((u) => relatedIds.includes(u.id))
+                .map((u) => {
+                  const active = visibleUserIds.includes(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => toggleVisible(u.id)}
+                      className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all"
+                      style={
+                        active
+                          ? {
+                              borderColor: u.color,
+                              backgroundColor: u.color + "20",
+                              color: u.color,
+                            }
+                          : { opacity: 0.4 }
+                      }
+                    >
+                      {u.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={u.avatar_url}
+                          alt={u.name}
+                          className="h-4 w-4 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span>{u.emoji || u.name[0]}</span>
+                      )}
+                      <span className="font-medium">{u.name}</span>
+                    </button>
+                  );
+                })}
             </div>
           )}
         </>

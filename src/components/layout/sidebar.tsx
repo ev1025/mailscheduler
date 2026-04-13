@@ -44,7 +44,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "hidden md:flex md:flex-col md:border-r transition-all duration-200",
+        "hidden md:sticky md:top-0 md:flex md:flex-col md:border-r transition-all duration-200 md:h-dvh",
         collapsed ? "md:w-14" : "md:w-52"
       )}
     >
@@ -98,10 +98,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         })}
       </nav>
 
-      {/* 하단: 알림 / 설정 / 프로필 */}
+      {/* 하단: 알림 / 설정 / 프로필 — 작업표시줄에 가려지지 않도록 pb 여유 */}
       <div
         className={cn(
-          "border-t py-2 flex items-center",
+          "border-t py-2 pb-3 flex items-center shrink-0",
           collapsed
             ? "flex-col justify-center gap-1"
             : "gap-1 px-2 justify-between"
@@ -137,13 +137,26 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         >
           {currentUser ? (
             <span
-              className="flex h-7 w-7 items-center justify-center rounded-full text-sm"
-              style={{
-                backgroundColor: currentUser.color + "30",
-                color: currentUser.color,
-              }}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-sm overflow-hidden"
+              style={
+                currentUser.avatar_url
+                  ? { backgroundColor: "transparent" }
+                  : {
+                      backgroundColor: currentUser.color + "30",
+                      color: currentUser.color,
+                    }
+              }
             >
-              {currentUser.emoji || currentUser.name[0]}
+              {currentUser.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={currentUser.avatar_url}
+                  alt={currentUser.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                currentUser.emoji || currentUser.name[0]
+              )}
             </span>
           ) : (
             <User className="h-5 w-5 text-muted-foreground" />

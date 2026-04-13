@@ -59,13 +59,26 @@ export default function BottomNav() {
         >
           {currentUser ? (
             <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-xs"
-              style={{
-                backgroundColor: currentUser.color + "30",
-                color: currentUser.color,
-              }}
+              className="flex h-5 w-5 items-center justify-center rounded-full text-xs overflow-hidden"
+              style={
+                currentUser.avatar_url
+                  ? { backgroundColor: "transparent" }
+                  : {
+                      backgroundColor: currentUser.color + "30",
+                      color: currentUser.color,
+                    }
+              }
             >
-              {currentUser.emoji || currentUser.name[0]}
+              {currentUser.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={currentUser.avatar_url}
+                  alt={currentUser.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                currentUser.emoji || currentUser.name[0]
+              )}
             </span>
           ) : (
             <User className="h-5 w-5" />

@@ -7,14 +7,9 @@ CREATE TABLE IF NOT EXISTS app_users (
   name TEXT NOT NULL UNIQUE,
   color TEXT DEFAULT '#3B82F6',
   emoji TEXT,
+  avatar_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
-
--- 기본 유저 2명
-INSERT INTO app_users (name, color, emoji) VALUES
-  ('나', '#3B82F6', '🙂'),
-  ('상대', '#EC4899', '💕')
-ON CONFLICT (name) DO NOTHING;
 
 -- 2. 모든 데이터 테이블에 user_id 추가 (없으면)
 ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES app_users(id) ON DELETE CASCADE;

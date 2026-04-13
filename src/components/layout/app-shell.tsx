@@ -4,7 +4,12 @@ import { useState, useEffect } from "react";
 import Sidebar from "./sidebar";
 import BottomNav from "./bottom-nav";
 import UserSwitcher from "./user-switcher";
-import { useCurrentUserId, setCurrentUserId, useAppUsers } from "@/lib/current-user";
+import {
+  useCurrentUserId,
+  setCurrentUserId,
+  useAppUsers,
+  getCurrentUserId,
+} from "@/lib/current-user";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -44,7 +49,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <UserSwitcher
         open={gateOpen}
         onOpenChange={(o) => {
-          if (!o && !currentId) return; // 선택 전까지 닫기 차단
+          // localStorage를 직접 확인해서 클로저 캡처 문제 회피
+          if (!o && !getCurrentUserId()) return;
           setGateOpen(o);
         }}
         allowClose={!!currentId}

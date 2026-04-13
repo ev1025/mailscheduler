@@ -1,48 +1,43 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import {
-  Plus,
-  Folder,
-  FileText,
-  Pin,
-  Trash2,
-  Search,
-  ChevronRight,
-  Save,
-} from "lucide-react";
+import { Plus, Search, Pin, Save, Folder, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { useKnowledgeFolders } from "@/hooks/use-knowledge-folders";
-import { useKnowledgeItems, searchKnowledge } from "@/hooks/use-knowledge-items";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
-import "highlight.js/styles/github.css";
+import {
+  useKnowledgeItems,
+  searchKnowledge,
+} from "@/hooks/use-knowledge-items";
+import KnowledgeTree from "@/components/knowledge/knowledge-tree";
+import RichEditor from "@/components/knowledge/rich-editor";
 import type { KnowledgeItem } from "@/types";
 import { toast } from "sonner";
 
 export default function KnowledgePage() {
-  const { folders, addFolder, deleteFolder } = useKnowledgeFolders();
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const { items, addItem, updateItem, deleteItem } =
-    useKnowledgeItems(selectedFolderId);
+  const {
+    folders,
+    addFolder,
+    updateFolder,
+    deleteFolder,
+  } = useKnowledgeFolders();
+
+  // 모든 노트 (폴더 필터 없이, 트리에서 그룹핑)
+  const { items, addItem, updateItem, deleteItem, refetch } =
+    useKnowledgeItems(null);
 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
-  const [editing, setEditing] = useState(false);
-  const [preview, setPreview] = useState(true);
+  const [dirty, setDirty] = useState(false);
 
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
-
-  const [addingFolder, setAddingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
+  const [mobileSidebar, setMobileSidebar] = useState(true);
 
   const selectedItem = useMemo(
-    () => items.find((i) => i.id === selectedItemId) ||
+    () =>
+      items.find((i) => i.id === selectedItemId) ||
       searchResults.find((i) => i.id === selectedItemId) ||
       null,
     [items, searchResults, selectedItemId]
@@ -52,12 +47,12 @@ export default function KnowledgePage() {
     if (selectedItem) {
       setEditTitle(selectedItem.title);
       setEditContent(selectedItem.content || "");
-      setEditing(false);
+      setDirty(false);
     } else {
       setEditTitle("");
       setEditContent("");
     }
-  }, [selectedItem]);
+  }, [selectedItem?.id]);
 
   useEffect(() => {
     if (!search.trim()) {
@@ -71,16 +66,15 @@ export default function KnowledgePage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const handleAddFolder = async () => {
-    if (!newFolderName.trim()) return;
-    await addFolder(newFolderName.trim());
-    setNewFolderName("");
-    setAddingFolder(false);
+  const handleAddFolder = async (parentId: string | null) => {
+    const name = prompt("새 폴더 이름:");
+    if (!name || !name.trim()) return;
+    await addFolder(name.trim(), undefined, parentId);
   };
 
-  const handleAddItem = async () => {
+  const handleAddItem = async (folderId: string | null) => {
     const { data } = await addItem({
-      folder_id: selectedFolderId,
+      folder_id: folderId,
       title: "새 노트",
       content: "",
       excerpt: null,
@@ -91,8 +85,7 @@ export default function KnowledgePage() {
     });
     if (data) {
       setSelectedItemId(data.id);
-      setEditing(true);
-      setPreview(false);
+      setMobileSidebar(false);
     }
   };
 
@@ -102,15 +95,13 @@ export default function KnowledgePage() {
       title: editTitle,
       content: editContent,
     });
-    setEditing(false);
+    setDirty(false);
     toast.success("저장되었습니다");
   };
 
-  const handleDeleteItem = async () => {
-    if (!selectedItem) return;
-    if (!confirm(`"${selectedItem.title}" 삭제할까요?`)) return;
-    await deleteItem(selectedItem.id);
-    setSelectedItemId(null);
+  const handleDelete = async (id: string) => {
+    await deleteItem(id);
+    if (selectedItemId === id) setSelectedItemId(null);
   };
 
   const togglePin = async () => {
@@ -118,162 +109,164 @@ export default function KnowledgePage() {
     await updateItem(selectedItem.id, { pinned: !selectedItem.pinned });
   };
 
-  const showList = search.trim() ? searchResults : items;
+  const moveFolder = async (id: string, newParentId: string | null) => {
+    await updateFolder(id, { parent_id: newParentId });
+  };
+
+  const moveItem = async (id: string, newFolderId: string | null) => {
+    await updateItem(id, { folder_id: newFolderId });
+  };
+
+  const renameFolder = async (id: string, name: string) => {
+    await updateFolder(id, { name });
+  };
+
+  const showingSearch = search.trim().length > 0;
 
   return (
-    <div className="flex h-[calc(100dvh-3rem)] md:h-dvh">
-      {/* 왼쪽 사이드바: 폴더 트리 */}
-      <div className="w-48 border-r flex flex-col overflow-hidden">
-        <div className="p-3 border-b">
-          <h2 className="text-sm font-bold mb-2">지식창고</h2>
-          {addingFolder ? (
-            <div className="flex gap-1">
-              <Input
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                placeholder="폴더명"
-                autoFocus
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleAddFolder();
-                  if (e.key === "Escape") setAddingFolder(false);
-                }}
-                className="h-7 text-xs"
-              />
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setAddingFolder(true)}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-            >
-              <Plus className="h-3 w-3" /> 폴더
-            </button>
-          )}
-        </div>
-        <div className="flex-1 overflow-y-auto py-1">
-          <button
-            type="button"
-            onClick={() => setSelectedFolderId(null)}
-            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs text-left hover:bg-accent transition-colors ${
-              selectedFolderId === null ? "bg-accent font-medium" : ""
-            }`}
-          >
-            <FileText className="h-3.5 w-3.5" />
-            전체 노트
-          </button>
-          {folders.map((f) => (
-            <div
-              key={f.id}
-              className={`group flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent transition-colors cursor-pointer ${
-                selectedFolderId === f.id ? "bg-accent font-medium" : ""
-              }`}
-              onClick={() => setSelectedFolderId(f.id)}
-            >
-              <Folder className="h-3.5 w-3.5" />
-              <span className="flex-1 truncate">{f.name}</span>
-              <button
-                type="button"
-                className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm(`"${f.name}" 폴더 삭제?`)) deleteFolder(f.id);
-                }}
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* 가운데: 항목 리스트 */}
-      <div className="w-64 border-r flex flex-col overflow-hidden">
+    <div className="flex h-[calc(100dvh-3.5rem)] md:h-dvh">
+      {/* 왼쪽: 트리 */}
+      <aside
+        className={`${
+          mobileSidebar ? "flex" : "hidden md:flex"
+        } flex-col w-full md:w-64 border-r overflow-hidden`}
+      >
         <div className="p-3 border-b flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold">지식창고</h2>
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleAddFolder(null)}
+                className="h-7 px-2 text-xs"
+                title="최상위 폴더 추가"
+              >
+                <Folder className="h-3 w-3 mr-1" />+
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleAddItem(null)}
+                className="h-7 px-2 text-xs"
+                title="노트 추가"
+              >
+                <FileText className="h-3 w-3 mr-1" />+
+              </Button>
+            </div>
+          </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="전문 검색"
+              placeholder="검색"
               className="pl-7 h-7 text-xs"
             />
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleAddItem}
-            className="w-full h-7 text-xs"
-          >
-            <Plus className="mr-1 h-3 w-3" /> 새 노트
-          </Button>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {showList.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-6">
-              {search.trim() ? "검색 결과 없음" : "노트 없음"}
-            </p>
+        <div className="flex-1 overflow-y-auto p-2">
+          {showingSearch ? (
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[10px] text-muted-foreground px-1 mb-1">
+                검색 결과 {searchResults.length}개
+              </p>
+              {searchResults.length === 0 ? (
+                <p className="text-xs text-muted-foreground text-center py-4">
+                  결과 없음
+                </p>
+              ) : (
+                searchResults.map((i) => (
+                  <button
+                    key={i.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedItemId(i.id);
+                      setMobileSidebar(false);
+                    }}
+                    className={`flex flex-col gap-0.5 p-2 text-left rounded-md hover:bg-accent transition-colors ${
+                      selectedItemId === i.id ? "bg-accent" : ""
+                    }`}
+                  >
+                    <div className="flex items-center gap-1">
+                      {i.pinned && (
+                        <Pin className="h-2.5 w-2.5 text-primary" />
+                      )}
+                      <span className="text-xs font-medium line-clamp-1">
+                        {i.title}
+                      </span>
+                    </div>
+                    {i.excerpt && (
+                      <span className="text-[10px] text-muted-foreground line-clamp-2">
+                        {i.excerpt}
+                      </span>
+                    )}
+                  </button>
+                ))
+              )}
+            </div>
           ) : (
-            showList.map((i) => (
-              <button
-                key={i.id}
-                type="button"
-                onClick={() => setSelectedItemId(i.id)}
-                className={`w-full flex flex-col gap-0.5 px-3 py-2 text-left border-b hover:bg-accent transition-colors ${
-                  selectedItemId === i.id ? "bg-accent" : ""
-                }`}
-              >
-                <div className="flex items-center gap-1">
-                  {i.pinned && <Pin className="h-2.5 w-2.5 text-primary" />}
-                  <span className="text-xs font-medium line-clamp-1 flex-1">
-                    {i.title}
-                  </span>
-                </div>
-                {i.excerpt && (
-                  <span className="text-[10px] text-muted-foreground line-clamp-2">
-                    {i.excerpt}
-                  </span>
-                )}
-                <span className="text-[9px] text-muted-foreground">
-                  {new Date(i.updated_at).toLocaleDateString("ko")}
-                </span>
-              </button>
-            ))
+            <KnowledgeTree
+              folders={folders}
+              items={items}
+              selectedItemId={selectedItemId}
+              onSelectItem={(id) => {
+                setSelectedItemId(id);
+                setMobileSidebar(false);
+              }}
+              onAddFolder={handleAddFolder}
+              onAddItem={handleAddItem}
+              onRenameFolder={renameFolder}
+              onDeleteFolder={(id) => {
+                deleteFolder(id);
+                refetch();
+              }}
+              onDeleteItem={handleDelete}
+              onMoveFolder={moveFolder}
+              onMoveItem={moveItem}
+            />
           )}
         </div>
-      </div>
+      </aside>
 
-      {/* 오른쪽: 에디터/프리뷰 */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* 오른쪽: 에디터 */}
+      <main
+        className={`${
+          mobileSidebar ? "hidden md:flex" : "flex"
+        } flex-1 flex-col overflow-hidden`}
+      >
         {selectedItem ? (
           <>
-            <div className="p-3 border-b flex items-center gap-2">
+            <div className="p-2 md:p-3 border-b flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileSidebar(true)}
+                className="md:hidden text-muted-foreground hover:text-foreground px-2"
+              >
+                ← 목록
+              </button>
               <Input
                 value={editTitle}
                 onChange={(e) => {
                   setEditTitle(e.target.value);
-                  setEditing(true);
+                  setDirty(true);
                 }}
                 className="flex-1 h-8 text-sm font-semibold border-none bg-transparent focus-visible:ring-0 px-2"
                 placeholder="제목"
               />
-              <Button
-                size="sm"
-                variant={preview ? "outline" : "default"}
-                onClick={() => setPreview(!preview)}
-                className="h-7 text-xs"
-              >
-                {preview ? "편집" : "미리보기"}
-              </Button>
               <button
                 type="button"
                 onClick={togglePin}
                 className={`p-1.5 rounded hover:bg-accent ${
-                  selectedItem.pinned ? "text-primary" : "text-muted-foreground"
+                  selectedItem.pinned
+                    ? "text-primary"
+                    : "text-muted-foreground"
                 }`}
+                title="핀 고정"
               >
                 <Pin className="h-3.5 w-3.5" />
               </button>
-              {editing && (
+              {dirty && (
                 <Button
                   size="sm"
                   onClick={handleSave}
@@ -282,48 +275,37 @@ export default function KnowledgePage() {
                   <Save className="mr-1 h-3 w-3" /> 저장
                 </Button>
               )}
-              <button
-                type="button"
-                onClick={handleDeleteItem}
-                className="p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-accent"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {preview ? (
-                <article className="prose prose-sm max-w-none dark:prose-invert">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeHighlight]}
-                  >
-                    {editContent || "_(내용 없음)_"}
-                  </ReactMarkdown>
-                </article>
-              ) : (
-                <Textarea
-                  value={editContent}
-                  onChange={(e) => {
-                    setEditContent(e.target.value);
-                    setEditing(true);
-                  }}
-                  placeholder="마크다운으로 작성... (**굵게**, *기울임*, `코드`, ```python 블록```, - 목록, [링크](url))"
-                  className="w-full h-full min-h-[60vh] font-mono text-xs resize-none border-none focus-visible:ring-0"
-                />
-              )}
+            <div className="flex-1 overflow-hidden">
+              <RichEditor
+                key={selectedItem.id}
+                content={editContent}
+                onChange={(html) => {
+                  setEditContent(html);
+                  setDirty(true);
+                }}
+              />
             </div>
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            <div className="text-center flex flex-col items-center gap-2">
-              <FileText className="h-8 w-8 opacity-30" />
-              <p>왼쪽에서 노트를 선택하거나</p>
-              <p>+ 새 노트로 시작하세요</p>
-              <ChevronRight className="h-4 w-4 opacity-30" />
+            <div className="text-center flex flex-col items-center gap-2 px-4">
+              <FileText className="h-12 w-12 opacity-20" />
+              <p className="font-medium">노트를 선택하거나 새로 만들어보세요</p>
+              <p className="text-xs">
+                왼쪽 트리에서 폴더를 만들고 노트를 드래그해서 이동할 수 있어요
+              </p>
+              <Button
+                onClick={() => handleAddItem(null)}
+                size="sm"
+                className="mt-2"
+              >
+                <Plus className="mr-1 h-3 w-3" /> 새 노트
+              </Button>
             </div>
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 }

@@ -8,6 +8,7 @@ export interface AppUser {
   name: string;
   color: string;
   emoji: string | null;
+  avatar_url: string | null;
   created_at: string;
 }
 
@@ -93,27 +94,48 @@ export function useAppUsers() {
     fetchUsers();
   }, [fetchUsers]);
 
-  const addUser = async (name: string, color: string, emoji?: string) => {
-    // 먼저 Supabase 시도
+  const addUser = async (
+    name: string,
+    color: string,
+    emoji?: string,
+    avatarUrl?: string
+  ) => {
+    const payload: Record<string, unknown> = {
+      name,
+      color,
+      emoji: emoji || null,
+      avatar_url: avatarUrl || null,
+    };
     const { data, error } = await supabase
       .from("app_users")
-      .insert({ name, color, emoji: emoji || null })
+      .insert(payload)
       .select()
       .single();
     if (error || !data) {
-      // Fallback: localStorage
-      const newUser: AppUser = {
-        id: generateLocalId(),
-        name,
-        color,
-        emoji: emoji || null,
-        created_at: new Date().toISOString(),
-      };
-      const next = [...loadLocalUsers(), newUser];
-      saveLocalUsers(next);
-      setUsers(next);
-      setUseLocal(true);
-      return { data: newUser, error: null };
+      // avatar_url 컬럼 없을 때 재시도
+      const { data: retryData, error: retryErr } = await supabase
+        .from("app_users")
+        .insert({ name, color, emoji: emoji || null })
+        .select()
+        .single();
+      if (retryErr || !retryData) {
+        // Fallback: localStorage
+        const newUser: AppUser = {
+          id: generateLocalId(),
+          name,
+          color,
+          emoji: emoji || null,
+          avatar_url: avatarUrl || null,
+          created_at: new Date().toISOString(),
+        };
+        const next = [...loadLocalUsers(), newUser];
+        saveLocalUsers(next);
+        setUsers(next);
+        setUseLocal(true);
+        return { data: newUser, error: null };
+      }
+      await fetchUsers();
+      return { data: retryData as AppUser, error: null };
     }
     await fetchUsers();
     return { data: data as AppUser, error: null };
