@@ -10,13 +10,26 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Pencil, Upload, X, Check } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  Upload,
+  X,
+  Check,
+  LogIn,
+  ArrowLeft,
+  Lock,
+} from "lucide-react";
 import {
   useAppUsers,
   useCurrentUserId,
   setCurrentUserId,
+  logout,
   type AppUser,
 } from "@/lib/current-user";
+import { hashPassword, generateSalt } from "@/lib/auth";
+import { toast } from "sonner";
 
 const PALETTE = [
   "#3B82F6", "#EC4899", "#22C55E", "#A855F7",
@@ -36,175 +49,7 @@ interface Props {
   allowClose?: boolean;
 }
 
-interface AvatarPickerProps {
-  name: string;
-  onNameChange: (v: string) => void;
-  emoji: string;
-  avatarUrl: string;
-  color: string;
-  onChange: (patch: {
-    emoji?: string;
-    avatarUrl?: string;
-    color?: string;
-  }) => void;
-  onCancel: () => void;
-  onConfirm: () => void;
-  confirmLabel: string;
-}
-
-function AvatarPicker({
-  name,
-  onNameChange,
-  emoji,
-  avatarUrl,
-  color,
-  onChange,
-  onCancel,
-  onConfirm,
-  confirmLabel,
-}: AvatarPickerProps) {
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 500_000) {
-      alert("500KB 이하 이미지만 선택할 수 있어요");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      onChange({ avatarUrl: reader.result as string, emoji: "" });
-    };
-    reader.readAsDataURL(file);
-  };
-
-  return (
-    <div className="flex flex-col gap-3 rounded-lg border p-3 bg-muted/20">
-      {/* 미리보기 + 이름 */}
-      <div className="flex items-center gap-3">
-        <div
-          className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl overflow-hidden"
-          style={
-            avatarUrl
-              ? { backgroundColor: "transparent" }
-              : { backgroundColor: color + "30", color }
-          }
-        >
-          {avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarUrl}
-              alt="avatar"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            emoji || (name ? name[0] : "?")
-          )}
-        </div>
-        <Input
-          value={name}
-          onChange={(e) => onNameChange(e.target.value)}
-          placeholder="이름"
-          autoFocus
-          className="h-9 flex-1"
-        />
-      </div>
-
-      {/* 이미지 업로드 */}
-      <div className="flex gap-1.5">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => fileRef.current?.click()}
-          className="flex-1 h-8 text-xs"
-        >
-          <Upload className="mr-1 h-3 w-3" /> 이미지 업로드
-        </Button>
-        {avatarUrl && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => onChange({ avatarUrl: "" })}
-            className="h-8"
-          >
-            <X className="h-3 w-3" />
-          </Button>
-        )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFile}
-          className="hidden"
-        />
-      </div>
-
-      {/* 프리셋 이모지 */}
-      <div className="flex flex-col gap-1">
-        <Label className="text-[10px] text-muted-foreground">프리셋 이모지</Label>
-        <div className="grid grid-cols-8 gap-1">
-          {PRESET_EMOJIS.map((e) => (
-            <button
-              key={e}
-              type="button"
-              onClick={() => onChange({ emoji: e, avatarUrl: "" })}
-              className={`flex h-7 w-7 items-center justify-center rounded-md text-base hover:bg-accent transition-colors ${
-                emoji === e && !avatarUrl ? "ring-2 ring-primary" : ""
-              }`}
-            >
-              {e}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* 색상 */}
-      <div className="flex flex-col gap-1">
-        <Label className="text-[10px] text-muted-foreground">배경색</Label>
-        <div className="flex gap-1.5 flex-wrap">
-          {PALETTE.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => onChange({ color: c })}
-              className={`h-5 w-5 rounded-full transition-all ${
-                color === c
-                  ? "ring-2 ring-offset-1 ring-primary scale-110"
-                  : "hover:scale-110"
-              }`}
-              style={{ backgroundColor: c }}
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="flex gap-2 justify-end">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onCancel}
-          className="h-8"
-        >
-          취소
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          onClick={onConfirm}
-          disabled={!name.trim()}
-          className="h-8"
-        >
-          <Check className="mr-1 h-3 w-3" />
-          {confirmLabel}
-        </Button>
-      </div>
-    </div>
-  );
-}
+type Mode = "list" | "create" | "login" | "edit";
 
 export default function UserSwitcher({
   open,
@@ -214,82 +59,160 @@ export default function UserSwitcher({
   const { users, addUser, updateUser, deleteUser } = useAppUsers();
   const currentId = useCurrentUserId();
 
-  // 추가 폼 상태
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newEmoji, setNewEmoji] = useState("🙂");
-  const [newColor, setNewColor] = useState(PALETTE[0]);
-  const [newAvatar, setNewAvatar] = useState("");
+  const [mode, setMode] = useState<Mode>("list");
+  const [targetUser, setTargetUser] = useState<AppUser | null>(null);
 
-  // 편집 상태
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editEmoji, setEditEmoji] = useState("");
-  const [editColor, setEditColor] = useState(PALETTE[0]);
-  const [editAvatar, setEditAvatar] = useState("");
+  // 생성 / 편집 상태
+  const [name, setName] = useState("");
+  const [emoji, setEmoji] = useState("🙂");
+  const [color, setColor] = useState(PALETTE[0]);
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [remember, setRemember] = useState(true);
+
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) {
-      setAdding(false);
-      setEditingId(null);
-      setNewName("");
-      setNewEmoji("🙂");
-      setNewColor(PALETTE[0]);
-      setNewAvatar("");
+      setMode("list");
+      setTargetUser(null);
+      setName("");
+      setEmoji("🙂");
+      setColor(PALETTE[0]);
+      setAvatarUrl("");
+      setPassword("");
+      setPasswordConfirm("");
+      setRemember(true);
     }
   }, [open]);
 
-  const startAdd = () => {
-    setAdding(true);
-    setNewName("");
-    setNewEmoji("🙂");
-    setNewColor(PALETTE[users.length % PALETTE.length]);
-    setNewAvatar("");
-  };
-
-  const handleAdd = async () => {
-    if (!newName.trim()) return;
-    const { data, error } = await addUser(
-      newName.trim(),
-      newColor,
-      newEmoji,
-      newAvatar
-    );
-    if (error) {
-      alert("사용자 추가 실패: " + String(error));
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 500_000) {
+      alert("500KB 이하 이미지만 선택할 수 있어요");
       return;
     }
-    if (data) {
-      setAdding(false);
-      if (!currentId) {
-        setCurrentUserId(data.id);
-        onOpenChange(false);
-      }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setAvatarUrl(reader.result as string);
+      setEmoji("");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const startCreate = () => {
+    setMode("create");
+    setName("");
+    setEmoji("🙂");
+    setColor(PALETTE[users.length % PALETTE.length]);
+    setAvatarUrl("");
+    setPassword("");
+    setPasswordConfirm("");
+  };
+
+  const handleCreate = async () => {
+    if (!name.trim()) {
+      toast.error("이름을 입력하세요");
+      return;
     }
+    if (password !== passwordConfirm) {
+      toast.error("비밀번호가 일치하지 않습니다");
+      return;
+    }
+    let hash: string | undefined;
+    let salt: string | undefined;
+    if (password) {
+      salt = generateSalt();
+      hash = await hashPassword(password, salt);
+    }
+    const { data, error } = await addUser(
+      name.trim(),
+      color,
+      emoji,
+      avatarUrl,
+      hash,
+      salt
+    );
+    if (error || !data) {
+      toast.error("프로필 생성 실패");
+      return;
+    }
+    toast.success(`${data.name} 프로필 생성됨`);
+    // 자동 로그인
+    setCurrentUserId(data.id, remember);
+    onOpenChange(false);
+  };
+
+  const startLogin = (u: AppUser) => {
+    // 비밀번호 없는 사용자면 바로 로그인
+    if (!u.password_hash) {
+      setCurrentUserId(u.id, remember);
+      onOpenChange(false);
+      return;
+    }
+    setTargetUser(u);
+    setMode("login");
+    setPassword("");
+  };
+
+  const handleLogin = async () => {
+    if (!targetUser) return;
+    if (!targetUser.password_salt || !targetUser.password_hash) {
+      setCurrentUserId(targetUser.id, remember);
+      onOpenChange(false);
+      return;
+    }
+    const hash = await hashPassword(password, targetUser.password_salt);
+    if (hash !== targetUser.password_hash) {
+      toast.error("비밀번호가 틀렸어요");
+      return;
+    }
+    setCurrentUserId(targetUser.id, remember);
+    onOpenChange(false);
+    toast.success(`${targetUser.name}님 환영합니다`);
   };
 
   const startEdit = (u: AppUser) => {
-    setEditingId(u.id);
-    setEditName(u.name);
-    setEditEmoji(u.emoji || "🙂");
-    setEditColor(u.color || PALETTE[0]);
-    setEditAvatar(u.avatar_url || "");
+    setTargetUser(u);
+    setMode("edit");
+    setName(u.name);
+    setEmoji(u.emoji || "🙂");
+    setColor(u.color || PALETTE[0]);
+    setAvatarUrl(u.avatar_url || "");
+    setPassword("");
+    setPasswordConfirm("");
   };
 
   const handleUpdate = async () => {
-    if (!editingId || !editName.trim()) return;
-    await updateUser(editingId, {
-      name: editName.trim(),
-      emoji: editAvatar ? null : editEmoji,
-      color: editColor,
-      avatar_url: editAvatar || null,
-    });
-    setEditingId(null);
+    if (!targetUser || !name.trim()) return;
+    const updates: Partial<AppUser> = {
+      name: name.trim(),
+      emoji: avatarUrl ? null : emoji,
+      color,
+      avatar_url: avatarUrl || null,
+    };
+    if (password) {
+      if (password !== passwordConfirm) {
+        toast.error("비밀번호가 일치하지 않습니다");
+        return;
+      }
+      const salt = generateSalt();
+      const hash = await hashPassword(password, salt);
+      updates.password_hash = hash;
+      updates.password_salt = salt;
+    }
+    await updateUser(targetUser.id, updates);
+    toast.success("수정되었습니다");
+    setMode("list");
   };
 
-  const pick = (u: AppUser) => {
-    setCurrentUserId(u.id);
-    onOpenChange(false);
+  const handleLogout = () => {
+    logout();
+    setMode("list");
+    toast.success("로그아웃되었습니다");
   };
 
   return (
@@ -300,129 +223,347 @@ export default function UserSwitcher({
         onOpenChange(o);
       }}
     >
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto" showCloseButton={allowClose}>
+      <DialogContent
+        className="sm:max-w-md max-h-[90vh] overflow-y-auto"
+        showCloseButton={allowClose}
+      >
         <DialogHeader>
-          <DialogTitle>
-            {users.length === 0 ? "프로필 만들기" : "프로필 선택"}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="flex flex-col gap-2">
-          {users.map((u) => {
-            const isCurrent = u.id === currentId;
-            const isEditing = editingId === u.id;
-            if (isEditing) {
-              return (
-                <AvatarPicker
-                  key={u.id}
-                  name={editName}
-                  onNameChange={setEditName}
-                  emoji={editEmoji}
-                  avatarUrl={editAvatar}
-                  color={editColor}
-                  onChange={(patch) => {
-                    if (patch.emoji !== undefined) setEditEmoji(patch.emoji);
-                    if (patch.avatarUrl !== undefined)
-                      setEditAvatar(patch.avatarUrl);
-                    if (patch.color !== undefined) setEditColor(patch.color);
-                  }}
-                  onCancel={() => setEditingId(null)}
-                  onConfirm={handleUpdate}
-                  confirmLabel="저장"
-                />
-              );
-            }
-            return (
-              <div
-                key={u.id}
-                className={`group flex items-center gap-3 rounded-lg border p-3 transition-all cursor-pointer ${
-                  isCurrent
-                    ? "border-primary bg-primary/5"
-                    : "hover:bg-accent"
-                }`}
-                onClick={() => pick(u)}
+          <div className="flex items-center gap-2">
+            {(mode === "create" || mode === "login" || mode === "edit") && (
+              <button
+                type="button"
+                onClick={() => setMode("list")}
+                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-accent"
               >
-                <div
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg overflow-hidden"
-                  style={
-                    u.avatar_url
-                      ? { backgroundColor: "transparent" }
-                      : { backgroundColor: u.color + "30", color: u.color }
-                  }
-                >
-                  {u.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={u.avatar_url}
-                      alt={u.name}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    u.emoji || u.name[0]
-                  )}
-                </div>
-                <span className="flex-1 font-medium">{u.name}</span>
-                {isCurrent && (
-                  <span className="text-xs text-primary">선택됨</span>
-                )}
-                <button
-                  type="button"
-                  className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-foreground transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    startEdit(u);
-                  }}
-                  title="수정"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  type="button"
-                  className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-opacity"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (
-                      confirm(
-                        `"${u.name}" 프로필을 삭제할까요? 관련 데이터도 함께 삭제됩니다.`
-                      )
-                    ) {
-                      deleteUser(u.id);
-                      if (u.id === currentId) setCurrentUserId(null);
-                    }
-                  }}
-                  title="삭제"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            );
-          })}
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            )}
+            <DialogTitle>
+              {mode === "list" && (users.length === 0 ? "프로필 만들기" : "로그인")}
+              {mode === "create" && "새 프로필 만들기"}
+              {mode === "login" && `${targetUser?.name}님 로그인`}
+              {mode === "edit" && `${targetUser?.name} 수정`}
+            </DialogTitle>
+          </div>
+        </DialogHeader>
 
-          {adding ? (
-            <AvatarPicker
-              name={newName}
-              onNameChange={setNewName}
-              emoji={newEmoji}
-              avatarUrl={newAvatar}
-              color={newColor}
-              onChange={(patch) => {
-                if (patch.emoji !== undefined) setNewEmoji(patch.emoji);
-                if (patch.avatarUrl !== undefined) setNewAvatar(patch.avatarUrl);
-                if (patch.color !== undefined) setNewColor(patch.color);
-              }}
-              onCancel={() => setAdding(false)}
-              onConfirm={handleAdd}
-              confirmLabel="프로필 만들기"
-            />
-          ) : (
+        {/* LIST MODE */}
+        {mode === "list" && (
+          <div className="flex flex-col gap-2">
+            {users.map((u) => {
+              const isCurrent = u.id === currentId;
+              return (
+                <div
+                  key={u.id}
+                  className={`group flex items-center gap-3 rounded-lg border p-3 transition-all cursor-pointer ${
+                    isCurrent
+                      ? "border-primary bg-primary/5"
+                      : "hover:bg-accent"
+                  }`}
+                  onClick={() => startLogin(u)}
+                >
+                  <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg overflow-hidden"
+                    style={
+                      u.avatar_url
+                        ? { backgroundColor: "transparent" }
+                        : { backgroundColor: u.color + "30", color: u.color }
+                    }
+                  >
+                    {u.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={u.avatar_url}
+                        alt={u.name}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      u.emoji || u.name[0]
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium">{u.name}</span>
+                    {u.password_hash && (
+                      <Lock className="inline h-3 w-3 ml-1 text-muted-foreground" />
+                    )}
+                  </div>
+                  {isCurrent && (
+                    <span className="text-xs text-primary">접속 중</span>
+                  )}
+                  <button
+                    type="button"
+                    className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-foreground transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEdit(u);
+                    }}
+                    title="수정"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (
+                        confirm(
+                          `"${u.name}" 프로필과 모든 데이터를 삭제할까요?`
+                        )
+                      ) {
+                        deleteUser(u.id);
+                        if (u.id === currentId) logout();
+                      }
+                    }}
+                    title="삭제"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
+
             <button
               type="button"
               className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
-              onClick={startAdd}
+              onClick={startCreate}
             >
-              <Plus className="h-4 w-4" />새 프로필 추가
+              <Plus className="h-4 w-4" />새 프로필 만들기
             </button>
-          )}
-        </div>
+
+            {currentId && (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-2 text-xs text-muted-foreground hover:text-destructive"
+              >
+                로그아웃
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* LOGIN MODE */}
+        {mode === "login" && targetUser && (
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-full text-xl overflow-hidden"
+                style={
+                  targetUser.avatar_url
+                    ? { backgroundColor: "transparent" }
+                    : {
+                        backgroundColor: targetUser.color + "30",
+                        color: targetUser.color,
+                      }
+                }
+              >
+                {targetUser.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={targetUser.avatar_url}
+                    alt={targetUser.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  targetUser.emoji || targetUser.name[0]
+                )}
+              </div>
+              <span className="font-semibold">{targetUser.name}</span>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">비밀번호</Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleLogin();
+                }}
+                autoFocus
+                className="h-9"
+              />
+            </div>
+
+            <label className="flex items-center gap-2 text-xs cursor-pointer">
+              <input
+                type="checkbox"
+                checked={remember}
+                onChange={(e) => setRemember(e.target.checked)}
+              />
+              자동 로그인 (이 기기에서)
+            </label>
+
+            <Button onClick={handleLogin} className="w-full">
+              <LogIn className="mr-1 h-4 w-4" />
+              로그인
+            </Button>
+          </div>
+        )}
+
+        {/* CREATE / EDIT MODE */}
+        {(mode === "create" || mode === "edit") && (
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl overflow-hidden"
+                style={
+                  avatarUrl
+                    ? { backgroundColor: "transparent" }
+                    : { backgroundColor: color + "30", color }
+                }
+              >
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt="avatar"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  emoji || (name ? name[0] : "?")
+                )}
+              </div>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="이름"
+                autoFocus
+                className="h-9 flex-1"
+              />
+            </div>
+
+            <div className="flex gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileRef.current?.click()}
+                className="flex-1 h-8 text-xs"
+              >
+                <Upload className="mr-1 h-3 w-3" /> 이미지 업로드
+              </Button>
+              {avatarUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAvatarUrl("")}
+                  className="h-8"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-[10px] text-muted-foreground">
+                프리셋 이모지
+              </Label>
+              <div className="grid grid-cols-8 gap-1">
+                {PRESET_EMOJIS.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => {
+                      setEmoji(e);
+                      setAvatarUrl("");
+                    }}
+                    className={`flex h-7 w-7 items-center justify-center rounded-md text-base hover:bg-accent transition-colors ${
+                      emoji === e && !avatarUrl
+                        ? "ring-2 ring-primary"
+                        : ""
+                    }`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <Label className="text-[10px] text-muted-foreground">배경색</Label>
+              <div className="flex gap-1.5 flex-wrap">
+                {PALETTE.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    className={`h-5 w-5 rounded-full transition-all ${
+                      color === c
+                        ? "ring-2 ring-offset-1 ring-primary scale-110"
+                        : "hover:scale-110"
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1 pt-2 border-t">
+              <Label className="text-[10px] text-muted-foreground">
+                {mode === "edit" ? "새 비밀번호 (비우면 변경 안 함)" : "비밀번호 (선택)"}
+              </Label>
+              <Input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="비밀번호"
+                className="h-9"
+              />
+              {password && (
+                <Input
+                  type="password"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  placeholder="비밀번호 확인"
+                  className="h-9"
+                />
+              )}
+            </div>
+
+            {mode === "create" && (
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(e) => setRemember(e.target.checked)}
+                />
+                자동 로그인 (이 기기에서)
+              </label>
+            )}
+
+            <div className="flex gap-2 justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setMode("list")}
+                className="h-8"
+              >
+                취소
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={mode === "create" ? handleCreate : handleUpdate}
+                disabled={!name.trim()}
+                className="h-8"
+              >
+                <Check className="mr-1 h-3 w-3" />
+                {mode === "create" ? "만들기" : "저장"}
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

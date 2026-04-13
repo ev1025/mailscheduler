@@ -25,15 +25,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated || loading) return;
     if (!currentId) {
-      if (users.length === 1) {
-        setCurrentUserId(users[0].id);
-      } else {
-        setGateOpen(true);
-      }
+      // 자동 로그인 없음 → 로그인 화면
+      setGateOpen(true);
     } else if (!users.find((u) => u.id === currentId)) {
       // 저장된 ID가 삭제된 경우 초기화
       setCurrentUserId(null);
       setGateOpen(true);
+    } else {
+      setGateOpen(false);
     }
   }, [hydrated, loading, users, currentId]);
 
