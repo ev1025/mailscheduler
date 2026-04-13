@@ -42,7 +42,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         collapsed={collapsed}
         onToggle={() => setCollapsed(!collapsed)}
       />
-      <main className="flex-1 overflow-y-auto pb-20 md:pb-0">{children}</main>
+      <main className="flex-1 overflow-y-auto pt-safe pb-safe-nav md:pb-0 md:pt-0">
+        {children}
+      </main>
       <BottomNav />
 
       <UserSwitcher

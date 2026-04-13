@@ -207,7 +207,7 @@ export default function CalendarPage() {
       {/* 탭: 달력 / DB */}
       <div className="mb-4 flex border-b">
         <button
-          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
             view === "calendar"
               ? "border-primary text-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -218,7 +218,7 @@ export default function CalendarPage() {
           달력
         </button>
         <button
-          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
             view === "database"
               ? "border-primary text-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -229,7 +229,7 @@ export default function CalendarPage() {
           일정목록
         </button>
         <button
-          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
             view === "travel"
               ? "border-primary text-foreground"
               : "border-transparent text-muted-foreground hover:text-foreground"

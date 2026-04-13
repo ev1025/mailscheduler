@@ -29,8 +29,8 @@ export default function BottomNav() {
   const currentUser = useCurrentUser();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/80 backdrop-blur-lg md:hidden">
-      <div className="flex h-14 items-center justify-around">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-lg md:hidden pb-safe">
+      <div className="flex h-14 items-stretch justify-around">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -39,7 +39,7 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] transition-colors",
+                "flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[10px] transition-colors active:bg-accent/50",
                 isActive
                   ? "text-foreground font-medium"
                   : "text-muted-foreground"
@@ -55,7 +55,7 @@ export default function BottomNav() {
         <button
           type="button"
           onClick={() => setUserOpen(true)}
-          className="flex flex-col items-center gap-0.5 px-2 py-1 text-[10px] text-muted-foreground"
+          className="flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[10px] text-muted-foreground active:bg-accent/50"
         >
           {currentUser ? (
             <span

@@ -1,12 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TrendingUp, TrendingDown, Wallet, PiggyBank, Pencil } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-settings";
@@ -43,26 +37,52 @@ export default function MonthlySummary({
     setDraft(String(monthlyIncome));
   }, [monthlyIncome]);
 
+  const Cell = ({
+    label,
+    value,
+    color,
+    icon,
+    editable,
+  }: {
+    label: string;
+    value: React.ReactNode;
+    color?: string;
+    icon?: React.ReactNode;
+    editable?: boolean;
+  }) => (
+    <div className="rounded-lg border bg-card p-2.5 md:p-3 flex flex-col gap-1 min-w-0">
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-[10px] md:text-xs text-muted-foreground truncate">
+          {label}
+        </span>
+        {editable ? (
+          <button
+            type="button"
+            onClick={() => setEditingIncome((v) => !v)}
+            className="text-muted-foreground hover:text-foreground shrink-0"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        ) : (
+          icon
+        )}
+      </div>
+      <div className={`text-sm md:text-xl font-bold truncate ${color || ""}`}>
+        {value}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-2 md:gap-4">
       {/* 1층: 월급 / 고정비 / 여윳돈 */}
-      <div className="grid gap-3 grid-cols-3">
-        <Card className="col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              월급
-            </CardTitle>
-            <button
-              type="button"
-              onClick={() => setEditingIncome((v) => !v)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Pencil className="h-3 w-3" />
-            </button>
-          </CardHeader>
-          <CardContent>
-            {editingIncome ? (
-              <div className="flex gap-1">
+      <div className="grid gap-2 md:gap-3 grid-cols-3">
+        <Cell
+          label="월급"
+          editable
+          value={
+            editingIncome ? (
+              <div className="flex items-center gap-1">
                 <Input
                   type="number"
                   value={draft}
@@ -74,7 +94,7 @@ export default function MonthlySummary({
                     }
                   }}
                   autoFocus
-                  className="h-7 text-sm"
+                  className="h-7 text-xs w-full min-w-0"
                 />
                 <button
                   type="button"
@@ -82,94 +102,49 @@ export default function MonthlySummary({
                     saveIncome(draft);
                     setEditingIncome(false);
                   }}
-                  className="text-xs text-primary"
+                  className="text-[10px] text-primary shrink-0"
                 >
                   OK
                 </button>
               </div>
             ) : (
-              <p className="text-xl font-bold text-foreground">
-                {formatWon(monthlyIncome)}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card className="col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              이 달 고정비
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold text-orange-600">
-              -{formatWon(totalFixed)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              여윳돈
-            </CardTitle>
-            <PiggyBank className="h-3.5 w-3.5 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <p
-              className={`text-xl font-bold ${
-                disposable >= 0 ? "text-green-600" : "text-red-600"
-              }`}
-            >
-              {formatWon(disposable)}
-            </p>
-          </CardContent>
-        </Card>
+              formatWon(monthlyIncome)
+            )
+          }
+        />
+        <Cell
+          label="고정비"
+          color="text-orange-600"
+          value={`-${formatWon(totalFixed)}`}
+        />
+        <Cell
+          label="여윳돈"
+          icon={<PiggyBank className="h-3 w-3 text-green-500 shrink-0" />}
+          color={disposable >= 0 ? "text-green-600" : "text-red-600"}
+          value={formatWon(disposable)}
+        />
       </div>
 
       {/* 2층: 실제 수입/지출/잔액 */}
-      <div className="grid gap-3 grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              이번달 수입
-            </CardTitle>
-            <TrendingUp className="h-3.5 w-3.5 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold text-green-600">
-              +{formatWon(totalIncome)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              이번달 지출
-            </CardTitle>
-            <TrendingDown className="h-3.5 w-3.5 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <p className="text-xl font-bold text-red-600">
-              -{formatWon(totalExpense)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-xs font-medium text-muted-foreground">
-              잔액
-            </CardTitle>
-            <Wallet className="h-3.5 w-3.5 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <p
-              className={`text-xl font-bold ${
-                balance >= 0 ? "text-blue-600" : "text-red-600"
-              }`}
-            >
-              {formatWon(balance)}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-2 md:gap-3 grid-cols-3">
+        <Cell
+          label="이번달 수입"
+          icon={<TrendingUp className="h-3 w-3 text-green-500 shrink-0" />}
+          color="text-green-600"
+          value={`+${formatWon(totalIncome)}`}
+        />
+        <Cell
+          label="이번달 지출"
+          icon={<TrendingDown className="h-3 w-3 text-red-500 shrink-0" />}
+          color="text-red-600"
+          value={`-${formatWon(totalExpense)}`}
+        />
+        <Cell
+          label="잔액"
+          icon={<Wallet className="h-3 w-3 text-blue-500 shrink-0" />}
+          color={balance >= 0 ? "text-blue-600" : "text-red-600"}
+          value={formatWon(balance)}
+        />
       </div>
     </div>
   );

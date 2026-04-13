@@ -160,6 +160,33 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  /* Safe area 유틸 (iOS/Android notch · gesture bar 대응) */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .pb-safe-nav {
+    padding-bottom: calc(env(safe-area-inset-bottom) + 3.5rem);
+  }
+  .bottom-safe {
+    bottom: env(safe-area-inset-bottom);
+  }
+
+  /* 터치 핸들러 개선 */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* 모바일 텍스트 tap highlight 제거 */
+  @media (max-width: 767px) {
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+  }
 }
 
 /* === TipTap 리치 에디터 스타일 === */

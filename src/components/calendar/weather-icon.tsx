@@ -40,31 +40,50 @@ export default function WeatherIcon({
   }
 
   if (compact) {
-    // 모바일/데스크톱 공통: 아이콘 위, 최저/최고 아래 (세로 2줄)
     return (
-      <div className="flex flex-col items-end gap-0 leading-[1] shrink-0 max-w-full overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={getWeatherIconUrl(weather.weather_icon)}
-          alt={weather.weather_description}
-          className="h-3 w-3 md:h-4 md:w-4 shrink-0"
-        />
-        <div className="flex items-center leading-[1] whitespace-nowrap">
-          <span className="text-[7px] md:text-[9px] text-blue-500">
-            {weather.temperature_min}°
-          </span>
-          <span className="text-[7px] md:text-[9px] text-muted-foreground">
-            /
-          </span>
-          <span className="text-[7px] md:text-[9px] text-red-500">
-            {weather.temperature_max}°
-          </span>
+      <>
+        {/* 모바일: 1행 최저/최고, 2행 아이콘 */}
+        <div className="flex md:hidden flex-col items-end gap-0 leading-[1] shrink-0 max-w-full overflow-hidden">
+          <div className="flex items-center leading-[1] whitespace-nowrap">
+            <span className="text-[7px] text-blue-500">
+              {weather.temperature_min}°
+            </span>
+            <span className="text-[7px] text-muted-foreground">/</span>
+            <span className="text-[7px] text-red-500">
+              {weather.temperature_max}°
+            </span>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={getWeatherIconUrl(weather.weather_icon)}
+            alt={weather.weather_description}
+            className="h-3 w-3 shrink-0"
+          />
         </div>
-        {/* 데스크톱에서만 설명 */}
-        <span className="hidden md:inline text-[8px] text-muted-foreground whitespace-nowrap">
-          {weather.weather_description}
-        </span>
-      </div>
+        {/* 데스크톱: 1행 아이콘+설명, 2행 최저/최고 */}
+        <div className="hidden md:flex flex-col items-end gap-0 leading-[1]">
+          <div className="flex items-center gap-0.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={getWeatherIconUrl(weather.weather_icon)}
+              alt={weather.weather_description}
+              className="h-4 w-4"
+            />
+            <span className="text-[8px] text-muted-foreground whitespace-nowrap">
+              {weather.weather_description}
+            </span>
+          </div>
+          <div className="flex items-center gap-0.5">
+            <span className="text-[9px] text-blue-500">
+              {weather.temperature_min}°
+            </span>
+            <span className="text-[9px] text-muted-foreground">/</span>
+            <span className="text-[9px] text-red-500">
+              {weather.temperature_max}°
+            </span>
+          </div>
+        </div>
+      </>
     );
   }
 
