@@ -211,10 +211,6 @@ export default function KnowledgePage() {
     if (selectedItemId === id) setSelectedItemId(null);
   };
 
-  const togglePin = async () => {
-    if (!selectedItem) return;
-    await updateItem(selectedItem.id, { pinned: !selectedItem.pinned });
-  };
 
   const moveFolder = async (id: string, newParentId: string | null) => {
     await updateFolder(id, { parent_id: newParentId });
@@ -364,18 +360,6 @@ export default function KnowledgePage() {
                   className="flex-1 h-8 text-sm md:text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0"
                   placeholder="제목"
                 />
-                <button
-                  type="button"
-                  onClick={togglePin}
-                  className={`shrink-0 p-1.5 rounded hover:bg-accent ${
-                    selectedItem.pinned
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }`}
-                  title="핀 고정"
-                >
-                  <Pin className="h-3.5 w-3.5" />
-                </button>
               </div>
 
               {/* 2행: 임시저장 드롭다운 / 임시저장 / 저장 */}

@@ -95,11 +95,14 @@ export default function TransactionForm({
             {transaction ? "내역 수정" : "내역 추가"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <Tabs value={type} onValueChange={(v) => {
-            setType(v as "income" | "expense");
-            setCategoryId("");
-          }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          <Tabs
+            value={type}
+            onValueChange={(v) => {
+              setType(v as "income" | "expense");
+              setCategoryId("");
+            }}
+          >
             <TabsList className="w-full">
               <TabsTrigger value="expense" className="flex-1">
                 지출
@@ -110,51 +113,79 @@ export default function TransactionForm({
             </TabsList>
           </Tabs>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="amount">금액 (원) *</Label>
-            <Input
-              id="amount"
-              type="number"
-              min="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="10000"
-              autoFocus
-            />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label>카테고리 *</Label>
-            <Select value={categoryId} onValueChange={(v) => setCategoryId(v ?? "")}>
-              <SelectTrigger>
-                {categoryId
-                  ? filteredCategories.find((c) => c.id === categoryId)?.name || "카테고리 선택"
-                  : <span className="text-muted-foreground">카테고리 선택</span>}
-              </SelectTrigger>
-              <SelectContent>
-                {filteredCategories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="date">날짜</Label>
+          {/* 1행: 금액 | 날짜 */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1 min-w-0">
+              <Label
+                htmlFor="amount"
+                className="text-[11px] text-muted-foreground"
+              >
+                금액 (원) *
+              </Label>
+              <Input
+                id="amount"
+                type="number"
+                min="0"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="10000"
+                autoFocus
+                className="h-9"
+              />
+            </div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <Label
+                htmlFor="date"
+                className="text-[11px] text-muted-foreground"
+              >
+                날짜
+              </Label>
               <Input
                 id="date"
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                className="h-9 w-full"
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label>결제수단</Label>
-              <Select value={paymentMethod} onValueChange={(v) => setPaymentMethod(v ?? "카드")}>
-                <SelectTrigger>
+          </div>
+
+          {/* 2행: 카테고리 | 결제수단 */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1 min-w-0">
+              <Label className="text-[11px] text-muted-foreground">
+                카테고리 *
+              </Label>
+              <Select
+                value={categoryId}
+                onValueChange={(v) => setCategoryId(v ?? "")}
+              >
+                <SelectTrigger className="h-9 w-full">
+                  {categoryId ? (
+                    filteredCategories.find((c) => c.id === categoryId)
+                      ?.name || "선택"
+                  ) : (
+                    <span className="text-muted-foreground">선택</span>
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredCategories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <Label className="text-[11px] text-muted-foreground">
+                결제수단
+              </Label>
+              <Select
+                value={paymentMethod}
+                onValueChange={(v) => setPaymentMethod(v ?? "카드")}
+              >
+                <SelectTrigger className="h-9 w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -167,25 +198,34 @@ export default function TransactionForm({
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="desc">메모</Label>
+          {/* 3행: 메모 */}
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="desc" className="text-[11px] text-muted-foreground">
+              메모
+            </Label>
             <Input
               id="desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="어디서 뭘 샀는지 등"
+              className="h-9"
             />
           </div>
 
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={() => onOpenChange(false)}
             >
               취소
             </Button>
-            <Button type="submit" disabled={!amount || !categoryId || saving}>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={!amount || !categoryId || saving}
+            >
               {saving ? "저장 중..." : "저장"}
             </Button>
           </div>
