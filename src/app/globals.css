@@ -161,3 +161,159 @@
     scrollbar-width: none;
   }
 }
+
+/* === TipTap 리치 에디터 스타일 === */
+.tiptap-editor {
+  min-height: 60vh;
+  outline: none;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--foreground);
+}
+
+.tiptap-editor > * + * {
+  margin-top: 0.6em;
+}
+
+.tiptap-editor h1 {
+  font-size: 1.75em;
+  font-weight: 700;
+  margin-top: 1em;
+  margin-bottom: 0.4em;
+  line-height: 1.2;
+}
+.tiptap-editor h2 {
+  font-size: 1.4em;
+  font-weight: 700;
+  margin-top: 0.9em;
+  margin-bottom: 0.35em;
+  line-height: 1.25;
+}
+.tiptap-editor h3 {
+  font-size: 1.15em;
+  font-weight: 600;
+  margin-top: 0.8em;
+  margin-bottom: 0.3em;
+}
+
+.tiptap-editor p {
+  margin: 0.4em 0;
+}
+
+.tiptap-editor ul,
+.tiptap-editor ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+.tiptap-editor ul {
+  list-style: disc;
+}
+.tiptap-editor ol {
+  list-style: decimal;
+}
+.tiptap-editor li {
+  margin: 0.2em 0;
+}
+.tiptap-editor li > p {
+  margin: 0;
+}
+
+.tiptap-editor blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.85em;
+  margin: 0.6em 0;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.tiptap-editor code {
+  background: oklch(0.95 0 0);
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  color: #d63384;
+}
+
+.tiptap-editor pre {
+  background: #0f172a;
+  color: #f1f5f9;
+  padding: 0.85em 1em;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  margin: 0.6em 0;
+}
+.tiptap-editor pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.tiptap-editor hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1em 0;
+}
+
+.tiptap-editor a {
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tiptap-editor img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 0.5em 0;
+}
+
+/* 표 스타일 */
+.tiptap-editor table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0.6em 0;
+  overflow: hidden;
+}
+.tiptap-editor th,
+.tiptap-editor td {
+  border: 1px solid var(--border);
+  padding: 0.45em 0.7em;
+  vertical-align: top;
+  position: relative;
+  min-width: 1em;
+}
+.tiptap-editor th {
+  background: oklch(0.97 0 0);
+  font-weight: 600;
+  text-align: left;
+}
+.tiptap-editor .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: oklch(0.7 0.15 250 / 0.1);
+  pointer-events: none;
+}
+.tiptap-editor .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background-color: var(--primary);
+  pointer-events: none;
+}
+
+/* Placeholder */
+.tiptap-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  height: 0;
+}

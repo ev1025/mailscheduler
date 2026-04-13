@@ -300,6 +300,11 @@ export default function RichEditor({ content, onChange, placeholder }: Props) {
       onChange(editor.getHTML());
     },
     immediatelyRender: false,
+    editorProps: {
+      attributes: {
+        class: "tiptap-editor",
+      },
+    },
   });
 
   if (!editor) return null;
@@ -307,8 +312,11 @@ export default function RichEditor({ content, onChange, placeholder }: Props) {
   return (
     <div className="flex flex-col h-full">
       <Toolbar editor={editor} />
-      <div className="flex-1 overflow-y-auto">
-        <EditorContent editor={editor} className="prose prose-sm max-w-none p-4 focus:outline-none min-h-full" />
+      <div
+        className="flex-1 overflow-y-auto p-4 cursor-text"
+        onClick={() => editor.commands.focus()}
+      >
+        <EditorContent editor={editor} />
       </div>
     </div>
   );
