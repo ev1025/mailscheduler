@@ -331,16 +331,9 @@ export default function UserSwitcher({
                         </span>
                       ) : u.password_hash ? (
                         <Lock className="h-3 w-3 text-primary" />
-                      ) : (
-                        <span className="text-[9px] text-orange-500 border border-orange-300 bg-orange-50 rounded px-1">
-                          비번 설정 필요
-                        </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
-                  {isCurrent && (
-                    <span className="text-xs text-primary">접속 중</span>
-                  )}
                   <button
                     type="button"
                     className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-foreground transition-opacity"

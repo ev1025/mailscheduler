@@ -119,7 +119,7 @@ function DroppableCell({ dateStr, children, isOver, onClick }: {
     <div
       ref={setNodeRef}
       onClick={onClick}
-      className={`flex flex-col items-start border-b border-r p-0.5 md:p-1 min-h-[86px] md:min-h-[100px] text-left transition-colors cursor-pointer overflow-hidden ${
+      className={`flex flex-col items-start border-b border-r p-0.5 md:p-1 min-h-[86px] md:min-h-[100px] min-w-0 text-left transition-colors cursor-pointer overflow-hidden ${
         isOver ? "bg-blue-50 ring-1 ring-blue-300 ring-inset" : "hover:bg-accent/50"
       }`}
     >
@@ -265,9 +265,9 @@ export default function CalendarView({
             return (
               <DroppableCell key={dateStr} dateStr={dateStr} isOver={isOverThis} onClick={() => onDateClick(dateStr)}>
                 {/* 날짜 숫자 + 날씨 */}
-                <div className={`flex w-full items-center justify-between gap-0.5 ${!inMonth ? "opacity-30" : ""}`}>
+                <div className={`flex w-full items-start justify-between gap-0.5 min-w-0 ${!inMonth ? "opacity-30" : ""}`}>
                   <span
-                    className={`inline-flex h-5 w-5 md:h-6 md:w-6 items-center justify-center rounded-full text-[10px] md:text-xs font-medium shrink-0 ${
+                    className={`inline-flex h-4 w-4 md:h-6 md:w-6 items-center justify-center rounded-full text-[9px] md:text-xs font-medium shrink-0 ${
                       today
                         ? "bg-primary text-primary-foreground"
                         : isHoliday

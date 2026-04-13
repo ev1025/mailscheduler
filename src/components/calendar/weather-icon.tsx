@@ -40,28 +40,28 @@ export default function WeatherIcon({
   }
 
   if (compact) {
-    // 모바일/데스크톱 공통: 2줄 구조 (아이콘 위, 최저/최고 아래)
+    // 모바일/데스크톱 공통: 아이콘 위, 최저/최고 아래 (세로 2줄)
     return (
-      <div className="flex flex-col items-end gap-0 leading-none">
+      <div className="flex flex-col items-end gap-0 leading-[1] shrink-0 max-w-full overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={getWeatherIconUrl(weather.weather_icon)}
           alt={weather.weather_description}
-          className="h-3.5 w-3.5 md:h-4 md:w-4 shrink-0"
+          className="h-3 w-3 md:h-4 md:w-4 shrink-0"
         />
-        <div className="flex items-center gap-0">
-          <span className="text-[8px] md:text-[9px] text-blue-500">
+        <div className="flex items-center leading-[1] whitespace-nowrap">
+          <span className="text-[7px] md:text-[9px] text-blue-500">
             {weather.temperature_min}°
           </span>
-          <span className="text-[8px] md:text-[9px] text-muted-foreground">
+          <span className="text-[7px] md:text-[9px] text-muted-foreground">
             /
           </span>
-          <span className="text-[8px] md:text-[9px] text-red-500">
+          <span className="text-[7px] md:text-[9px] text-red-500">
             {weather.temperature_max}°
           </span>
         </div>
         {/* 데스크톱에서만 설명 */}
-        <span className="hidden md:inline text-[8px] text-muted-foreground">
+        <span className="hidden md:inline text-[8px] text-muted-foreground whitespace-nowrap">
           {weather.weather_description}
         </span>
       </div>
