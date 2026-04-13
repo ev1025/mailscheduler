@@ -13,14 +13,17 @@ import { Label } from "@/components/ui/label";
 import {
   Plus,
   Trash2,
-  Pencil,
   Upload,
   X,
   Check,
   LogIn,
+  LogOut,
   ArrowLeft,
   Lock,
+  Pencil,
+  Share2,
 } from "lucide-react";
+import ShareManager from "@/components/calendar/share-manager";
 import {
   useAppUsers,
   useCurrentUserId,
@@ -52,7 +55,7 @@ interface Props {
   allowClose?: boolean;
 }
 
-type Mode = "list" | "create" | "login" | "edit";
+type Mode = "list" | "create" | "login" | "edit" | "actions";
 
 export default function UserSwitcher({
   open,
@@ -64,6 +67,7 @@ export default function UserSwitcher({
 
   const [mode, setMode] = useState<Mode>("list");
   const [targetUser, setTargetUser] = useState<AppUser | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // 생성 / 편집 상태
   const [name, setName] = useState("");
@@ -153,6 +157,12 @@ export default function UserSwitcher({
   };
 
   const startLogin = (u: AppUser) => {
+    // 이미 로그인된 자기 프로필 클릭 → actions 메뉴
+    if (currentId && u.id === currentId) {
+      setTargetUser(u);
+      setMode("actions");
+      return;
+    }
     // 이 기기에서 자동 로그인이 허용된 프로필이면 비번 스킵
     if (isRemembered(u.id)) {
       setCurrentUserId(u.id, true);
@@ -208,7 +218,6 @@ export default function UserSwitcher({
       color,
       avatar_url: avatarUrl || null,
     };
-    let expectedHash: string | undefined;
     if (password) {
       if (password.length < 4) {
         toast.error("비밀번호는 4자 이상이어야 합니다");
@@ -222,28 +231,11 @@ export default function UserSwitcher({
       const hash = await hashPassword(password, salt);
       updates.password_hash = hash;
       updates.password_salt = salt;
-      expectedHash = hash;
     }
     const { error } = await updateUser(targetUser.id, updates);
     if (error) {
       toast.error(typeof error === "string" ? error : "저장 실패");
       return;
-    }
-    // 비밀번호 저장 검증: DB에서 직접 읽어서 password_hash가 실제로 저장됐는지 확인
-    if (expectedHash) {
-      const { supabase } = await import("@/lib/supabase");
-      const { data: verified } = await supabase
-        .from("app_users")
-        .select("password_hash")
-        .eq("id", targetUser.id)
-        .single();
-      if (!verified || verified.password_hash !== expectedHash) {
-        toast.error(
-          "⚠️ 비밀번호가 DB에 저장되지 않았습니다.\n\nSupabase SQL Editor에서 아래를 실행하세요:\n\nALTER TABLE app_users ADD COLUMN IF NOT EXISTS password_hash TEXT;\nALTER TABLE app_users ADD COLUMN IF NOT EXISTS password_salt TEXT;",
-          { duration: 10000 }
-        );
-        return;
-      }
     }
     toast.success("수정되었습니다");
     setMode("list");
@@ -270,7 +262,10 @@ export default function UserSwitcher({
       >
         <DialogHeader>
           <div className="flex items-center gap-2">
-            {(mode === "create" || mode === "login" || mode === "edit") && (
+            {(mode === "create" ||
+              mode === "login" ||
+              mode === "edit" ||
+              mode === "actions") && (
               <button
                 type="button"
                 onClick={() => setMode("list")}
@@ -280,10 +275,11 @@ export default function UserSwitcher({
               </button>
             )}
             <DialogTitle>
-              {mode === "list" && (users.length === 0 ? "프로필 만들기" : "로그인")}
+              {mode === "list" && (users.length === 0 ? "프로필 만들기" : currentId ? "프로필" : "로그인")}
               {mode === "create" && "새 프로필 만들기"}
               {mode === "login" && `${targetUser?.name}님 로그인`}
               {mode === "edit" && `${targetUser?.name} 수정`}
+              {mode === "actions" && "내 프로필"}
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -334,37 +330,7 @@ export default function UserSwitcher({
                       ) : null}
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-foreground transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startEdit(u);
-                    }}
-                    title="수정"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive transition-opacity"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (
-                        confirm(
-                          `"${u.name}" 프로필과 모든 데이터를 삭제할까요?`
-                        )
-                      ) {
-                        deleteUser(u.id);
-                        removeRememberedUser(u.id);
-                        if (u.id === currentId) logout();
-                      }
-                    }}
-                    title="삭제"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                  </div>
               );
             })}
 
@@ -376,15 +342,6 @@ export default function UserSwitcher({
               <Plus className="h-4 w-4" />새 프로필 만들기
             </button>
 
-            {currentId && (
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-2 text-xs text-muted-foreground hover:text-destructive"
-              >
-                로그아웃
-              </button>
-            )}
           </div>
         )}
 
@@ -444,6 +401,90 @@ export default function UserSwitcher({
               <LogIn className="mr-1 h-4 w-4" />
               로그인
             </Button>
+          </div>
+        )}
+
+        {/* ACTIONS MODE — 자기 프로필 클릭 시 */}
+        {mode === "actions" && targetUser && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3 rounded-lg bg-muted/30 p-3 mb-1">
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-full text-xl overflow-hidden"
+                style={
+                  targetUser.avatar_url
+                    ? { backgroundColor: "transparent" }
+                    : {
+                        backgroundColor: targetUser.color + "30",
+                        color: targetUser.color,
+                      }
+                }
+              >
+                {targetUser.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={targetUser.avatar_url}
+                    alt={targetUser.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  targetUser.emoji || targetUser.name[0]
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold">{targetUser.name}</p>
+                <p className="text-[11px] text-muted-foreground">로그인 중</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => startEdit(targetUser)}
+              className="flex items-center gap-3 rounded-lg border p-3 text-sm hover:bg-accent transition-colors"
+            >
+              <Pencil className="h-4 w-4 text-muted-foreground" />
+              <span>프로필 편집</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="flex items-center gap-3 rounded-lg border p-3 text-sm hover:bg-accent transition-colors"
+            >
+              <Share2 className="h-4 w-4 text-muted-foreground" />
+              <span>캘린더 공유</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  confirm(
+                    `"${targetUser.name}" 프로필과 모든 데이터를 삭제할까요?`
+                  )
+                ) {
+                  deleteUser(targetUser.id);
+                  removeRememberedUser(targetUser.id);
+                  logout();
+                  setMode("list");
+                  toast.success("프로필이 삭제되었습니다");
+                }
+              }}
+              className="flex items-center gap-3 rounded-lg border border-destructive/30 p-3 text-sm text-destructive hover:bg-destructive/5 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>프로필 삭제</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                handleLogout();
+              }}
+              className="flex items-center gap-3 rounded-lg border p-3 text-sm hover:bg-accent transition-colors"
+            >
+              <LogOut className="h-4 w-4 text-muted-foreground" />
+              <span>로그아웃</span>
+            </button>
           </div>
         )}
 
@@ -599,6 +640,7 @@ export default function UserSwitcher({
           </div>
         )}
       </DialogContent>
+      <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
     </Dialog>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "./sidebar";
 import BottomNav from "./bottom-nav";
+import MobileHeader from "./mobile-header";
 import UserSwitcher from "./user-switcher";
 import {
   useCurrentUserId,
@@ -42,7 +43,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         collapsed={collapsed}
         onToggle={() => setCollapsed(!collapsed)}
       />
-      <main className="flex-1 overflow-y-auto pt-safe pb-safe-nav md:pb-0 md:pt-0">
+      <MobileHeader />
+      <main className="flex-1 overflow-y-auto pt-12 pb-safe-nav md:pb-0 md:pt-0">
         {children}
       </main>
       <BottomNav />

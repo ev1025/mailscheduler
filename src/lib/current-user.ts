@@ -249,16 +249,34 @@ export function useAppUsers() {
       setUsers(next);
       return { error: null };
     }
-    const { error } = await supabase
+    // 1차: 전체 컬럼으로 시도
+    let { error } = await supabase
       .from("app_users")
       .update(updates)
       .eq("id", id);
     if (error) {
-      // password 컬럼 없을 때 패스워드 필드 제거하고 재시도 + 경고
-      if (updates.password_hash || updates.password_salt) {
+      // 2차: avatar_url 컬럼이 없을 가능성 → 빼고 재시도
+      if (
+        error.message?.includes("avatar_url") ||
+        error.message?.includes("column")
+      ) {
+        const { avatar_url, ...rest } = updates;
+        void avatar_url;
+        ({ error } = await supabase
+          .from("app_users")
+          .update(rest)
+          .eq("id", id));
+      }
+    }
+    if (error) {
+      // 3차: password 컬럼 없는 경우
+      if (
+        (updates.password_hash || updates.password_salt) &&
+        (error.message?.includes("password") ||
+          error.message?.includes("column"))
+      ) {
         return {
-          error:
-            "비밀번호 저장 실패: supabase-v2-auth.sql을 실행하세요",
+          error: "비밀번호 저장 실패: supabase-v2-auth.sql을 실행하세요",
         };
       }
       return { error: error.message || String(error) };

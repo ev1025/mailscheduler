@@ -5,9 +5,7 @@ import {
   CalendarDays,
   TableProperties,
   Plane,
-  Share2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import MonthPicker from "@/components/layout/month-picker";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useWeather } from "@/hooks/use-weather";
@@ -17,7 +15,6 @@ import CalendarView from "@/components/calendar/calendar-view";
 import DatabaseView from "@/components/calendar/database-view";
 import EventForm from "@/components/calendar/event-form";
 import DayDetail from "@/components/calendar/day-detail";
-import ShareManager from "@/components/calendar/share-manager";
 import TravelList from "@/components/travel/travel-list";
 import { useCurrentUserId, useAppUsers } from "@/lib/current-user";
 import type { CalendarEvent } from "@/types";
@@ -31,7 +28,6 @@ export default function CalendarPage() {
   const { users } = useAppUsers();
   const { viewableUserIds } = useCalendarShares();
   const [visibleUserIds, setVisibleUserIds] = useState<string[]>([]);
-  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     if (currentUserId && visibleUserIds.length === 0) {
@@ -146,21 +142,13 @@ export default function CalendarPage() {
       {/* 상단: MonthPicker (중앙) + 공유 관리 (우측) */}
       {view !== "travel" && (
         <>
-          <div className="mb-3 relative flex justify-center items-center">
+          <div className="mb-3 flex justify-center items-center">
             <MonthPicker
               year={year}
               month={month}
               onYearChange={setYear}
               onMonthChange={setMonth}
             />
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              title="캘린더 공유"
-              className="absolute right-0 rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-            >
-              <Share2 className="h-4 w-4" />
-            </button>
           </div>
           {/* 사용자 필터 (본인 + 공유받은 사람) */}
           {viewableUserIds.length > 1 && (
@@ -330,7 +318,6 @@ export default function CalendarPage() {
         }}
       />
 
-      <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
     </div>
   );
 }
