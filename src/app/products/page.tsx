@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { Suspense, useState, useMemo, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Search,
   Trash2,
-  ExternalLink,
   Crown,
   ChevronDown,
   ChevronRight,
@@ -31,10 +31,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useProducts } from "@/hooks/use-products";
+import { useProductCategories } from "@/hooks/use-product-categories";
 import ProductForm from "@/components/products/product-form";
-import ProductDetailDialog from "@/components/products/product-detail-dialog";
-import type { Product, ProductCategory } from "@/types";
-import { toast } from "sonner";
+import type { Product } from "@/types";
 
 const CATEGORY_COLORS: Record<string, string> = {
   영양제: "#22C55E",
@@ -46,17 +45,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   기타: "#6B7280",
 };
 
-const CATEGORIES: (ProductCategory | "전체")[] = [
-  "전체",
-  "영양제",
-  "화장품",
-  "단백질",
-  "음식",
-  "생필품",
-  "구독",
-  "기타",
-];
-
 interface ProductStat {
   minPrice: number | null;
 }
@@ -65,14 +53,12 @@ function ProductRow({
   p,
   idx,
   stat,
-  onOpenDetail,
   onEdit,
   onDelete,
 }: {
   p: Product;
   idx: number;
   stat?: ProductStat;
-  onOpenDetail: (p: Product) => void;
   onEdit: (p: Product) => void;
   onDelete: (p: Product) => void;
 }) {
@@ -89,7 +75,7 @@ function ProductRow({
       ref={setNodeRef}
       style={style}
       className="border-t hover:bg-accent/40 cursor-pointer group"
-      onClick={() => onOpenDetail(p)}
+      onClick={() => onEdit(p)}
     >
       <td className="text-center px-1 py-2 whitespace-nowrap w-6">
         <button
@@ -119,12 +105,6 @@ function ProductRow({
       </td>
       <td className="px-2 py-2 w-auto">
         <div className="flex items-center gap-1.5 min-w-0">
-          {p.is_active && (
-            <span
-              className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0"
-              title="고정비 등록됨"
-            />
-          )}
           <span className="font-medium break-words">{p.name}</span>
           {idx === 0 && stat?.minPrice && (
             <Crown className="h-3 w-3 text-yellow-500 shrink-0" />
@@ -138,19 +118,6 @@ function ProductRow({
         {stat?.minPrice
           ? `₩${stat.minPrice.toLocaleString()}`
           : "-"}
-      </td>
-      <td className="px-1 py-2 w-8">
-        <button
-          type="button"
-          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(p);
-          }}
-          title="수정"
-        >
-          <ExternalLink className="h-3 w-3" />
-        </button>
       </td>
       <td className="px-1 py-2 w-8">
         <button
@@ -169,15 +136,31 @@ function ProductRow({
 }
 
 export default function ProductsPage() {
+  return (
+    <Suspense fallback={null}>
+      <ProductsPageInner />
+    </Suspense>
+  );
+}
+
+function ProductsPageInner() {
   const { products, loading, addProduct, updateProduct, deleteProduct } =
     useProducts();
+  const { categories: midCategories, addCategory } = useProductCategories();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
-  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [statsTick, setStatsTick] = useState(0);
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<
-    ProductCategory | "전체"
-  >("전체");
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const categoryFilter = searchParams.get("category") || "전체";
+  const setCategoryFilter = (c: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (c === "전체") params.delete("category");
+    else params.set("category", c);
+    const qs = params.toString();
+    router.replace(qs ? `/products?${qs}` : "/products", { scroll: false });
+  };
   const [stats, setStats] = useState<Record<string, ProductStat>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   // 커스텀 순서 (sub-category별)
@@ -206,7 +189,7 @@ export default function ProductsPage() {
         }
         setStats(map);
       });
-  }, [products]);
+  }, [products, statsTick]);
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
@@ -335,10 +318,10 @@ export default function ProductsPage() {
             className="pl-8 h-9 text-sm"
           />
         </div>
-        <div className="flex flex-wrap gap-1.5">
-          {CATEGORIES.map((c) => {
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(["전체", ...midCategories] as string[]).map((c) => {
             const active = categoryFilter === c;
-            const color = c === "전체" ? "#6B7280" : CATEGORY_COLORS[c];
+            const color = c === "전체" ? "#6B7280" : CATEGORY_COLORS[c] || "#6B7280";
             return (
               <button
                 key={c}
@@ -360,6 +343,20 @@ export default function ProductsPage() {
               </button>
             );
           })}
+          <button
+            type="button"
+            onClick={() => {
+              const name = prompt("새 중분류 이름")?.trim();
+              if (name) {
+                addCategory(name);
+                setCategoryFilter(name);
+              }
+            }}
+            className="rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+            title="중분류 추가"
+          >
+            <Plus className="h-3 w-3" />
+          </button>
         </div>
       </div>
 
@@ -391,9 +388,6 @@ export default function ProductsPage() {
                   >
                     {cat}
                   </h3>
-                  <span className="text-[11px] text-muted-foreground">
-                    ({subCats.length}개 소분류)
-                  </span>
                 </div>
 
                 {subCats.map((sub) => {
@@ -438,7 +432,6 @@ export default function ProductsPage() {
                                 <col className="hidden sm:table-column" />
                                 <col style={{ width: "1%" }} />
                                 <col style={{ width: "2rem" }} />
-                                <col style={{ width: "2rem" }} />
                               </colgroup>
                               <thead className="bg-muted/30 text-muted-foreground">
                                 <tr>
@@ -456,7 +449,6 @@ export default function ProductsPage() {
                                     가격
                                   </th>
                                   <th></th>
-                                  <th></th>
                                 </tr>
                               </thead>
                               <SortableContext
@@ -470,7 +462,6 @@ export default function ProductsPage() {
                                       p={p}
                                       idx={idx}
                                       stat={stats[p.id]}
-                                      onOpenDetail={setDetailProduct}
                                       onEdit={(prod) => {
                                         setEditing(prod);
                                         setFormOpen(true);
@@ -480,7 +471,6 @@ export default function ProductsPage() {
                                           confirm(`"${prod.name}" 삭제할까요?`)
                                         ) {
                                           await deleteProduct(prod.id);
-                                          toast.success("삭제되었습니다");
                                         }
                                       }}
                                     />
@@ -502,14 +492,12 @@ export default function ProductsPage() {
 
       <ProductForm
         open={formOpen}
-        onOpenChange={setFormOpen}
+        onOpenChange={(o) => {
+          setFormOpen(o);
+          if (!o) setStatsTick((t) => t + 1);
+        }}
         product={editing}
         onSave={handleSave}
-      />
-      <ProductDetailDialog
-        open={!!detailProduct}
-        onOpenChange={(o) => !o && setDetailProduct(null)}
-        product={detailProduct}
       />
     </div>
   );

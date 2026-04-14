@@ -93,6 +93,39 @@ export function useTransactions(year: number, month: number) {
     return { error };
   };
 
+  const addCategory = async (
+    name: string,
+    type: "income" | "expense",
+    color: string
+  ) => {
+    const { error } = await supabase
+      .from("expense_categories")
+      .insert({ name, type, color, icon: null });
+    if (error) return { error: error.message || String(error) };
+    await fetchCategories();
+    return { error: null };
+  };
+
+  const deleteCategory = async (id: string) => {
+    const { error } = await supabase
+      .from("expense_categories")
+      .delete()
+      .eq("id", id);
+    if (error) return { error: error.message || String(error) };
+    await fetchCategories();
+    return { error: null };
+  };
+
+  const updateCategoryColor = async (id: string, color: string) => {
+    const { error } = await supabase
+      .from("expense_categories")
+      .update({ color })
+      .eq("id", id);
+    if (error) return { error: error.message || String(error) };
+    await fetchCategories();
+    return { error: null };
+  };
+
   const totalIncome = transactions
     .filter((t) => t.type === "income")
     .reduce((sum, t) => sum + t.amount, 0);
@@ -123,6 +156,9 @@ export function useTransactions(year: number, month: number) {
     addTransaction,
     updateTransaction,
     deleteTransaction,
+    addCategory,
+    deleteCategory,
+    updateCategoryColor,
     totalIncome,
     totalExpense,
     balance,

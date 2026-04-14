@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   CalendarDays,
   TableProperties,
@@ -20,10 +21,29 @@ import { useCurrentUserId, useAppUsers } from "@/lib/current-user";
 import type { CalendarEvent } from "@/types";
 
 export default function CalendarPage() {
+  return (
+    <Suspense fallback={null}>
+      <CalendarPageInner />
+    </Suspense>
+  );
+}
+
+function CalendarPageInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const viewParam = searchParams.get("view");
+  const view: "calendar" | "database" | "travel" =
+    viewParam === "database" || viewParam === "travel" ? viewParam : "calendar";
+  const setView = (v: "calendar" | "database" | "travel") => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (v === "calendar") params.delete("view");
+    else params.set("view", v);
+    const qs = params.toString();
+    router.replace(qs ? `/calendar?${qs}` : "/calendar", { scroll: false });
+  };
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [view, setView] = useState<"calendar" | "database" | "travel">("calendar");
   const currentUserId = useCurrentUserId();
   const { users } = useAppUsers();
   const { viewableUserIds } = useCalendarShares();

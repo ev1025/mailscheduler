@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "내 대시보드",
+  title: "매일 캘린더",
   description: "캘린더, 가계부, 메모, 영양제 비교",
 };
 

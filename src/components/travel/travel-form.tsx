@@ -21,36 +21,10 @@ import TagInput from "@/components/ui/tag-input";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { useTravelCategories } from "@/hooks/use-travel-categories";
 import type { TravelItem, TravelCategory, TravelTag, EventTag } from "@/types";
 
-const CATEGORIES: TravelCategory[] = ["자연", "숙소", "식당", "놀거리", "데이트", "공연", "쇼핑", "기타"];
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-
-const DEFAULT_CATEGORY_COLORS: Record<TravelCategory, string> = {
-  자연: "#22C55E",
-  숙소: "#A855F7",
-  식당: "#F59E0B",
-  놀거리: "#3B82F6",
-  데이트: "#EC4899",
-  공연: "#8B5CF6",
-  쇼핑: "#06B6D4",
-  기타: "#6B7280",
-};
-
-const CATEGORY_COLOR_KEY = "travel-category-colors";
-
-function loadCategoryColors(): Record<TravelCategory, string> {
-  if (typeof window === "undefined") return DEFAULT_CATEGORY_COLORS;
-  try {
-    const raw = localStorage.getItem(CATEGORY_COLOR_KEY);
-    if (!raw) return DEFAULT_CATEGORY_COLORS;
-    const parsed = JSON.parse(raw);
-    return { ...DEFAULT_CATEGORY_COLORS, ...parsed };
-  } catch {
-    return DEFAULT_CATEGORY_COLORS;
-  }
-}
-
 
 interface TravelFormProps {
   open: boolean;
@@ -70,24 +44,12 @@ interface TravelFormProps {
 }
 
 export default function TravelForm({
-  open, onOpenChange, item, tags, eventTags = [], onAddTag, onDeleteTag, onUpdateTagColor, onAddEventTag, onDeleteEventTag, onUpdateEventTagColor, onNavigateToMonth, onRemoveVisitedDate, onSave,
+  open, onOpenChange, item, eventTags = [], onAddEventTag, onDeleteEventTag, onUpdateEventTagColor, onNavigateToMonth, onRemoveVisitedDate, onSave,
 }: TravelFormProps) {
-  const [categoryColors, setCategoryColors] = useState<Record<TravelCategory, string>>(DEFAULT_CATEGORY_COLORS);
-
-  useEffect(() => {
-    setCategoryColors(loadCategoryColors());
-  }, []);
-
-  const updateCategoryColor = (cat: TravelCategory, col: string) => {
-    const next = { ...categoryColors, [cat]: col };
-    setCategoryColors(next);
-    try {
-      localStorage.setItem(CATEGORY_COLOR_KEY, JSON.stringify(next));
-    } catch {}
-  };
+  const { categories: midCategories, colors: categoryColors, addCategory, deleteCategory, updateCategoryColor } = useTravelCategories();
 
   const [title, setTitle] = useState("");
-  const [color, setColor] = useState(DEFAULT_CATEGORY_COLORS["놀거리"]);
+  const [color, setColor] = useState("#3B82F6");
   const [region, setRegion] = useState("");
   const [category, setCategory] = useState<TravelCategory>("놀거리");
   const [month, setMonth] = useState<number | null>(null);
@@ -119,17 +81,6 @@ export default function TravelForm({
     }
   }, [item, open]);
 
-  // 일정 태그 / 여행 태그 분리
-  const eventTagNames = new Set(eventTags.map((t) => t.name));
-  const selectedEventTags = selectedTags.filter((t) => eventTagNames.has(t));
-  const selectedTravelTags = selectedTags.filter((t) => !eventTagNames.has(t));
-
-  const setEventTagSelection = (newEventTags: string[]) => {
-    setSelectedTags([...newEventTags, ...selectedTravelTags]);
-  };
-  const setTravelTagSelection = (newTravelTags: string[]) => {
-    setSelectedTags([...selectedEventTags, ...newTravelTags]);
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,43 +184,31 @@ export default function TravelForm({
             </div>
           </div>
 
-          {/* 분류 태그 / 일정 태그 / 여행 태그 (3열) */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* 분류 / 태그 (2열) */}
+          <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">분류 태그</Label>
+              <Label className="text-xs text-muted-foreground">분류</Label>
               <TagInput
                 selectedTags={[category]}
-                allTags={CATEGORIES.map((c) => ({ id: c, name: c, color: categoryColors[c] || "#6B7280" }))}
+                allTags={midCategories.map((c) => ({ id: c, name: c, color: categoryColors[c] || "#6B7280" }))}
                 onChange={(next) => {
                   const picked = next.find((t) => t !== category);
                   if (picked) setCategory(picked as TravelCategory);
                 }}
-                onUpdateTagColor={async (id, col) => {
-                  updateCategoryColor(id as TravelCategory, col);
-                  return { error: null };
-                }}
+                onAddTag={addCategory}
+                onDeleteTag={deleteCategory}
+                onUpdateTagColor={updateCategoryColor}
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">일정 태그</Label>
+              <Label className="text-xs text-muted-foreground">태그</Label>
               <TagInput
-                selectedTags={selectedEventTags}
+                selectedTags={selectedTags}
                 allTags={eventTags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
-                onChange={setEventTagSelection}
+                onChange={setSelectedTags}
                 onAddTag={onAddEventTag}
                 onDeleteTag={onDeleteEventTag}
                 onUpdateTagColor={onUpdateEventTagColor}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">여행 태그</Label>
-              <TagInput
-                selectedTags={selectedTravelTags}
-                allTags={tags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
-                onChange={setTravelTagSelection}
-                onAddTag={onAddTag}
-                onDeleteTag={onDeleteTag}
-                onUpdateTagColor={onUpdateTagColor}
               />
             </div>
           </div>

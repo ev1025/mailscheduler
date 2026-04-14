@@ -17,22 +17,15 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import { Plus, Trash2, HelpCircle } from "lucide-react";
+import { Trash2, HelpCircle, Crown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
 import { useTransactions } from "@/hooks/use-transactions";
+import { useProductCategories } from "@/hooks/use-product-categories";
+import { useProductSubTags } from "@/hooks/use-product-subtags";
+import TagInput from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import type { Product, ProductCategory } from "@/types";
-
-const CATEGORIES: ProductCategory[] = [
-  "영양제",
-  "화장품",
-  "단백질",
-  "음식",
-  "생필품",
-  "구독",
-  "기타",
-];
 
 interface PriceEntry {
   id?: string;
@@ -57,15 +50,18 @@ export default function ProductForm({
 }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ProductCategory>("영양제");
+  const { categories: midCategories } = useProductCategories();
   const [subCategory, setSubCategory] = useState("");
   const [brand, setBrand] = useState("");
   const [notes, setNotes] = useState("");
   const [isActive, setIsActive] = useState(false);
-  const [prices, setPrices] = useState<PriceEntry[]>([
-    { price: "", site_url: "" },
-  ]);
+  const [prices, setPrices] = useState<PriceEntry[]>([]);
+  const [priceDraft, setPriceDraft] = useState("");
+  const [siteDraft, setSiteDraft] = useState("");
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
 
+  const { tags: subTags, addTag, deleteTag, updateTagColor } = useProductSubTags(category);
   const { upsertFixedFromProduct, deleteFixedByProduct } = useFixedExpenses();
   const now = new Date();
   const { categories: expCategories } = useTransactions(
@@ -99,7 +95,7 @@ export default function ProductForm({
               }))
             );
           } else {
-            setPrices([{ price: "", site_url: "" }]);
+            setPrices([]);
           }
         });
     } else {
@@ -109,22 +105,43 @@ export default function ProductForm({
       setBrand("");
       setNotes("");
       setIsActive(false);
-      setPrices([{ price: "", site_url: "" }]);
+      setPrices([]);
     }
+    setPriceDraft("");
+    setSiteDraft("");
+    setEditingIdx(null);
   }, [product, open]);
 
-  const addPriceRow = () => {
-    setPrices((prev) => [...prev, { price: "", site_url: "" }]);
+  const resetDraft = () => {
+    setPriceDraft("");
+    setSiteDraft("");
+    setEditingIdx(null);
   };
 
-  const updatePriceRow = (i: number, field: keyof PriceEntry, value: string) => {
-    setPrices((prev) =>
-      prev.map((p, idx) => (idx === i ? { ...p, [field]: value } : p))
-    );
+  const commitPrice = () => {
+    const priceNum = parseInt(priceDraft);
+    if (!priceDraft || !(priceNum > 0)) return;
+    const entry: PriceEntry = { price: String(priceNum), site_url: siteDraft.trim() };
+    if (editingIdx !== null) {
+      setPrices((prev) =>
+        prev.map((p, idx) => (idx === editingIdx ? { ...p, ...entry } : p))
+      );
+    } else {
+      setPrices((prev) => [...prev, entry]);
+    }
+    resetDraft();
+  };
+
+  const startEditPrice = (i: number) => {
+    const p = prices[i];
+    setPriceDraft(p.price);
+    setSiteDraft(p.site_url);
+    setEditingIdx(i);
   };
 
   const removePriceRow = (i: number) => {
     setPrices((prev) => prev.filter((_, idx) => idx !== i));
+    if (editingIdx === i) resetDraft();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -202,7 +219,6 @@ export default function ProductForm({
     }
 
     setSaving(false);
-    toast.success(product ? "수정되었습니다" : "추가되었습니다");
     onOpenChange(false);
   };
 
@@ -221,7 +237,8 @@ export default function ProductForm({
             className="h-9"
           />
 
-          <div className="grid grid-cols-2 gap-2">
+          {/* 분류 / 세부분류 / 브랜드 한 행 */}
+          <div className="grid grid-cols-3 gap-2">
             <div className="flex flex-col gap-1">
               <Label className="text-[11px] text-muted-foreground">분류</Label>
               <Select
@@ -230,7 +247,7 @@ export default function ProductForm({
               >
                 <SelectTrigger className="h-9 w-full">{category}</SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((c) => (
+                  {midCategories.map((c) => (
                     <SelectItem key={c} value={c}>
                       {c}
                     </SelectItem>
@@ -238,81 +255,131 @@ export default function ProductForm({
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex flex-col gap-1 min-w-0">
+              <Label className="text-[11px] text-muted-foreground">세부분류</Label>
+              <TagInput
+                selectedTags={subCategory ? [subCategory] : []}
+                allTags={subTags}
+                onChange={(tags) => setSubCategory(tags[tags.length - 1] || "")}
+                onAddTag={addTag}
+                onDeleteTag={deleteTag}
+                onUpdateTagColor={updateTagColor}
+                placeholder="검색/추가"
+              />
+            </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-[11px] text-muted-foreground">
-                세부분류
-              </Label>
+              <Label className="text-[11px] text-muted-foreground">브랜드</Label>
               <Input
-                value={subCategory}
-                onChange={(e) => setSubCategory(e.target.value)}
-                placeholder="예: 종합비타민"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                placeholder="브랜드명"
                 className="h-9"
               />
             </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <Label className="text-[11px] text-muted-foreground">브랜드</Label>
-            <Input
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-              placeholder="브랜드명"
-              className="h-9"
-            />
-          </div>
-
-          {/* 가격 목록 */}
+          {/* 가격 입력 + 추가된 목록 */}
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <Label className="text-xs text-muted-foreground">가격 / 사이트</Label>
+            <Label className="text-xs text-muted-foreground">가격 / 사이트</Label>
+            <div className="flex items-center gap-1.5">
+              <Input
+                type="number"
+                value={priceDraft}
+                onChange={(e) => setPriceDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitPrice();
+                  }
+                }}
+                placeholder="35000"
+                className="h-9 text-xs w-28"
+              />
+              <Input
+                value={siteDraft}
+                onChange={(e) => setSiteDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitPrice();
+                  }
+                }}
+                placeholder="https://naver.com/..."
+                className="h-9 text-xs flex-1"
+              />
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
-                onClick={addPriceRow}
-                className="h-7 text-xs"
+                variant={editingIdx !== null ? "default" : "outline"}
+                onClick={commitPrice}
+                disabled={!priceDraft || !(parseInt(priceDraft) > 0)}
+                className="h-9 text-xs shrink-0"
               >
-                <Plus className="mr-1 h-3 w-3" />
-                가격 추가
+                {editingIdx !== null ? "수정" : "추가"}
               </Button>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <div className="grid grid-cols-[1fr_2fr_auto] gap-1.5 text-[10px] text-muted-foreground px-1">
-                <span>가격</span>
-                <span>사이트</span>
-                <span className="w-6"></span>
-              </div>
-              {prices.map((p, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-[1fr_2fr_auto] gap-1.5 items-center"
+              {editingIdx !== null && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={resetDraft}
+                  className="h-9 text-xs shrink-0"
                 >
-                  <Input
-                    type="number"
-                    value={p.price}
-                    onChange={(e) => updatePriceRow(i, "price", e.target.value)}
-                    placeholder="35000"
-                    className="h-8 text-xs"
-                  />
-                  <Input
-                    value={p.site_url}
-                    onChange={(e) =>
-                      updatePriceRow(i, "site_url", e.target.value)
-                    }
-                    placeholder="https://naver.com/..."
-                    className="h-8 text-xs"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removePriceRow(i)}
-                    disabled={prices.length === 1}
-                    className="w-6 h-8 flex items-center justify-center text-muted-foreground hover:text-destructive disabled:opacity-30"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
+                  취소
+                </Button>
+              )}
             </div>
+
+            {prices.length > 0 && (() => {
+              const sorted = [...prices]
+                .map((p, originalIdx) => ({ p, originalIdx }))
+                .sort((a, b) => parseInt(a.p.price) - parseInt(b.p.price));
+              const minPrice = sorted[0]?.p.price;
+              return (
+                <ul className="rounded-lg border bg-muted/30 divide-y divide-border/60 overflow-hidden">
+                  {sorted.map(({ p, originalIdx }) => {
+                    const isMin = p.price === minPrice;
+                    const isEditing = editingIdx === originalIdx;
+                    return (
+                      <li
+                        key={originalIdx}
+                        onClick={() => startEditPrice(originalIdx)}
+                        className={`group flex items-center gap-3 px-3 py-2 text-sm cursor-pointer transition-colors ${
+                          isEditing ? "bg-primary/10" : "hover:bg-accent/40"
+                        }`}
+                      >
+                        <span className="w-4 text-center text-yellow-500 shrink-0">
+                          {isMin ? (
+                            <Crown className="h-4 w-4 inline" />
+                          ) : null}
+                        </span>
+                        <span
+                          className={`tabular-nums font-semibold tracking-tight shrink-0 w-24 ${
+                            isMin ? "text-yellow-700 dark:text-yellow-500" : "text-foreground"
+                          }`}
+                        >
+                          {parseInt(p.price).toLocaleString()}원
+                        </span>
+                        <span className="flex-1 min-w-0 text-xs text-muted-foreground truncate">
+                          {p.site_url || "—"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removePriceRow(originalIdx);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0"
+                          title="삭제"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              );
+            })()}
           </div>
 
           {/* 고정비 등록 체크박스 */}
@@ -323,7 +390,7 @@ export default function ProductForm({
               onChange={(e) => setIsActive(e.target.checked)}
               className="h-4 w-4 rounded"
             />
-            <span className="text-sm">가계부 고정비에 등록</span>
+            <span className="text-sm">고정비에 추가</span>
             <span
               className="relative text-muted-foreground"
               title="고정비 등록 시 매월 11일 결제로 등록됩니다"

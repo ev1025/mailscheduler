@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Search,
@@ -58,6 +59,14 @@ function saveDrafts(drafts: Draft[]) {
 }
 
 export default function KnowledgePage() {
+  return (
+    <Suspense fallback={null}>
+      <KnowledgePageInner />
+    </Suspense>
+  );
+}
+
+function KnowledgePageInner() {
   const {
     folders,
     addFolder,
@@ -69,7 +78,18 @@ export default function KnowledgePage() {
   const { items, addItem, updateItem, deleteItem, refetch } =
     useKnowledgeItems(null);
 
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlItemId = searchParams.get("item");
+  const [selectedItemId, _setSelectedItemId] = useState<string | null>(urlItemId);
+  const setSelectedItemId = (id: string | null) => {
+    _setSelectedItemId(id);
+    const params = new URLSearchParams(searchParams.toString());
+    if (id) params.set("item", id);
+    else params.delete("item");
+    const qs = params.toString();
+    router.replace(qs ? `/knowledge?${qs}` : "/knowledge", { scroll: false });
+  };
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -145,7 +165,6 @@ export default function KnowledgePage() {
       content: editContent,
     });
     setDirty(false);
-    toast.success("저장되었습니다");
   };
 
   const handleSaveDraft = () => {
@@ -164,7 +183,6 @@ export default function KnowledgePage() {
     const next = [draft, ...drafts];
     saveDrafts(next);
     setDrafts(next);
-    toast.success("임시저장됨");
   };
 
   const handleLoadDraft = (d: Draft) => {

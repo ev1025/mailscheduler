@@ -52,10 +52,11 @@ export default function FinancePage() {
   const {
     transactions, categories, loading,
     addTransaction, updateTransaction, deleteTransaction,
+    addCategory, deleteCategory, updateCategoryColor,
     totalIncome, totalExpense, balance, expenseByCategory,
   } = useTransactions(year, month);
 
-  const { fixedExpenses, addFixed, deleteFixed, applyFixedToMonth } = useFixedExpenses();
+  const { fixedExpenses, addFixed, updateFixed, deleteFixed, applyFixedToMonth } = useFixedExpenses();
 
   // 고정비 가상 거래
   const fixedAsTransactions: Expense[] = fixedExpenses.map((fx) => {
@@ -88,7 +89,6 @@ export default function FinancePage() {
   const handleApplyFixed = async () => {
     const count = await applyFixedToMonth(year, month, transactions);
     if (count > 0) {
-      toast.success(`고정비 ${count}건이 추가되었습니다`);
       window.location.reload();
     } else {
       toast.info("추가할 고정비가 없습니다 (이미 등록됨)");
@@ -176,8 +176,17 @@ export default function FinancePage() {
         </div>
       )}
 
-      <TransactionForm open={formOpen} onOpenChange={setFormOpen} categories={categories} transaction={editing} onSave={handleSave} />
-      <FixedExpenseManager open={fixedOpen} onOpenChange={setFixedOpen} fixedExpenses={fixedExpenses} categories={categories} onAdd={addFixed} onDelete={deleteFixed} />
+      <TransactionForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        categories={categories}
+        transaction={editing}
+        onSave={handleSave}
+        onAddCategory={addCategory}
+        onDeleteCategory={deleteCategory}
+        onUpdateCategoryColor={updateCategoryColor}
+      />
+      <FixedExpenseManager open={fixedOpen} onOpenChange={setFixedOpen} fixedExpenses={fixedExpenses} categories={categories} onAdd={addFixed} onUpdate={updateFixed} onDelete={deleteFixed} />
     </div>
   );
 }

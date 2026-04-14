@@ -67,6 +67,18 @@ export function useFixedExpenses() {
     return { error: null };
   };
 
+  const updateFixed = async (
+    id: string,
+    updates: Partial<Omit<FixedExpense, "id" | "created_at" | "category">>
+  ) => {
+    const { error } = await supabase
+      .from("fixed_expenses")
+      .update(updates)
+      .eq("id", id);
+    if (!error) await fetchFixed();
+    return { error };
+  };
+
   const deleteFixed = async (id: string) => {
     const { error } = await supabase
       .from("fixed_expenses")
@@ -170,6 +182,7 @@ export function useFixedExpenses() {
     fixedExpenses,
     loading,
     addFixed,
+    updateFixed,
     deleteFixed,
     deleteFixedByProduct,
     upsertFixedFromProduct,

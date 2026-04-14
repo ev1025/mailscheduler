@@ -65,7 +65,6 @@ export default function ShareManager({ open, onOpenChange }: Props) {
     } else if (error) {
       toast.error("초대 실패");
     } else {
-      toast.success("초대를 보냈습니다");
     }
   };
 
@@ -108,7 +107,6 @@ export default function ShareManager({ open, onOpenChange }: Props) {
                           className="h-7 text-xs"
                           onClick={async () => {
                             await accept(s.id);
-                            toast.success("수락됨");
                           }}
                         >
                           <Check className="h-3 w-3" />
@@ -183,7 +181,6 @@ export default function ShareManager({ open, onOpenChange }: Props) {
                       onClick={async () => {
                         if (confirm(`${viewer.name}님에게 공유를 취소할까요?`)) {
                           await cancel(s.id);
-                          toast.success("공유 취소됨");
                         }
                       }}
                     >

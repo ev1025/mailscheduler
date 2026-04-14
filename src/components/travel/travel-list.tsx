@@ -173,7 +173,6 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
     const newDates = existingDates.includes(date) ? existingDates : [...existingDates, date].sort();
     await updateItem(calendarItem.id, { visited: true, visited_dates: newDates });
 
-    toast.success(`"${calendarItem.title}"이 캘린더에 추가되었습니다`);
   };
 
   const columns = [

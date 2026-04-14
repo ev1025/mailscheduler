@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "내 대시보드",
-    short_name: "대시보드",
+    name: "매일 캘린더",
+    short_name: "매일",
     description: "캘린더, 가계부, 메모, 영양제 비교",
     start_url: "/",
     display: "standalone",

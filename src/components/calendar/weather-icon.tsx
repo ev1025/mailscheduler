@@ -42,8 +42,14 @@ export default function WeatherIcon({
   if (compact) {
     return (
       <>
-        {/* 모바일: 1행 최저/최고, 2행 아이콘 */}
+        {/* 모바일: 1행 아이콘, 2행 최저/최고 */}
         <div className="flex md:hidden flex-col items-end gap-0 leading-[1] shrink-0 max-w-full overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={getWeatherIconUrl(weather.weather_icon)}
+            alt={weather.weather_description}
+            className="h-3 w-3 shrink-0"
+          />
           <div className="flex items-center leading-[1] whitespace-nowrap">
             <span className="text-[7px] text-blue-500">
               {weather.temperature_min}°
@@ -53,12 +59,6 @@ export default function WeatherIcon({
               {weather.temperature_max}°
             </span>
           </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={getWeatherIconUrl(weather.weather_icon)}
-            alt={weather.weather_description}
-            className="h-3 w-3 shrink-0"
-          />
         </div>
         {/* 데스크톱: 1행 아이콘+설명, 2행 최저/최고 */}
         <div className="hidden md:flex flex-col items-end gap-0 leading-[1]">

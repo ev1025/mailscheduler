@@ -44,7 +44,6 @@ export default function NotificationsPanel({ open, onOpenChange }: Props) {
     await accept(pending.id);
     await markAsRead(notificationId);
     await refetch();
-    toast.success("공유를 수락했습니다 — 캘린더 상단 토글에서 확인하세요");
   };
 
   const handleRejectCalendarShare = async (
@@ -57,7 +56,6 @@ export default function NotificationsPanel({ open, onOpenChange }: Props) {
     if (pending) await reject(pending.id);
     await markAsRead(notificationId);
     await refetch();
-    toast.success("거절됨");
   };
 
   return (

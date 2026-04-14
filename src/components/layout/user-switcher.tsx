@@ -55,19 +55,39 @@ interface Props {
   allowClose?: boolean;
 }
 
-type Mode = "list" | "create" | "login" | "edit" | "actions";
+type Mode = "list" | "create" | "login" | "edit";
 
 export default function UserSwitcher({
   open,
   onOpenChange,
   allowClose = true,
 }: Props) {
-  const { users, addUser, updateUser, deleteUser } = useAppUsers();
+  const { users, addUser, updateUser, deleteUser, refetch } = useAppUsers();
   const currentId = useCurrentUserId();
+
+  // 모달 열릴 때마다 최신 유저 목록 가져오기
+  useEffect(() => {
+    if (open) refetch();
+  }, [open, refetch]);
+
+  // 로그인 상태에서 모달 열리면 자동으로 내 프로필 편집 화면으로
+  useEffect(() => {
+    if (!open || !currentId || users.length === 0) return;
+    const me = users.find((u) => u.id === currentId);
+    if (me && mode === "list") {
+      startEdit(me);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, currentId, users]);
 
   const [mode, setMode] = useState<Mode>("list");
   const [targetUser, setTargetUser] = useState<AppUser | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [pwChangeConfirmOpen, setPwChangeConfirmOpen] = useState(false);
+  const [pwChangeCurrent, setPwChangeCurrent] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
 
   // 생성 / 편집 상태
   const [name, setName] = useState("");
@@ -149,30 +169,35 @@ export default function UserSwitcher({
       );
       return;
     }
-    toast.success(`${data.name} 프로필 생성됨`);
-    // 생성자는 일단 로그인 (비번 없이), remember는 로그인 모달에서 설정
-    setCurrentUserId(data.id, true);
-    addRememberedUser(data.id); // 생성자 자신은 자동 로그인 기본 허용
+    // 생성자는 세션으로만 로그인 (자동 로그인 X). 다음 접속 시 비번 입력 필요.
+    setCurrentUserId(data.id, false);
     onOpenChange(false);
   };
 
   const startLogin = (u: AppUser) => {
-    // 이미 로그인된 자기 프로필 클릭 → actions 메뉴
+    // 이미 로그인된 자기 프로필 클릭 → 편집 화면
     if (currentId && u.id === currentId) {
-      setTargetUser(u);
-      setMode("actions");
+      startEdit(u);
       return;
     }
-    // 이 기기에서 자동 로그인이 허용된 프로필이면 비번 스킵
+    // 자동 로그인 허용된 프로필이면 비번 스킵하고 바로 입장
     if (isRemembered(u.id)) {
       setCurrentUserId(u.id, true);
       onOpenChange(false);
       return;
     }
-    // 그 외에는 항상 비밀번호 입력
+    // 비밀번호가 설정되지 않은 프로필 → 안내
+    if (!u.password_hash) {
+      toast.error(
+        "이 프로필은 비밀번호가 없습니다. 다른 프로필로 로그인 후 수정해주세요."
+      );
+      return;
+    }
+    // 그 외 → 비밀번호 입력 모드
     setTargetUser(u);
     setMode("login");
     setPassword("");
+    setRemember(false); // 기본 OFF
   };
 
   const handleLogin = async () => {
@@ -192,11 +217,10 @@ export default function UserSwitcher({
       toast.error("비밀번호가 틀렸어요");
       return;
     }
-    setCurrentUserId(targetUser.id, true);
+    setCurrentUserId(targetUser.id, remember);
     if (remember) addRememberedUser(targetUser.id);
     else removeRememberedUser(targetUser.id);
     onOpenChange(false);
-    toast.success(`${targetUser.name}님 환영합니다`);
   };
 
   const startEdit = (u: AppUser) => {
@@ -208,6 +232,54 @@ export default function UserSwitcher({
     setAvatarUrl(u.avatar_url || "");
     setPassword("");
     setPasswordConfirm("");
+    setShowPasswordChange(false);
+    setPwChangeConfirmOpen(false);
+    setPwChangeCurrent("");
+    setDeleteConfirmOpen(false);
+    setDeletePassword("");
+  };
+
+  const handleConfirmPwChange = async () => {
+    if (!targetUser) return;
+    if (!targetUser.password_salt || !targetUser.password_hash) {
+      toast.error("비밀번호가 설정되지 않은 프로필입니다");
+      return;
+    }
+    if (!pwChangeCurrent) {
+      toast.error("현재 비밀번호를 입력하세요");
+      return;
+    }
+    const hash = await hashPassword(pwChangeCurrent, targetUser.password_salt);
+    if (hash !== targetUser.password_hash) {
+      toast.error("비밀번호가 틀렸어요");
+      return;
+    }
+    setPwChangeConfirmOpen(false);
+    setPwChangeCurrent("");
+    setShowPasswordChange(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!targetUser) return;
+    if (!targetUser.password_salt || !targetUser.password_hash) {
+      toast.error("비밀번호가 설정되지 않은 프로필입니다");
+      return;
+    }
+    if (!deletePassword) {
+      toast.error("비밀번호를 입력하세요");
+      return;
+    }
+    const hash = await hashPassword(deletePassword, targetUser.password_salt);
+    if (hash !== targetUser.password_hash) {
+      toast.error("비밀번호가 틀렸어요");
+      return;
+    }
+    await deleteUser(targetUser.id);
+    removeRememberedUser(targetUser.id);
+    logout();
+    setMode("list");
+    setDeleteConfirmOpen(false);
+    setDeletePassword("");
   };
 
   const handleUpdate = async () => {
@@ -237,7 +309,6 @@ export default function UserSwitcher({
       toast.error(typeof error === "string" ? error : "저장 실패");
       return;
     }
-    toast.success("수정되었습니다");
     setMode("list");
   };
 
@@ -245,7 +316,6 @@ export default function UserSwitcher({
     if (currentId) removeRememberedUser(currentId);
     logout();
     setMode("list");
-    toast.success("로그아웃되었습니다");
   };
 
   return (
@@ -262,10 +332,7 @@ export default function UserSwitcher({
       >
         <DialogHeader>
           <div className="flex items-center gap-2">
-            {(mode === "create" ||
-              mode === "login" ||
-              mode === "edit" ||
-              mode === "actions") && (
+            {(mode === "create" || mode === "login" || mode === "edit") && (
               <button
                 type="button"
                 onClick={() => setMode("list")}
@@ -278,8 +345,7 @@ export default function UserSwitcher({
               {mode === "list" && (users.length === 0 ? "프로필 만들기" : currentId ? "프로필" : "로그인")}
               {mode === "create" && "새 프로필 만들기"}
               {mode === "login" && `${targetUser?.name}님 로그인`}
-              {mode === "edit" && `${targetUser?.name} 수정`}
-              {mode === "actions" && "내 프로필"}
+              {mode === "edit" && (targetUser?.id === currentId ? "내 프로필" : `${targetUser?.name} 수정`)}
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -404,90 +470,6 @@ export default function UserSwitcher({
           </div>
         )}
 
-        {/* ACTIONS MODE — 자기 프로필 클릭 시 */}
-        {mode === "actions" && targetUser && (
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-3 rounded-lg bg-muted/30 p-3 mb-1">
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-full text-xl overflow-hidden"
-                style={
-                  targetUser.avatar_url
-                    ? { backgroundColor: "transparent" }
-                    : {
-                        backgroundColor: targetUser.color + "30",
-                        color: targetUser.color,
-                      }
-                }
-              >
-                {targetUser.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={targetUser.avatar_url}
-                    alt={targetUser.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  targetUser.emoji || targetUser.name[0]
-                )}
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold">{targetUser.name}</p>
-                <p className="text-[11px] text-muted-foreground">로그인 중</p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => startEdit(targetUser)}
-              className="flex items-center gap-3 rounded-lg border p-3 text-sm hover:bg-accent transition-colors"
-            >
-              <Pencil className="h-4 w-4 text-muted-foreground" />
-              <span>프로필 편집</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShareOpen(true)}
-              className="flex items-center gap-3 rounded-lg border p-3 text-sm hover:bg-accent transition-colors"
-            >
-              <Share2 className="h-4 w-4 text-muted-foreground" />
-              <span>캘린더 공유</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                if (
-                  confirm(
-                    `"${targetUser.name}" 프로필과 모든 데이터를 삭제할까요?`
-                  )
-                ) {
-                  deleteUser(targetUser.id);
-                  removeRememberedUser(targetUser.id);
-                  logout();
-                  setMode("list");
-                  toast.success("프로필이 삭제되었습니다");
-                }
-              }}
-              className="flex items-center gap-3 rounded-lg border border-destructive/30 p-3 text-sm text-destructive hover:bg-destructive/5 transition-colors"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span>프로필 삭제</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                handleLogout();
-              }}
-              className="flex items-center gap-3 rounded-lg border p-3 text-sm hover:bg-accent transition-colors"
-            >
-              <LogOut className="h-4 w-4 text-muted-foreground" />
-              <span>로그아웃</span>
-            </button>
-          </div>
-        )}
-
         {/* CREATE / EDIT MODE */}
         {(mode === "create" || mode === "edit") && (
           <div className="flex flex-col gap-3">
@@ -594,18 +576,19 @@ export default function UserSwitcher({
               </div>
             </div>
 
-            <div className="flex flex-col gap-1 pt-2 border-t">
-              <Label className="text-[10px] text-muted-foreground">
-                {mode === "edit" ? "새 비밀번호 (비우면 변경 안 함)" : "비밀번호 (선택)"}
-              </Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="비밀번호"
-                className="h-9"
-              />
-              {password && (
+            {/* 비밀번호 입력 — 생성 모드는 항상 표시, 편집 모드는 변경 토글 */}
+            {(mode === "create" || showPasswordChange) && (
+              <div className="flex flex-col gap-1 pt-2 border-t">
+                <Label className="text-[10px] text-muted-foreground">
+                  {mode === "edit" ? "새 비밀번호" : "비밀번호"}
+                </Label>
+                <Input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="비밀번호 (4자 이상)"
+                  className="h-9"
+                />
                 <Input
                   type="password"
                   value={passwordConfirm}
@@ -613,8 +596,8 @@ export default function UserSwitcher({
                   placeholder="비밀번호 확인"
                   className="h-9"
                 />
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="flex gap-2 justify-end">
               <Button
@@ -637,6 +620,104 @@ export default function UserSwitcher({
                 {mode === "create" ? "만들기" : "저장"}
               </Button>
             </div>
+
+            {/* 편집 + 자기 프로필일 때만 액션 그리드 */}
+            {mode === "edit" && targetUser && targetUser.id === currentId && (
+              <div className="border-t pt-3 mt-1 flex flex-col gap-2">
+                {pwChangeConfirmOpen ? (
+                  <div className="flex flex-col gap-2 rounded-lg border p-3 bg-muted/30">
+                    <p className="text-xs font-medium">🔒 비밀번호 변경 — 현재 비밀번호 확인</p>
+                    <Input
+                      type="password"
+                      value={pwChangeCurrent}
+                      onChange={(e) => setPwChangeCurrent(e.target.value)}
+                      placeholder="현재 비밀번호"
+                      className="h-8"
+                      autoFocus
+                      onKeyDown={(e) => { if (e.key === "Enter") handleConfirmPwChange(); }}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
+                        onClick={() => { setPwChangeConfirmOpen(false); setPwChangeCurrent(""); }}>
+                        취소
+                      </Button>
+                      <Button type="button" size="sm" className="h-7 text-xs" onClick={handleConfirmPwChange}>
+                        확인
+                      </Button>
+                    </div>
+                  </div>
+                ) : deleteConfirmOpen ? (
+                  <div className="flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                    <p className="text-xs text-destructive font-medium">
+                      ⚠️ 프로필 삭제 — 비밀번호로 확인
+                    </p>
+                    <Input
+                      type="password"
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      placeholder="비밀번호"
+                      className="h-8"
+                      autoFocus
+                      onKeyDown={(e) => { if (e.key === "Enter") handleConfirmDelete(); }}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
+                        onClick={() => { setDeleteConfirmOpen(false); setDeletePassword(""); }}>
+                        취소
+                      </Button>
+                      <Button type="button" size="sm"
+                        className="h-7 text-xs bg-destructive hover:bg-destructive/90"
+                        onClick={handleConfirmDelete}>
+                        확인 후 삭제
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShareOpen(true)}
+                      className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
+                    >
+                      <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
+                      일정 공유
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
+                    >
+                      <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
+                      로그아웃
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (showPasswordChange) {
+                          setShowPasswordChange(false);
+                          setPassword("");
+                          setPasswordConfirm("");
+                        } else {
+                          setPwChangeConfirmOpen(true);
+                        }
+                      }}
+                      className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
+                    >
+                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                      비밀번호 변경
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteConfirmOpen(true)}
+                      className="flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-2.5 text-xs text-destructive hover:bg-destructive/5 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      프로필 삭제
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </DialogContent>

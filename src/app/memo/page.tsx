@@ -7,7 +7,6 @@ import { useMemos } from "@/hooks/use-memos";
 import MemoCard from "@/components/memo/memo-card";
 import MemoForm from "@/components/memo/memo-form";
 import type { Memo } from "@/types";
-import { toast } from "sonner";
 
 export default function MemoPage() {
   const { memos, loading, addMemo, updateMemo, deleteMemo, togglePin } =
@@ -17,13 +16,9 @@ export default function MemoPage() {
 
   const handleSave = async (title: string, content: string) => {
     if (editingMemo) {
-      const result = await updateMemo(editingMemo.id, { title, content });
-      if (!result.error) toast.success("메모가 수정되었습니다");
-      return result;
+      return await updateMemo(editingMemo.id, { title, content });
     } else {
-      const result = await addMemo(title, content);
-      if (!result.error) toast.success("메모가 추가되었습니다");
-      return result;
+      return await addMemo(title, content);
     }
   };
 
@@ -33,8 +28,7 @@ export default function MemoPage() {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await deleteMemo(id);
-    if (!error) toast.success("메모가 삭제되었습니다");
+    await deleteMemo(id);
   };
 
   const handleTogglePin = async (id: string, pinned: boolean) => {

@@ -147,7 +147,7 @@ export default function SettingsPage() {
           </ApiSection>
 
           {/* 날씨 API */}
-          <ApiSection title="날씨 API" defaultOpen>
+          <ApiSection title="날씨 API">
             <div className="flex flex-col gap-4 text-sm">
               {/* 기상청 단기예보 */}
               <div className="flex flex-col gap-2">

@@ -10,14 +10,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import TagInput from "@/components/ui/tag-input";
+import { usePaymentMethods } from "@/hooks/use-payment-methods";
 import type { Expense, ExpenseCategory } from "@/types";
 
 interface TransactionFormProps {
@@ -25,6 +20,13 @@ interface TransactionFormProps {
   onOpenChange: (open: boolean) => void;
   categories: ExpenseCategory[];
   transaction?: Expense | null;
+  onAddCategory?: (
+    name: string,
+    type: "income" | "expense",
+    color: string
+  ) => Promise<{ error: unknown }>;
+  onDeleteCategory?: (id: string) => Promise<{ error: unknown }>;
+  onUpdateCategoryColor?: (id: string, color: string) => Promise<{ error: unknown }>;
   onSave: (data: {
     amount: number;
     category_id: string;
@@ -40,8 +42,12 @@ export default function TransactionForm({
   onOpenChange,
   categories,
   transaction,
+  onAddCategory,
+  onDeleteCategory,
+  onUpdateCategoryColor,
   onSave,
 }: TransactionFormProps) {
+  const { methods: paymentMethods, addMethod, deleteMethod, updateMethodColor } = usePaymentMethods();
   const [type, setType] = useState<"income" | "expense">("expense");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -150,51 +156,51 @@ export default function TransactionForm({
             </div>
           </div>
 
-          {/* 2행: 카테고리 | 결제수단 */}
+          {/* 2행: 카테고리 | 결제수단 (태그 형식) */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1 min-w-0">
               <Label className="text-[11px] text-muted-foreground">
                 카테고리 *
               </Label>
-              <Select
-                value={categoryId}
-                onValueChange={(v) => setCategoryId(v ?? "")}
-              >
-                <SelectTrigger className="h-9 w-full">
-                  {categoryId ? (
-                    filteredCategories.find((c) => c.id === categoryId)
-                      ?.name || "선택"
-                  ) : (
-                    <span className="text-muted-foreground">선택</span>
-                  )}
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredCategories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TagInput
+                selectedTags={
+                  categoryId
+                    ? [filteredCategories.find((c) => c.id === categoryId)?.name || ""]
+                    : []
+                }
+                allTags={filteredCategories.map((c) => ({
+                  id: c.id,
+                  name: c.name,
+                  color: c.color,
+                }))}
+                onChange={(tags) => {
+                  const picked = tags[tags.length - 1];
+                  const match = filteredCategories.find((c) => c.name === picked);
+                  setCategoryId(match?.id || "");
+                }}
+                onAddTag={
+                  onAddCategory
+                    ? async (name, color) => onAddCategory(name, type, color)
+                    : undefined
+                }
+                onDeleteTag={onDeleteCategory}
+                onUpdateTagColor={onUpdateCategoryColor}
+                placeholder="검색/추가"
+              />
             </div>
             <div className="flex flex-col gap-1 min-w-0">
               <Label className="text-[11px] text-muted-foreground">
                 결제수단
               </Label>
-              <Select
-                value={paymentMethod}
-                onValueChange={(v) => setPaymentMethod(v ?? "카드")}
-              >
-                <SelectTrigger className="h-9 w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="카드">카드</SelectItem>
-                  <SelectItem value="현금">현금</SelectItem>
-                  <SelectItem value="계좌이체">계좌이체</SelectItem>
-                  <SelectItem value="기타">기타</SelectItem>
-                </SelectContent>
-              </Select>
+              <TagInput
+                selectedTags={paymentMethod ? [paymentMethod] : []}
+                allTags={paymentMethods}
+                onChange={(tags) => setPaymentMethod(tags[tags.length - 1] || "")}
+                onAddTag={addMethod}
+                onDeleteTag={deleteMethod}
+                onUpdateTagColor={updateMethodColor}
+                placeholder="검색/추가"
+              />
             </div>
           </div>
 
