@@ -16,7 +16,6 @@ import {
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import UserSwitcher from "./user-switcher";
 import NotificationsPanel from "./notifications-panel";
 import { useCurrentUser } from "@/lib/current-user";
 import { useNotifications } from "@/hooks/use-notifications";
@@ -37,7 +36,6 @@ interface SidebarProps {
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const [notiOpen, setNotiOpen] = useState(false);
-  const [userOpen, setUserOpen] = useState(false);
   const currentUser = useCurrentUser();
   const { unreadCount } = useNotifications();
 
@@ -129,10 +127,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </Link>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setUserOpen(true)}
-          title={currentUser ? currentUser.name : "사용자 선택"}
+        <Link
+          href="/profile"
+          title={currentUser ? currentUser.name : "프로필"}
           className="rounded-md p-1 hover:bg-accent transition-colors"
         >
           {currentUser ? (
@@ -161,11 +158,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           ) : (
             <User className="h-5 w-5 text-muted-foreground" />
           )}
-        </button>
+        </Link>
       </div>
 
       <NotificationsPanel open={notiOpen} onOpenChange={setNotiOpen} />
-      <UserSwitcher open={userOpen} onOpenChange={setUserOpen} />
     </aside>
   );
 }

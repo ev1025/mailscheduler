@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -12,7 +11,6 @@ import {
   User,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import UserSwitcher from "./user-switcher";
 import { useCurrentUser } from "@/lib/current-user";
 
 const navItems = [
@@ -25,8 +23,8 @@ const navItems = [
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const [userOpen, setUserOpen] = useState(false);
   const currentUser = useCurrentUser();
+  const profileActive = pathname === "/profile" || pathname.startsWith("/profile/");
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-lg md:hidden pb-safe">
@@ -52,10 +50,12 @@ export default function BottomNav() {
             </Link>
           );
         })}
-        <button
-          type="button"
-          onClick={() => setUserOpen(true)}
-          className="flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs text-muted-foreground active:bg-accent/50"
+        <Link
+          href="/profile"
+          className={cn(
+            "flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs transition-colors active:bg-accent/50",
+            profileActive ? "text-foreground font-medium" : "text-muted-foreground"
+          )}
         >
           {currentUser ? (
             <span
@@ -84,9 +84,8 @@ export default function BottomNav() {
             <User className="h-5 w-5" />
           )}
           <span>프로필</span>
-        </button>
+        </Link>
       </div>
-      <UserSwitcher open={userOpen} onOpenChange={setUserOpen} />
     </nav>
   );
 }

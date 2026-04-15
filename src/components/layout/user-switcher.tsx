@@ -11,30 +11,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  Plus,
-  Trash2,
   Upload,
-  X,
   Check,
   Mail,
-  LogOut,
-  Share2,
-  Settings as SettingsIcon,
 } from "lucide-react";
-import ShareManager from "@/components/calendar/share-manager";
 import AvatarCropDialog from "./avatar-crop-dialog";
-import { useRouter } from "next/navigation";
 import {
   useAppUsers,
   useCurrentUser,
-  type AppUser,
 } from "@/lib/current-user";
 import {
   sendMagicLink,
-  supabaseSignOut,
   useSupabaseAuth,
 } from "@/lib/auth-supabase";
-import { uploadToStorage, deleteFromStorage } from "@/lib/storage";
+import { uploadToStorage } from "@/lib/storage";
 import { toast } from "sonner";
 
 const PALETTE = [
@@ -55,27 +45,22 @@ interface Props {
   allowClose?: boolean;
 }
 
-// Mode:
-//  - signin: Supabase Auth 세션 없음 → 이메일 매직링크 전송
-//  - setup : 세션 있으나 app_users 프로필 없음 → 최초 프로필 생성
-//  - edit  : 세션 + 프로필 있음 → 내 프로필 편집
-type Mode = "signin" | "setup" | "edit";
+// signin: 로그인 필요 (매직링크)
+// setup : 프로필 최초 생성
+// 편집은 /profile 엔드포인트에서 처리 (이 컴포넌트는 게이트 전용)
+type Mode = "signin" | "setup";
 
 export default function UserSwitcher({ open, onOpenChange, allowClose = true }: Props) {
-  const router = useRouter();
   const { user: authUser, loading: authLoading } = useSupabaseAuth();
-  const { users, loading: usersLoading, addUser, updateUser, deleteUser, refetch } = useAppUsers();
+  const { loading: usersLoading, addUser } = useAppUsers();
   const currentUser = useCurrentUser();
 
-  const [shareOpen, setShareOpen] = useState(false);
-
-  // 이메일 매직링크 폼
   const [emailInput, setEmailInput] = useState("");
   const [emailStatus, setEmailStatus] = useState<
     { type: "idle" | "sending" | "sent" | "error"; message?: string }
   >({ type: "idle" });
 
-  // 프로필 생성/편집 폼
+  // 프로필 최초 생성 폼
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🙂");
   const [color, setColor] = useState(PALETTE[0]);
@@ -86,29 +71,14 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
 
-  // 현재 모드 계산 (auth 상태 + 프로필 유무)
-  const mode: Mode = !authUser ? "signin" : currentUser ? "edit" : "setup";
+  const mode: Mode = !authUser ? "signin" : "setup";
 
-  // 모달 열릴 때마다 목록 재조회 (다른 기기에서 바뀐 프로필 반영)
   useEffect(() => {
-    if (open) refetch();
-  }, [open, refetch]);
-
-  // edit 모드 진입 시 현재 프로필 값 로드
-  useEffect(() => {
-    if (mode === "edit" && currentUser) {
-      setName(currentUser.name);
-      setEmoji(currentUser.emoji || "🙂");
-      setColor(currentUser.color || PALETTE[0]);
-      setAvatarUrl(currentUser.avatar_url || "");
-    }
-    if (mode === "setup") {
-      setName("");
+    if (mode === "setup" && !avatarUrl && !name) {
       setEmoji("🙂");
       setColor(PALETTE[Math.floor(Math.random() * PALETTE.length)]);
-      setAvatarUrl("");
     }
-  }, [mode, currentUser]);
+  }, [mode, avatarUrl, name]);
 
   const handleSendMagicLink = async () => {
     setEmailStatus({ type: "sending" });
@@ -119,7 +89,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
     }
     setEmailStatus({
       type: "sent",
-      message: `${emailInput.trim()}으로 로그인 링크를 보냈습니다. 메일함을 확인해주세요.`,
+      message: `${emailInput.trim()}으로 로그인 링크를 보냈습니다.`,
     });
   };
 
@@ -142,37 +112,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
       toast.error(typeof error === "string" ? error : "프로필 생성 실패");
       return;
     }
-    onOpenChange(false);
-  };
-
-  const handleUpdateProfile = async () => {
-    if (!currentUser || !name.trim()) return;
-    setSaving(true);
-    const { error } = await updateUser(currentUser.id, {
-      name: name.trim(),
-      emoji: avatarUrl ? null : emoji,
-      color,
-      avatar_url: avatarUrl || null,
-    });
-    setSaving(false);
-    if (error) {
-      toast.error(typeof error === "string" ? error : "저장 실패");
-      return;
-    }
-    onOpenChange(false);
-  };
-
-  const handleSignOut = async () => {
-    await supabaseSignOut();
-    onOpenChange(false);
-  };
-
-  const handleDeleteProfile = async () => {
-    if (!currentUser) return;
-    if (!confirm("프로필과 Supabase 로그인 세션을 삭제합니다. 계속할까요?")) return;
-    await deleteUser(currentUser.id);
-    await supabaseSignOut();
-    onOpenChange(false);
+    // 성공 시 currentUser가 업데이트되면서 AppShell 게이트가 자동으로 닫힘
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -192,14 +132,15 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
   };
 
   const isLoading = authLoading || usersLoading;
+  // 이미 로그인 + 프로필 있으면 이 다이얼로그는 뜨면 안 됨 (AppShell이 제어)
+  void currentUser;
 
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        // 자식 다이얼로그(ShareManager/AvatarCropDialog)가 열려 있으면 부모 닫지 못함
-        if (!o && (shareOpen || cropOpen)) return;
-        if (!o && !allowClose && !authUser) return;
+        if (!o && cropOpen) return;
+        if (!o && !allowClose) return;
         onOpenChange(o);
       }}
     >
@@ -209,16 +150,14 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
       >
         <DialogHeader>
           <DialogTitle>
-            {mode === "signin" && "로그인"}
-            {mode === "setup" && "프로필 만들기"}
-            {mode === "edit" && "내 프로필"}
+            {mode === "signin" ? "로그인" : "프로필 만들기"}
           </DialogTitle>
         </DialogHeader>
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">불러오는 중...</p>
         ) : mode === "signin" ? (
-          /* SIGN IN — Supabase 매직링크 */
+          /* SIGN IN — 매직링크 */
           <div className="flex flex-col gap-3">
             {emailStatus.type === "sent" ? (
               <div className="flex flex-col gap-2 rounded-md border bg-green-50 p-4 text-sm text-green-900">
@@ -236,7 +175,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                 <p className="text-xs text-muted-foreground">
                   이메일로 로그인 링크를 보내드립니다. 비밀번호는 필요 없어요.
                 </p>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5">
                   <Label className="text-xs text-muted-foreground">이메일</Label>
                   <Input
                     type="email"
@@ -251,7 +190,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                     placeholder="you@example.com"
                     autoComplete="email"
                     autoFocus
-                    className="h-9"
+                    className="h-10"
                   />
                 </div>
                 {emailStatus.type === "error" && (
@@ -260,7 +199,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                 <Button
                   onClick={handleSendMagicLink}
                   disabled={emailStatus.type === "sending" || !emailInput.trim()}
-                  className="w-full"
+                  className="w-full h-10"
                 >
                   <Mail className="mr-1 h-4 w-4" />
                   {emailStatus.type === "sending" ? "보내는 중..." : "로그인 링크 받기"}
@@ -269,28 +208,24 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
             )}
           </div>
         ) : (
-          /* SETUP or EDIT — 프로필 생성/편집 */
+          /* SETUP — 프로필 최초 생성 */
           <div className="flex flex-col gap-3">
-            {mode === "setup" && (
-              <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{authUser?.email}</span>로 로그인됐어요.
-                프로필 정보를 입력하면 시작할 수 있어요.
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">{authUser?.email}</span>로 로그인됐어요.
+              프로필 정보를 입력하면 시작할 수 있어요.
+            </p>
 
-            {/* 이름 */}
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <Label className="text-xs text-muted-foreground">이름 (표시용)</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="이름"
-                className="h-9"
-                autoFocus={mode === "setup"}
+                className="h-10"
+                autoFocus
               />
             </div>
 
-            {/* 아바타 미리보기 */}
             <div className="flex items-center gap-3 pt-1">
               <div
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl overflow-hidden"
@@ -310,16 +245,15 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
               <span className="text-xs text-muted-foreground">아래에서 이미지/이모지/색상을 선택하세요</span>
             </div>
 
-            {/* 이미지 업로드 */}
-            <div className="flex gap-1.5">
+            <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => fileRef.current?.click()}
-                className="flex-1 h-8 text-xs"
+                className="flex-1 h-9"
               >
-                <Upload className="mr-1 h-3 w-3" /> 이미지 업로드
+                <Upload className="mr-1 h-4 w-4" /> 이미지 업로드
               </Button>
               {avatarUrl && (
                 <Button
@@ -327,7 +261,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                   variant="outline"
                   size="sm"
                   onClick={() => setAvatarUrl("")}
-                  className="h-8 text-xs"
+                  className="h-9 text-xs"
                 >
                   이미지 초기화
                 </Button>
@@ -341,10 +275,9 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
               />
             </div>
 
-            {/* 이모지 */}
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <Label className="text-xs text-muted-foreground">프리셋 이모지</Label>
-              <div className="grid grid-cols-8 gap-1">
+              <div className="grid grid-cols-8 gap-1.5">
                 {PRESET_EMOJIS.map((e) => (
                   <button
                     key={e}
@@ -353,7 +286,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                       setEmoji(e);
                       setAvatarUrl("");
                     }}
-                    className={`flex h-7 w-7 items-center justify-center rounded-md text-base hover:bg-accent transition-colors ${
+                    className={`flex h-8 w-8 items-center justify-center rounded-md text-lg hover:bg-accent transition-colors ${
                       emoji === e && !avatarUrl ? "ring-2 ring-primary" : ""
                     }`}
                   >
@@ -363,16 +296,15 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
               </div>
             </div>
 
-            {/* 색상 */}
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <Label className="text-xs text-muted-foreground">배경색</Label>
-              <div className="flex gap-1.5 flex-wrap">
+              <div className="flex gap-2 flex-wrap">
                 {PALETTE.map((c) => (
                   <button
                     key={c}
                     type="button"
                     onClick={() => setColor(c)}
-                    className={`h-5 w-5 rounded-full transition-all ${
+                    className={`h-6 w-6 rounded-full transition-all ${
                       color === c ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-110"
                     }`}
                     style={{ backgroundColor: c }}
@@ -381,82 +313,23 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
               </div>
             </div>
 
-            {/* 저장 / 취소 */}
-            <div className="flex gap-2 justify-end">
-              {mode === "edit" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onOpenChange(false)}
-                  className="h-8"
-                >
-                  취소
-                </Button>
-              )}
-              <Button
-                type="button"
-                size="sm"
-                onClick={mode === "setup" ? handleCreateProfile : handleUpdateProfile}
-                disabled={!name.trim() || saving}
-                className="h-8"
-              >
-                <Check className="mr-1 h-3 w-3" />
-                {mode === "setup" ? "시작하기" : "저장"}
-              </Button>
-            </div>
-
-            {/* edit 모드에서만 액션 영역: 설정|공유 / 로그아웃|삭제 */}
-            {mode === "edit" && (
-              <div className="border-t pt-3 mt-1 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onOpenChange(false);
-                    router.push("/settings");
-                  }}
-                  className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-sm hover:bg-accent transition-colors"
-                >
-                  <SettingsIcon className="h-4 w-4 text-muted-foreground" />
-                  설정
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShareOpen(true)}
-                  className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-sm hover:bg-accent transition-colors"
-                >
-                  <Share2 className="h-4 w-4 text-muted-foreground" />
-                  일정 공유
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSignOut}
-                  className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-sm hover:bg-accent transition-colors"
-                >
-                  <LogOut className="h-4 w-4 text-muted-foreground" />
-                  로그아웃
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteProfile}
-                  className="flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-2.5 text-sm text-destructive hover:bg-destructive/5 transition-colors"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  프로필 삭제
-                </button>
-              </div>
-            )}
+            <Button
+              type="button"
+              onClick={handleCreateProfile}
+              disabled={!name.trim() || saving}
+              className="h-10 mt-1"
+            >
+              <Check className="mr-1 h-4 w-4" />
+              {saving ? "저장 중..." : "시작하기"}
+            </Button>
           </div>
         )}
       </DialogContent>
-      <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
       <AvatarCropDialog
         src={cropSrc}
         open={cropOpen}
         onOpenChange={setCropOpen}
         onConfirm={async (dataUrl) => {
-          // 크롭된 결과를 Supabase Storage에 업로드하고 public URL 저장
-          const prevUrl = avatarUrl;
           const { url, error } = await uploadToStorage("avatars", dataUrl, "jpg");
           if (error || !url) {
             toast.error(error || "이미지 업로드 실패");
@@ -464,10 +337,6 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
           }
           setAvatarUrl(url);
           setEmoji("");
-          // 기존 스토리지 이미지면 정리
-          if (prevUrl && prevUrl.includes("/storage/v1/object/public/avatars/")) {
-            deleteFromStorage("avatars", prevUrl);
-          }
         }}
       />
     </Dialog>
