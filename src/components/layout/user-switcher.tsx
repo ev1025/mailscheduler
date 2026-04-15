@@ -54,7 +54,7 @@ interface Props {
   allowClose?: boolean;
 }
 
-type Mode = "list" | "create" | "edit";
+type Mode = "list" | "create" | "edit" | "forgot";
 
 const LOGIN_ID_RE = /^[a-zA-Z0-9_]{3,20}$/;
 
@@ -99,6 +99,17 @@ export default function UserSwitcher({
   // 생성 / 편집 상태
   const [loginId, setLoginId] = useState("");
   const [name, setName] = useState("");
+  const [recoveryQuestion, setRecoveryQuestion] = useState("");
+  const [recoveryAnswer, setRecoveryAnswer] = useState("");
+
+  // 비밀번호 찾기(forgot) 상태
+  const [forgotId, setForgotId] = useState("");
+  const [forgotTarget, setForgotTarget] = useState<AppUser | null>(null);
+  const [forgotAnswer, setForgotAnswer] = useState("");
+  const [forgotNewPw, setForgotNewPw] = useState("");
+  const [forgotNewPwConfirm, setForgotNewPwConfirm] = useState("");
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotStep, setForgotStep] = useState<"id" | "answer" | "reset">("id");
   const [emoji, setEmoji] = useState("🙂");
   const [color, setColor] = useState(PALETTE[0]);
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -114,6 +125,8 @@ export default function UserSwitcher({
       setTargetUser(null);
       setLoginId("");
       setName("");
+      setRecoveryQuestion("");
+      setRecoveryAnswer("");
       setEmoji("🙂");
       setColor(PALETTE[0]);
       setAvatarUrl("");
@@ -124,6 +137,13 @@ export default function UserSwitcher({
       setLoginPwInput("");
       setLoginError(null);
       setRememberLogin(false);
+      setForgotId("");
+      setForgotTarget(null);
+      setForgotAnswer("");
+      setForgotNewPw("");
+      setForgotNewPwConfirm("");
+      setForgotError(null);
+      setForgotStep("id");
     }
   }, [open]);
 
@@ -181,6 +201,20 @@ export default function UserSwitcher({
     }
     const salt = generateSalt();
     const hash = await hashPassword(password, salt);
+
+    // 복구 질문/답변은 선택. 둘 다 입력 시에만 저장.
+    let recoveryQ: string | undefined;
+    let recoveryAH: string | undefined;
+    let recoveryAS: string | undefined;
+    if (recoveryQuestion.trim() && recoveryAnswer.trim()) {
+      recoveryQ = recoveryQuestion.trim();
+      recoveryAS = generateSalt();
+      recoveryAH = await hashPassword(
+        recoveryAnswer.trim().toLowerCase(),
+        recoveryAS
+      );
+    }
+
     const { data, error } = await addUser(
       name.trim(),
       color,
@@ -188,7 +222,10 @@ export default function UserSwitcher({
       avatarUrl,
       hash,
       salt,
-      loginId.trim()
+      loginId.trim(),
+      recoveryQ,
+      recoveryAH,
+      recoveryAS
     );
     if (error || !data) {
       toast.error(
@@ -233,6 +270,82 @@ export default function UserSwitcher({
     if (rememberLogin) addRememberedUser(target.id);
     else removeRememberedUser(target.id);
     onOpenChange(false);
+  };
+
+  const handleForgotStart = () => {
+    setForgotError(null);
+    const idInput = forgotId.trim();
+    if (!idInput) {
+      setForgotError("아이디를 입력하세요");
+      return;
+    }
+    const target =
+      users.find((u) => u.login_id && u.login_id === idInput) ||
+      users.find((u) => !u.login_id && u.name === idInput);
+    if (!target) {
+      setForgotError("아이디를 찾을 수 없습니다");
+      return;
+    }
+    if (
+      !target.recovery_question ||
+      !target.recovery_answer_hash ||
+      !target.recovery_answer_salt
+    ) {
+      setForgotError(
+        "이 프로필은 복구 질문이 설정되지 않았습니다"
+      );
+      return;
+    }
+    setForgotTarget(target);
+    setForgotStep("answer");
+  };
+
+  const handleForgotVerify = async () => {
+    setForgotError(null);
+    if (!forgotTarget) return;
+    if (!forgotAnswer.trim()) {
+      setForgotError("답변을 입력하세요");
+      return;
+    }
+    const hash = await hashPassword(
+      forgotAnswer.trim().toLowerCase(),
+      forgotTarget.recovery_answer_salt!
+    );
+    if (hash !== forgotTarget.recovery_answer_hash) {
+      setForgotError("답변이 일치하지 않습니다");
+      return;
+    }
+    setForgotStep("reset");
+  };
+
+  const handleForgotReset = async () => {
+    setForgotError(null);
+    if (!forgotTarget) return;
+    if (!forgotNewPw || forgotNewPw.length < 4) {
+      setForgotError("새 비밀번호는 4자 이상");
+      return;
+    }
+    if (forgotNewPw !== forgotNewPwConfirm) {
+      setForgotError("비밀번호가 일치하지 않습니다");
+      return;
+    }
+    const salt = generateSalt();
+    const hash = await hashPassword(forgotNewPw, salt);
+    const { error } = await updateUser(forgotTarget.id, {
+      password_hash: hash,
+      password_salt: salt,
+    });
+    if (error) {
+      setForgotError("저장 실패");
+      return;
+    }
+    setMode("list");
+    setForgotStep("id");
+    setForgotId("");
+    setForgotAnswer("");
+    setForgotNewPw("");
+    setForgotNewPwConfirm("");
+    setLoginIdInput(forgotTarget.login_id || forgotTarget.name);
   };
 
   const startEdit = (u: AppUser) => {
@@ -344,7 +457,7 @@ export default function UserSwitcher({
       >
         <DialogHeader>
           <div className="flex items-center gap-2">
-            {(mode === "create" || mode === "edit") && (
+            {(mode === "create" || mode === "edit" || mode === "forgot") && (
               <button
                 type="button"
                 onClick={() => setMode("list")}
@@ -357,6 +470,7 @@ export default function UserSwitcher({
               {mode === "list" && (users.length === 0 ? "프로필 만들기" : currentId ? "프로필" : "로그인")}
               {mode === "create" && "새 프로필 만들기"}
               {mode === "edit" && (targetUser?.id === currentId ? "내 프로필" : `${targetUser?.name} 수정`)}
+              {mode === "forgot" && "비밀번호 찾기"}
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -390,25 +504,110 @@ export default function UserSwitcher({
             {loginError && (
               <p className="text-xs text-destructive">{loginError}</p>
             )}
-            <label className="flex items-center gap-2 text-xs cursor-pointer">
-              <input
-                type="checkbox"
-                checked={rememberLogin}
-                onChange={(e) => setRememberLogin(e.target.checked)}
-              />
-              자동 로그인
-            </label>
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberLogin}
+                  onChange={(e) => setRememberLogin(e.target.checked)}
+                />
+                자동 로그인
+              </label>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+                onClick={() => { setMode("forgot"); setForgotStep("id"); }}
+              >
+                비밀번호 찾기
+              </button>
+            </div>
             <Button onClick={handleDirectLogin} className="w-full">
               <LogIn className="mr-1 h-4 w-4" />
               로그인
             </Button>
-            <button
+            <Button
               type="button"
-              className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+              variant="outline"
               onClick={startCreate}
+              className="w-full"
             >
-              <Plus className="h-4 w-4" />새 프로필 만들기
-            </button>
+              <Plus className="mr-1 h-4 w-4" />
+              새 프로필 만들기
+            </Button>
+          </div>
+        )}
+
+        {/* FORGOT MODE */}
+        {mode === "forgot" && (
+          <div className="flex flex-col gap-3">
+            {forgotStep === "id" && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  복구 질문이 설정된 프로필만 비밀번호를 재설정할 수 있습니다.
+                </p>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">아이디</Label>
+                  <Input
+                    value={forgotId}
+                    onChange={(e) => { setForgotId(e.target.value); setForgotError(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleForgotStart(); }}
+                    placeholder="영문/숫자"
+                    className="h-9"
+                    autoFocus
+                  />
+                </div>
+                {forgotError && <p className="text-xs text-destructive">{forgotError}</p>}
+                <Button onClick={handleForgotStart} className="w-full">다음</Button>
+              </>
+            )}
+
+            {forgotStep === "answer" && forgotTarget && (
+              <>
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <p className="text-[11px] text-muted-foreground mb-1">복구 질문</p>
+                  <p className="text-sm font-medium">{forgotTarget.recovery_question}</p>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">답변</Label>
+                  <Input
+                    value={forgotAnswer}
+                    onChange={(e) => { setForgotAnswer(e.target.value); setForgotError(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleForgotVerify(); }}
+                    placeholder="대소문자 구분 없음"
+                    className="h-9"
+                    autoFocus
+                  />
+                </div>
+                {forgotError && <p className="text-xs text-destructive">{forgotError}</p>}
+                <Button onClick={handleForgotVerify} className="w-full">확인</Button>
+              </>
+            )}
+
+            {forgotStep === "reset" && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  새 비밀번호를 설정하세요.
+                </p>
+                <Input
+                  type="password"
+                  value={forgotNewPw}
+                  onChange={(e) => { setForgotNewPw(e.target.value); setForgotError(null); }}
+                  placeholder="새 비밀번호 (4자 이상)"
+                  className="h-9"
+                  autoFocus
+                />
+                <Input
+                  type="password"
+                  value={forgotNewPwConfirm}
+                  onChange={(e) => { setForgotNewPwConfirm(e.target.value); setForgotError(null); }}
+                  placeholder="비밀번호 확인"
+                  className="h-9"
+                  onKeyDown={(e) => { if (e.key === "Enter") handleForgotReset(); }}
+                />
+                {forgotError && <p className="text-xs text-destructive">{forgotError}</p>}
+                <Button onClick={handleForgotReset} className="w-full">저장</Button>
+              </>
+            )}
           </div>
         )}
 
@@ -447,6 +646,24 @@ export default function UserSwitcher({
                     placeholder="비밀번호 확인"
                     className="h-9"
                     autoComplete="new-password"
+                  />
+                </div>
+                {/* 2-b. 복구 질문/답변 (선택) — 비번 찾기용 */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-[10px] text-muted-foreground">
+                    비밀번호 찾기 (선택) — 복구 질문 / 답변
+                  </Label>
+                  <Input
+                    value={recoveryQuestion}
+                    onChange={(e) => setRecoveryQuestion(e.target.value)}
+                    placeholder="예: 어머니 성함은?"
+                    className="h-9 text-xs"
+                  />
+                  <Input
+                    value={recoveryAnswer}
+                    onChange={(e) => setRecoveryAnswer(e.target.value)}
+                    placeholder="답변 (대소문자 무시)"
+                    className="h-9 text-xs"
                   />
                 </div>
                 {/* 3. 이름 */}

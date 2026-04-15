@@ -12,6 +12,9 @@ export interface AppUser {
   avatar_url: string | null;
   password_hash?: string | null;
   password_salt?: string | null;
+  recovery_question?: string | null;
+  recovery_answer_hash?: string | null;
+  recovery_answer_salt?: string | null;
   created_at: string;
 }
 
@@ -172,7 +175,10 @@ export function useAppUsers() {
     avatarUrl?: string,
     passwordHash?: string,
     passwordSalt?: string,
-    loginId?: string
+    loginId?: string,
+    recoveryQuestion?: string,
+    recoveryAnswerHash?: string,
+    recoveryAnswerSalt?: string
   ) => {
     const fullPayload: Record<string, unknown> = {
       name,
@@ -182,6 +188,9 @@ export function useAppUsers() {
       avatar_url: avatarUrl || null,
       password_hash: passwordHash || null,
       password_salt: passwordSalt || null,
+      recovery_question: recoveryQuestion || null,
+      recovery_answer_hash: recoveryAnswerHash || null,
+      recovery_answer_salt: recoveryAnswerSalt || null,
     };
     const { data, error } = await supabase
       .from("app_users")

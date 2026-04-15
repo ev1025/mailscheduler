@@ -473,3 +473,10 @@ CREATE POLICY "Allow all" ON knowledge_items FOR ALL TO anon USING (true) WITH C
 -- ============================================
 -- 로그인 ID (영문/숫자) — 이 컬럼이 없어도 앱은 name으로 폴백 동작.
 ALTER TABLE app_users ADD COLUMN IF NOT EXISTS login_id TEXT UNIQUE;
+
+-- ============================================
+-- source: 2026-04-15 password recovery
+-- ============================================
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS recovery_question TEXT;
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS recovery_answer_hash TEXT;
+ALTER TABLE app_users ADD COLUMN IF NOT EXISTS recovery_answer_salt TEXT;
