@@ -234,9 +234,9 @@ export default function CalendarView({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="min-w-0 w-full">
+      <div className="min-w-0 w-full border rounded-md overflow-hidden">
         {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 border-b border-l">
+        <div className="grid grid-cols-7 border-b">
           {WEEKDAYS.map((day, i) => (
             <div
               key={day}
@@ -249,8 +249,8 @@ export default function CalendarView({
           ))}
         </div>
 
-        {/* 날짜 그리드 */}
-        <div className="grid grid-cols-7 border-l">
+        {/* 날짜 그리드 — 7n번째 셀은 border-r 제거해 좌우 두께 균형 */}
+        <div className="grid grid-cols-7 [&>*:nth-child(7n)]:border-r-0">
           {days.map((day) => {
             const dateStr = format(day, "yyyy-MM-dd");
             const bars = getBarsForDate(day);

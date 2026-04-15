@@ -415,46 +415,100 @@ export default function UserSwitcher({
         {/* CREATE / EDIT MODE */}
         {(mode === "create" || mode === "edit") && (
           <div className="flex flex-col gap-3">
-            {mode === "create" && (
-              <div className="flex flex-col gap-1">
-                <Label className="text-[10px] text-muted-foreground">로그인 아이디 (영문/숫자/_ 3~20자)</Label>
+            {mode === "create" ? (
+              <>
+                {/* 1. 아이디 */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-[10px] text-muted-foreground">아이디 (영문/숫자/_ 3~20자)</Label>
+                  <Input
+                    value={loginId}
+                    onChange={(e) => setLoginId(e.target.value)}
+                    placeholder="예: hyungseok123"
+                    className="h-9"
+                    autoComplete="username"
+                    autoFocus
+                  />
+                </div>
+                {/* 2. 비밀번호 */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-[10px] text-muted-foreground">비밀번호</Label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="비밀번호 (4자 이상)"
+                    className="h-9"
+                    autoComplete="new-password"
+                  />
+                  <Input
+                    type="password"
+                    value={passwordConfirm}
+                    onChange={(e) => setPasswordConfirm(e.target.value)}
+                    placeholder="비밀번호 확인"
+                    className="h-9"
+                    autoComplete="new-password"
+                  />
+                </div>
+                {/* 3. 이름 */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-[10px] text-muted-foreground">이름 (표시용)</Label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="이름"
+                    className="h-9"
+                  />
+                </div>
+                {/* 4. 프로필 이미지 미리보기 */}
+                <div className="flex items-center gap-3 pt-1">
+                  <div
+                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl overflow-hidden"
+                    style={
+                      avatarUrl
+                        ? { backgroundColor: "transparent" }
+                        : { backgroundColor: color + "30", color }
+                    }
+                  >
+                    {avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      emoji || (name ? name[0] : "?")
+                    )}
+                  </div>
+                  <span className="text-xs text-muted-foreground">아래에서 이미지/이모지/색상을 선택하세요</span>
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div
+                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl overflow-hidden"
+                  style={
+                    avatarUrl
+                      ? { backgroundColor: "transparent" }
+                      : { backgroundColor: color + "30", color }
+                  }
+                >
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={avatarUrl}
+                      alt="avatar"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    emoji || (name ? name[0] : "?")
+                  )}
+                </div>
                 <Input
-                  value={loginId}
-                  onChange={(e) => setLoginId(e.target.value)}
-                  placeholder="예: hyungseok123"
-                  className="h-9"
-                  autoComplete="username"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="이름"
+                  autoFocus
+                  className="h-9 flex-1"
                 />
               </div>
             )}
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl overflow-hidden"
-                style={
-                  avatarUrl
-                    ? { backgroundColor: "transparent" }
-                    : { backgroundColor: color + "30", color }
-                }
-              >
-                {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={avatarUrl}
-                    alt="avatar"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  emoji || (name ? name[0] : "?")
-                )}
-              </div>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="이름"
-                autoFocus
-                className="h-9 flex-1"
-              />
-            </div>
 
             <div className="flex gap-1.5">
               <Button
@@ -530,11 +584,11 @@ export default function UserSwitcher({
               </div>
             </div>
 
-            {/* 비밀번호 입력 — 생성 모드는 항상 표시, 편집 모드는 변경 토글 */}
-            {(mode === "create" || showPasswordChange) && (
+            {/* 비밀번호 변경 — 편집 모드에서 토글 시에만 표시 (create는 위에서 입력) */}
+            {mode === "edit" && showPasswordChange && (
               <div className="flex flex-col gap-1 pt-2 border-t">
                 <Label className="text-[10px] text-muted-foreground">
-                  {mode === "edit" ? "새 비밀번호" : "비밀번호"}
+                  새 비밀번호
                 </Label>
                 <Input
                   type="password"
