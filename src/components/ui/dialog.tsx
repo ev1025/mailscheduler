@@ -41,6 +41,14 @@ function DialogOverlay({
   )
 }
 
+// DialogContent는 더 이상 back 버튼을 자동 렌더하지 않음.
+// 대신 DialogHeader가 back 버튼을 제목 왼쪽에 인라인으로 렌더 (아래 정의 참조).
+// onBack prop이 제공되면 커스텀 동작, 아니면 단순히 다이얼로그 닫기.
+const BackButtonContext = React.createContext<{
+  onBack?: () => void
+  show: boolean
+}>({ show: true })
+
 function DialogContent({
   className,
   children,
@@ -59,37 +67,14 @@ function DialogContent({
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 pt-11 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}
       >
-        {showBackButton && (
-          onBack ? (
-            <button
-              type="button"
-              aria-label="뒤로"
-              onClick={onBack}
-              className="absolute top-2 left-2 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-          ) : (
-            <DialogPrimitive.Close
-              data-slot="dialog-back"
-              render={
-                <button
-                  type="button"
-                  aria-label="뒤로"
-                  className="absolute top-2 left-2 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                />
-              }
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </DialogPrimitive.Close>
-          )
-        )}
-        {children}
+        <BackButtonContext.Provider value={{ onBack, show: showBackButton }}>
+          {children}
+        </BackButtonContext.Provider>
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
@@ -110,13 +95,53 @@ function DialogContent({
   )
 }
 
-function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+function DialogHeader({ className, children, ...props }: React.ComponentProps<"div">) {
+  const { onBack, show } = React.useContext(BackButtonContext)
+  if (!show) {
+    return (
+      <div
+        data-slot="dialog-header"
+        className={cn("flex flex-col gap-1", className)}
+        {...props}
+      >
+        {children}
+      </div>
+    )
+  }
+  const backButton = onBack ? (
+    <button
+      type="button"
+      aria-label="뒤로"
+      onClick={onBack}
+      className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0 -ml-1.5"
+    >
+      <ArrowLeft className="h-4 w-4" />
+    </button>
+  ) : (
+    <DialogPrimitive.Close
+      data-slot="dialog-back"
+      render={
+        <button
+          type="button"
+          aria-label="뒤로"
+          className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0 -ml-1.5"
+        />
+      }
+    >
+      <ArrowLeft className="h-4 w-4" />
+    </DialogPrimitive.Close>
+  )
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2", className)}
+      className={cn("flex items-center gap-2", className)}
       {...props}
-    />
+    >
+      {backButton}
+      <div className="flex flex-col gap-1 flex-1 min-w-0">
+        {children}
+      </div>
+    </div>
   )
 }
 

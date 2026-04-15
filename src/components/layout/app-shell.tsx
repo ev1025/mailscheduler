@@ -45,7 +45,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         onToggle={() => setCollapsed(!collapsed)}
       />
       <MobileHeader />
-      <main className="flex-1 overflow-y-auto pt-8 pb-safe-nav md:pb-0 md:pt-0">
+      <main className="flex-1 overflow-y-auto pt-9 pb-safe-nav md:pb-0 md:pt-0">
         {children}
       </main>
       <BottomNav />

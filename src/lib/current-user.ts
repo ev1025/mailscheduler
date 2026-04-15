@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useSupabaseAuth } from "@/lib/auth-supabase";
 
@@ -14,27 +14,71 @@ export interface AppUser {
   created_at: string;
 }
 
-/**
- * app_users 테이블 관리 훅.
- * Supabase Auth 이전 후 단순화 — 비밀번호/login_id 관련 필드 제거.
- */
-export function useAppUsers() {
-  const [users, setUsers] = useState<AppUser[]>([]);
-  const [loading, setLoading] = useState(true);
+// ─────────────────────────────────────────
+// 단일 스토어 (모듈 수준) — 여러 컴포넌트에서 useAppUsers를 호출해도
+// users 상태가 실시간으로 동기화되도록 pub/sub 패턴 사용.
+// 이전에는 AppShell과 UserSwitcher가 각자 독립된 상태를 가져
+// 프로필 생성 직후 AppShell이 이를 인식 못 해 게이트가 다시 열리던 버그가 있었음.
+// ─────────────────────────────────────────
+type UsersState = { users: AppUser[]; loading: boolean };
+const listeners = new Set<(s: UsersState) => void>();
+let cache: UsersState = { users: [], loading: true };
+let initialFetchPromise: Promise<void> | null = null;
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("app_users")
-      .select("*")
-      .order("created_at");
-    if (!error && data) setUsers(data as AppUser[]);
-    setLoading(false);
-  }, []);
+function setCache(next: UsersState) {
+  cache = next;
+  listeners.forEach((fn) => fn(cache));
+}
+
+async function fetchAppUsers(): Promise<void> {
+  setCache({ ...cache, loading: true });
+  const { data, error } = await supabase
+    .from("app_users")
+    .select("*")
+    .order("created_at");
+  if (!error && data) {
+    setCache({ users: data as AppUser[], loading: false });
+  } else {
+    setCache({ ...cache, loading: false });
+  }
+}
+
+function ensureInitialFetch() {
+  if (!initialFetchPromise) initialFetchPromise = fetchAppUsers();
+  return initialFetchPromise;
+}
+
+// Supabase 에러 메시지 → 한글 매핑
+function translateError(msg: string | undefined | null): string {
+  if (!msg) return "알 수 없는 오류";
+  const lower = msg.toLowerCase();
+  if (lower.includes("duplicate key") && lower.includes("name")) {
+    return "이미 사용 중인 이름입니다";
+  }
+  if (lower.includes("duplicate key")) {
+    return "이미 등록된 값입니다";
+  }
+  if (lower.includes("violates row-level security") || lower.includes("rls")) {
+    return "권한이 없습니다 (로그인 상태 확인)";
+  }
+  if (lower.includes("network") || lower.includes("failed to fetch")) {
+    return "네트워크 연결을 확인해주세요";
+  }
+  return msg;
+}
+
+export function useAppUsers() {
+  const [state, setState] = useState<UsersState>(cache);
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    const fn = (s: UsersState) => setState(s);
+    listeners.add(fn);
+    ensureInitialFetch();
+    setState(cache);
+    return () => {
+      listeners.delete(fn);
+    };
+  }, []);
 
   /**
    * 새 프로필 생성. 이메일 로그인 직후 처음 접속할 때 호출.
@@ -47,6 +91,11 @@ export function useAppUsers() {
     emoji?: string,
     avatarUrl?: string
   ) => {
+    // 이미 이 auth_user_id로 프로필이 있으면 중복 생성 방지 (동시 클릭/스트릭트 모드 대응)
+    const existing = cache.users.find((u) => u.auth_user_id === authUserId);
+    if (existing) {
+      return { data: existing, error: null };
+    }
     const payload = {
       auth_user_id: authUserId,
       name,
@@ -60,9 +109,13 @@ export function useAppUsers() {
       .select()
       .single();
     if (error || !data) {
-      return { data: null, error: error?.message || "프로필 생성 실패" };
+      // duplicate key 에러라도 DB에 실제로 삽입이 된 상황이 있을 수 있으므로 재조회 후 확인
+      await fetchAppUsers();
+      const afterFetch = cache.users.find((u) => u.auth_user_id === authUserId);
+      if (afterFetch) return { data: afterFetch, error: null };
+      return { data: null, error: translateError(error?.message) };
     }
-    await fetchUsers();
+    await fetchAppUsers();
     return { data: data as AppUser, error: null };
   };
 
@@ -71,24 +124,24 @@ export function useAppUsers() {
       .from("app_users")
       .update(updates)
       .eq("id", id);
-    if (error) return { error: error.message };
-    await fetchUsers();
+    if (error) return { error: translateError(error.message) };
+    await fetchAppUsers();
     return { error: null };
   };
 
   const deleteUser = async (id: string) => {
     const { error } = await supabase.from("app_users").delete().eq("id", id);
-    if (!error) await fetchUsers();
+    if (!error) await fetchAppUsers();
     return { error };
   };
 
   return {
-    users,
-    loading,
+    users: state.users,
+    loading: state.loading,
     addUser,
     updateUser,
     deleteUser,
-    refetch: fetchUsers,
+    refetch: fetchAppUsers,
   };
 }
 

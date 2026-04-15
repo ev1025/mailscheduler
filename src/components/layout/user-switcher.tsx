@@ -19,7 +19,9 @@ import {
   Mail,
   LogOut,
   Share2,
+  Settings as SettingsIcon,
 } from "lucide-react";
+import Link from "next/link";
 import ShareManager from "@/components/calendar/share-manager";
 import AvatarCropDialog from "./avatar-crop-dialog";
 import {
@@ -194,6 +196,8 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
     <Dialog
       open={open}
       onOpenChange={(o) => {
+        // 자식 다이얼로그(ShareManager/AvatarCropDialog)가 열려 있으면 부모 닫지 못함
+        if (!o && (shareOpen || cropOpen)) return;
         if (!o && !allowClose && !authUser) return;
         onOpenChange(o);
       }}
@@ -401,31 +405,39 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
               </Button>
             </div>
 
-            {/* edit 모드에서만 액션 영역 */}
+            {/* edit 모드에서만 액션 영역: 설정|공유 / 로그아웃|삭제 */}
             {mode === "edit" && (
               <div className="border-t pt-3 mt-1 grid grid-cols-2 gap-2">
+                <Link
+                  href="/settings"
+                  onClick={() => onOpenChange(false)}
+                  className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-sm hover:bg-accent transition-colors"
+                >
+                  <SettingsIcon className="h-4 w-4 text-muted-foreground" />
+                  설정
+                </Link>
                 <button
                   type="button"
                   onClick={() => setShareOpen(true)}
-                  className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
+                  className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-sm hover:bg-accent transition-colors"
                 >
-                  <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Share2 className="h-4 w-4 text-muted-foreground" />
                   일정 공유
                 </button>
                 <button
                   type="button"
                   onClick={handleSignOut}
-                  className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
+                  className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-sm hover:bg-accent transition-colors"
                 >
-                  <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
+                  <LogOut className="h-4 w-4 text-muted-foreground" />
                   로그아웃
                 </button>
                 <button
                   type="button"
                   onClick={handleDeleteProfile}
-                  className="col-span-2 flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-2.5 text-xs text-destructive hover:bg-destructive/5 transition-colors"
+                  className="flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-2.5 text-sm text-destructive hover:bg-destructive/5 transition-colors"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  <Trash2 className="h-4 w-4" />
                   프로필 삭제
                 </button>
               </div>

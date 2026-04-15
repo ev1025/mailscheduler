@@ -147,26 +147,29 @@ export default function DatabaseView({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 검색 + 태그 필터 */}
-      <div className="flex items-center gap-2">
-        <div className="relative w-72 shrink-0">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="검색..." className="pl-8 h-8 text-xs" />
-        </div>
-        {filterTags.map((ft) => {
-          const c = tagColorMap[ft] || "#6B7280";
-          return (
-            <Badge
-              key={ft}
-              className="cursor-pointer shrink-0"
-              style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}
-              onClick={() => setFilterTags((prev) => prev.filter((t) => t !== ft))}
-            >
-              {ft} ✕
-            </Badge>
-          );
-        })}
+      {/* 검색 */}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="검색..." className="pl-8 h-9 text-sm" />
       </div>
+      {/* 필터 태그 (모바일에서 오른쪽으로 잘리지 않게 wrap) */}
+      {filterTags.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {filterTags.map((ft) => {
+            const c = tagColorMap[ft] || "#6B7280";
+            return (
+              <Badge
+                key={ft}
+                className="cursor-pointer shrink-0"
+                style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}
+                onClick={() => setFilterTags((prev) => prev.filter((t) => t !== ft))}
+              >
+                {ft} ✕
+              </Badge>
+            );
+          })}
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="flex items-center justify-center py-20">

@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import DatePicker from "@/components/ui/date-picker";
 import TimePicker from "@/components/ui/time-picker";
 import { Badge } from "@/components/ui/badge";
-import { X, ArrowLeft } from "lucide-react";
+import { X } from "lucide-react";
 import type { TravelItem, TravelTag, EventTag } from "@/types";
 
 interface Props {
@@ -82,15 +82,7 @@ export default function TravelToCalendarDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md" showBackButton={false}>
-        <button
-          type="button"
-          onClick={() => onOpenChange(false)}
-          aria-label="뒤로"
-          className="absolute top-2 right-2 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>달력에 추가</DialogTitle>
         </DialogHeader>

@@ -327,7 +327,7 @@ function ProductsPageInner() {
                 key={c}
                 type="button"
                 onClick={() => setCategoryFilter(c)}
-                className="rounded-full border px-3 py-1 text-xs transition-all"
+                className="rounded-full border px-3 py-1.5 text-sm transition-all"
                 style={
                   active
                     ? {
@@ -352,7 +352,7 @@ function ProductsPageInner() {
                 setCategoryFilter(name);
               }
             }}
-            className="rounded-full border border-dashed px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+            className="rounded-full border border-dashed px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
             title="중분류 추가"
           >
             <Plus className="h-3 w-3" />

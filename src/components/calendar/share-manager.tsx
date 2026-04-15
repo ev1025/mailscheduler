@@ -194,9 +194,6 @@ export default function ShareManager({ open, onOpenChange }: Props) {
 
           {/* 새로 공유할 사람 */}
           <section className="flex flex-col gap-2">
-            <h3 className="text-xs font-semibold text-muted-foreground">
-              ➕ 새로 공유하기
-            </h3>
             {others.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-4">
                 공유할 수 있는 다른 사용자가 없습니다

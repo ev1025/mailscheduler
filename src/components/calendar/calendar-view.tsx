@@ -63,7 +63,6 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate 
     data: { event },
   });
 
-  // 클릭(드래그 아닌 경우) → 날짜 상세 열기
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!isDragging) onClickDate();
@@ -84,13 +83,18 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate 
     );
   }
 
+  // 멀티데이: 같은 주(행) 안에서는 배경이 끊기지 않고 이어지도록 -4px로 블리드.
+  // 타이틀은 이 주의 첫 칸(isStart)에만 표시 — "제목 (~종료일)" 포맷.
+  const endDate = event.end_date ? parseISO(event.end_date) : parseISO(event.start_date);
+  const endLabel = `~${endDate.getMonth() + 1}/${endDate.getDate()}`;
+
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
       onClick={handleClick}
-      className={`text-xs leading-tight text-white truncate px-1 py-[1px] cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
+      className={`text-xs leading-tight text-white px-1 py-[1px] cursor-grab active:cursor-grabbing overflow-hidden ${isDragging ? "opacity-30" : ""}`}
       style={{
         backgroundColor: event.color,
         borderTopLeftRadius: isStart ? "3px" : 0,
@@ -99,9 +103,17 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate 
         borderBottomRightRadius: isEnd ? "3px" : 0,
         marginLeft: isStart ? 0 : "-4px",
         marginRight: isEnd ? 0 : "-4px",
+        minHeight: "14px",
       }}
     >
-      {isStart ? event.title : `┄ ${event.title}`}
+      {isStart ? (
+        <span className="truncate block whitespace-nowrap">
+          {event.title} <span className="opacity-80">{endLabel}</span>
+        </span>
+      ) : (
+        /* 연속 배경 유지용 빈 공간 */
+        <span>&nbsp;</span>
+      )}
     </div>
   );
 }
@@ -234,7 +246,7 @@ export default function CalendarView({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="min-w-0 w-full border rounded-md overflow-hidden">
+      <div className="min-w-0 w-full">
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 border-b">
           {WEEKDAYS.map((day, i) => (
