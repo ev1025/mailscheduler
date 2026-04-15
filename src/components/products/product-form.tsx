@@ -240,8 +240,8 @@ export default function ProductForm({
             className="h-9"
           />
 
-          {/* 분류 / 세부분류 / 브랜드 — 모바일 1열, 데스크톱 3열 */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {/* 분류 · 세부분류 — 항상 같은 행 (2열) */}
+          <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1.5 min-w-0">
               <Label className="text-xs text-muted-foreground">분류</Label>
               <TagInput
@@ -266,15 +266,17 @@ export default function ProductForm({
                 placeholder="검색/추가"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">브랜드</Label>
-              <Input
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="브랜드명"
-                className="h-9 text-xs placeholder:text-xs"
-              />
-            </div>
+          </div>
+
+          {/* 브랜드 — 별도 행 */}
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">브랜드</Label>
+            <Input
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              placeholder="브랜드명"
+              className="h-9 text-xs placeholder:text-xs"
+            />
           </div>
 
           {/* 가격 입력 + 추가된 목록 */}

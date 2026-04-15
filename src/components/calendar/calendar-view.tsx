@@ -52,10 +52,9 @@ interface EventBar {
 }
 
 // 드래그 가능한 이벤트 아이템
-function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, spanDays, endLabel, onClickDate }: {
+function DraggableEvent({ event, dateStr, isStart, isEnd, spanDays, endLabel, onClickDate }: {
   event: CalendarEvent;
   dateStr: string;
-  isSingle: boolean;
   isStart: boolean;
   isEnd: boolean;
   spanDays: number;
@@ -72,23 +71,7 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, spanDays, en
     if (!isDragging) onClickDate();
   };
 
-  if (isSingle) {
-    return (
-      <div
-        ref={setNodeRef}
-        {...listeners}
-        {...attributes}
-        onClick={handleClick}
-        className={`flex items-center gap-1 text-[11px] leading-[14px] truncate cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
-      >
-        <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: event.color }} />
-        <span className="truncate">{event.title}</span>
-      </div>
-    );
-  }
-
-  // 멀티데이: 각 셀에 바(컬러 배경)를 렌더. 주의 시작 셀에서만 absolute 라벨을
-  // spanDays 만큼 넓혀 중앙정렬하여 바 정중앙에 제목 표시.
+  // 단일/멀티데이 모두 동일한 컬러 바 스타일 — 하루짜리는 span=1로 통일
   return (
     <div
       ref={setNodeRef}
@@ -326,7 +309,6 @@ export default function CalendarView({
                       key={bar.event.id + dateStr}
                       event={bar.event}
                       dateStr={dateStr}
-                      isSingle={bar.isSingle}
                       isStart={bar.isStart}
                       isEnd={bar.isEnd}
                       spanDays={bar.spanDays}

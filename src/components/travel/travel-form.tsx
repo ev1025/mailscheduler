@@ -144,7 +144,7 @@ export default function TravelForm({
                 <SelectTrigger className="h-8 w-full">
                   {month != null ? `${month}월` : <span className="text-muted-foreground">-</span>}
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-0">
                   <SelectItem value="none">없음</SelectItem>
                   {MONTHS.map((m) => (
                     <SelectItem key={m} value={String(m)}>{m}월</SelectItem>
