@@ -163,13 +163,13 @@ export default function DayDetail({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <div className="flex items-center justify-between gap-2 pr-6">
-            <DialogTitle className="text-sm md:text-base whitespace-nowrap">
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <DialogTitle className="text-sm md:text-base truncate min-w-0">
               {dateLabel}
             </DialogTitle>
             {weather && (
               <div className="shrink-0">
-                <WeatherIcon weather={weather} showRange />
+                <WeatherIcon weather={weather} compact />
               </div>
             )}
           </div>

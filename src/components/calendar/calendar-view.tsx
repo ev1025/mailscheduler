@@ -373,10 +373,11 @@ export default function CalendarView({
                   );
                 })}
 
-                {/* 이벤트 바 오버레이 — 같은 7열 그리드, 각 세그먼트가 grid-column span 사용 */}
+                {/* 이벤트 바 오버레이 — 같은 7열 그리드, 각 세그먼트가 grid-column span 사용
+                    top은 date/weather row 아래로 충분히 내려 데스크톱·모바일 모두 겹침 방지 */}
                 <div
-                  className="pointer-events-none absolute inset-x-0 grid grid-cols-7"
-                  style={{ top: 28, gridAutoRows: "0" }}
+                  className="pointer-events-none absolute inset-x-0 grid grid-cols-7 top-[34px] md:top-[40px]"
+                  style={{ gridAutoRows: "0" }}
                 >
                   {segments
                     .filter((seg) => seg.slot < MAX_VISIBLE_SLOTS)
