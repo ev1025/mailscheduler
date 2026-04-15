@@ -25,40 +25,6 @@ import ColorPickerRow from "@/components/ui/color-picker-popover";
 
 const DEFAULT_COLOR = "#3B82F6";
 
-function TileButton({
-  icon,
-  label,
-  onClick,
-  tone = "neutral",
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  tone?: "neutral" | "danger";
-}) {
-  const danger = tone === "danger";
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group flex flex-col items-center justify-center gap-2 rounded-2xl bg-card p-5 shadow-sm ring-1 ring-border transition-all active:scale-[0.98] hover:shadow-md ${
-        danger ? "text-destructive" : "text-foreground"
-      }`}
-    >
-      <span
-        className={`flex h-12 w-12 items-center justify-center rounded-xl transition-colors ${
-          danger
-            ? "bg-destructive/10 text-destructive"
-            : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
-        }`}
-      >
-        {icon}
-      </span>
-      <span className="text-sm font-medium">{label}</span>
-    </button>
-  );
-}
-
 const PRESET_EMOJIS = [
   "🙂", "💕", "🌸", "⭐", "🐱", "🍀", "☕", "🌙",
   "🐶", "🦊", "🐼", "🐰", "🐻", "🦁", "🐯", "🐸",
@@ -291,34 +257,40 @@ export default function ProfilePage() {
           {saving ? "저장 중..." : "저장"}
         </Button>
 
-        {/* 타일 카드 액션 그리드 */}
-        <div className="mt-6">
-          <div className="grid grid-cols-2 gap-3">
-            <TileButton
-              onClick={() => router.push("/settings")}
-              icon={<SettingsIcon className="h-6 w-6" strokeWidth={1.6} />}
-              label="설정"
-              tone="neutral"
-            />
-            <TileButton
-              onClick={() => setShareOpen(true)}
-              icon={<Share2 className="h-6 w-6" strokeWidth={1.6} />}
-              label="일정 공유"
-              tone="neutral"
-            />
-            <TileButton
-              onClick={handleSignOut}
-              icon={<LogOut className="h-6 w-6" strokeWidth={1.6} />}
-              label="로그아웃"
-              tone="neutral"
-            />
-            <TileButton
-              onClick={handleDeleteProfile}
-              icon={<Trash2 className="h-6 w-6" strokeWidth={1.6} />}
-              label="프로필 삭제"
-              tone="danger"
-            />
-          </div>
+        {/* 액션 영역 */}
+        <div className="border-t pt-4 mt-2 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => router.push("/settings")}
+            className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm hover:bg-accent transition-colors"
+          >
+            <SettingsIcon className="h-4 w-4 text-muted-foreground" />
+            설정
+          </button>
+          <button
+            type="button"
+            onClick={() => setShareOpen(true)}
+            className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm hover:bg-accent transition-colors"
+          >
+            <Share2 className="h-4 w-4 text-muted-foreground" />
+            일정 공유
+          </button>
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm hover:bg-accent transition-colors"
+          >
+            <LogOut className="h-4 w-4 text-muted-foreground" />
+            로그아웃
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteProfile}
+            className="flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-3 text-sm text-destructive hover:bg-destructive/5 transition-colors"
+          >
+            <Trash2 className="h-4 w-4" />
+            프로필 삭제
+          </button>
         </div>
       </div>
 
