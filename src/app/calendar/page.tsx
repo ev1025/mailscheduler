@@ -333,6 +333,42 @@ function CalendarPageInner() {
       ) : loading ? (
         <p className="text-muted-foreground">불러오는 중...</p>
       ) : view === "calendar" ? (
+        <div
+          onTouchStart={(e) => {
+            const t = e.touches[0];
+            (e.currentTarget as HTMLDivElement & { _sx?: number; _sy?: number })._sx = t.clientX;
+            (e.currentTarget as HTMLDivElement & { _sx?: number; _sy?: number })._sy = t.clientY;
+          }}
+          onTouchEnd={(e) => {
+            const el = e.currentTarget as HTMLDivElement & { _sx?: number; _sy?: number };
+            if (el._sx == null || el._sy == null) return;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - el._sx;
+            const dy = t.clientY - el._sy;
+            el._sx = undefined;
+            el._sy = undefined;
+            // 가로 스와이프 — 60px 이상 & 세로 이동보다 2배 이상 커야 월 이동
+            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
+              if (dx < 0) {
+                // 왼쪽으로 밀기 → 다음 월
+                if (month === 12) {
+                  setYear(year + 1);
+                  setMonth(1);
+                } else {
+                  setMonth(month + 1);
+                }
+              } else {
+                // 오른쪽으로 밀기 → 이전 월
+                if (month === 1) {
+                  setYear(year - 1);
+                  setMonth(12);
+                } else {
+                  setMonth(month - 1);
+                }
+              }
+            }
+          }}
+        >
         <CalendarView
           year={year}
           month={month}
@@ -344,6 +380,7 @@ function CalendarPageInner() {
           }}
           onReorder={batchUpdateSortOrder}
         />
+        </div>
       ) : (
         <DatabaseView
           events={events}

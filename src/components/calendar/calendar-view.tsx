@@ -123,7 +123,7 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate 
   );
 }
 
-// 드롭 가능한 날짜 셀
+// 드롭 가능한 날짜 셀 — 여백 넉넉히
 function DroppableCell({ dateStr, children, isOver, onClick }: {
   dateStr: string;
   children: React.ReactNode;
@@ -136,7 +136,7 @@ function DroppableCell({ dateStr, children, isOver, onClick }: {
     <div
       ref={setNodeRef}
       onClick={onClick}
-      className={`flex flex-col items-start border-b border-r py-0.5 md:py-1 px-0 min-h-[86px] md:min-h-[100px] min-w-0 text-left transition-colors cursor-pointer relative ${
+      className={`flex flex-col items-start border-b border-r py-2 md:py-2.5 px-0 min-h-[100px] md:min-h-[128px] min-w-0 text-left transition-colors cursor-pointer relative ${
         isOver ? "bg-blue-50 ring-1 ring-blue-300 ring-inset" : "hover:bg-accent/50"
       }`}
     >
@@ -257,7 +257,7 @@ export default function CalendarView({
           {WEEKDAYS.map((day, i) => (
             <div
               key={day}
-              className={`py-2 text-center text-xs font-medium ${
+              className={`py-2.5 text-center text-sm font-semibold ${
                 i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-muted-foreground"
               }`}
             >
@@ -282,9 +282,9 @@ export default function CalendarView({
             return (
               <DroppableCell key={dateStr} dateStr={dateStr} isOver={isOverThis} onClick={() => onDateClick(dateStr)}>
                 {/* 날짜 숫자 + 날씨 */}
-                <div className={`flex w-full items-start justify-between gap-0.5 min-w-0 ${!inMonth ? "opacity-30" : ""}`}>
+                <div className={`flex w-full items-start justify-between gap-1 px-1.5 md:px-2 min-w-0 ${!inMonth ? "opacity-30" : ""}`}>
                   <span
-                    className={`inline-flex h-4 w-4 md:h-6 md:w-6 items-center justify-center rounded-full text-xs md:text-xs font-medium shrink-0 ${
+                    className={`inline-flex h-6 w-6 md:h-7 md:w-7 items-center justify-center rounded-full text-sm md:text-base font-semibold shrink-0 ${
                       today
                         ? "bg-primary text-primary-foreground"
                         : isHoliday
@@ -303,7 +303,7 @@ export default function CalendarView({
 
                 {/* 공휴일 이름 */}
                 {holiday && inMonth && (
-                  <span className="text-xs text-red-500 leading-tight truncate w-full">
+                  <span className="text-[9px] md:text-[10px] text-red-500 leading-tight truncate w-full px-1.5 md:px-2 mt-0.5">
                     {holiday}
                   </span>
                 )}

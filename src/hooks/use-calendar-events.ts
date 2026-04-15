@@ -35,7 +35,7 @@ export function useCalendarEvents(
   const fetchEvents = useCallback(async () => {
     setLoading(true);
     if (!currentUserId || visibleUserIds.length === 0) {
-      setEvents([]);
+      // 깜빡임 방지: 기존 events 유지, loading만 false로
       setLoading(false);
       return;
     }
