@@ -85,8 +85,9 @@ function DraggableEvent({ event, dateStr, isStart, isEnd, spanDays, endLabel, on
         borderBottomLeftRadius: isStart ? "3px" : 0,
         borderTopRightRadius: isEnd ? "3px" : 0,
         borderBottomRightRadius: isEnd ? "3px" : 0,
-        marginLeft: isStart ? 0 : "-2px",
-        marginRight: isEnd ? 0 : "-2px",
+        // 셀 경계의 border-r를 확실히 덮도록 bleed 확대
+        marginLeft: isStart ? 0 : "-4px",
+        marginRight: isEnd ? 0 : "-4px",
         height: "14px",
         width: "100%",
       }}
@@ -97,11 +98,18 @@ function DraggableEvent({ event, dateStr, isStart, isEnd, spanDays, endLabel, on
             position: "absolute",
             top: 0,
             left: 0,
-            width: `calc(${spanDays} * 100% + ${(spanDays - 1) * 2}px)`,
+            // spanDays 전체 셀 너비만큼 오버레이 — 이벤트 색상 배경으로
+            // 셀 경계를 완전히 덮어 흰 선이 보이지 않게 함
+            width: `calc(${spanDays} * 100% + ${(spanDays - 1) * 8}px)`,
             height: "14px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            backgroundColor: event.color,
+            borderTopLeftRadius: "3px",
+            borderBottomLeftRadius: "3px",
+            borderTopRightRadius: isEnd ? "3px" : 0,
+            borderBottomRightRadius: isEnd ? "3px" : 0,
             color: "white",
             fontSize: "10px",
             lineHeight: 1,
@@ -114,7 +122,7 @@ function DraggableEvent({ event, dateStr, isStart, isEnd, spanDays, endLabel, on
         >
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
             {event.title}
-            {endLabel && <span style={{ opacity: 0.8 }}> ({endLabel})</span>}
+            {endLabel && <span style={{ opacity: 0.85 }}> ({endLabel})</span>}
           </span>
         </div>
       )}
