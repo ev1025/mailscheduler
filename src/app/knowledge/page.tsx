@@ -145,6 +145,10 @@ function KnowledgePageInner() {
     return () => clearTimeout(timer);
   }, [editTitle, editContent, dirty, selectedItem?.id, selectedItem?.folder_id]);
 
+  // selectedItem이 바뀌면 편집 state를 초기화.
+  // editTitle/editContent는 onChange 콜백이 누적한 "미저장 편집 상태"이고,
+  // RichEditor는 key={selectedItem.id}로 리마운트되므로 초기 content는
+  // selectedItem.content(DB 값)를 직접 넘겨야 함.
   useEffect(() => {
     if (selectedItem) {
       setEditTitle(selectedItem.title);
@@ -154,6 +158,7 @@ function KnowledgePageInner() {
       setEditTitle("");
       setEditContent("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedItem?.id]);
 
   useEffect(() => {
@@ -519,7 +524,11 @@ function KnowledgePageInner() {
             <div className="flex-1 overflow-hidden">
               <RichEditor
                 key={selectedItem.id}
-                content={editContent}
+                /* selectedItem.content를 직접 넘겨 리마운트 시점에 항상 DB 값으로
+                   초기화됨. TipTap의 content prop은 초기 마운트 시에만 읽히므로
+                   useState를 거치면 첫 렌더에 빈 값으로 마운트되어 편집 내용이
+                   소실되는 이슈가 있음 */
+                content={selectedItem.content || ""}
                 onChange={(html) => {
                   setEditContent(html);
                   setDirty(true);

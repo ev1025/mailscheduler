@@ -331,9 +331,6 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                       className="h-4 w-4 rounded border-border"
                     />
                     자동 로그인 유지
-                    <span className="text-muted-foreground/70">
-                      (해제 시 앱 종료하면 로그아웃)
-                    </span>
                   </label>
                 )}
 

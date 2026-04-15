@@ -11,14 +11,12 @@ import {
   Settings as SettingsIcon,
   Trash2,
   Lock,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { useSupabaseAuth, supabaseSignOut, updatePassword } from "@/lib/auth-supabase";
+import { useSupabaseAuth, supabaseSignOut } from "@/lib/auth-supabase";
 import { supabase } from "@/lib/supabase";
 import { useAppUsers, useCurrentUser } from "@/lib/current-user";
 import { uploadToStorage, deleteFromStorage } from "@/lib/storage";
@@ -27,6 +25,7 @@ import ShareManager from "@/components/calendar/share-manager";
 import PageHeader from "@/components/layout/page-header";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import PasswordChangeDialog from "@/components/layout/password-change-dialog";
 
 const DEFAULT_COLOR = "#3B82F6";
 
@@ -55,41 +54,19 @@ export default function ProfilePage() {
   const [shareOpen, setShareOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  // 비밀번호 변경
-  const [pwOpen, setPwOpen] = useState(false);
-  const [newPw, setNewPw] = useState("");
-  const [newPwConfirm, setNewPwConfirm] = useState("");
-  const [pwShow, setPwShow] = useState(false);
-  const [pwSaving, setPwSaving] = useState(false);
+  // 비밀번호 변경 다이얼로그
+  const [pwDialogOpen, setPwDialogOpen] = useState(false);
 
-  // 비밀번호 재설정 메일 링크로 들어온 경우 자동으로 비밀번호 변경 섹션 오픈
+  // 비밀번호 재설정 메일 링크로 들어온 경우 자동으로 다이얼로그 오픈
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
-        setPwOpen(true);
+        setPwDialogOpen(true);
         toast.info("새 비밀번호를 설정하세요");
       }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
-
-  const handleChangePassword = async () => {
-    if (newPw !== newPwConfirm) {
-      toast.error("비밀번호가 일치하지 않습니다");
-      return;
-    }
-    setPwSaving(true);
-    const { error } = await updatePassword(newPw);
-    setPwSaving(false);
-    if (error) {
-      toast.error(error);
-      return;
-    }
-    toast.success("비밀번호가 변경됐습니다");
-    setNewPw("");
-    setNewPwConfirm("");
-    setPwOpen(false);
-  };
 
   // 로그인 안 됐거나 프로필 없으면 홈으로 (AppShell의 게이트가 signin/setup 처리)
   useEffect(() => {
@@ -307,66 +284,8 @@ export default function ProfilePage() {
           {saving ? "저장 중..." : "저장"}
         </Button>
 
-        {/* 비밀번호 변경 */}
-        <div className="border-t pt-4 mt-2 flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => setPwOpen((o) => !o)}
-            className="flex items-center justify-between rounded-md border p-3 text-sm hover:bg-accent transition-colors"
-          >
-            <span className="flex items-center gap-2">
-              <Lock className="h-4 w-4 text-muted-foreground" />
-              비밀번호 변경
-            </span>
-            <span className="text-xs text-muted-foreground">{pwOpen ? "닫기" : "열기"}</span>
-          </button>
-          {pwOpen && (
-            <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-3">
-              <Label className="text-xs text-muted-foreground">새 비밀번호</Label>
-              <div className="relative">
-                <Input
-                  type={pwShow ? "text" : "password"}
-                  value={newPw}
-                  onChange={(e) => setNewPw(e.target.value)}
-                  placeholder="6자 이상"
-                  autoComplete="new-password"
-                  className="h-10 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setPwShow((v) => !v)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  aria-label={pwShow ? "숨기기" : "보이기"}
-                >
-                  {pwShow ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-              <Label className="text-xs text-muted-foreground mt-1">새 비밀번호 확인</Label>
-              <Input
-                type={pwShow ? "text" : "password"}
-                value={newPwConfirm}
-                onChange={(e) => setNewPwConfirm(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleChangePassword();
-                }}
-                placeholder="비밀번호 재입력"
-                autoComplete="new-password"
-                className="h-10"
-              />
-              <Button
-                type="button"
-                onClick={handleChangePassword}
-                disabled={!newPw || !newPwConfirm || pwSaving}
-                className="h-10 mt-1"
-              >
-                {pwSaving ? "변경 중..." : "비밀번호 변경"}
-              </Button>
-            </div>
-          )}
-        </div>
-
         {/* 액션 영역 */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="border-t pt-4 mt-2 grid grid-cols-2 gap-2">
           <button
             type="button"
             onClick={() => router.push("/settings")}
@@ -385,6 +304,14 @@ export default function ProfilePage() {
           </button>
           <button
             type="button"
+            onClick={() => setPwDialogOpen(true)}
+            className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm hover:bg-accent transition-colors"
+          >
+            <Lock className="h-4 w-4 text-muted-foreground" />
+            비밀번호 변경
+          </button>
+          <button
+            type="button"
             onClick={handleSignOut}
             className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm hover:bg-accent transition-colors"
           >
@@ -394,7 +321,7 @@ export default function ProfilePage() {
           <button
             type="button"
             onClick={() => setDeleteConfirmOpen(true)}
-            className="flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-3 text-sm text-destructive hover:bg-destructive/5 transition-colors"
+            className="col-span-2 flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-3 text-sm text-destructive hover:bg-destructive/5 transition-colors"
           >
             <Trash2 className="h-4 w-4" />
             프로필 삭제
@@ -422,6 +349,8 @@ export default function ProfilePage() {
       />
 
       <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
+
+      <PasswordChangeDialog open={pwDialogOpen} onOpenChange={setPwDialogOpen} />
 
       <ConfirmDialog
         open={deleteConfirmOpen}
