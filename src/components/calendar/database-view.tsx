@@ -244,7 +244,7 @@ export default function DatabaseView({
                   <td className="px-3 py-2.5 overflow-hidden min-w-0">
                     <div className="flex gap-1 overflow-hidden whitespace-nowrap">
                       {ev.tag ? ev.tag.split(",").map((t) => (
-                        <Badge key={t} className="text-[10px] font-normal px-1.5 py-0 shrink-0" style={{ backgroundColor: (tagColorMap[t] || "#6B7280") + "20", color: tagColorMap[t] || "#6B7280", borderColor: (tagColorMap[t] || "#6B7280") + "40" }}>
+                        <Badge key={t} className="text-xs font-normal px-1.5 py-0 shrink-0" style={{ backgroundColor: (tagColorMap[t] || "#6B7280") + "20", color: tagColorMap[t] || "#6B7280", borderColor: (tagColorMap[t] || "#6B7280") + "40" }}>
                           {t}
                         </Badge>
                       )) : <span className="text-xs text-muted-foreground/40">-</span>}
@@ -266,7 +266,7 @@ export default function DatabaseView({
         >
           {contextMenu.field === "태그" && allTags.length > 0 && (
             <>
-              <div className="px-3 py-1 text-[10px] text-muted-foreground font-medium">태그 필터 (복수 선택)</div>
+              <div className="px-3 py-1 text-xs text-muted-foreground font-medium">태그 필터 (복수 선택)</div>
               <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => { setFilterTags([]); }}>
                 전체 보기
               </button>

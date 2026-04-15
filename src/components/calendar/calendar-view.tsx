@@ -76,7 +76,7 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate 
         {...listeners}
         {...attributes}
         onClick={handleClick}
-        className={`flex items-center gap-1 text-[10px] leading-tight truncate cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
+        className={`flex items-center gap-1 text-xs leading-tight truncate cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
       >
         <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: event.color }} />
         <span className="truncate">{event.title}</span>
@@ -90,7 +90,7 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate 
       {...listeners}
       {...attributes}
       onClick={handleClick}
-      className={`text-[10px] leading-tight text-white truncate px-1 py-[1px] cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
+      className={`text-xs leading-tight text-white truncate px-1 py-[1px] cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
       style={{
         backgroundColor: event.color,
         borderTopLeftRadius: isStart ? "3px" : 0,
@@ -267,7 +267,7 @@ export default function CalendarView({
                 {/* 날짜 숫자 + 날씨 */}
                 <div className={`flex w-full items-start justify-between gap-0.5 min-w-0 ${!inMonth ? "opacity-30" : ""}`}>
                   <span
-                    className={`inline-flex h-4 w-4 md:h-6 md:w-6 items-center justify-center rounded-full text-[9px] md:text-xs font-medium shrink-0 ${
+                    className={`inline-flex h-4 w-4 md:h-6 md:w-6 items-center justify-center rounded-full text-xs md:text-xs font-medium shrink-0 ${
                       today
                         ? "bg-primary text-primary-foreground"
                         : isHoliday
@@ -286,7 +286,7 @@ export default function CalendarView({
 
                 {/* 공휴일 이름 */}
                 {holiday && inMonth && (
-                  <span className="text-[9px] text-red-500 leading-tight truncate w-full">
+                  <span className="text-xs text-red-500 leading-tight truncate w-full">
                     {holiday}
                   </span>
                 )}
@@ -305,7 +305,7 @@ export default function CalendarView({
                     />
                   ))}
                   {bars.length > 3 && (
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       +{bars.length - 3}개 더
                     </span>
                   )}
@@ -320,7 +320,7 @@ export default function CalendarView({
       <DragOverlay>
         {activeEvent && (
           <div
-            className="text-[10px] text-white px-2 py-1 rounded shadow-lg"
+            className="text-xs text-white px-2 py-1 rounded shadow-lg"
             style={{ backgroundColor: activeEvent.color }}
           >
             {activeEvent.title}

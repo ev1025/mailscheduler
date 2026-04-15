@@ -93,7 +93,7 @@ function SortableItem({ ev, tagColorMap, onEdit, onDelete }: {
           {ev.tag && ev.tag.split(",").map((t) => {
             const c = tagColorMap[t] || "#6B7280";
             return (
-              <Badge key={t} className="text-[10px] h-4 px-1.5" style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}>
+              <Badge key={t} className="text-xs h-4 px-1.5" style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}>
                 {t}
               </Badge>
             );

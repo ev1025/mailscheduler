@@ -92,7 +92,7 @@ export default function ShareManager({ open, onOpenChange }: Props) {
                     <Avatar user={owner} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{owner.name}</p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {s.status === "pending"
                           ? "캘린더를 공유하려고 해요"
                           : s.status === "accepted"
@@ -160,7 +160,7 @@ export default function ShareManager({ open, onOpenChange }: Props) {
                     <Avatar user={viewer} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium">{viewer.name}</p>
-                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
                         {s.status === "pending" && (
                           <>
                             <Clock className="h-3 w-3" /> 수락 대기 중

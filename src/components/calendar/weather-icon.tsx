@@ -18,7 +18,7 @@ export default function WeatherIcon({
 }: WeatherIconProps) {
   if (inline) {
     return (
-      <div className="flex items-center gap-1 text-[10px] whitespace-nowrap overflow-hidden">
+      <div className="flex items-center gap-1 text-xs whitespace-nowrap overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={getWeatherIconUrl(weather.weather_icon)}
@@ -74,11 +74,11 @@ export default function WeatherIcon({
             </span>
           </div>
           <div className="flex items-center gap-0.5">
-            <span className="text-[9px] text-blue-500">
+            <span className="text-xs text-blue-500">
               {weather.temperature_min}°
             </span>
-            <span className="text-[9px] text-muted-foreground">/</span>
-            <span className="text-[9px] text-red-500">
+            <span className="text-xs text-muted-foreground">/</span>
+            <span className="text-xs text-red-500">
               {weather.temperature_max}°
             </span>
           </div>
@@ -89,7 +89,7 @@ export default function WeatherIcon({
 
   // 기본 — DayDetail 헤더 등에서 사용. 세로 2줄로 컴팩트하게.
   return (
-    <div className="flex items-center gap-1.5 text-[11px] whitespace-nowrap">
+    <div className="flex items-center gap-1.5 text-xs whitespace-nowrap">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={getWeatherIconUrl(weather.weather_icon)}

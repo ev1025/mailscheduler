@@ -105,7 +105,7 @@ export default function TravelToCalendarDialog({
           {/* 분류 + 일정 태그 + 여행 태그 (색상 표시) */}
           <div className="flex flex-wrap gap-1.5">
             <Badge
-              className="text-[11px]"
+              className="text-xs"
               style={{ backgroundColor: categoryColor + "20", color: categoryColor, borderColor: categoryColor + "40" }}
             >
               {item.category}
@@ -115,7 +115,7 @@ export default function TravelToCalendarDialog({
               return (
                 <Badge
                   key={t}
-                  className="text-[11px]"
+                  className="text-xs"
                   style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}
                 >
                   {t}
@@ -127,7 +127,7 @@ export default function TravelToCalendarDialog({
               return (
                 <Badge
                   key={t}
-                  className="text-[11px]"
+                  className="text-xs"
                   style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}
                 >
                   {t}
@@ -155,7 +155,7 @@ export default function TravelToCalendarDialog({
               {showEndDate ? (
                 <DatePicker value={endDate} onChange={setEndDate} min={date} className="h-8 min-w-0 text-xs" />
               ) : (
-                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-[11px] text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndDate(true)}>
+                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-xs text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndDate(true)}>
                   종료 설정
                 </button>
               )}
@@ -178,7 +178,7 @@ export default function TravelToCalendarDialog({
               {showEndTime ? (
                 <TimePicker value={endTime} onChange={setEndTime} className="h-8 min-w-0 text-xs" />
               ) : (
-                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-[11px] text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndTime(true)}>
+                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-xs text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndTime(true)}>
                   종료 설정
                 </button>
               )}

@@ -133,34 +133,34 @@ function TravelRow({
         </div>
       </td>
       {/* 제목 */}
-      <td className="px-3 py-2.5 border-r overflow-hidden">
+      <td className="px-3 py-3 border-r overflow-hidden">
         <span className="text-sm font-medium truncate block">{item.title}</span>
       </td>
       {/* 분류 */}
-      <td className="px-3 py-2.5 border-r whitespace-nowrap">
-        <Badge variant="outline" className="text-[10px] h-4 px-1.5" style={{ borderColor: color + "60", color }}>
+      <td className="px-3 py-3 border-r whitespace-nowrap">
+        <Badge variant="outline" className="text-xs h-5 px-2" style={{ borderColor: color + "60", color }}>
           {item.category}
         </Badge>
       </td>
       {/* 시기 */}
-      <td className="px-3 py-2.5 border-r text-xs text-muted-foreground whitespace-nowrap">
+      <td className="px-3 py-3 border-r text-sm text-muted-foreground whitespace-nowrap">
         {item.month ? `${item.month}월` : "-"}
       </td>
       {/* 지역 */}
-      <td className="px-3 py-2.5 border-r text-xs text-muted-foreground whitespace-nowrap">
+      <td className="px-3 py-3 border-r text-sm text-muted-foreground whitespace-nowrap">
         {item.region || "-"}
       </td>
       {/* 태그 */}
-      <td className="px-3 py-2.5 whitespace-nowrap">
+      <td className="px-3 py-3 whitespace-nowrap">
         <div className="flex gap-1">
           {item.tag ? item.tag.split(",").map((t) => {
             const tc = tagColorMap[t] || "#6B7280";
             return (
-              <Badge key={t} className="text-[10px] font-normal px-1.5 py-0 shrink-0" style={{ backgroundColor: tc + "20", color: tc, borderColor: tc + "40" }}>
+              <Badge key={t} className="text-xs font-normal px-2 py-0.5 shrink-0" style={{ backgroundColor: tc + "20", color: tc, borderColor: tc + "40" }}>
                 {t}
               </Badge>
             );
-          }) : <span className="text-xs text-muted-foreground/40">-</span>}
+          }) : <span className="text-sm text-muted-foreground/40">-</span>}
         </div>
       </td>
     </tr>
@@ -437,12 +437,12 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
                 <col style={{ width: "1%" }} />
                 <col style={{ width: "1%" }} />
               </colgroup>
-              <thead className="sticky top-0 z-10 bg-muted/40 text-xs text-muted-foreground">
+              <thead className="sticky top-0 z-10 bg-muted/40 text-sm text-muted-foreground">
                 <tr>
                   {columns.map((col) => (
                     <th
                       key={col.label || "grip"}
-                      className="text-left font-medium px-3 py-2.5 border-b border-r last:border-r-0 select-none whitespace-nowrap"
+                      className="text-left font-medium px-3 py-3 border-b border-r last:border-r-0 select-none whitespace-nowrap"
                       onContextMenu={col.field ? (e) => handleHeaderContext(e, col.label) : undefined}
                     >
                       {col.field ? (
@@ -484,7 +484,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
         >
           {contextMenu.field === "분류" && allCategories.length > 0 && (
             <>
-              <div className="px-3 py-1 text-[10px] text-muted-foreground font-medium">분류 필터 (복수)</div>
+              <div className="px-3 py-1 text-xs text-muted-foreground font-medium">분류 필터 (복수)</div>
               <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => setFilterCategories([])}>
                 전체 보기
               </button>
@@ -506,7 +506,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
           )}
           {contextMenu.field === "태그" && allItemTags.length > 0 && (
             <>
-              <div className="px-3 py-1 text-[10px] text-muted-foreground font-medium">태그 필터 (복수)</div>
+              <div className="px-3 py-1 text-xs text-muted-foreground font-medium">태그 필터 (복수)</div>
               <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => setFilterTags([])}>
                 전체 보기
               </button>

@@ -283,42 +283,42 @@ function KnowledgePageInner() {
       >
         <div className="p-3 border-b flex flex-col gap-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold">지식창고</h2>
+            <h2 className="text-base font-bold">지식창고</h2>
             <div className="flex gap-1">
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => handleAddFolder(null)}
-                className="h-7 px-2 text-xs"
+                className="h-9 px-2 text-sm"
                 title="최상위 폴더 추가"
               >
-                <Folder className="h-3 w-3 mr-1" />+
+                <Folder className="h-4 w-4 mr-1" />+
               </Button>
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => handleAddItem(null)}
-                className="h-7 px-2 text-xs"
+                className="h-9 px-2 text-sm"
                 title="노트 추가"
               >
-                <FileText className="h-3 w-3 mr-1" />+
+                <FileText className="h-4 w-4 mr-1" />+
               </Button>
             </div>
           </div>
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="검색"
-              className="pl-7 h-7 text-xs"
+              className="pl-8 h-9 text-sm"
             />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {showingSearch ? (
             <div className="flex flex-col gap-0.5">
-              <p className="text-[10px] text-muted-foreground px-1 mb-1">
+              <p className="text-xs text-muted-foreground px-1 mb-1">
                 검색 결과 {searchResults.length}개
               </p>
               {searchResults.length === 0 ? (
@@ -340,14 +340,14 @@ function KnowledgePageInner() {
                   >
                     <div className="flex items-center gap-1">
                       {i.pinned && (
-                        <Pin className="h-2.5 w-2.5 text-primary" />
+                        <Pin className="h-3 w-3 text-primary" />
                       )}
-                      <span className="text-xs font-medium line-clamp-1">
+                      <span className="text-sm font-medium line-clamp-1">
                         {i.title}
                       </span>
                     </div>
                     {i.excerpt && (
-                      <span className="text-[10px] text-muted-foreground line-clamp-2">
+                      <span className="text-xs text-muted-foreground line-clamp-2">
                         {i.excerpt}
                       </span>
                     )}
@@ -412,7 +412,7 @@ function KnowledgePageInner() {
               {/* 2행: 자동저장 표시 / 임시저장 드롭다운 / 임시저장 / 저장 */}
               <div className="flex items-center justify-end gap-1.5 px-2 md:px-3 pb-2">
                 {autoSavedAt && (
-                  <span className="mr-auto text-[10px] text-muted-foreground" title="10초 이상 입력이 없으면 자동으로 임시저장됩니다">
+                  <span className="mr-auto text-xs text-muted-foreground" title="10초 이상 입력이 없으면 자동으로 임시저장됩니다">
                     자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 )}
@@ -424,7 +424,7 @@ function KnowledgePageInner() {
                     <Archive className="h-3 w-3" />
                     <span>목록</span>
                     {drafts.length > 0 && (
-                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
+                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground">
                         {drafts.length}
                       </span>
                     )}
@@ -454,7 +454,7 @@ function KnowledgePageInner() {
                               <p className="text-xs font-medium line-clamp-1">
                                 {d.title}
                               </p>
-                              <p className="text-[10px] text-muted-foreground mt-0.5">
+                              <p className="text-xs text-muted-foreground mt-0.5">
                                 {new Date(d.savedAt).toLocaleString("ko-KR", {
                                   month: "2-digit",
                                   day: "2-digit",

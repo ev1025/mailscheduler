@@ -195,7 +195,7 @@ export default function SettingsPage() {
                           {r.name}
                           {r.admin1 ? ` · ${r.admin1}` : ""}
                         </span>
-                        <span className="text-[10px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {r.country_code} · {r.country}
                         </span>
                       </button>
@@ -203,7 +203,7 @@ export default function SettingsPage() {
                   )}
                 </div>
               )}
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 국내는 기상청 + Open-Meteo를 함께 사용하고, 해외는 Open-Meteo
                 단독으로 조회합니다.
               </p>

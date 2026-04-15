@@ -90,7 +90,7 @@ function ProductRow({
       </td>
       <td className="text-center px-2 py-2 whitespace-nowrap w-10">
         <span
-          className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
+          className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${
             idx === 0
               ? "bg-yellow-100 text-yellow-700"
               : idx === 1
@@ -412,7 +412,7 @@ function ProductsPageInner() {
                         <span className="text-sm font-semibold">{sub}</span>
                         <Badge
                           variant="outline"
-                          className="text-[10px] h-4 ml-auto"
+                          className="text-xs h-4 ml-auto"
                         >
                           {list.length}개
                         </Badge>

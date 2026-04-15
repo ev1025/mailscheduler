@@ -222,7 +222,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                   메일 발송 완료
                 </div>
                 <p className="text-xs">{emailStatus.message}</p>
-                <p className="text-[11px] text-green-700">
+                <p className="text-xs text-green-700">
                   메일 수신 후 링크를 누르면 자동으로 로그인됩니다. 스팸함도 확인해보세요.
                 </p>
               </div>
@@ -275,7 +275,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
 
             {/* 이름 */}
             <div className="flex flex-col gap-1">
-              <Label className="text-[10px] text-muted-foreground">이름 (표시용)</Label>
+              <Label className="text-xs text-muted-foreground">이름 (표시용)</Label>
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -338,7 +338,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
 
             {/* 이모지 */}
             <div className="flex flex-col gap-1">
-              <Label className="text-[10px] text-muted-foreground">프리셋 이모지</Label>
+              <Label className="text-xs text-muted-foreground">프리셋 이모지</Label>
               <div className="grid grid-cols-8 gap-1">
                 {PRESET_EMOJIS.map((e) => (
                   <button
@@ -360,7 +360,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
 
             {/* 색상 */}
             <div className="flex flex-col gap-1">
-              <Label className="text-[10px] text-muted-foreground">배경색</Label>
+              <Label className="text-xs text-muted-foreground">배경색</Label>
               <div className="flex gap-1.5 flex-wrap">
                 {PALETTE.map((c) => (
                   <button

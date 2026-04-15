@@ -70,7 +70,7 @@ export default function ProductDetailDialog({
               <Badge variant="secondary">{product.sub_category}</Badge>
             )}
             {product.is_active && (
-              <span className="text-[10px] text-green-600 border border-green-300 bg-green-50 rounded px-1.5 py-0.5">
+              <span className="text-xs text-green-600 border border-green-300 bg-green-50 rounded px-1.5 py-0.5">
                 🏷 고정비
               </span>
             )}

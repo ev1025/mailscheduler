@@ -106,7 +106,7 @@ export default function FinancePage() {
       <div className="mb-4 flex items-center justify-end gap-2">
         {/* 날짜 필터 */}
         <Popover open={filterOpen} onOpenChange={setFilterOpen}>
-          <PopoverTrigger className="flex items-center gap-1.5 rounded-md border px-2.5 h-8 text-xs hover:bg-accent transition-colors cursor-pointer">
+          <PopoverTrigger className="flex items-center gap-1.5 rounded-md border px-3 h-9 text-sm hover:bg-accent transition-colors cursor-pointer">
             <CalendarRange className={`h-3.5 w-3.5 ${isFiltered ? "text-blue-600" : "text-muted-foreground"}`} />
             {isFiltered ? `${dateFrom} ~ ${dateTo}` : "날짜 필터"}
           </PopoverTrigger>

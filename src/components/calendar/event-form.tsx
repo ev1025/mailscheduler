@@ -314,7 +314,7 @@ export default function EventForm({
               {showEndDate ? (
                 <DatePicker value={endDate} onChange={setEndDate} min={startDate} className="h-8 min-w-0 text-xs" />
               ) : (
-                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-[11px] text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndDate(true)}>
+                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-xs text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndDate(true)}>
                   종료 설정
                 </button>
               )}
@@ -337,7 +337,7 @@ export default function EventForm({
               {showEndTime ? (
                 <TimePicker value={endTime} onChange={setEndTime} className="h-8 min-w-0 text-xs" />
               ) : (
-                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-[11px] text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndTime(true)}>
+                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-xs text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndTime(true)}>
                   종료 설정
                 </button>
               )}
@@ -371,7 +371,7 @@ export default function EventForm({
               </Select>
               {repeat !== "none" ? (
                 <>
-                  <span className="text-[11px] text-muted-foreground px-0.5">횟수</span>
+                  <span className="text-xs text-muted-foreground px-0.5">횟수</span>
                   <NumberWheel value={repeatCount} onChange={setRepeatCount} min={1} max={52} allowInfinity />
                   <span className="w-4" />
                 </>
@@ -429,13 +429,13 @@ export default function EventForm({
                       <button type="button" onClick={() => setShowDrafts(false)} className="text-muted-foreground hover:text-foreground">
                         <ArrowLeft className="h-3 w-3" />
                       </button>
-                      <span className="text-[10px] text-muted-foreground font-medium">임시저장 목록</span>
+                      <span className="text-xs text-muted-foreground font-medium">임시저장 목록</span>
                     </div>
                     {drafts.map((d) => (
                       <div key={d.id} className="group flex items-center justify-between px-3 py-2 hover:bg-accent cursor-pointer" onClick={() => handleLoadDraft(d)}>
                         <div className="min-w-0">
                           <p className="text-xs font-medium truncate">{d.title || "(제목 없음)"}</p>
-                          <p className="text-[10px] text-muted-foreground">{new Date(d.savedAt).toLocaleDateString("ko")}</p>
+                          <p className="text-xs text-muted-foreground">{new Date(d.savedAt).toLocaleDateString("ko")}</p>
                         </div>
                         <button
                           type="button"

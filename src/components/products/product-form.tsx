@@ -239,7 +239,7 @@ export default function ProductForm({
           {/* 분류 / 세부분류 / 브랜드 한 행 */}
           <div className="grid grid-cols-3 gap-2">
             <div className="flex flex-col gap-1 min-w-0">
-              <Label className="text-[11px] text-muted-foreground">분류</Label>
+              <Label className="text-xs text-muted-foreground">분류</Label>
               <TagInput
                 selectedTags={category ? [category] : []}
                 allTags={categoryTags}
@@ -251,7 +251,7 @@ export default function ProductForm({
               />
             </div>
             <div className="flex flex-col gap-1 min-w-0">
-              <Label className="text-[11px] text-muted-foreground">세부분류</Label>
+              <Label className="text-xs text-muted-foreground">세부분류</Label>
               <TagInput
                 selectedTags={subCategory ? [subCategory] : []}
                 allTags={subTags}
@@ -263,7 +263,7 @@ export default function ProductForm({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-[11px] text-muted-foreground">브랜드</Label>
+              <Label className="text-xs text-muted-foreground">브랜드</Label>
               <Input
                 value={brand}
                 onChange={(e) => setBrand(e.target.value)}
@@ -391,14 +391,14 @@ export default function ProductForm({
               title="고정비 등록 시 매월 11일 결제로 등록됩니다"
             >
               <HelpCircle className="h-3.5 w-3.5" />
-              <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-[10px] text-background opacity-0 group-hover:opacity-100 transition-opacity z-10">
+              <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 group-hover:opacity-100 transition-opacity z-10">
                 고정비 등록 시 매월 11일 결제로 등록됩니다
               </span>
             </span>
           </label>
 
           <div className="flex flex-col gap-1">
-            <Label className="text-[11px] text-muted-foreground">
+            <Label className="text-xs text-muted-foreground">
               성분/메모
             </Label>
             <Textarea

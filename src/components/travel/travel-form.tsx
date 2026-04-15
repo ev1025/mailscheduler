@@ -136,7 +136,7 @@ export default function TravelForm({
           {/* 시기 / 지역 / 가봄 */}
           <div className="grid grid-cols-3 gap-2">
             <div className="flex flex-col gap-1">
-              <Label className="text-[11px] text-muted-foreground">시기</Label>
+              <Label className="text-xs text-muted-foreground">시기</Label>
               <Select
                 value={month != null ? String(month) : "none"}
                 onValueChange={(v) => setMonth(!v || v === "none" ? null : parseInt(v))}
@@ -153,7 +153,7 @@ export default function TravelForm({
               </Select>
             </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-[11px] text-muted-foreground">지역</Label>
+              <Label className="text-xs text-muted-foreground">지역</Label>
               <Input
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
@@ -162,7 +162,7 @@ export default function TravelForm({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label className="text-[11px] text-muted-foreground invisible">.</Label>
+              <Label className="text-xs text-muted-foreground invisible">.</Label>
               <div className="h-8 flex items-center justify-center gap-2">
                 <button
                   type="button"

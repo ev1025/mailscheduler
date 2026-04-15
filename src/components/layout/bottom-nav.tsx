@@ -39,7 +39,7 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[10px] transition-colors active:bg-accent/50",
+                "flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs transition-colors active:bg-accent/50",
                 isActive
                   ? "text-foreground font-medium"
                   : "text-muted-foreground"
@@ -55,7 +55,7 @@ export default function BottomNav() {
         <button
           type="button"
           onClick={() => setUserOpen(true)}
-          className="flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[10px] text-muted-foreground active:bg-accent/50"
+          className="flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs text-muted-foreground active:bg-accent/50"
         >
           {currentUser ? (
             <span

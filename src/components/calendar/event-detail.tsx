@@ -77,7 +77,7 @@ export default function EventDetail({
                   )}
                 </span>
                 {event.repeat && (
-                  <span className="text-[11px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                  <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
                     {event.repeat === "weekly" ? "매주" : event.repeat === "monthly" ? "매월" : "매년"}
                   </span>
                 )}

@@ -127,7 +127,7 @@ export default function NotificationsPanel({ open, onOpenChange }: Props) {
                         {n.body}
                       </p>
                     )}
-                    <p className="text-[10px] text-muted-foreground mt-1">
+                    <p className="text-xs text-muted-foreground mt-1">
                       {formatDistanceToNow(new Date(n.created_at), {
                         addSuffix: true,
                         locale: ko,
@@ -161,7 +161,7 @@ export default function NotificationsPanel({ open, onOpenChange }: Props) {
                     <button
                       type="button"
                       onClick={() => markAsRead(n.id)}
-                      className="text-[10px] text-primary mt-1 shrink-0"
+                      className="text-xs text-primary mt-1 shrink-0"
                     >
                       읽음
                     </button>

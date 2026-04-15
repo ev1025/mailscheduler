@@ -122,7 +122,7 @@ export default function DatePicker({ value, onChange, className, placeholder = "
                 <div
                   key={d}
                   className={cn(
-                    "text-center text-[11px] font-medium py-1",
+                    "text-center text-xs font-medium py-1",
                     i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-muted-foreground"
                   )}
                 >
@@ -172,14 +172,14 @@ export default function DatePicker({ value, onChange, className, placeholder = "
             <div className="flex items-center justify-between pt-1 border-t">
               <button
                 type="button"
-                className="text-[11px] rounded px-1.5 py-0.5 border text-muted-foreground hover:text-foreground transition-colors"
+                className="text-xs rounded px-1.5 py-0.5 border text-muted-foreground hover:text-foreground transition-colors"
                 onClick={() => setIsLunar(!isLunar)}
               >
                 {isLunar ? "음력" : "양력"}
               </button>
               <button
                 type="button"
-                className="text-[11px] text-blue-600 hover:underline"
+                className="text-xs text-blue-600 hover:underline"
                 onClick={goToday}
               >
                 오늘

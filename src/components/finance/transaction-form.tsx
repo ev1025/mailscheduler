@@ -124,7 +124,7 @@ export default function TransactionForm({
             <div className="flex flex-col gap-1 min-w-0">
               <Label
                 htmlFor="amount"
-                className="text-[11px] text-muted-foreground"
+                className="text-xs text-muted-foreground"
               >
                 금액 (원) *
               </Label>
@@ -142,7 +142,7 @@ export default function TransactionForm({
             <div className="flex flex-col gap-1 min-w-0">
               <Label
                 htmlFor="date"
-                className="text-[11px] text-muted-foreground"
+                className="text-xs text-muted-foreground"
               >
                 날짜
               </Label>
@@ -159,7 +159,7 @@ export default function TransactionForm({
           {/* 2행: 카테고리 | 결제수단 (태그 형식) */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1 min-w-0">
-              <Label className="text-[11px] text-muted-foreground">
+              <Label className="text-xs text-muted-foreground">
                 카테고리 *
               </Label>
               <TagInput
@@ -189,7 +189,7 @@ export default function TransactionForm({
               />
             </div>
             <div className="flex flex-col gap-1 min-w-0">
-              <Label className="text-[11px] text-muted-foreground">
+              <Label className="text-xs text-muted-foreground">
                 결제수단
               </Label>
               <TagInput
@@ -206,7 +206,7 @@ export default function TransactionForm({
 
           {/* 3행: 메모 */}
           <div className="flex flex-col gap-1">
-            <Label htmlFor="desc" className="text-[11px] text-muted-foreground">
+            <Label htmlFor="desc" className="text-xs text-muted-foreground">
               메모
             </Label>
             <Input

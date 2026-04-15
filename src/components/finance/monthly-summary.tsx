@@ -52,7 +52,7 @@ export default function MonthlySummary({
   }) => (
     <div className="rounded-lg border bg-card p-2.5 md:p-3 flex flex-col gap-1 min-w-0">
       <div className="flex items-center justify-between gap-1">
-        <span className="text-[10px] md:text-xs text-muted-foreground truncate">
+        <span className="text-xs md:text-xs text-muted-foreground truncate">
           {label}
         </span>
         {editable ? (
@@ -67,7 +67,7 @@ export default function MonthlySummary({
           icon
         )}
       </div>
-      <div className={`text-sm md:text-xl font-bold truncate ${color || ""}`}>
+      <div className={`text-base md:text-xl font-bold truncate ${color || ""}`}>
         {value}
       </div>
     </div>
@@ -102,7 +102,7 @@ export default function MonthlySummary({
                     saveIncome(draft);
                     setEditingIncome(false);
                   }}
-                  className="text-[10px] text-primary shrink-0"
+                  className="text-xs text-primary shrink-0"
                 >
                   OK
                 </button>
