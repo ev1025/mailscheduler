@@ -14,6 +14,9 @@ import {
   Upload,
   Check,
   Mail,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import AvatarCropDialog from "./avatar-crop-dialog";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
@@ -22,7 +25,9 @@ import {
   useCurrentUser,
 } from "@/lib/current-user";
 import {
-  sendMagicLink,
+  signInWithPassword,
+  signUpWithPassword,
+  sendPasswordResetEmail,
   useSupabaseAuth,
 } from "@/lib/auth-supabase";
 import { uploadToStorage } from "@/lib/storage";
@@ -53,8 +58,12 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
   const currentUser = useCurrentUser();
 
   const [emailInput, setEmailInput] = useState("");
-  const [emailStatus, setEmailStatus] = useState<
-    { type: "idle" | "sending" | "sent" | "error"; message?: string }
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [authMode, setAuthMode] = useState<"signin" | "signup" | "forgot">("signin");
+  const [authStatus, setAuthStatus] = useState<
+    { type: "idle" | "busy" | "info" | "error"; message?: string }
   >({ type: "idle" });
 
   // 프로필 최초 생성 폼
@@ -78,17 +87,36 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
     }
   }, [mode, avatarUrl, name]);
 
-  const handleSendMagicLink = async () => {
-    setEmailStatus({ type: "sending" });
-    const { error } = await sendMagicLink(emailInput);
-    if (error) {
-      setEmailStatus({ type: "error", message: error });
-      return;
+  const handleSubmitAuth = async () => {
+    setAuthStatus({ type: "busy" });
+    if (authMode === "signin") {
+      const { error } = await signInWithPassword(emailInput, passwordInput);
+      if (error) return setAuthStatus({ type: "error", message: error });
+      // 성공 시 세션이 생기면 onAuthStateChange가 setup 모드로 전환
+      setAuthStatus({ type: "idle" });
+    } else if (authMode === "signup") {
+      if (passwordInput !== passwordConfirm) {
+        return setAuthStatus({ type: "error", message: "비밀번호가 일치하지 않습니다" });
+      }
+      const { error, needsConfirm } = await signUpWithPassword(emailInput, passwordInput);
+      if (error) return setAuthStatus({ type: "error", message: error });
+      if (needsConfirm) {
+        setAuthStatus({
+          type: "info",
+          message: `${emailInput.trim()}으로 가입 확인 메일을 보냈습니다. 메일의 링크를 누르면 로그인됩니다.`,
+        });
+      } else {
+        setAuthStatus({ type: "idle" });
+      }
+    } else {
+      // forgot
+      const { error } = await sendPasswordResetEmail(emailInput);
+      if (error) return setAuthStatus({ type: "error", message: error });
+      setAuthStatus({
+        type: "info",
+        message: `${emailInput.trim()}으로 비밀번호 재설정 메일을 보냈습니다.`,
+      });
     }
-    setEmailStatus({
-      type: "sent",
-      message: `${emailInput.trim()}으로 로그인 링크를 보냈습니다.`,
-    });
   };
 
   const handleCreateProfile = async () => {
@@ -155,24 +183,66 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">불러오는 중...</p>
         ) : mode === "signin" ? (
-          /* SIGN IN — 매직링크 */
+          /* SIGN IN — 이메일 + 비밀번호 */
           <div className="flex flex-col gap-3">
-            {emailStatus.type === "sent" ? (
+            {authMode !== "forgot" && (
+              <div className="flex border-b">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("signin");
+                    setAuthStatus({ type: "idle" });
+                  }}
+                  className={`flex-1 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    authMode === "signin"
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground"
+                  }`}
+                >
+                  로그인
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode("signup");
+                    setAuthStatus({ type: "idle" });
+                  }}
+                  className={`flex-1 py-2 text-sm font-medium border-b-2 transition-colors ${
+                    authMode === "signup"
+                      ? "border-primary text-foreground"
+                      : "border-transparent text-muted-foreground"
+                  }`}
+                >
+                  가입
+                </button>
+              </div>
+            )}
+
+            {authStatus.type === "info" ? (
               <div className="flex flex-col gap-2 rounded-md border bg-green-50 p-4 text-sm text-green-900">
                 <div className="flex items-center gap-2 font-medium">
                   <Mail className="h-4 w-4" />
                   메일 발송 완료
                 </div>
-                <p className="text-xs">{emailStatus.message}</p>
+                <p className="text-xs">{authStatus.message}</p>
                 <p className="text-xs text-green-700">
-                  메일 수신 후 링크를 누르면 자동으로 로그인됩니다. 스팸함도 확인해보세요.
+                  메일의 링크를 누르면 처리됩니다. 스팸함도 확인해보세요.
                 </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-1 self-start h-8"
+                  onClick={() => {
+                    setAuthMode("signin");
+                    setAuthStatus({ type: "idle" });
+                  }}
+                >
+                  로그인으로 돌아가기
+                </Button>
               </div>
             ) : (
               <>
-                <p className="text-xs text-muted-foreground">
-                  이메일로 로그인 링크를 보내드립니다. 비밀번호는 필요 없어요.
-                </p>
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs text-muted-foreground">이메일</Label>
                   <Input
@@ -180,10 +250,10 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                     value={emailInput}
                     onChange={(e) => {
                       setEmailInput(e.target.value);
-                      if (emailStatus.type === "error") setEmailStatus({ type: "idle" });
+                      if (authStatus.type === "error") setAuthStatus({ type: "idle" });
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") handleSendMagicLink();
+                      if (e.key === "Enter" && authMode === "forgot") handleSubmitAuth();
                     }}
                     placeholder="you@example.com"
                     autoComplete="email"
@@ -191,17 +261,114 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                     className="h-10"
                   />
                 </div>
-                {emailStatus.type === "error" && (
-                  <p className="text-xs text-destructive">{emailStatus.message}</p>
+
+                {authMode !== "forgot" && (
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground">비밀번호</Label>
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        value={passwordInput}
+                        onChange={(e) => {
+                          setPasswordInput(e.target.value);
+                          if (authStatus.type === "error") setAuthStatus({ type: "idle" });
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && authMode === "signin") handleSubmitAuth();
+                        }}
+                        placeholder="6자 이상"
+                        autoComplete={authMode === "signin" ? "current-password" : "new-password"}
+                        className="h-10 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        aria-label={showPassword ? "비밀번호 숨기기" : "비밀번호 보이기"}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
+                  </div>
                 )}
+
+                {authMode === "signup" && (
+                  <div className="flex flex-col gap-1.5">
+                    <Label className="text-xs text-muted-foreground">비밀번호 확인</Label>
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      value={passwordConfirm}
+                      onChange={(e) => {
+                        setPasswordConfirm(e.target.value);
+                        if (authStatus.type === "error") setAuthStatus({ type: "idle" });
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSubmitAuth();
+                      }}
+                      placeholder="비밀번호 재입력"
+                      autoComplete="new-password"
+                      className="h-10"
+                    />
+                  </div>
+                )}
+
+                {authStatus.type === "error" && (
+                  <p className="text-xs text-destructive">{authStatus.message}</p>
+                )}
+
                 <Button
-                  onClick={handleSendMagicLink}
-                  disabled={emailStatus.type === "sending" || !emailInput.trim()}
+                  onClick={handleSubmitAuth}
+                  disabled={
+                    authStatus.type === "busy" ||
+                    !emailInput.trim() ||
+                    (authMode !== "forgot" && !passwordInput)
+                  }
                   className="w-full h-10"
                 >
-                  <Mail className="mr-1 h-4 w-4" />
-                  {emailStatus.type === "sending" ? "보내는 중..." : "로그인 링크 받기"}
+                  {authMode === "signin" && (
+                    <>
+                      <Lock className="mr-1 h-4 w-4" />
+                      {authStatus.type === "busy" ? "로그인 중..." : "로그인"}
+                    </>
+                  )}
+                  {authMode === "signup" && (
+                    <>
+                      <Check className="mr-1 h-4 w-4" />
+                      {authStatus.type === "busy" ? "가입 중..." : "가입하기"}
+                    </>
+                  )}
+                  {authMode === "forgot" && (
+                    <>
+                      <Mail className="mr-1 h-4 w-4" />
+                      {authStatus.type === "busy" ? "보내는 중..." : "재설정 메일 받기"}
+                    </>
+                  )}
                 </Button>
+
+                {authMode === "signin" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode("forgot");
+                      setAuthStatus({ type: "idle" });
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground self-center"
+                  >
+                    비밀번호를 잊으셨나요?
+                  </button>
+                )}
+                {authMode === "forgot" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAuthMode("signin");
+                      setAuthStatus({ type: "idle" });
+                    }}
+                    className="text-xs text-muted-foreground hover:text-foreground self-center"
+                  >
+                    ← 로그인으로 돌아가기
+                  </button>
+                )}
               </>
             )}
           </div>
