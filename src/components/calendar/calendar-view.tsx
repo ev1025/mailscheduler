@@ -47,15 +47,19 @@ interface EventBar {
   isStart: boolean;
   isEnd: boolean;
   isSingle: boolean;
+  spanDays: number; // 이 주 안에서 이 셀 이후 며칠을 차지하는지 (start 셀에서 라벨 너비 계산)
+  endLabel: string; // "~M/D" 라벨 (멀티데이 종료일)
 }
 
 // 드래그 가능한 이벤트 아이템
-function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate }: {
+function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, spanDays, endLabel, onClickDate }: {
   event: CalendarEvent;
   dateStr: string;
   isSingle: boolean;
   isStart: boolean;
   isEnd: boolean;
+  spanDays: number;
+  endLabel: string;
   onClickDate: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -83,15 +87,15 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate 
     );
   }
 
-  // 멀티데이: start 셀에만 제목 표시 (truncate), 나머지 셀은 빈 바.
-  // 같은 주 안에서 cell 경계가 보이지 않도록 bleed.
+  // 멀티데이: 각 셀에 바(컬러 배경)를 렌더. 주의 시작 셀에서만 absolute 라벨을
+  // spanDays 만큼 넓혀 중앙정렬하여 바 정중앙에 제목 표시.
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
       onClick={handleClick}
-      className={`text-[10px] leading-[14px] text-white cursor-grab active:cursor-grabbing truncate ${isDragging ? "opacity-30" : ""}`}
+      className={`relative cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
       style={{
         backgroundColor: event.color,
         borderTopLeftRadius: isStart ? "3px" : 0,
@@ -101,11 +105,19 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate 
         marginLeft: isStart ? 0 : "-2px",
         marginRight: isEnd ? 0 : "-2px",
         height: "14px",
-        paddingLeft: isStart ? "4px" : 0,
-        paddingRight: isEnd ? "4px" : 0,
       }}
     >
-      {isStart ? event.title : "\u00A0"}
+      {isStart && (
+        <div
+          className="absolute top-0 left-0 flex items-center justify-center h-[14px] text-[10px] leading-none text-white whitespace-nowrap overflow-hidden px-1 pointer-events-none"
+          style={{ width: `calc(${spanDays} * 100% + ${(spanDays - 1) * 2}px)` }}
+        >
+          <span className="truncate">
+            {event.title}
+            {endLabel && <span className="opacity-80"> ({endLabel})</span>}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -123,7 +135,7 @@ function DroppableCell({ dateStr, children, isOver, onClick }: {
     <div
       ref={setNodeRef}
       onClick={onClick}
-      className={`flex flex-col items-start border-b border-r py-1 px-0 min-w-0 min-h-0 text-left transition-colors cursor-pointer relative overflow-hidden ${
+      className={`flex flex-col items-start border-b border-r py-1 px-0 min-w-0 min-h-0 text-left transition-colors cursor-pointer relative ${
         isOver ? "bg-blue-50 ring-1 ring-blue-300 ring-inset" : "hover:bg-accent/50"
       }`}
     >
@@ -158,26 +170,34 @@ export default function CalendarView({
 
   function getBarsForDate(day: Date): EventBar[] {
     const bars: EventBar[] = [];
+    const weekEnd = endOfWeek(day, { weekStartsOn: 0 });
     for (const ev of events) {
       const start = parseISO(ev.start_date);
       const end = ev.end_date ? parseISO(ev.end_date) : start;
       const single = isSameDay(start, end);
+      const endLabel = `~${end.getMonth() + 1}/${end.getDate()}`;
 
       if (single) {
         if (isSameDay(day, start)) {
-          bars.push({ event: ev, isStart: true, isEnd: true, isSingle: true });
+          bars.push({ event: ev, isStart: true, isEnd: true, isSingle: true, spanDays: 1, endLabel: "" });
         }
       } else if (
         isWithinInterval(day, { start, end }) ||
         isSameDay(day, start) ||
         isSameDay(day, end)
       ) {
-        // 주 경계에서 줄바꿈될 때 각 행의 첫 칸(일요일)도 isStart로 취급 → 제목 다시 표시
+        const isStart = isSameDay(day, start) || day.getDay() === 0;
+        const isEnd = isSameDay(day, end) || day.getDay() === 6;
+        // 이 주에서 현재 셀부터 이벤트 끝 또는 주 끝까지 몇 일 남았는지 (start 셀 기준 spanDays)
+        const lastDayInWeek = end < weekEnd ? end : weekEnd;
+        const spanDays = isStart ? differenceInDays(lastDayInWeek, day) + 1 : 1;
         bars.push({
           event: ev,
-          isStart: isSameDay(day, start) || day.getDay() === 0,
-          isEnd: isSameDay(day, end) || day.getDay() === 6,
+          isStart,
+          isEnd,
           isSingle: false,
+          spanDays,
+          endLabel,
         });
       }
     }
@@ -272,10 +292,10 @@ export default function CalendarView({
 
             return (
               <DroppableCell key={dateStr} dateStr={dateStr} isOver={isOverThis} onClick={() => onDateClick(dateStr)}>
-                {/* 날짜 숫자 + 날씨 — 셀 내부 overflow-hidden으로 넘침 방지 */}
-                <div className={`flex w-full items-start justify-between gap-1 pl-1 pr-1.5 md:pl-1.5 md:pr-2 min-w-0 overflow-hidden ${!inMonth ? "opacity-30" : ""}`}>
+                {/* 날짜 숫자 + 날씨 */}
+                <div className={`flex w-full items-start justify-between gap-1 pl-1 pr-2 md:pl-1.5 md:pr-2.5 min-w-0 overflow-hidden ${!inMonth ? "opacity-30" : ""}`}>
                   <span
-                    className={`inline-flex h-5 w-5 md:h-6 md:w-6 items-center justify-center rounded-full text-xs md:text-sm font-semibold shrink-0 ${
+                    className={`inline-flex h-[18px] w-[18px] md:h-5 md:w-5 items-center justify-center rounded-full text-[11px] md:text-xs font-semibold shrink-0 ${
                       today
                         ? "bg-primary text-primary-foreground"
                         : isHoliday
@@ -299,8 +319,8 @@ export default function CalendarView({
                   </span>
                 )}
 
-                {/* 이벤트 바 (드래그 가능) — 수평 bleed 허용, 수직만 클립 */}
-                <div className="mt-0.5 flex flex-col gap-[2px] w-full" style={{ maxHeight: 58 }}>
+                {/* 이벤트 바 (드래그 가능) — 수평은 자유롭게, 수직은 maxHeight로 제한 */}
+                <div className="mt-0.5 flex flex-col gap-[2px] w-full min-w-0" style={{ maxHeight: 58 }}>
                   {bars.slice(0, 3).map((bar) => (
                     <DraggableEvent
                       key={bar.event.id + dateStr}
@@ -309,6 +329,8 @@ export default function CalendarView({
                       isSingle={bar.isSingle}
                       isStart={bar.isStart}
                       isEnd={bar.isEnd}
+                      spanDays={bar.spanDays}
+                      endLabel={bar.endLabel}
                       onClickDate={() => onDateClick(dateStr)}
                     />
                   ))}

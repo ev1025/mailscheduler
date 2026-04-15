@@ -40,50 +40,25 @@ export default function WeatherIcon({
   }
 
   if (compact) {
+    // 공용 컴팩트 뷰 — 모바일/데스크톱 모두 아이콘을 "/" 위에 중앙 배치
     return (
-      <>
-        {/* 모바일: 1행 아이콘, 2행 최저/최고 */}
-        <div className="flex md:hidden flex-col items-end gap-0 leading-[1] shrink-0 max-w-full overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={getWeatherIconUrl(weather.weather_icon)}
-            alt={weather.weather_description}
-            className="h-3 w-3 shrink-0"
-          />
-          <div className="flex items-center leading-[1] whitespace-nowrap">
-            <span className="text-[7px] text-blue-500">
-              {weather.temperature_min}°
-            </span>
-            <span className="text-[7px] text-muted-foreground">/</span>
-            <span className="text-[7px] text-red-500">
-              {weather.temperature_max}°
-            </span>
-          </div>
+      <div className="flex flex-col items-center gap-0 leading-[1] shrink-0 max-w-full">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={getWeatherIconUrl(weather.weather_icon)}
+          alt={weather.weather_description}
+          className="h-4 w-4 md:h-[18px] md:w-[18px] shrink-0 -mb-0.5"
+        />
+        <div className="flex items-center leading-[1] whitespace-nowrap">
+          <span className="text-[9px] md:text-[10px] text-blue-500">
+            {weather.temperature_min}°
+          </span>
+          <span className="text-[9px] md:text-[10px] text-muted-foreground">/</span>
+          <span className="text-[9px] md:text-[10px] text-red-500">
+            {weather.temperature_max}°
+          </span>
         </div>
-        {/* 데스크톱: 1행 아이콘+설명, 2행 최저/최고 */}
-        <div className="hidden md:flex flex-col items-end gap-0 leading-[1]">
-          <div className="flex items-center gap-0.5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={getWeatherIconUrl(weather.weather_icon)}
-              alt={weather.weather_description}
-              className="h-4 w-4"
-            />
-            <span className="text-[8px] text-muted-foreground whitespace-nowrap">
-              {weather.weather_description}
-            </span>
-          </div>
-          <div className="flex items-center gap-0.5">
-            <span className="text-xs text-blue-500">
-              {weather.temperature_min}°
-            </span>
-            <span className="text-xs text-muted-foreground">/</span>
-            <span className="text-xs text-red-500">
-              {weather.temperature_max}°
-            </span>
-          </div>
-        </div>
-      </>
+      </div>
     );
   }
 

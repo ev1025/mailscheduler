@@ -82,23 +82,25 @@ function SortableItem({ ev, tagColorMap, onEdit, onDelete }: {
           <span className="inline-block h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: ev.color }} />
           <p className="font-medium text-sm truncate">{ev.title}</p>
         </div>
-        <div className="flex items-center gap-2 mt-0.5 pl-5">
-          {ev.start_time && (
-            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              {ev.start_time.slice(0, 5)}
-              {ev.end_time && ` ~ ${ev.end_time.slice(0, 5)}`}
-            </span>
-          )}
-          {ev.tag && ev.tag.split(",").map((t) => {
-            const c = tagColorMap[t] || "#6B7280";
-            return (
-              <Badge key={t} className="text-xs h-4 px-1.5" style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}>
-                {t}
-              </Badge>
-            );
-          })}
-        </div>
+        {(ev.start_time || ev.tag) && (
+          <div className="flex items-center gap-2 mt-0.5 pl-5">
+            {ev.start_time && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                {ev.start_time.slice(0, 5)}
+                {ev.end_time && ` ~ ${ev.end_time.slice(0, 5)}`}
+              </span>
+            )}
+            {ev.tag && ev.tag.split(",").map((t) => {
+              const c = tagColorMap[t] || "#6B7280";
+              return (
+                <Badge key={t} className="text-xs h-4 px-1.5" style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}>
+                  {t}
+                </Badge>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 삭제 */}

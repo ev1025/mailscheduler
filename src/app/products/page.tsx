@@ -331,7 +331,9 @@ function ProductsPageInner() {
                     setCategoryFilter(c);
                   }
                 }}
-                className="group/cat inline-flex items-center rounded-full border pl-3 pr-3 py-1.5 text-sm transition-all cursor-pointer select-none"
+                className={`group/cat inline-flex items-center gap-1 rounded-full border py-1.5 text-sm transition-all cursor-pointer select-none ${
+                  canDelete ? "pl-3 pr-1.5" : "px-3"
+                }`}
                 style={
                   active
                     ? {
@@ -347,11 +349,11 @@ function ProductsPageInner() {
                 {canDelete && (
                   <button
                     type="button"
-                    onClick={async (e) => {
+                    onClick={(e) => {
                       e.stopPropagation();
                       setPendingDeleteCategory(c);
                     }}
-                    className="ml-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full text-current/60 hover:bg-current/10 hover:text-current"
+                    className="flex h-4 w-4 items-center justify-center rounded-full opacity-60 hover:opacity-100 hover:bg-black/10"
                     aria-label={`${c} 삭제`}
                   >
                     <X className="h-3 w-3" />

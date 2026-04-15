@@ -232,24 +232,24 @@ export default function DatabaseView({
                       const s = parseDay(ev.start_date);
                       const e = ev.end_date && ev.end_date !== ev.start_date ? parseDay(ev.end_date) : null;
                       return (
-                        <span className="text-[11px] text-foreground tabular-nums">
+                        <span className="text-[10px] text-foreground tabular-nums">
                           {s.month}/{s.day}({s.weekday})
                           {e && ` ~ ${e.month}/${e.day}(${e.weekday})`}
                         </span>
                       );
                     })()}
                   </td>
-                  {/* 날씨 */}
-                  <td className="px-2 py-2.5 border-r overflow-hidden min-w-0">
+                  {/* 날씨 — 아이콘 위 / 온도 아래 스택 */}
+                  <td className="px-1 py-1.5 border-r overflow-hidden min-w-0">
                     {weatherMap[ev.start_date] ? (
-                      <WeatherIcon weather={weatherMap[ev.start_date]} inline />
+                      <WeatherIcon weather={weatherMap[ev.start_date]} compact />
                     ) : (
                       <span className="text-xs text-muted-foreground/40">-</span>
                     )}
                   </td>
                   {/* 제목 */}
-                  <td className="px-3 py-2.5 border-r overflow-hidden min-w-0">
-                    <div className="text-sm font-medium truncate">{ev.title}</div>
+                  <td className="px-3 py-2 border-r overflow-hidden min-w-0">
+                    <div className="text-xs font-medium truncate">{ev.title}</div>
                   </td>
                   {/* 태그 */}
                   <td className="px-3 py-2.5 overflow-hidden min-w-0">
