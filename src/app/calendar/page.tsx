@@ -208,9 +208,9 @@ function CalendarPageInner() {
   return (
     <>
       <PageHeader title="캘린더" />
-    <div className="px-2 py-4 md:p-6 overflow-x-hidden">
+    <div className="flex flex-col h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh)] px-2 py-2 md:p-6 overflow-hidden">
       {/* 탭: 달력 / 일정목록 / 여행 */}
-      <div className="mb-3 flex border-b">
+      <div className="mb-2 flex border-b shrink-0">
         <button
           className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
             view === "calendar"
@@ -249,7 +249,7 @@ function CalendarPageInner() {
       {/* 탭 아래: MonthPicker + 사용자 필터 (달력/일정목록 탭에서만) */}
       {view !== "travel" && (
         <>
-          <div className="mb-3 flex justify-center items-center">
+          <div className="mb-2 flex justify-center items-center shrink-0">
             <MonthPicker
               year={year}
               month={month}
@@ -258,7 +258,7 @@ function CalendarPageInner() {
             />
           </div>
           {viewableUserIds.length > 1 && (
-            <div className="mb-3 flex flex-wrap items-center justify-center gap-1.5">
+            <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5 shrink-0">
               {users
                 .filter((u) => viewableUserIds.includes(u.id))
                 .map((u) => {
@@ -331,6 +331,7 @@ function CalendarPageInner() {
         />
       ) : view === "calendar" ? (
         <div
+          className="flex-1 min-h-0 flex flex-col"
           onTouchStart={(e) => {
             const t = e.touches[0];
             (e.currentTarget as HTMLDivElement & { _sx?: number; _sy?: number })._sx = t.clientX;

@@ -267,7 +267,7 @@ export default function CalendarView({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="min-w-0 w-full flex flex-col" style={{ height: "calc(100dvh - 14rem)" }}>
+      <div className="min-w-0 w-full flex flex-col flex-1 min-h-0">
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 border-b shrink-0">
           {WEEKDAYS.map((day, i) => (
