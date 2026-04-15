@@ -16,24 +16,22 @@ import {
   Upload,
   X,
   Check,
-  LogIn,
+  Mail,
   LogOut,
-  Lock,
-  Pencil,
   Share2,
 } from "lucide-react";
 import ShareManager from "@/components/calendar/share-manager";
 import AvatarCropDialog from "./avatar-crop-dialog";
 import {
   useAppUsers,
-  useCurrentUserId,
-  setCurrentUserId,
-  logout,
-  addRememberedUser,
-  removeRememberedUser,
+  useCurrentUser,
   type AppUser,
 } from "@/lib/current-user";
-import { verifyPassword, hashWithNewSalt } from "@/lib/auth";
+import {
+  sendMagicLink,
+  supabaseSignOut,
+  useSupabaseAuth,
+} from "@/lib/auth-supabase";
 import { toast } from "sonner";
 
 const PALETTE = [
@@ -54,100 +52,124 @@ interface Props {
   allowClose?: boolean;
 }
 
-type Mode = "list" | "create" | "edit" | "forgot";
+// Mode:
+//  - signin: Supabase Auth 세션 없음 → 이메일 매직링크 전송
+//  - setup : 세션 있으나 app_users 프로필 없음 → 최초 프로필 생성
+//  - edit  : 세션 + 프로필 있음 → 내 프로필 편집
+type Mode = "signin" | "setup" | "edit";
 
-const LOGIN_ID_RE = /^[a-zA-Z0-9_]{3,20}$/;
+export default function UserSwitcher({ open, onOpenChange, allowClose = true }: Props) {
+  const { user: authUser, loading: authLoading } = useSupabaseAuth();
+  const { users, loading: usersLoading, addUser, updateUser, deleteUser, refetch } = useAppUsers();
+  const currentUser = useCurrentUser();
 
-export default function UserSwitcher({
-  open,
-  onOpenChange,
-  allowClose = true,
-}: Props) {
-  const { users, addUser, updateUser, deleteUser, refetch } = useAppUsers();
-  const currentId = useCurrentUserId();
-
-  // 모달 열릴 때마다 최신 유저 목록 가져오기
-  useEffect(() => {
-    if (open) refetch();
-  }, [open, refetch]);
-
-  // 로그인 상태에서 모달 열리면 자동으로 내 프로필 편집 화면으로
-  useEffect(() => {
-    if (!open || !currentId || users.length === 0) return;
-    const me = users.find((u) => u.id === currentId);
-    if (me && mode === "list") {
-      startEdit(me);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, currentId, users]);
-
-  const [mode, setMode] = useState<Mode>("list");
-  const [targetUser, setTargetUser] = useState<AppUser | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [showPasswordChange, setShowPasswordChange] = useState(false);
-  const [pwChangeConfirmOpen, setPwChangeConfirmOpen] = useState(false);
-  const [pwChangeCurrent, setPwChangeCurrent] = useState("");
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deletePassword, setDeletePassword] = useState("");
 
-  // 로그인 폼 상태 (list 모드에서 입력)
-  const [loginIdInput, setLoginIdInput] = useState("");
-  const [loginPwInput, setLoginPwInput] = useState("");
-  const [loginError, setLoginError] = useState<string | null>(null);
-  const [rememberLogin, setRememberLogin] = useState(false);
+  // 이메일 매직링크 폼
+  const [emailInput, setEmailInput] = useState("");
+  const [emailStatus, setEmailStatus] = useState<
+    { type: "idle" | "sending" | "sent" | "error"; message?: string }
+  >({ type: "idle" });
 
-  // 생성 / 편집 상태
-  const [loginId, setLoginId] = useState("");
+  // 프로필 생성/편집 폼
   const [name, setName] = useState("");
-  const [recoveryQuestion, setRecoveryQuestion] = useState("");
-  const [recoveryAnswer, setRecoveryAnswer] = useState("");
-
-  // 비밀번호 찾기(forgot) 상태
-  const [forgotId, setForgotId] = useState("");
-  const [forgotTarget, setForgotTarget] = useState<AppUser | null>(null);
-  const [forgotAnswer, setForgotAnswer] = useState("");
-  const [forgotNewPw, setForgotNewPw] = useState("");
-  const [forgotNewPwConfirm, setForgotNewPwConfirm] = useState("");
-  const [forgotError, setForgotError] = useState<string | null>(null);
-  const [forgotStep, setForgotStep] = useState<"id" | "answer" | "reset">("id");
   const [emoji, setEmoji] = useState("🙂");
   const [color, setColor] = useState(PALETTE[0]);
   const [avatarUrl, setAvatarUrl] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [remember, setRemember] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
 
+  // 현재 모드 계산 (auth 상태 + 프로필 유무)
+  const mode: Mode = !authUser ? "signin" : currentUser ? "edit" : "setup";
+
+  // 모달 열릴 때마다 목록 재조회 (다른 기기에서 바뀐 프로필 반영)
   useEffect(() => {
-    if (!open) {
-      setMode("list");
-      setTargetUser(null);
-      setLoginId("");
-      setName("");
-      setRecoveryQuestion("");
-      setRecoveryAnswer("");
-      setEmoji("🙂");
-      setColor(PALETTE[0]);
-      setAvatarUrl("");
-      setPassword("");
-      setPasswordConfirm("");
-      setRemember(true);
-      setLoginIdInput("");
-      setLoginPwInput("");
-      setLoginError(null);
-      setRememberLogin(false);
-      setForgotId("");
-      setForgotTarget(null);
-      setForgotAnswer("");
-      setForgotNewPw("");
-      setForgotNewPwConfirm("");
-      setForgotError(null);
-      setForgotStep("id");
+    if (open) refetch();
+  }, [open, refetch]);
+
+  // edit 모드 진입 시 현재 프로필 값 로드
+  useEffect(() => {
+    if (mode === "edit" && currentUser) {
+      setName(currentUser.name);
+      setEmoji(currentUser.emoji || "🙂");
+      setColor(currentUser.color || PALETTE[0]);
+      setAvatarUrl(currentUser.avatar_url || "");
     }
-  }, [open]);
+    if (mode === "setup") {
+      setName("");
+      setEmoji("🙂");
+      setColor(PALETTE[Math.floor(Math.random() * PALETTE.length)]);
+      setAvatarUrl("");
+    }
+  }, [mode, currentUser]);
+
+  const handleSendMagicLink = async () => {
+    setEmailStatus({ type: "sending" });
+    const { error } = await sendMagicLink(emailInput);
+    if (error) {
+      setEmailStatus({ type: "error", message: error });
+      return;
+    }
+    setEmailStatus({
+      type: "sent",
+      message: `${emailInput.trim()}으로 로그인 링크를 보냈습니다. 메일함을 확인해주세요.`,
+    });
+  };
+
+  const handleCreateProfile = async () => {
+    if (!authUser) return;
+    if (!name.trim()) {
+      toast.error("이름을 입력하세요");
+      return;
+    }
+    setSaving(true);
+    const { error } = await addUser(
+      authUser.id,
+      name.trim(),
+      color,
+      avatarUrl ? undefined : emoji,
+      avatarUrl || undefined
+    );
+    setSaving(false);
+    if (error) {
+      toast.error(typeof error === "string" ? error : "프로필 생성 실패");
+      return;
+    }
+    onOpenChange(false);
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!currentUser || !name.trim()) return;
+    setSaving(true);
+    const { error } = await updateUser(currentUser.id, {
+      name: name.trim(),
+      emoji: avatarUrl ? null : emoji,
+      color,
+      avatar_url: avatarUrl || null,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error(typeof error === "string" ? error : "저장 실패");
+      return;
+    }
+    onOpenChange(false);
+  };
+
+  const handleSignOut = async () => {
+    await supabaseSignOut();
+    onOpenChange(false);
+  };
+
+  const handleDeleteProfile = async () => {
+    if (!currentUser) return;
+    if (!confirm("프로필과 Supabase 로그인 세션을 삭제합니다. 계속할까요?")) return;
+    await deleteUser(currentUser.id);
+    await supabaseSignOut();
+    onOpenChange(false);
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -156,7 +178,6 @@ export default function UserSwitcher({
       toast.error("10MB 이하 이미지만 선택할 수 있어요");
       return;
     }
-    // 원본을 data URL로 읽어 크롭 다이얼로그에 넘김 (크롭 결과를 avatarUrl로 저장)
     const reader = new FileReader();
     reader.onload = () => {
       setCropSrc(reader.result as string);
@@ -166,584 +187,124 @@ export default function UserSwitcher({
     e.target.value = "";
   };
 
-  const startCreate = () => {
-    setMode("create");
-    setLoginId("");
-    setName("");
-    setEmoji("🙂");
-    setColor(PALETTE[users.length % PALETTE.length]);
-    setAvatarUrl("");
-    setPassword("");
-    setPasswordConfirm("");
-  };
-
-  const handleCreate = async () => {
-    if (!loginId.trim()) {
-      toast.error("로그인 아이디를 입력하세요");
-      return;
-    }
-    if (!LOGIN_ID_RE.test(loginId.trim())) {
-      toast.error("아이디는 영문/숫자/_ 3~20자");
-      return;
-    }
-    if (users.some((u) => u.login_id === loginId.trim())) {
-      toast.error("이미 사용 중인 아이디입니다");
-      return;
-    }
-    if (!name.trim()) {
-      toast.error("이름을 입력하세요");
-      return;
-    }
-    if (!password || password.length < 4) {
-      toast.error("비밀번호는 4자 이상이어야 합니다");
-      return;
-    }
-    if (password !== passwordConfirm) {
-      toast.error("비밀번호가 일치하지 않습니다");
-      return;
-    }
-    const { hash, salt } = await hashWithNewSalt(password);
-
-    // 복구 질문/답변은 선택. 둘 다 입력 시에만 저장.
-    let recoveryQ: string | undefined;
-    let recoveryAH: string | undefined;
-    let recoveryAS: string | undefined;
-    if (recoveryQuestion.trim() && recoveryAnswer.trim()) {
-      recoveryQ = recoveryQuestion.trim();
-      const r = await hashWithNewSalt(recoveryAnswer.trim().toLowerCase());
-      recoveryAH = r.hash;
-      recoveryAS = r.salt;
-    }
-
-    const { data, error } = await addUser(
-      name.trim(),
-      color,
-      emoji,
-      avatarUrl,
-      hash,
-      salt,
-      loginId.trim(),
-      recoveryQ,
-      recoveryAH,
-      recoveryAS
-    );
-    if (error || !data) {
-      toast.error(
-        typeof error === "string" ? error : "프로필 생성 실패 — SQL 확인 필요"
-      );
-      return;
-    }
-    // 생성자는 세션으로만 로그인 (자동 로그인 X). 다음 접속 시 비번 입력 필요.
-    setCurrentUserId(data.id, false);
-    onOpenChange(false);
-  };
-
-  const handleDirectLogin = async () => {
-    setLoginError(null);
-    const idInput = loginIdInput.trim();
-    if (!idInput) {
-      setLoginError("아이디를 입력하세요");
-      return;
-    }
-    if (!loginPwInput) {
-      setLoginError("비밀번호를 입력하세요");
-      return;
-    }
-    // login_id 컬럼이 없을 수 있어 client-side에서 매칭 (login_id 우선, 없으면 name)
-    const target =
-      users.find((u) => u.login_id && u.login_id === idInput) ||
-      users.find((u) => !u.login_id && u.name === idInput);
-    if (!target) {
-      setLoginError("아이디 또는 비밀번호가 올바르지 않습니다");
-      return;
-    }
-    if (!target.password_salt || !target.password_hash) {
-      setLoginError("이 프로필은 비밀번호가 설정되지 않았습니다");
-      return;
-    }
-    if (!(await verifyPassword(loginPwInput, target.password_salt, target.password_hash))) {
-      setLoginError("아이디 또는 비밀번호가 올바르지 않습니다");
-      return;
-    }
-    setCurrentUserId(target.id, rememberLogin);
-    if (rememberLogin) addRememberedUser(target.id);
-    else removeRememberedUser(target.id);
-    onOpenChange(false);
-  };
-
-  const handleForgotStart = () => {
-    setForgotError(null);
-    const idInput = forgotId.trim();
-    if (!idInput) {
-      setForgotError("아이디를 입력하세요");
-      return;
-    }
-    const target =
-      users.find((u) => u.login_id && u.login_id === idInput) ||
-      users.find((u) => !u.login_id && u.name === idInput);
-    if (!target) {
-      setForgotError("아이디를 찾을 수 없습니다");
-      return;
-    }
-    if (
-      !target.recovery_question ||
-      !target.recovery_answer_hash ||
-      !target.recovery_answer_salt
-    ) {
-      setForgotError(
-        "이 프로필은 복구 질문이 설정되지 않았습니다"
-      );
-      return;
-    }
-    setForgotTarget(target);
-    setForgotStep("answer");
-  };
-
-  const handleForgotVerify = async () => {
-    setForgotError(null);
-    if (!forgotTarget) return;
-    if (!forgotAnswer.trim()) {
-      setForgotError("답변을 입력하세요");
-      return;
-    }
-    const ok = await verifyPassword(
-      forgotAnswer.trim().toLowerCase(),
-      forgotTarget.recovery_answer_salt,
-      forgotTarget.recovery_answer_hash
-    );
-    if (!ok) {
-      setForgotError("답변이 일치하지 않습니다");
-      return;
-    }
-    setForgotStep("reset");
-  };
-
-  const handleForgotReset = async () => {
-    setForgotError(null);
-    if (!forgotTarget) return;
-    if (!forgotNewPw || forgotNewPw.length < 4) {
-      setForgotError("새 비밀번호는 4자 이상");
-      return;
-    }
-    if (forgotNewPw !== forgotNewPwConfirm) {
-      setForgotError("비밀번호가 일치하지 않습니다");
-      return;
-    }
-    const { hash, salt } = await hashWithNewSalt(forgotNewPw);
-    const { error } = await updateUser(forgotTarget.id, {
-      password_hash: hash,
-      password_salt: salt,
-    });
-    if (error) {
-      setForgotError("저장 실패");
-      return;
-    }
-    setMode("list");
-    setForgotStep("id");
-    setForgotId("");
-    setForgotAnswer("");
-    setForgotNewPw("");
-    setForgotNewPwConfirm("");
-    setLoginIdInput(forgotTarget.login_id || forgotTarget.name);
-  };
-
-  const startEdit = (u: AppUser) => {
-    setTargetUser(u);
-    setMode("edit");
-    setName(u.name);
-    setEmoji(u.emoji || "🙂");
-    setColor(u.color || PALETTE[0]);
-    setAvatarUrl(u.avatar_url || "");
-    setPassword("");
-    setPasswordConfirm("");
-    setRecoveryQuestion(u.recovery_question || "");
-    setRecoveryAnswer(""); // 해시만 있으므로 공란으로 두고 새 값을 입력하면 저장
-    setShowPasswordChange(false);
-    setPwChangeConfirmOpen(false);
-    setPwChangeCurrent("");
-    setDeleteConfirmOpen(false);
-    setDeletePassword("");
-  };
-
-  const handleConfirmPwChange = async () => {
-    if (!targetUser) return;
-    if (!targetUser.password_salt || !targetUser.password_hash) {
-      toast.error("비밀번호가 설정되지 않은 프로필입니다");
-      return;
-    }
-    if (!pwChangeCurrent) {
-      toast.error("현재 비밀번호를 입력하세요");
-      return;
-    }
-    if (!(await verifyPassword(pwChangeCurrent, targetUser.password_salt, targetUser.password_hash))) {
-      toast.error("비밀번호가 틀렸어요");
-      return;
-    }
-    setPwChangeConfirmOpen(false);
-    setPwChangeCurrent("");
-    setShowPasswordChange(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!targetUser) return;
-    if (!targetUser.password_salt || !targetUser.password_hash) {
-      toast.error("비밀번호가 설정되지 않은 프로필입니다");
-      return;
-    }
-    if (!deletePassword) {
-      toast.error("비밀번호를 입력하세요");
-      return;
-    }
-    if (!(await verifyPassword(deletePassword, targetUser.password_salt, targetUser.password_hash))) {
-      toast.error("비밀번호가 틀렸어요");
-      return;
-    }
-    await deleteUser(targetUser.id);
-    removeRememberedUser(targetUser.id);
-    logout();
-    setMode("list");
-    setDeleteConfirmOpen(false);
-    setDeletePassword("");
-  };
-
-  const handleUpdate = async () => {
-    if (!targetUser || !name.trim()) return;
-    const updates: Partial<AppUser> = {
-      name: name.trim(),
-      emoji: avatarUrl ? null : emoji,
-      color,
-      avatar_url: avatarUrl || null,
-    };
-    if (password) {
-      if (password.length < 4) {
-        toast.error("비밀번호는 4자 이상이어야 합니다");
-        return;
-      }
-      if (password !== passwordConfirm) {
-        toast.error("비밀번호가 일치하지 않습니다");
-        return;
-      }
-      const { hash, salt } = await hashWithNewSalt(password);
-      updates.password_hash = hash;
-      updates.password_salt = salt;
-    }
-    // 복구 질문: 질문이 비었으면 초기화. 답변이 새로 입력된 경우에만 해시 갱신.
-    if (recoveryQuestion.trim() !== (targetUser.recovery_question || "") || recoveryAnswer.trim()) {
-      if (!recoveryQuestion.trim()) {
-        updates.recovery_question = null;
-        updates.recovery_answer_hash = null;
-        updates.recovery_answer_salt = null;
-      } else {
-        updates.recovery_question = recoveryQuestion.trim();
-        if (recoveryAnswer.trim()) {
-          const r = await hashWithNewSalt(recoveryAnswer.trim().toLowerCase());
-          updates.recovery_answer_hash = r.hash;
-          updates.recovery_answer_salt = r.salt;
-        }
-      }
-    }
-    const { error } = await updateUser(targetUser.id, updates);
-    if (error) {
-      toast.error(typeof error === "string" ? error : "저장 실패");
-      return;
-    }
-    setMode("list");
-  };
-
-  const handleLogout = () => {
-    if (currentId) removeRememberedUser(currentId);
-    logout();
-    setMode("list");
-  };
+  const isLoading = authLoading || usersLoading;
 
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (!o && !allowClose && !currentId) return;
+        if (!o && !allowClose && !authUser) return;
         onOpenChange(o);
       }}
     >
       <DialogContent
         className="sm:max-w-md max-h-[90vh] overflow-y-auto"
-        showBackButton={
-          mode !== "list" || (mode === "list" && !!currentId)
-        }
-        onBack={() => {
-          // 로그인된 '내 프로필' 편집 → 닫기
-          // 그 외 create/forgot/다른 유저 편집 → list로
-          if (mode === "edit" && currentId && targetUser?.id === currentId) {
-            onOpenChange(false);
-          } else if (mode === "list" && currentId) {
-            onOpenChange(false);
-          } else {
-            setMode("list");
-          }
-        }}
+        showBackButton={allowClose}
       >
         <DialogHeader>
-          <div className="flex items-center gap-2">
-            <DialogTitle>
-              {mode === "list" && (users.length === 0 ? "프로필 만들기" : currentId ? "프로필" : "로그인")}
-              {mode === "create" && "새 프로필 만들기"}
-              {mode === "edit" && (targetUser?.id === currentId ? "내 프로필" : `${targetUser?.name} 수정`)}
-              {mode === "forgot" && "비밀번호 찾기"}
-            </DialogTitle>
-          </div>
+          <DialogTitle>
+            {mode === "signin" && "로그인"}
+            {mode === "setup" && "프로필 만들기"}
+            {mode === "edit" && "내 프로필"}
+          </DialogTitle>
         </DialogHeader>
 
-        {/* LIST MODE — 로그인 폼 (사용자 목록 노출 금지) */}
-        {mode === "list" && !currentId && (
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground py-6 text-center">불러오는 중...</p>
+        ) : mode === "signin" ? (
+          /* SIGN IN — Supabase 매직링크 */
           <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">아이디</Label>
-              <Input
-                value={loginIdInput}
-                onChange={(e) => { setLoginIdInput(e.target.value); setLoginError(null); }}
-                onKeyDown={(e) => { if (e.key === "Enter") handleDirectLogin(); }}
-                placeholder="영문/숫자"
-                autoComplete="username"
-                className="h-9"
-                autoFocus
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">비밀번호</Label>
-              <Input
-                type="password"
-                value={loginPwInput}
-                onChange={(e) => { setLoginPwInput(e.target.value); setLoginError(null); }}
-                onKeyDown={(e) => { if (e.key === "Enter") handleDirectLogin(); }}
-                autoComplete="current-password"
-                className="h-9"
-              />
-            </div>
-            {loginError && (
-              <p className="text-xs text-destructive">{loginError}</p>
-            )}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 text-xs cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={rememberLogin}
-                  onChange={(e) => setRememberLogin(e.target.checked)}
-                />
-                자동 로그인
-              </label>
-              <button
-                type="button"
-                className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
-                onClick={() => { setMode("forgot"); setForgotStep("id"); }}
-              >
-                비밀번호 찾기
-              </button>
-            </div>
-            <Button onClick={handleDirectLogin} className="w-full">
-              <LogIn className="mr-1 h-4 w-4" />
-              로그인
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={startCreate}
-              className="w-full"
-            >
-              <Plus className="mr-1 h-4 w-4" />
-              새 프로필 만들기
-            </Button>
-          </div>
-        )}
-
-        {/* FORGOT MODE */}
-        {mode === "forgot" && (
-          <div className="flex flex-col gap-3">
-            {forgotStep === "id" && (
-              <>
-                <p className="text-xs text-muted-foreground">
-                  복구 질문이 설정된 프로필만 비밀번호를 재설정할 수 있습니다.
+            {emailStatus.type === "sent" ? (
+              <div className="flex flex-col gap-2 rounded-md border bg-green-50 p-4 text-sm text-green-900">
+                <div className="flex items-center gap-2 font-medium">
+                  <Mail className="h-4 w-4" />
+                  메일 발송 완료
+                </div>
+                <p className="text-xs">{emailStatus.message}</p>
+                <p className="text-[11px] text-green-700">
+                  메일 수신 후 링크를 누르면 자동으로 로그인됩니다. 스팸함도 확인해보세요.
                 </p>
-                <div className="flex flex-col gap-1">
-                  <Label className="text-xs text-muted-foreground">아이디</Label>
-                  <Input
-                    value={forgotId}
-                    onChange={(e) => { setForgotId(e.target.value); setForgotError(null); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleForgotStart(); }}
-                    placeholder="영문/숫자"
-                    className="h-9"
-                    autoFocus
-                  />
-                </div>
-                {forgotError && <p className="text-xs text-destructive">{forgotError}</p>}
-                <Button onClick={handleForgotStart} className="w-full">다음</Button>
-              </>
-            )}
-
-            {forgotStep === "answer" && forgotTarget && (
-              <>
-                <div className="rounded-md border bg-muted/30 p-3">
-                  <p className="text-[11px] text-muted-foreground mb-1">복구 질문</p>
-                  <p className="text-sm font-medium">{forgotTarget.recovery_question}</p>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label className="text-xs text-muted-foreground">답변</Label>
-                  <Input
-                    value={forgotAnswer}
-                    onChange={(e) => { setForgotAnswer(e.target.value); setForgotError(null); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") handleForgotVerify(); }}
-                    placeholder="대소문자 구분 없음"
-                    className="h-9"
-                    autoFocus
-                  />
-                </div>
-                {forgotError && <p className="text-xs text-destructive">{forgotError}</p>}
-                <Button onClick={handleForgotVerify} className="w-full">확인</Button>
-              </>
-            )}
-
-            {forgotStep === "reset" && (
-              <>
-                <p className="text-xs text-muted-foreground">
-                  새 비밀번호를 설정하세요.
-                </p>
-                <Input
-                  type="password"
-                  value={forgotNewPw}
-                  onChange={(e) => { setForgotNewPw(e.target.value); setForgotError(null); }}
-                  placeholder="새 비밀번호 (4자 이상)"
-                  className="h-9"
-                  autoFocus
-                />
-                <Input
-                  type="password"
-                  value={forgotNewPwConfirm}
-                  onChange={(e) => { setForgotNewPwConfirm(e.target.value); setForgotError(null); }}
-                  placeholder="비밀번호 확인"
-                  className="h-9"
-                  onKeyDown={(e) => { if (e.key === "Enter") handleForgotReset(); }}
-                />
-                {forgotError && <p className="text-xs text-destructive">{forgotError}</p>}
-                <Button onClick={handleForgotReset} className="w-full">저장</Button>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* CREATE / EDIT MODE */}
-        {(mode === "create" || mode === "edit") && (
-          <div className="flex flex-col gap-3">
-            {mode === "create" ? (
-              <>
-                {/* 1. 아이디 */}
-                <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] text-muted-foreground">아이디 (영문/숫자/_ 3~20자)</Label>
-                  <Input
-                    value={loginId}
-                    onChange={(e) => setLoginId(e.target.value)}
-                    placeholder="예: hyungseok123"
-                    className="h-9"
-                    autoComplete="username"
-                    autoFocus
-                  />
-                </div>
-                {/* 2. 비밀번호 */}
-                <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] text-muted-foreground">비밀번호</Label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="비밀번호 (4자 이상)"
-                    className="h-9"
-                    autoComplete="new-password"
-                  />
-                  <Input
-                    type="password"
-                    value={passwordConfirm}
-                    onChange={(e) => setPasswordConfirm(e.target.value)}
-                    placeholder="비밀번호 확인"
-                    className="h-9"
-                    autoComplete="new-password"
-                  />
-                </div>
-                {/* 2-b. 복구 질문/답변 (선택) — 비번 찾기용 */}
-                <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] text-muted-foreground">
-                    비밀번호 찾기 (선택) — 복구 질문 / 답변
-                  </Label>
-                  <Input
-                    value={recoveryQuestion}
-                    onChange={(e) => setRecoveryQuestion(e.target.value)}
-                    placeholder="예: 어머니 성함은?"
-                    className="h-9 text-xs"
-                  />
-                  <Input
-                    value={recoveryAnswer}
-                    onChange={(e) => setRecoveryAnswer(e.target.value)}
-                    placeholder="답변 (대소문자 무시)"
-                    className="h-9 text-xs"
-                  />
-                </div>
-                {/* 3. 이름 */}
-                <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] text-muted-foreground">이름 (표시용)</Label>
-                  <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="이름"
-                    className="h-9"
-                  />
-                </div>
-                {/* 4. 프로필 이미지 미리보기 */}
-                <div className="flex items-center gap-3 pt-1">
-                  <div
-                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl overflow-hidden"
-                    style={
-                      avatarUrl
-                        ? { backgroundColor: "transparent" }
-                        : { backgroundColor: color + "30", color }
-                    }
-                  >
-                    {avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      emoji || (name ? name[0] : "?")
-                    )}
-                  </div>
-                  <span className="text-xs text-muted-foreground">아래에서 이미지/이모지/색상을 선택하세요</span>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center gap-3">
-                <div
-                  className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl overflow-hidden"
-                  style={
-                    avatarUrl
-                      ? { backgroundColor: "transparent" }
-                      : { backgroundColor: color + "30", color }
-                  }
-                >
-                  {avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={avatarUrl}
-                      alt="avatar"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    emoji || (name ? name[0] : "?")
-                  )}
-                </div>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="이름"
-                  autoFocus
-                  className="h-9 flex-1"
-                />
               </div>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  이메일로 로그인 링크를 보내드립니다. 비밀번호는 필요 없어요.
+                </p>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs text-muted-foreground">이메일</Label>
+                  <Input
+                    type="email"
+                    value={emailInput}
+                    onChange={(e) => {
+                      setEmailInput(e.target.value);
+                      if (emailStatus.type === "error") setEmailStatus({ type: "idle" });
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSendMagicLink();
+                    }}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    autoFocus
+                    className="h-9"
+                  />
+                </div>
+                {emailStatus.type === "error" && (
+                  <p className="text-xs text-destructive">{emailStatus.message}</p>
+                )}
+                <Button
+                  onClick={handleSendMagicLink}
+                  disabled={emailStatus.type === "sending" || !emailInput.trim()}
+                  className="w-full"
+                >
+                  <Mail className="mr-1 h-4 w-4" />
+                  {emailStatus.type === "sending" ? "보내는 중..." : "로그인 링크 받기"}
+                </Button>
+              </>
+            )}
+          </div>
+        ) : (
+          /* SETUP or EDIT — 프로필 생성/편집 */
+          <div className="flex flex-col gap-3">
+            {mode === "setup" && (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{authUser?.email}</span>로 로그인됐어요.
+                프로필 정보를 입력하면 시작할 수 있어요.
+              </p>
             )}
 
+            {/* 이름 */}
+            <div className="flex flex-col gap-1">
+              <Label className="text-[10px] text-muted-foreground">이름 (표시용)</Label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="이름"
+                className="h-9"
+                autoFocus={mode === "setup"}
+              />
+            </div>
+
+            {/* 아바타 미리보기 */}
+            <div className="flex items-center gap-3 pt-1">
+              <div
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl overflow-hidden"
+                style={
+                  avatarUrl
+                    ? { backgroundColor: "transparent" }
+                    : { backgroundColor: color + "30", color }
+                }
+              >
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
+                ) : (
+                  emoji || (name ? name[0] : "?")
+                )}
+              </div>
+              <span className="text-xs text-muted-foreground">아래에서 이미지/이모지/색상을 선택하세요</span>
+            </div>
+
+            {/* 이미지 업로드 */}
             <div className="flex gap-1.5">
               <Button
                 type="button"
@@ -774,10 +335,9 @@ export default function UserSwitcher({
               />
             </div>
 
+            {/* 이모지 */}
             <div className="flex flex-col gap-1">
-              <Label className="text-[10px] text-muted-foreground">
-                프리셋 이모지
-              </Label>
+              <Label className="text-[10px] text-muted-foreground">프리셋 이모지</Label>
               <div className="grid grid-cols-8 gap-1">
                 {PRESET_EMOJIS.map((e) => (
                   <button
@@ -788,9 +348,7 @@ export default function UserSwitcher({
                       setAvatarUrl("");
                     }}
                     className={`flex h-7 w-7 items-center justify-center rounded-md text-base hover:bg-accent transition-colors ${
-                      emoji === e && !avatarUrl
-                        ? "ring-2 ring-primary"
-                        : ""
+                      emoji === e && !avatarUrl ? "ring-2 ring-primary" : ""
                     }`}
                   >
                     {e}
@@ -799,6 +357,7 @@ export default function UserSwitcher({
               </div>
             </div>
 
+            {/* 색상 */}
             <div className="flex flex-col gap-1">
               <Label className="text-[10px] text-muted-foreground">배경색</Label>
               <div className="flex gap-1.5 flex-wrap">
@@ -808,9 +367,7 @@ export default function UserSwitcher({
                     type="button"
                     onClick={() => setColor(c)}
                     className={`h-5 w-5 rounded-full transition-all ${
-                      color === c
-                        ? "ring-2 ring-offset-1 ring-primary scale-110"
-                        : "hover:scale-110"
+                      color === c ? "ring-2 ring-offset-1 ring-primary scale-110" : "hover:scale-110"
                     }`}
                     style={{ backgroundColor: c }}
                   />
@@ -818,167 +375,58 @@ export default function UserSwitcher({
               </div>
             </div>
 
-            {/* 비밀번호 변경 — 편집 모드에서 토글 시 비번 + 복구 질문/답변 같이 노출 */}
-            {mode === "edit" && showPasswordChange && (
-              <div className="flex flex-col gap-2 pt-2 border-t">
-                <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] text-muted-foreground">
-                    새 비밀번호
-                  </Label>
-                  <Input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="비밀번호 (4자 이상)"
-                    className="h-9"
-                    autoComplete="new-password"
-                  />
-                  <Input
-                    type="password"
-                    value={passwordConfirm}
-                    onChange={(e) => setPasswordConfirm(e.target.value)}
-                    placeholder="비밀번호 확인"
-                    className="h-9"
-                    autoComplete="new-password"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label className="text-[10px] text-muted-foreground">
-                    비밀번호 찾기 (선택) — 복구 질문 / 답변
-                  </Label>
-                  <Input
-                    value={recoveryQuestion}
-                    onChange={(e) => setRecoveryQuestion(e.target.value)}
-                    placeholder="예: 어머니 성함은?"
-                    className="h-9 text-xs"
-                  />
-                  <Input
-                    value={recoveryAnswer}
-                    onChange={(e) => setRecoveryAnswer(e.target.value)}
-                    placeholder={targetUser?.recovery_answer_hash ? "답변 변경 시에만 입력 (비우면 유지)" : "답변 (대소문자 무시)"}
-                    className="h-9 text-xs"
-                  />
-                </div>
-              </div>
-            )}
-
+            {/* 저장 / 취소 */}
             <div className="flex gap-2 justify-end">
+              {mode === "edit" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onOpenChange(false)}
+                  className="h-8"
+                >
+                  취소
+                </Button>
+              )}
               <Button
                 type="button"
-                variant="outline"
                 size="sm"
-                onClick={() => setMode("list")}
-                className="h-8"
-              >
-                취소
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={mode === "create" ? handleCreate : handleUpdate}
-                disabled={!name.trim()}
+                onClick={mode === "setup" ? handleCreateProfile : handleUpdateProfile}
+                disabled={!name.trim() || saving}
                 className="h-8"
               >
                 <Check className="mr-1 h-3 w-3" />
-                {mode === "create" ? "만들기" : "저장"}
+                {mode === "setup" ? "시작하기" : "저장"}
               </Button>
             </div>
 
-            {/* 편집 + 자기 프로필일 때만 액션 그리드 */}
-            {mode === "edit" && targetUser && targetUser.id === currentId && (
-              <div className="border-t pt-3 mt-1 flex flex-col gap-2">
-                {pwChangeConfirmOpen ? (
-                  <div className="flex flex-col gap-2 rounded-lg border p-3 bg-muted/30">
-                    <p className="text-xs font-medium">🔒 비밀번호 변경 — 현재 비밀번호 확인</p>
-                    <Input
-                      type="password"
-                      value={pwChangeCurrent}
-                      onChange={(e) => setPwChangeCurrent(e.target.value)}
-                      placeholder="현재 비밀번호"
-                      className="h-8"
-                      autoFocus
-                      onKeyDown={(e) => { if (e.key === "Enter") handleConfirmPwChange(); }}
-                    />
-                    <div className="flex gap-2 justify-end">
-                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
-                        onClick={() => { setPwChangeConfirmOpen(false); setPwChangeCurrent(""); }}>
-                        취소
-                      </Button>
-                      <Button type="button" size="sm" className="h-7 text-xs" onClick={handleConfirmPwChange}>
-                        확인
-                      </Button>
-                    </div>
-                  </div>
-                ) : deleteConfirmOpen ? (
-                  <div className="flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3">
-                    <p className="text-xs text-destructive font-medium">
-                      ⚠️ 프로필 삭제 — 비밀번호로 확인
-                    </p>
-                    <Input
-                      type="password"
-                      value={deletePassword}
-                      onChange={(e) => setDeletePassword(e.target.value)}
-                      placeholder="비밀번호"
-                      className="h-8"
-                      autoFocus
-                      onKeyDown={(e) => { if (e.key === "Enter") handleConfirmDelete(); }}
-                    />
-                    <div className="flex gap-2 justify-end">
-                      <Button type="button" variant="outline" size="sm" className="h-7 text-xs"
-                        onClick={() => { setDeleteConfirmOpen(false); setDeletePassword(""); }}>
-                        취소
-                      </Button>
-                      <Button type="button" size="sm"
-                        className="h-7 text-xs bg-destructive hover:bg-destructive/90"
-                        onClick={handleConfirmDelete}>
-                        확인 후 삭제
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShareOpen(true)}
-                      className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
-                    >
-                      <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
-                      일정 공유
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
-                    >
-                      <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
-                      로그아웃
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (showPasswordChange) {
-                          setShowPasswordChange(false);
-                          setPassword("");
-                          setPasswordConfirm("");
-                        } else {
-                          setPwChangeConfirmOpen(true);
-                        }
-                      }}
-                      className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
-                    >
-                      <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-                      비밀번호 변경
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeleteConfirmOpen(true)}
-                      className="flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-2.5 text-xs text-destructive hover:bg-destructive/5 transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      프로필 삭제
-                    </button>
-                  </div>
-                )}
+            {/* edit 모드에서만 액션 영역 */}
+            {mode === "edit" && (
+              <div className="border-t pt-3 mt-1 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShareOpen(true)}
+                  className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
+                >
+                  <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
+                  일정 공유
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
+                >
+                  <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
+                  로그아웃
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteProfile}
+                  className="col-span-2 flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-2.5 text-xs text-destructive hover:bg-destructive/5 transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  프로필 삭제
+                </button>
               </div>
             )}
           </div>
