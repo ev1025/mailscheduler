@@ -6,7 +6,6 @@ import {
   Plus,
   Search,
   Pin,
-  Save,
   Folder,
   FileText,
   Archive,
@@ -276,32 +275,115 @@ function KnowledgePageInner() {
 
   const showingSearch = search.trim().length > 0;
 
+  const editorOpen = !!selectedItem && !mobileSidebar;
+
+  const editorActions = (
+    <div className="flex items-center gap-2">
+      {autoSavedAt && (
+        <span
+          className="hidden sm:inline text-xs text-muted-foreground"
+          title="10초 이상 입력이 없으면 자동으로 임시저장됩니다"
+        >
+          자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+        </span>
+      )}
+      <Popover open={draftsOpen} onOpenChange={setDraftsOpen}>
+        <PopoverTrigger
+          className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+          title="임시저장 목록"
+          aria-label="임시저장 목록"
+        >
+          <Archive className="h-5 w-5" strokeWidth={1.6} />
+          {drafts.length > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground ring-2 ring-background">
+              {drafts.length}
+            </span>
+          )}
+        </PopoverTrigger>
+        <PopoverContent className="w-72 p-0 max-h-80 overflow-y-auto" align="end">
+          <div className="p-2 border-b flex items-center justify-between">
+            <span className="text-xs font-semibold">
+              임시저장 ({drafts.length})
+            </span>
+          </div>
+          {drafts.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              임시저장된 글이 없습니다
+            </p>
+          ) : (
+            <div className="flex flex-col">
+              {drafts.map((d) => (
+                <div
+                  key={d.id}
+                  className="group flex items-start gap-2 border-b p-2 hover:bg-accent cursor-pointer"
+                  onClick={() => handleLoadDraft(d)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium line-clamp-1">{d.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {new Date(d.savedAt).toLocaleString("ko-KR", {
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      {d.source_id ? " · 수정본" : " · 신규"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="p-0.5 text-muted-foreground/60 hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteDraft(d.id);
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+      <Button size="sm" variant="outline" onClick={handleSaveDraft} className="h-8 text-xs">
+        임시저장
+      </Button>
+      <Button size="sm" onClick={handleSave} disabled={!dirty} className="h-8 text-xs">
+        저장
+      </Button>
+    </div>
+  );
+
+  const listActions = (
+    <>
+      <button
+        type="button"
+        onClick={() => handleAddFolder(null)}
+        aria-label="폴더 추가"
+        title="폴더 추가"
+        className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+      >
+        <Folder className="h-[20px] w-[20px]" strokeWidth={1.6} />
+      </button>
+      <button
+        type="button"
+        onClick={() => handleAddItem(null)}
+        aria-label="새 노트"
+        title="새 노트"
+        className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+      >
+        <FileText className="h-[20px] w-[20px]" strokeWidth={1.6} />
+      </button>
+    </>
+  );
+
   return (
     <>
       <PageHeader
         title="지식창고"
-        actions={
-          <>
-            <button
-              type="button"
-              onClick={() => handleAddFolder(null)}
-              aria-label="폴더 추가"
-              title="폴더 추가"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-            >
-              <Folder className="h-[20px] w-[20px]" strokeWidth={1.6} />
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAddItem(null)}
-              aria-label="새 노트"
-              title="새 노트"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-            >
-              <FileText className="h-[20px] w-[20px]" strokeWidth={1.6} />
-            </button>
-          </>
-        }
+        actions={editorOpen ? editorActions : listActions}
+        showBell={!editorOpen}
       />
     <div className="flex h-[calc(100dvh-3.5rem-3.5rem)] md:h-[calc(100dvh-3.5rem)]">
       {/* 왼쪽: 트리 */}
@@ -415,96 +497,12 @@ function KnowledgePageInner() {
                 />
               </div>
 
-              {/* 2행: 자동저장 표시 / 임시저장 드롭다운 / 임시저장 / 저장 */}
-              <div className="flex items-center justify-end gap-1.5 px-2 md:px-3 pb-2">
-                {autoSavedAt && (
-                  <span className="mr-auto text-xs text-muted-foreground" title="10초 이상 입력이 없으면 자동으로 임시저장됩니다">
-                    자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                )}
-                <Popover open={draftsOpen} onOpenChange={setDraftsOpen}>
-                  <PopoverTrigger
-                    className="relative flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground hover:bg-accent"
-                    title="임시저장 목록"
-                  >
-                    <Archive className="h-3 w-3" />
-                    <span>목록</span>
-                    {drafts.length > 0 && (
-                      <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-xs font-bold text-primary-foreground">
-                        {drafts.length}
-                      </span>
-                    )}
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-72 p-0 max-h-80 overflow-y-auto"
-                    align="end"
-                  >
-                    <div className="p-2 border-b flex items-center justify-between">
-                      <span className="text-xs font-semibold">
-                        임시저장 ({drafts.length})
-                      </span>
-                    </div>
-                    {drafts.length === 0 ? (
-                      <p className="text-xs text-muted-foreground text-center py-6">
-                        임시저장된 글이 없습니다
-                      </p>
-                    ) : (
-                      <div className="flex flex-col">
-                        {drafts.map((d) => (
-                          <div
-                            key={d.id}
-                            className="group flex items-start gap-2 border-b p-2 hover:bg-accent cursor-pointer"
-                            onClick={() => handleLoadDraft(d)}
-                          >
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-medium line-clamp-1">
-                                {d.title}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {new Date(d.savedAt).toLocaleString("ko-KR", {
-                                  month: "2-digit",
-                                  day: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                                {d.source_id ? " · 수정본" : " · 신규"}
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              className="p-0.5 text-muted-foreground/60 hover:text-destructive"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteDraft(d.id);
-                              }}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </PopoverContent>
-                </Popover>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSaveDraft}
-                  className="h-7 text-xs"
-                >
-                  임시저장
-                </Button>
-
-                <Button
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={!dirty}
-                  className="h-7 text-xs"
-                >
-                  <Save className="mr-1 h-3 w-3" /> 저장
-                </Button>
-              </div>
+              {/* 모바일: 자동저장 표시만 (버튼들은 PageHeader로 이동) */}
+              {autoSavedAt && (
+                <div className="sm:hidden px-3 pb-2 text-xs text-muted-foreground">
+                  자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                </div>
+              )}
             </div>
             <div className="flex-1 overflow-hidden">
               <RichEditor
