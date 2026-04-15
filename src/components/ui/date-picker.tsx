@@ -83,13 +83,13 @@ export default function DatePicker({ value, onChange, className, placeholder = "
     <Popover open={open} onOpenChange={handleOpen}>
       <PopoverTrigger
         className={cn(
-          "flex items-center gap-1.5 rounded-md border px-2.5 text-sm transition-colors hover:bg-accent cursor-pointer",
+          "flex items-center justify-center gap-1 rounded-md border px-1.5 text-sm whitespace-nowrap tabular-nums transition-colors hover:bg-accent cursor-pointer",
           !value && "text-muted-foreground",
           className
         )}
       >
-        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-        {value || placeholder}
+        {!value && <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+        <span className="truncate">{value || placeholder}</span>
       </PopoverTrigger>
       <PopoverContent className="w-[240px] p-2.5" align="start" side="bottom">
         {mode === "calendar" ? (

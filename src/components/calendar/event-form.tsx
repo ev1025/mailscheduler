@@ -351,14 +351,14 @@ export default function EventForm({
             </div>
           </div>
 
-          {/* 반복 */}
+          {/* 반복 — 날짜 행과 동일한 grid로 정렬 */}
           <div className="flex items-center gap-2">
             <Label className="w-12 shrink-0 text-xs text-muted-foreground">반복</Label>
-            <div className="flex items-center gap-1 flex-1 min-w-0">
+            <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
               <Select value={repeat} onValueChange={(v) => {
                 if (v) setRepeat(v as RepeatType);
               }}>
-                <SelectTrigger className="h-8 flex-1 min-w-0 text-xs">
+                <SelectTrigger className="h-8 w-full min-w-0 text-xs">
                   {REPEAT_OPTIONS.find((o) => o.value === repeat)?.label || "반복 안 함"}
                 </SelectTrigger>
                 <SelectContent>
@@ -369,10 +369,17 @@ export default function EventForm({
                   ))}
                 </SelectContent>
               </Select>
-              {repeat !== "none" && (
+              {repeat !== "none" ? (
                 <>
-                  <span className="text-xs text-muted-foreground shrink-0 ml-1">횟수</span>
+                  <span className="text-[11px] text-muted-foreground px-0.5">횟수</span>
                   <NumberWheel value={repeatCount} onChange={setRepeatCount} min={1} max={52} allowInfinity />
+                  <span className="w-4" />
+                </>
+              ) : (
+                <>
+                  <span />
+                  <span />
+                  <span className="w-4" />
                 </>
               )}
             </div>
