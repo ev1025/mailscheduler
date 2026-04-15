@@ -114,6 +114,18 @@ export async function supabaseSignOut(): Promise<void> {
   await supabase.auth.signOut();
 }
 
+/** 현재 로그인 세션의 비밀번호 변경. */
+export async function updatePassword(
+  newPassword: string
+): Promise<{ error: string | null }> {
+  if (!newPassword || newPassword.length < 6) {
+    return { error: "비밀번호는 최소 6자 이상이어야 합니다" };
+  }
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) return { error: mapAuthError(error.message) };
+  return { error: null };
+}
+
 /**
  * Supabase Auth 세션을 React 상태로 구독.
  * onAuthStateChange에 연결해서 매직링크 돌아올 때 바로 반영.

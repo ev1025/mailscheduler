@@ -30,6 +30,7 @@ import {
   sendPasswordResetEmail,
   useSupabaseAuth,
 } from "@/lib/auth-supabase";
+import { setRememberMe } from "@/lib/supabase";
 import { uploadToStorage } from "@/lib/storage";
 import { toast } from "sonner";
 
@@ -61,6 +62,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMeState] = useState(true);
   const [authMode, setAuthMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [authStatus, setAuthStatus] = useState<
     { type: "idle" | "busy" | "info" | "error"; message?: string }
@@ -89,6 +91,10 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
 
   const handleSubmitAuth = async () => {
     setAuthStatus({ type: "busy" });
+    // 로그인/가입 직전에 자동 로그인 플래그를 확정 → hybrid storage가 이후 세션 쓰기를 라우팅
+    if (authMode === "signin" || authMode === "signup") {
+      setRememberMe(rememberMe);
+    }
     if (authMode === "signin") {
       const { error } = await signInWithPassword(emailInput, passwordInput);
       if (error) return setAuthStatus({ type: "error", message: error });
@@ -314,6 +320,21 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
 
                 {authStatus.type === "error" && (
                   <p className="text-xs text-destructive">{authStatus.message}</p>
+                )}
+
+                {authMode !== "forgot" && (
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMeState(e.target.checked)}
+                      className="h-4 w-4 rounded border-border"
+                    />
+                    자동 로그인 유지
+                    <span className="text-muted-foreground/70">
+                      (해제 시 앱 종료하면 로그아웃)
+                    </span>
+                  </label>
                 )}
 
                 <Button
