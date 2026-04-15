@@ -42,7 +42,7 @@ interface CalendarViewProps {
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 const MAX_VISIBLE_SLOTS = 3;
-const BAR_HEIGHT = 14; // px
+const BAR_HEIGHT = 13; // px
 const BAR_GAP = 2; // px
 
 // 주 내에서 특정 이벤트가 차지하는 세그먼트
@@ -128,7 +128,7 @@ function DroppableCell({
     <div
       ref={setNodeRef}
       onClick={onClick}
-      className={`flex flex-col items-start border-b border-r last:border-r-0 py-1 px-0 min-w-0 min-h-0 text-left transition-colors cursor-pointer ${
+      className={`flex flex-col items-start border-b border-r py-1 px-0 min-w-0 min-h-0 text-left transition-colors cursor-pointer ${
         isOver ? "bg-blue-50 ring-1 ring-blue-300 ring-inset" : "hover:bg-accent/50"
       }`}
     >
@@ -160,28 +160,6 @@ export default function CalendarView({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  // 이벤트 → 슬롯 고정 매핑 (greedy interval scheduling)
-  // 한 번 할당된 슬롯은 이벤트 기간 내내 유지 → 멀티데이 바의 수직 위치 안정
-  const eventSlotMap = useMemo(() => {
-    const map = new Map<string, number>();
-    const sorted = [...events].sort((a, b) => {
-      if (a.start_date !== b.start_date) return a.start_date.localeCompare(b.start_date);
-      const aEnd = a.end_date || a.start_date;
-      const bEnd = b.end_date || b.start_date;
-      return bEnd.localeCompare(aEnd); // 긴 이벤트 먼저
-    });
-    const slotLastEnd: string[] = [];
-    for (const ev of sorted) {
-      const start = ev.start_date;
-      const end = ev.end_date || ev.start_date;
-      let slot = 0;
-      while (slot < slotLastEnd.length && slotLastEnd[slot] >= start) slot++;
-      slotLastEnd[slot] = end;
-      map.set(ev.id, slot);
-    }
-    return map;
-  }, [events]);
-
   // 주 단위로 days를 나눔
   const weeks = useMemo(() => {
     const result: Date[][] = [];
@@ -189,37 +167,85 @@ export default function CalendarView({
     return result;
   }, [days]);
 
-  // 주별 세그먼트 계산 — 각 이벤트가 주 내 어느 칸부터 몇 칸을 차지하는지
+  // 주별 세그먼트 + 슬롯 계산
+  // 슬롯은 "각 주에서 독립적으로" greedy로 할당 →
+  // 같은 이벤트라도 주마다 최소 슬롯을 사용해 빈 위쪽 슬롯이 남지 않음.
+  // (주 경계는 자연스러운 시각 단절이므로 슬롯이 바뀌어도 무방)
   const weekSegments = useMemo(() => {
     return weeks.map((week) => {
       const weekStart = week[0];
       const weekEnd = week[6];
-      const segments: WeekSegment[] = [];
+
+      // 1) 이 주에 걸친 이벤트 수집
+      type Draft = {
+        ev: CalendarEvent;
+        startCol: number;
+        endCol: number; // inclusive
+        spanDays: number;
+        isEventStart: boolean;
+        isEventEnd: boolean;
+      };
+      const drafts: Draft[] = [];
       for (const ev of events) {
         const start = parseISO(ev.start_date);
         const end = ev.end_date ? parseISO(ev.end_date) : start;
-        // 이 주와 이벤트 기간이 겹치는가?
         if (end < weekStart || start > weekEnd) continue;
         const segStart = start < weekStart ? weekStart : start;
         const segEnd = end > weekEnd ? weekEnd : end;
         const startCol = segStart.getDay();
         const spanDays = differenceInDays(segEnd, segStart) + 1;
-        const isEventStart = isSameDay(segStart, start);
-        const isEventEnd = isSameDay(segEnd, end);
-        const single = isSameDay(start, end);
-        segments.push({
-          event: ev,
+        drafts.push({
+          ev,
           startCol,
+          endCol: startCol + spanDays - 1,
           spanDays,
-          isEventStart,
-          isEventEnd,
-          slot: eventSlotMap.get(ev.id) ?? 0,
+          isEventStart: isSameDay(segStart, start),
+          isEventEnd: isSameDay(segEnd, end),
+        });
+      }
+
+      // 2) 정렬: 이전 주에서 이어져 오는(startCol=0이면서 실제 시작일이 아닌)
+      //    이벤트를 우선 → 긴 것 우선 → startCol 오름차순 (안정적 슬롯)
+      drafts.sort((a, b) => {
+        const aCont = !a.isEventStart && a.startCol === 0 ? 0 : 1;
+        const bCont = !b.isEventStart && b.startCol === 0 ? 0 : 1;
+        if (aCont !== bCont) return aCont - bCont;
+        if (a.startCol !== b.startCol) return a.startCol - b.startCol;
+        return b.spanDays - a.spanDays;
+      });
+
+      // 3) greedy 슬롯 배치 — 이 주 내에서만 충돌하지 않는 가장 낮은 슬롯
+      const slotRanges: Array<Array<[number, number]>> = [];
+      const segments: WeekSegment[] = [];
+      for (const d of drafts) {
+        let slot = 0;
+        while (slot < slotRanges.length) {
+          const overlaps = slotRanges[slot].some(
+            ([s, e]) => !(d.startCol > e || d.endCol < s)
+          );
+          if (!overlaps) break;
+          slot++;
+        }
+        if (slot >= slotRanges.length) slotRanges.push([]);
+        slotRanges[slot].push([d.startCol, d.endCol]);
+
+        const end = d.ev.end_date ? parseISO(d.ev.end_date) : parseISO(d.ev.start_date);
+        const start = parseISO(d.ev.start_date);
+        const single = isSameDay(start, end);
+
+        segments.push({
+          event: d.ev,
+          startCol: d.startCol,
+          spanDays: d.spanDays,
+          isEventStart: d.isEventStart,
+          isEventEnd: d.isEventEnd,
+          slot,
           endLabel: single ? "" : `~${end.getMonth() + 1}/${end.getDate()}`,
         });
       }
       return segments;
     });
-  }, [weeks, events, eventSlotMap]);
+  }, [weeks, events]);
 
   // 주별로 각 날짜의 "hidden 개수" 계산 (slot >= MAX_VISIBLE_SLOTS인 이벤트)
   const weekHiddenCounts = useMemo(() => {
@@ -314,7 +340,7 @@ export default function CalendarView({
             return (
               <div
                 key={weekIdx}
-                className="relative flex-1 min-h-0 grid grid-cols-7"
+                className="relative flex-1 min-h-0 grid grid-cols-7 [&>*:nth-child(7)]:border-r-0"
               >
                 {/* 셀 레이어 */}
                 {week.map((day) => {
