@@ -58,7 +58,7 @@ export function useCalendarEvents(
   }, [fetchEvents]);
 
   function safeData(data: Record<string, unknown>) {
-    const { tag, repeat, sort_order, shared_with, shared_accepted_by, ...rest } =
+    const { tag, repeat, sort_order, shared_with, shared_accepted_by, series_id, ...rest } =
       data;
     const result: Record<string, unknown> = { ...rest };
     if (tag !== undefined && tag !== null && tag !== "") result.tag = tag;
@@ -69,6 +69,7 @@ export function useCalendarEvents(
     if (shared_with !== undefined) result.shared_with = shared_with;
     if (shared_accepted_by !== undefined)
       result.shared_accepted_by = shared_accepted_by;
+    if (series_id !== undefined) result.series_id = series_id;
     return result;
   }
 
@@ -201,6 +202,73 @@ export function useCalendarEvents(
     return { error };
   };
 
+  /**
+   * 반복 시리즈 업데이트.
+   * scope="one": 이 일정만 (series_id 분리)
+   * scope="following": 이 일정 포함 이후 모두
+   * scope="all": 시리즈 전부
+   *
+   * 주의: start_date/end_date/repeat/series_id 필드는 updates에서 제외해서
+   * 각 행의 날짜 정보를 보존. (제목/색/태그/시간/설명 등 공통 속성만 일괄 변경)
+   */
+  const updateEventSeries = async (
+    anchor: CalendarEvent,
+    scope: "one" | "following" | "all",
+    updates: Partial<Omit<CalendarEvent, "id" | "created_at">> & {
+      shared_with?: string[] | null;
+    }
+  ) => {
+    if (scope === "one" || !anchor.series_id) {
+      return updateEvent(anchor.id, updates);
+    }
+    // 공통 속성만 — 각 행별 날짜는 건드리지 않음
+    const {
+      start_date: _sd,
+      end_date: _ed,
+      repeat: _rp,
+      ...common
+    } = updates;
+    void _sd;
+    void _ed;
+    void _rp;
+
+    let query = supabase
+      .from("calendar_events")
+      .update(safeData(common as Record<string, unknown>))
+      .eq("series_id", anchor.series_id);
+    if (scope === "following") {
+      query = query.gte("start_date", anchor.start_date);
+    }
+    const { error } = await query;
+    if (!error) await fetchEvents();
+    return { error };
+  };
+
+  /**
+   * 반복 시리즈 삭제.
+   * scope="one": 이 일정만
+   * scope="following": 이 일정 포함 이후 모두
+   * scope="all": 시리즈 전부
+   */
+  const deleteEventSeries = async (
+    anchor: CalendarEvent,
+    scope: "one" | "following" | "all"
+  ) => {
+    if (scope === "one" || !anchor.series_id) {
+      return deleteEvent(anchor.id);
+    }
+    let query = supabase
+      .from("calendar_events")
+      .delete()
+      .eq("series_id", anchor.series_id);
+    if (scope === "following") {
+      query = query.gte("start_date", anchor.start_date);
+    }
+    const { error } = await query;
+    if (!error) await fetchEvents();
+    return { error };
+  };
+
   const batchUpdateSortOrder = async (ids: string[]) => {
     await Promise.all(
       ids.map((id, i) =>
@@ -219,6 +287,8 @@ export function useCalendarEvents(
     addEvent,
     addEventsBulk,
     updateEvent,
+    updateEventSeries,
+    deleteEventSeries,
     deleteEvent,
     batchUpdateSortOrder,
     refetch: fetchEvents,

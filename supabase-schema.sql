@@ -493,3 +493,9 @@ ALTER TABLE app_users
 
 CREATE INDEX IF NOT EXISTS app_users_auth_user_id_idx
   ON app_users(auth_user_id);
+
+-- ============================================
+-- source: 2026-04-15 calendar_events.series_id (반복 일정 시리즈 관리)
+-- ============================================
+ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS series_id UUID;
+CREATE INDEX IF NOT EXISTS calendar_events_series_id_idx ON calendar_events(series_id);

@@ -21,9 +21,9 @@ import {
   Share2,
   Settings as SettingsIcon,
 } from "lucide-react";
-import Link from "next/link";
 import ShareManager from "@/components/calendar/share-manager";
 import AvatarCropDialog from "./avatar-crop-dialog";
+import { useRouter } from "next/navigation";
 import {
   useAppUsers,
   useCurrentUser,
@@ -62,6 +62,7 @@ interface Props {
 type Mode = "signin" | "setup" | "edit";
 
 export default function UserSwitcher({ open, onOpenChange, allowClose = true }: Props) {
+  const router = useRouter();
   const { user: authUser, loading: authLoading } = useSupabaseAuth();
   const { users, loading: usersLoading, addUser, updateUser, deleteUser, refetch } = useAppUsers();
   const currentUser = useCurrentUser();
@@ -326,9 +327,9 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                   variant="outline"
                   size="sm"
                   onClick={() => setAvatarUrl("")}
-                  className="h-8"
+                  className="h-8 text-xs"
                 >
-                  <X className="h-3 w-3" />
+                  이미지 초기화
                 </Button>
               )}
               <input
@@ -408,14 +409,17 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
             {/* edit 모드에서만 액션 영역: 설정|공유 / 로그아웃|삭제 */}
             {mode === "edit" && (
               <div className="border-t pt-3 mt-1 grid grid-cols-2 gap-2">
-                <Link
-                  href="/settings"
-                  onClick={() => onOpenChange(false)}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onOpenChange(false);
+                    router.push("/settings");
+                  }}
                   className="flex items-center justify-center gap-2 rounded-md border p-2.5 text-sm hover:bg-accent transition-colors"
                 >
                   <SettingsIcon className="h-4 w-4 text-muted-foreground" />
                   설정
-                </Link>
+                </button>
                 <button
                   type="button"
                   onClick={() => setShareOpen(true)}

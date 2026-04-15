@@ -11,6 +11,7 @@ export interface CalendarEvent {
   color: string;
   tag: string | null;
   repeat: RepeatType | null;
+  series_id?: string | null; // 반복 일정 시리즈 묶음 ID (null이면 단일)
   sort_order?: number;
   created_at: string;
 }
