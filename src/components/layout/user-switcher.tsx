@@ -322,7 +322,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                   <p className="text-xs text-destructive">{authStatus.message}</p>
                 )}
 
-                {authMode !== "forgot" && (
+                {authMode === "signin" && (
                   <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
                     <input
                       type="checkbox"
@@ -330,7 +330,7 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
                       onChange={(e) => setRememberMeState(e.target.checked)}
                       className="h-4 w-4 rounded border-border"
                     />
-                    자동 로그인 유지
+                    자동 로그인
                   </label>
                 )}
 

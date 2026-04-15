@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Upload,
@@ -17,7 +17,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useSupabaseAuth, supabaseSignOut } from "@/lib/auth-supabase";
-import { supabase } from "@/lib/supabase";
 import { useAppUsers, useCurrentUser } from "@/lib/current-user";
 import { uploadToStorage, deleteFromStorage } from "@/lib/storage";
 import AvatarCropDialog from "@/components/layout/avatar-crop-dialog";
@@ -36,7 +35,16 @@ const PRESET_EMOJIS = [
 ];
 
 export default function ProfilePage() {
+  return (
+    <Suspense fallback={null}>
+      <ProfilePageInner />
+    </Suspense>
+  );
+}
+
+function ProfilePageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user: authUser, loading: authLoading } = useSupabaseAuth();
   const { users, updateUser, deleteUser } = useAppUsers();
   const currentUser = useCurrentUser();
@@ -57,16 +65,16 @@ export default function ProfilePage() {
   // 비밀번호 변경 다이얼로그
   const [pwDialogOpen, setPwDialogOpen] = useState(false);
 
-  // 비밀번호 재설정 메일 링크로 들어온 경우 자동으로 다이얼로그 오픈
+  // URL의 ?action=reset-password 로 진입하면 즉시 다이얼로그 오픈
+  // (AppShell이 PASSWORD_RECOVERY 이벤트를 잡아서 이 URL로 리다이렉트)
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setPwDialogOpen(true);
-        toast.info("새 비밀번호를 설정하세요");
-      }
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
+    if (searchParams.get("action") === "reset-password") {
+      setPwDialogOpen(true);
+      toast.info("새 비밀번호를 설정하세요");
+      // 쿼리 정리 (다이얼로그 닫고 다시 돌아와도 재오픈되지 않도록)
+      router.replace("/profile", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // 로그인 안 됐거나 프로필 없으면 홈으로 (AppShell의 게이트가 signin/setup 처리)
   useEffect(() => {
