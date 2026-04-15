@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -7,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { UserPlus, X, Clock, Check, Inbox, Send, Users } from "lucide-react";
+import { UserPlus, X, Clock, Check, Users } from "lucide-react";
 import { useCalendarShares } from "@/hooks/use-calendar-shares";
 import { useAppUsers, useCurrentUserId } from "@/lib/current-user";
 import { toast } from "sonner";
@@ -17,23 +18,25 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
+type TabKey = "incoming" | "outgoing" | "invite";
+
 function Avatar({
   user,
-  size = 10,
+  size = 36,
 }: {
   user: { emoji: string | null; avatar_url: string | null; name: string; color: string };
   size?: number;
 }) {
   return (
     <span
-      className="flex items-center justify-center rounded-full text-base shrink-0 overflow-hidden ring-2 ring-background"
+      className="flex items-center justify-center rounded-full text-base shrink-0 overflow-hidden"
       style={
         user.avatar_url
-          ? { width: size * 4, height: size * 4, backgroundColor: "transparent" }
+          ? { width: size, height: size, backgroundColor: "transparent" }
           : {
-              width: size * 4,
-              height: size * 4,
-              backgroundColor: user.color + "30",
+              width: size,
+              height: size,
+              backgroundColor: user.color + "25",
               color: user.color,
             }
       }
@@ -52,60 +55,18 @@ function Avatar({
   );
 }
 
-function StatusBadge({ kind }: { kind: "pending" | "accepted" | "rejected" }) {
+function StatusDot({ status }: { status: "pending" | "accepted" | "rejected" }) {
   const cfg = {
-    pending: {
-      label: "대기 중",
-      cls: "bg-amber-100 text-amber-700 border-amber-200",
-      icon: <Clock className="h-3 w-3" />,
-    },
-    accepted: {
-      label: "수락됨",
-      cls: "bg-green-100 text-green-700 border-green-200",
-      icon: <Check className="h-3 w-3" />,
-    },
-    rejected: {
-      label: "거절됨",
-      cls: "bg-red-100 text-red-700 border-red-200",
-      icon: <X className="h-3 w-3" />,
-    },
-  }[kind];
+    pending: { label: "대기", cls: "text-amber-600 bg-amber-50", icon: Clock },
+    accepted: { label: "수락", cls: "text-green-600 bg-green-50", icon: Check },
+    rejected: { label: "거절", cls: "text-red-600 bg-red-50", icon: X },
+  }[status];
+  const Icon = cfg.icon;
   return (
-    <span
-      className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${cfg.cls}`}
-    >
-      {cfg.icon}
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${cfg.cls}`}>
+      <Icon className="h-2.5 w-2.5" />
       {cfg.label}
     </span>
-  );
-}
-
-function Section({
-  icon,
-  title,
-  count,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  count?: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <span className="flex h-6 w-6 items-center justify-center rounded-md bg-muted text-muted-foreground">
-          {icon}
-        </span>
-        <h3 className="text-sm font-semibold">{title}</h3>
-        {typeof count === "number" && count > 0 && (
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary/10 px-1.5 text-[11px] font-bold text-primary">
-            {count}
-          </span>
-        )}
-      </div>
-      <div className="flex flex-col gap-2 pl-8">{children}</div>
-    </section>
   );
 }
 
@@ -114,206 +75,173 @@ export default function ShareManager({ open, onOpenChange }: Props) {
   const currentUserId = useCurrentUserId();
   const { outgoing, incoming, invite, accept, reject, cancel } =
     useCalendarShares();
+  const [tab, setTab] = useState<TabKey>("incoming");
 
   const getUser = (id: string) => users.find((u) => u.id === id);
   const others = users.filter((u) => u.id !== currentUserId);
   const invitable = others.filter(
     (u) => !outgoing.find((s) => s.viewer_id === u.id)
   );
+  const pendingIncoming = incoming.filter((s) => s.status === "pending").length;
 
   const handleInvite = async (viewerId: string) => {
     const { error } = await invite(viewerId);
-    if (error === "already invited") {
-      toast.info("이미 초대했습니다");
-    } else if (error) {
-      toast.error("초대 실패");
-    }
+    if (error === "already invited") toast.info("이미 초대했습니다");
+    else if (error) toast.error("초대 실패");
+    else toast.success("초대를 보냈습니다");
   };
 
-  const hasIncoming = incoming.length > 0;
-  const hasOutgoing = outgoing.length > 0;
-  const hasInvitable = invitable.length > 0;
-  const isEmpty = !hasIncoming && !hasOutgoing && !hasInvitable;
+  const tabs: { key: TabKey; label: string; badge?: number }[] = [
+    { key: "incoming", label: "받음", badge: pendingIncoming || undefined },
+    { key: "outgoing", label: "보냄", badge: outgoing.length || undefined },
+    { key: "invite", label: "초대", badge: invitable.length || undefined },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[85vh] min-h-[50vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>캘린더 공유</DialogTitle>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden">
+        <DialogHeader className="px-4 pt-4 pb-2">
+          <DialogTitle className="text-base">캘린더 공유</DialogTitle>
         </DialogHeader>
 
-        {isEmpty ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-              <Users className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium">아직 공유할 사람이 없어요</p>
-              <p className="text-xs text-muted-foreground max-w-[240px]">
-                다른 사람이 이 앱에 가입하면 여기서 내 캘린더를 공유하거나
-                상대 캘린더를 초대받을 수 있어요.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-5">
-            {/* 받은 초대 */}
-            {hasIncoming && (
-              <Section
-                icon={<Inbox className="h-3.5 w-3.5" />}
-                title="받은 공유 제안"
-                count={incoming.filter((s) => s.status === "pending").length}
-              >
+        {/* 탭 */}
+        <div className="flex border-b px-2">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setTab(t.key)}
+              className={`relative flex-1 py-2.5 text-sm font-medium transition-colors ${
+                tab === t.key ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="inline-flex items-center gap-1.5">
+                {t.label}
+                {t.badge !== undefined && t.badge > 0 && (
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary/15 px-1 text-[10px] font-bold text-primary">
+                    {t.badge}
+                  </span>
+                )}
+              </span>
+              {tab === t.key && (
+                <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-primary" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* 콘텐츠 영역 */}
+        <div className="max-h-[60vh] min-h-[240px] overflow-y-auto px-4 py-3">
+          {tab === "incoming" && (
+            incoming.length === 0 ? (
+              <EmptyState text="받은 공유 제안이 없어요" />
+            ) : (
+              <ul className="flex flex-col gap-2">
                 {incoming.map((s) => {
                   const owner = getUser(s.owner_id);
                   if (!owner) return null;
                   return (
-                    <div
-                      key={s.id}
-                      className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm"
-                    >
+                    <li key={s.id} className="flex items-center gap-3 rounded-xl border bg-card p-2.5">
                       <Avatar user={owner} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">
-                          {owner.name}
-                        </p>
-                        <div className="mt-1">
-                          <StatusBadge
-                            kind={
-                              s.status === "pending"
-                                ? "pending"
-                                : s.status === "accepted"
-                                  ? "accepted"
-                                  : "rejected"
-                            }
-                          />
-                        </div>
+                        <p className="text-sm font-semibold truncate">{owner.name}</p>
+                        <StatusDot status={s.status as "pending" | "accepted" | "rejected"} />
                       </div>
-                      {s.status === "pending" && (
-                        <div className="flex flex-col gap-1">
-                          <Button
-                            size="sm"
-                            className="h-8"
-                            onClick={async () => {
-                              await accept(s.id);
-                            }}
-                          >
-                            <Check className="h-3.5 w-3.5 mr-1" /> 수락
+                      {s.status === "pending" ? (
+                        <div className="flex gap-1 shrink-0">
+                          <Button size="sm" className="h-8 px-3" onClick={() => accept(s.id)}>
+                            수락
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8"
-                            onClick={async () => {
-                              await reject(s.id);
-                            }}
-                          >
-                            <X className="h-3.5 w-3.5 mr-1" /> 거절
+                          <Button size="sm" variant="outline" className="h-8 px-3" onClick={() => reject(s.id)}>
+                            거절
                           </Button>
                         </div>
-                      )}
-                      {s.status === "accepted" && (
+                      ) : s.status === "accepted" ? (
                         <Button
                           size="sm"
-                          variant="outline"
-                          className="h-8 shrink-0"
+                          variant="ghost"
+                          className="h-8 px-2 text-muted-foreground hover:text-destructive shrink-0"
                           onClick={async () => {
-                            if (confirm("공유 연결을 해제할까요?")) {
-                              await cancel(s.id);
-                            }
+                            if (confirm("공유 연결을 해제할까요?")) await cancel(s.id);
                           }}
                         >
                           해제
                         </Button>
-                      )}
-                    </div>
+                      ) : null}
+                    </li>
                   );
                 })}
-              </Section>
-            )}
+              </ul>
+            )
+          )}
 
-            {/* 내가 보낸 공유 */}
-            {hasOutgoing && (
-              <Section
-                icon={<Send className="h-3.5 w-3.5" />}
-                title="내가 공유한 사람"
-                count={outgoing.length}
-              >
+          {tab === "outgoing" && (
+            outgoing.length === 0 ? (
+              <EmptyState text="아직 보낸 공유가 없어요" />
+            ) : (
+              <ul className="flex flex-col gap-2">
                 {outgoing.map((s) => {
                   const viewer = getUser(s.viewer_id);
                   if (!viewer) return null;
                   return (
-                    <div
-                      key={s.id}
-                      className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm"
-                    >
+                    <li key={s.id} className="flex items-center gap-3 rounded-xl border bg-card p-2.5">
                       <Avatar user={viewer} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">
-                          {viewer.name}
-                        </p>
-                        <div className="mt-1">
-                          <StatusBadge
-                            kind={
-                              s.status === "pending"
-                                ? "pending"
-                                : s.status === "accepted"
-                                  ? "accepted"
-                                  : "rejected"
-                            }
-                          />
-                        </div>
+                        <p className="text-sm font-semibold truncate">{viewer.name}</p>
+                        <StatusDot status={s.status as "pending" | "accepted" | "rejected"} />
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-8 shrink-0"
+                      <button
+                        type="button"
+                        className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
                         onClick={async () => {
-                          if (
-                            confirm(`${viewer.name}님에게 공유를 취소할까요?`)
-                          ) {
-                            await cancel(s.id);
-                          }
+                          if (confirm(`${viewer.name}님 공유를 취소할까요?`)) await cancel(s.id);
                         }}
+                        aria-label="공유 취소"
                       >
-                        <X className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                        <X className="h-4 w-4" />
+                      </button>
+                    </li>
                   );
                 })}
-              </Section>
-            )}
+              </ul>
+            )
+          )}
 
-            {/* 초대 가능한 사용자 */}
-            {hasInvitable && (
-              <Section
-                icon={<UserPlus className="h-3.5 w-3.5" />}
-                title="초대 가능한 사용자"
-                count={invitable.length}
-              >
+          {tab === "invite" && (
+            invitable.length === 0 ? (
+              <EmptyState text={others.length === 0 ? "다른 사용자가 없어요" : "이미 모두 초대했어요"} />
+            ) : (
+              <ul className="flex flex-col gap-2">
                 {invitable.map((u) => (
-                  <div
-                    key={u.id}
-                    className="flex items-center gap-3 rounded-xl border bg-card p-3"
-                  >
+                  <li key={u.id} className="flex items-center gap-3 rounded-xl border bg-card p-2.5">
                     <Avatar user={u} />
-                    <span className="flex-1 text-sm font-semibold truncate">
-                      {u.name}
-                    </span>
+                    <span className="flex-1 text-sm font-semibold truncate">{u.name}</span>
                     <Button
                       size="sm"
-                      className="h-8 shrink-0"
+                      className="h-8 px-3 shrink-0"
                       onClick={() => handleInvite(u.id)}
                     >
-                      <UserPlus className="mr-1 h-3.5 w-3.5" /> 초대
+                      <UserPlus className="mr-1 h-3.5 w-3.5" />
+                      초대
                     </Button>
-                  </div>
+                  </li>
                 ))}
-              </Section>
-            )}
-          </div>
-        )}
+              </ul>
+            )
+          )}
+        </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+        <Users className="h-6 w-6 text-muted-foreground" />
+      </div>
+      <p className="text-sm text-muted-foreground">{text}</p>
+    </div>
   );
 }

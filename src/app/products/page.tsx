@@ -5,15 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   Search,
-  Trash2,
   Crown,
   ChevronDown,
   ChevronRight,
   GripVertical,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import {
   DndContext,
@@ -46,6 +45,9 @@ const CATEGORY_COLORS: Record<string, string> = {
   기타: "#6B7280",
 };
 
+// CATEGORY_COLORS의 키와 동일 — 기본 분류는 삭제 버튼을 숨기기 위한 체크용
+const BUILTIN_CATEGORIES = new Set(Object.keys(CATEGORY_COLORS));
+
 interface ProductStat {
   minPrice: number | null;
 }
@@ -55,13 +57,11 @@ function ProductRow({
   idx,
   stat,
   onEdit,
-  onDelete,
 }: {
   p: Product;
   idx: number;
   stat?: ProductStat;
   onEdit: (p: Product) => void;
-  onDelete: (p: Product) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: p.id });
@@ -120,18 +120,6 @@ function ProductRow({
           ? `₩${stat.minPrice.toLocaleString()}`
           : "-"}
       </td>
-      <td className="px-1 py-3 w-8">
-        <button
-          type="button"
-          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete(p);
-          }}
-        >
-          <Trash2 className="h-3 w-3" />
-        </button>
-      </td>
     </tr>
   );
 }
@@ -147,7 +135,7 @@ export default function ProductsPage() {
 function ProductsPageInner() {
   const { products, loading, addProduct, updateProduct, deleteProduct } =
     useProducts();
-  const { categories: midCategories, addCategory } = useProductCategories();
+  const { categories: midCategories, addCategory, deleteCategory: deleteMidCategory } = useProductCategories();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [statsTick, setStatsTick] = useState(0);
@@ -326,25 +314,42 @@ function ProductsPageInner() {
           {(["전체", ...midCategories] as string[]).map((c) => {
             const active = categoryFilter === c;
             const color = c === "전체" ? "#6B7280" : CATEGORY_COLORS[c] || "#6B7280";
+            const canDelete = c !== "전체" && !BUILTIN_CATEGORIES.has(c);
             return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setCategoryFilter(c)}
-                className="rounded-full border px-3 py-1.5 text-sm transition-all"
-                style={
-                  active
-                    ? {
-                        borderColor: color,
-                        backgroundColor: color + "20",
-                        color,
-                        fontWeight: 600,
-                      }
-                    : { color: "#6B7280" }
-                }
-              >
-                {c}
-              </button>
+              <div key={c} className="relative group/cat">
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter(c)}
+                  className={`rounded-full border px-3 py-1.5 text-sm transition-all ${canDelete ? "pr-7" : ""}`}
+                  style={
+                    active
+                      ? {
+                          borderColor: color,
+                          backgroundColor: color + "20",
+                          color,
+                          fontWeight: 600,
+                        }
+                      : { color: "#6B7280" }
+                  }
+                >
+                  {c}
+                </button>
+                {canDelete && (
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (!confirm(`"${c}" 분류를 삭제할까요?`)) return;
+                      if (categoryFilter === c) setCategoryFilter("전체");
+                      await deleteMidCategory(c);
+                    }}
+                    className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-background border shadow-sm text-muted-foreground hover:text-destructive hover:border-destructive/40"
+                    aria-label={`${c} 삭제`}
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                )}
+              </div>
             );
           })}
           <button
@@ -414,12 +419,6 @@ function ProductsPageInner() {
                           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
                         )}
                         <span className="text-sm font-semibold">{sub}</span>
-                        <Badge
-                          variant="outline"
-                          className="text-xs h-4 ml-auto"
-                        >
-                          {list.length}개
-                        </Badge>
                       </button>
                       {expanded && (
                         <div className="border-t overflow-x-auto">
@@ -435,7 +434,6 @@ function ProductsPageInner() {
                                 <col />
                                 <col className="hidden sm:table-column" />
                                 <col style={{ width: "1%" }} />
-                                <col style={{ width: "2rem" }} />
                               </colgroup>
                               <thead className="bg-muted/30 text-muted-foreground">
                                 <tr>
@@ -452,7 +450,6 @@ function ProductsPageInner() {
                                   <th className="text-right px-2 py-3 font-medium whitespace-nowrap">
                                     가격
                                   </th>
-                                  <th></th>
                                 </tr>
                               </thead>
                               <SortableContext
@@ -469,13 +466,6 @@ function ProductsPageInner() {
                                       onEdit={(prod) => {
                                         setEditing(prod);
                                         setFormOpen(true);
-                                      }}
-                                      onDelete={async (prod) => {
-                                        if (
-                                          confirm(`"${prod.name}" 삭제할까요?`)
-                                        ) {
-                                          await deleteProduct(prod.id);
-                                        }
                                       }}
                                     />
                                   ))}
@@ -502,6 +492,10 @@ function ProductsPageInner() {
         }}
         product={editing}
         onSave={handleSave}
+        onDelete={async (id) => {
+          const res = await deleteProduct(id);
+          return { error: res?.error ?? null };
+        }}
       />
     </div>
     </>

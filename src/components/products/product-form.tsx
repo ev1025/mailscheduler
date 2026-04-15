@@ -34,6 +34,7 @@ interface Props {
   onSave: (
     data: Omit<Product, "id" | "created_at" | "updated_at">
   ) => Promise<{ error: unknown; data?: Product | null }>;
+  onDelete?: (id: string) => Promise<{ error: unknown }>;
 }
 
 export default function ProductForm({
@@ -41,6 +42,7 @@ export default function ProductForm({
   onOpenChange,
   product,
   onSave,
+  onDelete,
 }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ProductCategory>("영양제");
@@ -223,7 +225,7 @@ export default function ProductForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>{product ? "제품 수정" : "제품 추가"}</DialogTitle>
         </DialogHeader>
@@ -236,8 +238,8 @@ export default function ProductForm({
             className="h-9"
           />
 
-          {/* 분류 / 세부분류 / 브랜드 한 행 */}
-          <div className="grid grid-cols-3 gap-2">
+          {/* 분류 / 세부분류 / 브랜드 — 모바일 1열, 데스크톱 3열 */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div className="flex flex-col gap-1.5 min-w-0">
               <Label className="text-xs text-muted-foreground">분류</Label>
               <TagInput
@@ -276,7 +278,7 @@ export default function ProductForm({
           {/* 가격 입력 + 추가된 목록 */}
           <div className="flex flex-col gap-2">
             <Label className="text-xs text-muted-foreground">가격 / 사이트</Label>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
               <Input
                 type="number"
                 value={priceDraft}
@@ -288,7 +290,7 @@ export default function ProductForm({
                   }
                 }}
                 placeholder="35000"
-                className="h-9 text-xs w-28"
+                className="h-9 text-xs w-24 shrink-0"
               />
               <Input
                 value={siteDraft}
@@ -299,8 +301,8 @@ export default function ProductForm({
                     commitPrice();
                   }
                 }}
-                placeholder="https://naver.com/..."
-                className="h-9 text-xs flex-1"
+                placeholder="https://..."
+                className="h-9 text-xs flex-1 min-w-0"
               />
               <Button
                 type="button"
@@ -409,7 +411,25 @@ export default function ProductForm({
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-1">
+          <div className="flex items-center gap-2 pt-1">
+            {product && onDelete && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={async () => {
+                  if (!confirm(`"${product.name}" 삭제할까요?`)) return;
+                  const { error } = await onDelete(product.id);
+                  if (!error) onOpenChange(false);
+                  else toast.error("삭제 실패");
+                }}
+                title="삭제"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
+            <div className="flex-1" />
             <Button
               type="button"
               variant="outline"

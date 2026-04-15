@@ -133,7 +133,7 @@ export default function TagInput({
           autoCorrect="off"
           spellCheck={false}
           name="tag-search"
-          className="h-8 text-xs"
+          className="h-8 text-[11px]"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -151,7 +151,7 @@ export default function TagInput({
                 return (
                   <div
                     key={t.id}
-                    className="group/item flex items-center justify-between px-2.5 py-1.5 hover:bg-accent text-xs cursor-pointer"
+                    className="group/item flex items-center justify-between px-2.5 py-1.5 hover:bg-accent text-[11px] whitespace-nowrap cursor-pointer"
                     onClick={() => { toggleTag(t.name); setNewTagName(""); }}
                   >
                     <div className="flex items-center gap-2 flex-1">
@@ -184,7 +184,7 @@ export default function TagInput({
               })}
             {newTagName.trim() && !allTags.some((t) => t.name === newTagName.trim()) && onAddTag && (
               <div
-                className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-accent cursor-pointer text-xs text-muted-foreground"
+                className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-accent cursor-pointer text-[11px] whitespace-nowrap text-muted-foreground"
                 onClick={handleAdd}
               >
                 <Plus className="h-3 w-3" />
@@ -207,7 +207,7 @@ export default function TagInput({
             return (
               <Badge
                 key={name}
-                className="cursor-pointer text-xs group/tag pr-1"
+                className="cursor-pointer text-[10px] px-1.5 py-0 group/tag pr-1"
                 style={{ backgroundColor: color + "20", color, borderColor: color + "40" }}
                 onClick={() => toggleTag(name)}
               >

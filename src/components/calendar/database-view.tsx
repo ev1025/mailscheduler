@@ -20,9 +20,14 @@ interface DatabaseViewProps {
 type SortField = "date" | "title" | "tag";
 type SortDir = "asc" | "desc";
 
-function fmtDate(dateStr: string) {
+function parseDay(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}(${format(d, "EEE", { locale: ko })})`;
+  return {
+    month: d.getMonth() + 1,
+    day: d.getDate(),
+    weekday: format(d, "EEE", { locale: ko }),
+    dow: d.getDay(),
+  };
 }
 
 export default function DatabaseView({
@@ -221,15 +226,31 @@ export default function DatabaseView({
                   className="cursor-pointer hover:bg-accent/40 transition-colors border-b last:border-b-0"
                   onClick={() => onEdit(ev)}
                 >
-                  {/* 날짜 */}
-                  <td className="px-3 py-2.5 border-r text-xs whitespace-nowrap overflow-hidden">
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: ev.color }} />
-                      <span className="truncate">
-                        {fmtDate(ev.start_date)}
-                        {ev.end_date && ev.end_date !== ev.start_date && <> ~ {fmtDate(ev.end_date)}</>}
-                      </span>
-                    </div>
+                  {/* 날짜 — 숫자 크게 + 요일 작게 2줄 스택 */}
+                  <td className="px-2 py-2 border-r whitespace-nowrap overflow-hidden">
+                    {(() => {
+                      const s = parseDay(ev.start_date);
+                      const e = ev.end_date && ev.end_date !== ev.start_date ? parseDay(ev.end_date) : null;
+                      const dowColor = (dow: number) =>
+                        dow === 0 ? "text-red-500" : dow === 6 ? "text-blue-500" : "text-muted-foreground";
+                      return (
+                        <div className="flex items-center gap-1.5">
+                          <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: ev.color }} />
+                          <div className="flex flex-col leading-tight">
+                            <span className="text-sm font-semibold tabular-nums">
+                              {s.month}/{s.day}
+                              {e && (
+                                <span className="text-muted-foreground">~{e.month}/{e.day}</span>
+                              )}
+                            </span>
+                            <span className={`text-[10px] ${dowColor(s.dow)}`}>
+                              {s.weekday}
+                              {e && ` ~ ${e.weekday}`}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </td>
                   {/* 날씨 */}
                   <td className="px-2 py-2.5 border-r overflow-hidden min-w-0">

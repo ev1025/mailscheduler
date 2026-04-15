@@ -47,17 +47,15 @@ interface EventBar {
   isStart: boolean;
   isEnd: boolean;
   isSingle: boolean;
-  isLabel: boolean; // 이 셀에 제목 라벨을 표시할지 (span의 가운데 셀)
 }
 
 // 드래그 가능한 이벤트 아이템
-function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, isLabel, onClickDate }: {
+function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate }: {
   event: CalendarEvent;
   dateStr: string;
   isSingle: boolean;
   isStart: boolean;
   isEnd: boolean;
-  isLabel: boolean;
   onClickDate: () => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -77,7 +75,7 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, isLabel, onC
         {...listeners}
         {...attributes}
         onClick={handleClick}
-        className={`flex items-center gap-1 text-xs leading-tight truncate cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
+        className={`flex items-center gap-1 text-[11px] leading-[14px] truncate cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
       >
         <span className="inline-block h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: event.color }} />
         <span className="truncate">{event.title}</span>
@@ -85,43 +83,29 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, isLabel, onC
     );
   }
 
-  // 멀티데이: 같은 주(행) 안에서는 배경이 끊기지 않고 이어지도록 bleed.
-  // 타이틀은 이 주의 가운데 셀(isLabel)에만 표시 — "제목 (~종료일)" 포맷.
-  const endDate = event.end_date ? parseISO(event.end_date) : parseISO(event.start_date);
-  const endLabel = `~${endDate.getMonth() + 1}/${endDate.getDate()}`;
-
+  // 멀티데이: start 셀에만 제목 표시 (truncate), 나머지 셀은 빈 바.
+  // 같은 주 안에서 cell 경계가 보이지 않도록 bleed.
   return (
     <div
       ref={setNodeRef}
       {...listeners}
       {...attributes}
       onClick={handleClick}
-      className={`text-[10px] leading-tight text-white px-1 py-[1px] cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
+      className={`text-[10px] leading-[14px] text-white cursor-grab active:cursor-grabbing truncate ${isDragging ? "opacity-30" : ""}`}
       style={{
         backgroundColor: event.color,
         borderTopLeftRadius: isStart ? "3px" : 0,
         borderBottomLeftRadius: isStart ? "3px" : 0,
         borderTopRightRadius: isEnd ? "3px" : 0,
         borderBottomRightRadius: isEnd ? "3px" : 0,
-        // 셀 경계에서 -2px씩 bleed해서 border-r 위로 덮음 → 완전 연속
         marginLeft: isStart ? 0 : "-2px",
         marginRight: isEnd ? 0 : "-2px",
-        minHeight: "14px",
-        position: "relative",
+        height: "14px",
+        paddingLeft: isStart ? "4px" : 0,
+        paddingRight: isEnd ? "4px" : 0,
       }}
     >
-      {isLabel ? (
-        /* 가운데 셀에서 라벨 표시 — 셀 중심 기준으로 양옆으로 자유롭게 넘쳐 나감 */
-        <span className="relative block h-[14px]">
-          <span
-            className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap pointer-events-none"
-          >
-            {event.title} <span className="opacity-80">({endLabel})</span>
-          </span>
-        </span>
-      ) : (
-        <span>&nbsp;</span>
-      )}
+      {isStart ? event.title : "\u00A0"}
     </div>
   );
 }
@@ -139,7 +123,7 @@ function DroppableCell({ dateStr, children, isOver, onClick }: {
     <div
       ref={setNodeRef}
       onClick={onClick}
-      className={`flex flex-col items-start border-b border-r py-1 px-0 min-w-0 min-h-0 text-left transition-colors cursor-pointer relative ${
+      className={`flex flex-col items-start border-b border-r py-1 px-0 min-w-0 min-h-0 text-left transition-colors cursor-pointer relative overflow-hidden ${
         isOver ? "bg-blue-50 ring-1 ring-blue-300 ring-inset" : "hover:bg-accent/50"
       }`}
     >
@@ -174,8 +158,6 @@ export default function CalendarView({
 
   function getBarsForDate(day: Date): EventBar[] {
     const bars: EventBar[] = [];
-    const weekStart = startOfWeek(day, { weekStartsOn: 0 });
-    const weekEnd = endOfWeek(day, { weekStartsOn: 0 });
     for (const ev of events) {
       const start = parseISO(ev.start_date);
       const end = ev.end_date ? parseISO(ev.end_date) : start;
@@ -183,30 +165,20 @@ export default function CalendarView({
 
       if (single) {
         if (isSameDay(day, start)) {
-          bars.push({ event: ev, isStart: true, isEnd: true, isSingle: true, isLabel: true });
+          bars.push({ event: ev, isStart: true, isEnd: true, isSingle: true });
         }
-      } else {
-        if (
-          isWithinInterval(day, { start, end }) ||
-          isSameDay(day, start) ||
-          isSameDay(day, end)
-        ) {
-          // 이 주의 span 내에서 가운데 날짜 계산
-          const spanStart = start > weekStart ? start : weekStart;
-          const spanEnd = end < weekEnd ? end : weekEnd;
-          const spanDays = differenceInDays(spanEnd, spanStart) + 1;
-          const middleIdx = Math.floor((spanDays - 1) / 2);
-          const middleDate = new Date(spanStart);
-          middleDate.setDate(spanStart.getDate() + middleIdx);
-          const isLabel = isSameDay(day, middleDate);
-          bars.push({
-            event: ev,
-            isStart: isSameDay(day, start) || day.getDay() === 0,
-            isEnd: isSameDay(day, end) || day.getDay() === 6,
-            isSingle: false,
-            isLabel,
-          });
-        }
+      } else if (
+        isWithinInterval(day, { start, end }) ||
+        isSameDay(day, start) ||
+        isSameDay(day, end)
+      ) {
+        // 주 경계에서 줄바꿈될 때 각 행의 첫 칸(일요일)도 isStart로 취급 → 제목 다시 표시
+        bars.push({
+          event: ev,
+          isStart: isSameDay(day, start) || day.getDay() === 0,
+          isEnd: isSameDay(day, end) || day.getDay() === 6,
+          isSingle: false,
+        });
       }
     }
     return bars;
@@ -301,7 +273,7 @@ export default function CalendarView({
             return (
               <DroppableCell key={dateStr} dateStr={dateStr} isOver={isOverThis} onClick={() => onDateClick(dateStr)}>
                 {/* 날짜 숫자 + 날씨 — 셀 내부 overflow-hidden으로 넘침 방지 */}
-                <div className={`flex w-full items-start justify-between gap-0.5 px-1 md:px-1.5 min-w-0 overflow-hidden ${!inMonth ? "opacity-30" : ""}`}>
+                <div className={`flex w-full items-start justify-between gap-1 pl-1 pr-1.5 md:pl-1.5 md:pr-2 min-w-0 overflow-hidden ${!inMonth ? "opacity-30" : ""}`}>
                   <span
                     className={`inline-flex h-5 w-5 md:h-6 md:w-6 items-center justify-center rounded-full text-xs md:text-sm font-semibold shrink-0 ${
                       today
@@ -337,7 +309,6 @@ export default function CalendarView({
                       isSingle={bar.isSingle}
                       isStart={bar.isStart}
                       isEnd={bar.isEnd}
-                      isLabel={bar.isLabel}
                       onClickDate={() => onDateClick(dateStr)}
                     />
                   ))}

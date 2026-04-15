@@ -62,7 +62,7 @@ function SortableItem({ ev, tagColorMap, onEdit, onDelete }: {
     <div
       ref={setNodeRef}
       style={style}
-      className="group flex items-center gap-2 rounded-lg border p-3 hover:bg-accent/50 transition-colors"
+      className="group flex items-center gap-2 rounded-lg border px-2.5 py-2 hover:bg-accent/50 transition-colors"
     >
       {/* 드래그 핸들 */}
       <div
@@ -173,27 +173,29 @@ export default function DayDetail({
             )}
           </div>
         </DialogHeader>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-2 min-h-0">
           {dayEvents.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">일정이 없습니다</p>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={dayEvents.map((ev) => ev.id)} strategy={verticalListSortingStrategy}>
-                {dayEvents.map((ev) => (
-                  <SortableItem
-                    key={ev.id}
-                    ev={ev}
-                    tagColorMap={tagColorMap}
-                    onEdit={(e) => { onOpenChange(false); onEditEvent?.(e); }}
-                    onDelete={onDeleteEvent}
-                  />
-                ))}
-              </SortableContext>
-            </DndContext>
+            <div className="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto -mx-1 px-1">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={dayEvents.map((ev) => ev.id)} strategy={verticalListSortingStrategy}>
+                  {dayEvents.map((ev) => (
+                    <SortableItem
+                      key={ev.id}
+                      ev={ev}
+                      tagColorMap={tagColorMap}
+                      onEdit={(e) => { onOpenChange(false); onEditEvent?.(e); }}
+                      onDelete={onDeleteEvent}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            </div>
           )}
           <Button
             variant="outline"
-            className="w-full mt-1"
+            className="w-full mt-1 shrink-0"
             onClick={() => { onOpenChange(false); onAddEvent(); }}
           >
             <Plus className="mr-1 h-4 w-4" />

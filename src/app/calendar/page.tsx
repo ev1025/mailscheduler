@@ -208,7 +208,7 @@ function CalendarPageInner() {
   return (
     <>
       <PageHeader title="캘린더" />
-    <div className="flex flex-col h-[calc(100dvh-3.5rem)] md:h-[calc(100dvh)] px-2 py-2 md:p-6 overflow-hidden">
+    <div className="flex flex-col h-[calc(100%-3.5rem)] min-h-0 px-2 py-2 md:p-6 overflow-hidden">
       {/* 탭: 달력 / 일정목록 / 여행 */}
       <div className="mb-2 flex border-b shrink-0">
         <button

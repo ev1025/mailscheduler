@@ -37,7 +37,7 @@ export default function PageHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 pt-safe">
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3">
         {showBack && (
           <button
             type="button"

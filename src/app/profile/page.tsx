@@ -240,11 +240,13 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* 배경색 — ColorPickerRow(8 presets + custom picker) */}
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">배경색</Label>
-          <ColorPickerRow color={color} onChange={setColor} />
-        </div>
+        {/* 배경색 — 이모지 모드일 때만 표시 (이미지는 배경이 가려짐) */}
+        {avatarMode === "emoji" && !avatarUrl && (
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">배경색</Label>
+            <ColorPickerRow color={color} onChange={setColor} />
+          </div>
+        )}
 
         {/* 저장 */}
         <Button
