@@ -307,7 +307,7 @@ export default function EventForm({
 
           {/* 날짜 */}
           <div className="flex items-center gap-2">
-            <Label className="w-10 shrink-0 text-xs text-muted-foreground">날짜</Label>
+            <Label className="w-12 shrink-0 text-xs text-muted-foreground">날짜</Label>
             <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
               <DatePicker value={startDate} onChange={setStartDate} className="h-8 min-w-0 text-xs" />
               <span className="text-xs text-muted-foreground">~</span>
@@ -330,7 +330,7 @@ export default function EventForm({
 
           {/* 시간 */}
           <div className="flex items-center gap-2">
-            <Label className="w-10 shrink-0 text-xs text-muted-foreground">시간</Label>
+            <Label className="w-12 shrink-0 text-xs text-muted-foreground">시간</Label>
             <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
               <TimePicker value={startTime} onChange={setStartTime} className="h-8 min-w-0 text-xs" />
               <span className="text-xs text-muted-foreground">~</span>
@@ -354,11 +354,11 @@ export default function EventForm({
           {/* 반복 */}
           <div className="flex items-center gap-2">
             <Label className="w-12 shrink-0 text-xs text-muted-foreground">반복</Label>
-            <div className="flex items-center gap-1.5 flex-1">
+            <div className="flex items-center gap-1 flex-1 min-w-0">
               <Select value={repeat} onValueChange={(v) => {
                 if (v) setRepeat(v as RepeatType);
               }}>
-                <SelectTrigger className="h-8 w-28">
+                <SelectTrigger className="h-8 flex-1 min-w-0 text-xs">
                   {REPEAT_OPTIONS.find((o) => o.value === repeat)?.label || "반복 안 함"}
                 </SelectTrigger>
                 <SelectContent>
@@ -370,10 +370,10 @@ export default function EventForm({
                 </SelectContent>
               </Select>
               {repeat !== "none" && (
-                <div className="flex items-center gap-2 ml-2">
-                  <span className="text-xs text-muted-foreground">반복횟수</span>
+                <>
+                  <span className="text-xs text-muted-foreground shrink-0 ml-1">횟수</span>
                   <NumberWheel value={repeatCount} onChange={setRepeatCount} min={1} max={52} allowInfinity />
-                </div>
+                </>
               )}
             </div>
           </div>

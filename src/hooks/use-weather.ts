@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { WeatherData } from "@/types";
+import { useWeatherLocation } from "@/hooks/use-weather-location";
 
-const LS_KEY = "weather_cache_v2";
+const LS_KEY = "weather_cache_v3";
 
 interface CachedEntry {
   data: WeatherData;
@@ -13,10 +14,14 @@ interface CachedEntry {
 
 type Cache = Record<string, CachedEntry>;
 
-function loadCache(): Cache {
+function cacheKey(locKey: string) {
+  return `${LS_KEY}:${locKey}`;
+}
+
+function loadCache(locKey: string): Cache {
   if (typeof window === "undefined") return {};
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = localStorage.getItem(cacheKey(locKey));
     if (!raw) return {};
     return JSON.parse(raw);
   } catch {
@@ -24,10 +29,10 @@ function loadCache(): Cache {
   }
 }
 
-function saveCache(cache: Cache) {
+function saveCache(locKey: string, cache: Cache) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(LS_KEY, JSON.stringify(cache));
+    localStorage.setItem(cacheKey(locKey), JSON.stringify(cache));
   } catch {
     /* ignore */
   }
@@ -45,6 +50,7 @@ function isForecastExpired(cachedAt: string): boolean {
 }
 
 export function useWeather(year: number, month: number) {
+  const location = useWeatherLocation();
   const [weatherMap, setWeatherMap] = useState<Record<string, WeatherData>>({});
   const [loading, setLoading] = useState(true);
 
@@ -54,9 +60,11 @@ export function useWeather(year: number, month: number) {
     lastDay
   ).padStart(2, "0")}`;
 
+  const locKey = `${location.lat.toFixed(3)},${location.lon.toFixed(3)}`;
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const cache = loadCache();
+    const cache = loadCache(locKey);
     const today = todayISO();
 
     // 1) 즉시: 캐시에서 이 달 범위 데이터 보여주기
@@ -89,7 +97,9 @@ export function useWeather(year: number, month: number) {
     if (!needsRefresh) return;
 
     try {
-      const res = await fetch(`/api/weather?start=${startDate}&end=${endDate}`);
+      const res = await fetch(
+        `/api/weather?start=${startDate}&end=${endDate}&lat=${location.lat}&lon=${location.lon}&country=${location.country}`
+      );
       if (!res.ok) return;
       const fresh: Record<string, WeatherData> = await res.json();
       const nowIso = new Date().toISOString();
@@ -103,12 +113,12 @@ export function useWeather(year: number, month: number) {
           type: date >= today ? "forecast" : "past",
         };
       }
-      saveCache(nextCache);
+      saveCache(locKey, nextCache);
       setWeatherMap(merged);
     } catch {
       /* 네트워크 실패 시 캐시 그대로 */
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, locKey, location.lat, location.lon, location.country]);
 
   useEffect(() => {
     fetchData();

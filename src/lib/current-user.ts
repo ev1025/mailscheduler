@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 export interface AppUser {
   id: string;
   name: string;
+  login_id?: string | null; // 영문/숫자 로그인 ID (없으면 name으로 폴백)
   color: string;
   emoji: string | null;
   avatar_url: string | null;
@@ -170,10 +171,12 @@ export function useAppUsers() {
     emoji?: string,
     avatarUrl?: string,
     passwordHash?: string,
-    passwordSalt?: string
+    passwordSalt?: string,
+    loginId?: string
   ) => {
     const fullPayload: Record<string, unknown> = {
       name,
+      login_id: loginId || null,
       color,
       emoji: emoji || null,
       avatar_url: avatarUrl || null,

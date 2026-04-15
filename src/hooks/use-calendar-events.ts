@@ -100,6 +100,35 @@ export function useCalendarEvents(
     return { error: null };
   };
 
+  const addEventsBulk = async (
+    eventsToAdd: (Omit<CalendarEvent, "id" | "created_at"> & {
+      shared_with?: string[] | null;
+    })[]
+  ) => {
+    if (eventsToAdd.length === 0) return { error: null };
+    const payloads = eventsToAdd.map((ev) =>
+      safeData({ ...ev, user_id: currentUserId } as Record<string, unknown>)
+    );
+    const { error } = await supabase.from("calendar_events").insert(payloads);
+    if (error) {
+      const fallback = eventsToAdd.map((ev) => {
+        const { tag, repeat, sort_order, shared_with, ...rest } = ev;
+        void tag;
+        void repeat;
+        void sort_order;
+        void shared_with;
+        return { ...rest, user_id: currentUserId };
+      });
+      const { error: retryError } = await supabase
+        .from("calendar_events")
+        .insert(fallback);
+      if (!retryError) await fetchEvents();
+      return { error: retryError };
+    }
+    await fetchEvents();
+    return { error: null };
+  };
+
   const updateEvent = async (
     id: string,
     updates: Partial<Omit<CalendarEvent, "id" | "created_at">> & {
@@ -188,6 +217,7 @@ export function useCalendarEvents(
     events,
     loading,
     addEvent,
+    addEventsBulk,
     updateEvent,
     deleteEvent,
     batchUpdateSortOrder,

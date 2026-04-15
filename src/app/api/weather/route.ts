@@ -192,6 +192,8 @@ async function fetchKMA(kmaKey: string): Promise<Record<string, WeatherRow>> {
 export async function GET(request: NextRequest) {
   const lat = request.nextUrl.searchParams.get("lat") || DEFAULT_LAT;
   const lon = request.nextUrl.searchParams.get("lon") || DEFAULT_LON;
+  const country = (request.nextUrl.searchParams.get("country") || "KR").toUpperCase();
+  const isKorea = country === "KR";
   const startDate = request.nextUrl.searchParams.get("start");
   const endDate = request.nextUrl.searchParams.get("end");
 
@@ -203,16 +205,18 @@ export async function GET(request: NextRequest) {
     const results: Record<string, WeatherRow> = {};
     const today = new Date().toISOString().split("T")[0];
 
-    // ① Supabase 캐시에서 과거 날씨 조회
-    const { data: cached } = await supabase
-      .from("weather_cache")
-      .select("*")
-      .gte("date", startDate)
-      .lte("date", endDate);
+    // ① Supabase 캐시: 서울(KR) 데이터만 공유 캐시 사용
+    if (isKorea) {
+      const { data: cached } = await supabase
+        .from("weather_cache")
+        .select("*")
+        .gte("date", startDate)
+        .lte("date", endDate);
 
-    if (cached) {
-      for (const row of cached) {
-        results[row.date] = row;
+      if (cached) {
+        for (const row of cached) {
+          results[row.date] = row;
+        }
       }
     }
 
@@ -253,7 +257,7 @@ export async function GET(request: NextRequest) {
           results[row.date] = row;
           toCache.push(row);
         }
-        if (toCache.length > 0) {
+        if (toCache.length > 0 && isKorea) {
           supabase.from("weather_cache").upsert(
             toCache.map((r) => ({
               date: r.date, temperature_min: r.temperature_min,
@@ -266,9 +270,9 @@ export async function GET(request: NextRequest) {
       } catch { /* ignore */ }
     })();
 
-    // ③ 기상청 단기예보 (오늘+3일)
+    // ③ 기상청 단기예보 (한국 지역만)
     const kmaShortPromise = (async () => {
-      if (!kmaKey || endDate < today) return;
+      if (!isKorea || !kmaKey || endDate < today) return;
       const kmaData = await fetchKMA(kmaKey);
       for (const [date, row] of Object.entries(kmaData)) {
         if (date >= startDate && date <= endDate) {
@@ -277,9 +281,9 @@ export async function GET(request: NextRequest) {
       }
     })();
 
-    // ④ 기상청 중기예보 (오늘+3~10일)
+    // ④ 기상청 중기예보 (한국 지역만)
     const kmaMidPromise = (async () => {
-      if (!kmaKey || endDate < today) return;
+      if (!isKorea || !kmaKey || endDate < today) return;
       const kmaMidData = await fetchKMAMid(kmaKey);
       for (const [date, row] of Object.entries(kmaMidData)) {
         if (date >= startDate && date <= endDate && !results[date]) {

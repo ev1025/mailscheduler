@@ -1,10 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, ArrowLeft, MapPin, Search } from "lucide-react";
+import {
+  useWeatherLocation,
+  setWeatherLocation,
+  searchLocation,
+  type GeoResult,
+} from "@/hooks/use-weather-location";
 
 type Theme = "system" | "light" | "dark";
 
@@ -25,8 +33,44 @@ function ApiSection({ title, children, defaultOpen = false }: { title: string; c
 }
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [tab, setTab] = useState<"general" | "api">("general");
   const [theme, setTheme] = useState<Theme>("system");
+  const currentLocation = useWeatherLocation();
+  const [locQuery, setLocQuery] = useState("");
+  const [locResults, setLocResults] = useState<GeoResult[]>([]);
+  const [locSearching, setLocSearching] = useState(false);
+
+  useEffect(() => {
+    if (!locQuery.trim()) {
+      setLocResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setLocSearching(true);
+      const results = await searchLocation(locQuery);
+      if (!cancelled) {
+        setLocResults(results);
+        setLocSearching(false);
+      }
+    }, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [locQuery]);
+
+  const pickLocation = (r: GeoResult) => {
+    setWeatherLocation({
+      name: r.name + (r.admin1 ? ` (${r.admin1})` : ""),
+      lat: r.latitude,
+      lon: r.longitude,
+      country: r.country_code,
+    });
+    setLocQuery("");
+    setLocResults([]);
+  };
 
   useEffect(() => {
     const saved = localStorage.getItem("theme") as Theme | null;
@@ -50,7 +94,17 @@ export default function SettingsPage() {
 
   return (
     <div className="p-4 md:p-6 max-w-2xl">
-      <h2 className="text-xl font-bold mb-4">설정</h2>
+      <div className="flex items-center gap-2 mb-4">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent"
+          aria-label="뒤로"
+        >
+          <ArrowLeft className="h-4 w-4" />
+        </button>
+        <h2 className="text-xl font-bold">설정</h2>
+      </div>
 
       {/* 탭 */}
       <div className="flex border-b mb-6">
@@ -102,6 +156,62 @@ export default function SettingsPage() {
 
           <Card>
             <CardHeader className="pb-3">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <MapPin className="h-4 w-4" />날씨 위치
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2 text-sm">
+                <span className="font-medium">{currentLocation.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {currentLocation.country} · {currentLocation.lat.toFixed(2)},{" "}
+                  {currentLocation.lon.toFixed(2)}
+                </span>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={locQuery}
+                  onChange={(e) => setLocQuery(e.target.value)}
+                  placeholder="도시 검색 (서울, Paris, Tokyo ...)"
+                  className="pl-8 h-9 text-sm"
+                />
+              </div>
+              {locQuery.trim() && (
+                <div className="rounded-md border max-h-60 overflow-y-auto">
+                  {locSearching ? (
+                    <p className="text-xs text-muted-foreground p-3">검색 중...</p>
+                  ) : locResults.length === 0 ? (
+                    <p className="text-xs text-muted-foreground p-3">결과 없음</p>
+                  ) : (
+                    locResults.map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => pickLocation(r)}
+                        className="flex w-full items-center justify-between gap-2 border-b p-2 text-left text-sm last:border-b-0 hover:bg-accent"
+                      >
+                        <span className="font-medium">
+                          {r.name}
+                          {r.admin1 ? ` · ${r.admin1}` : ""}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {r.country_code} · {r.country}
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+              <p className="text-[10px] text-muted-foreground">
+                국내는 기상청 + Open-Meteo를 함께 사용하고, 해외는 Open-Meteo
+                단독으로 조회합니다.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-3">
               <CardTitle className="text-sm">앱 정보</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2 text-sm">
@@ -112,10 +222,6 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">UI 라이브러리</span>
                 <span>shadcn/ui + Tailwind CSS</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">날씨 위치</span>
-                <span>서울 (37.57°N, 126.98°E)</span>
               </div>
             </CardContent>
           </Card>

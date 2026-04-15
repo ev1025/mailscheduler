@@ -6,9 +6,25 @@ import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
+import { pushDialogEntry, popDialogEntry } from "@/lib/dialog-stack"
 
-function Sheet({ ...props }: SheetPrimitive.Root.Props) {
-  return <SheetPrimitive.Root data-slot="sheet" {...props} />
+function Sheet({ open, onOpenChange, ...props }: SheetPrimitive.Root.Props) {
+  const onOpenChangeRef = React.useRef(onOpenChange)
+  React.useEffect(() => {
+    onOpenChangeRef.current = onOpenChange
+  })
+
+  React.useEffect(() => {
+    if (!open || typeof window === "undefined") return
+    const id = pushDialogEntry(() => {
+      (onOpenChangeRef.current as ((o: boolean) => void) | undefined)?.(false)
+    })
+    return () => {
+      popDialogEntry(id)
+    }
+  }, [open])
+
+  return <SheetPrimitive.Root data-slot="sheet" open={open} onOpenChange={onOpenChange} {...props} />
 }
 
 function SheetTrigger({ ...props }: SheetPrimitive.Trigger.Props) {

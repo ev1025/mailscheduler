@@ -6,47 +6,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
-
-// 모바일 하드웨어 백버튼 지원용 전역 다이얼로그 스택.
-// 중첩된 다이얼로그에서 뒤로가기는 가장 최근 다이얼로그만 닫고,
-// 코드로 닫힐 때는 history.back()이 상위 다이얼로그로 전파되지 않도록 suppress 카운트를 사용.
-type DialogStackEntry = { id: number; close: () => void }
-const dialogStack: DialogStackEntry[] = []
-let globalListenerBound = false
-let suppressCount = 0
-let nextDialogId = 1
-
-function ensureGlobalPopstateListener() {
-  if (globalListenerBound || typeof window === "undefined") return
-  globalListenerBound = true
-  window.addEventListener("popstate", () => {
-    if (suppressCount > 0) {
-      suppressCount--
-      return
-    }
-    const top = dialogStack.pop()
-    if (top) top.close()
-  })
-}
-
-function pushDialogHistoryEntry(close: () => void): number {
-  ensureGlobalPopstateListener()
-  const id = nextDialogId++
-  dialogStack.push({ id, close })
-  window.history.pushState({ __dlg: id }, "")
-  return id
-}
-
-function popDialogHistoryEntry(id: number) {
-  const idx = dialogStack.findIndex((e) => e.id === id)
-  if (idx === -1) return
-  dialogStack.splice(idx, 1)
-  const state = window.history.state as { __dlg?: number } | null
-  if (state && state.__dlg === id) {
-    suppressCount++
-    window.history.back()
-  }
-}
+import { pushDialogEntry, popDialogEntry } from "@/lib/dialog-stack"
 
 function Dialog({ open, onOpenChange, ...props }: DialogPrimitive.Root.Props) {
   const onOpenChangeRef = React.useRef(onOpenChange)
@@ -56,11 +16,11 @@ function Dialog({ open, onOpenChange, ...props }: DialogPrimitive.Root.Props) {
 
   React.useEffect(() => {
     if (!open || typeof window === "undefined") return
-    const id = pushDialogHistoryEntry(() => {
+    const id = pushDialogEntry(() => {
       (onOpenChangeRef.current as ((o: boolean) => void) | undefined)?.(false)
     })
     return () => {
-      popDialogHistoryEntry(id)
+      popDialogEntry(id)
     }
   }, [open])
 

@@ -105,7 +105,7 @@ function SortableItem({ ev, tagColorMap, onEdit, onDelete }: {
       {onDelete && (
         <button
           type="button"
-          className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
+          className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
           onClick={() => onDelete(ev.id)}
         >
           <Trash2 className="h-3.5 w-3.5" />

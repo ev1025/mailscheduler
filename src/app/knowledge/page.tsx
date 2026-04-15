@@ -40,6 +40,7 @@ interface Draft {
   title: string;
   content: string;
   savedAt: string;
+  auto?: boolean; // true면 자동 임시저장 (idle 10초 후)
 }
 
 function loadDrafts(): Draft[] {
@@ -99,6 +100,7 @@ function KnowledgePageInner() {
   const [mobileSidebar, setMobileSidebar] = useState(true);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [draftsOpen, setDraftsOpen] = useState(false);
+  const [autoSavedAt, setAutoSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
     setDrafts(loadDrafts());
@@ -111,6 +113,32 @@ function KnowledgePageInner() {
       null,
     [items, searchResults, selectedItemId]
   );
+
+  // 10초 idle 자동 임시저장: source_id 기준으로 한 건만 유지 (덮어쓰기).
+  useEffect(() => {
+    if (!dirty) return;
+    if (!editTitle.trim() && !editContent.trim()) return;
+    const timer = setTimeout(() => {
+      const key = selectedItem?.id ?? "__new__";
+      const now = new Date().toISOString();
+      const entry: Draft = {
+        id: `auto_${key}`,
+        source_id: selectedItem?.id ?? null,
+        folder_id: selectedItem?.folder_id ?? null,
+        title: editTitle || "(제목 없음)",
+        content: editContent,
+        savedAt: now,
+        auto: true,
+      };
+      setDrafts((prev) => {
+        const next = [entry, ...prev.filter((d) => d.id !== entry.id)];
+        saveDrafts(next);
+        return next;
+      });
+      setAutoSavedAt(now);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [editTitle, editContent, dirty, selectedItem?.id, selectedItem?.folder_id]);
 
   useEffect(() => {
     if (selectedItem) {
@@ -380,8 +408,13 @@ function KnowledgePageInner() {
                 />
               </div>
 
-              {/* 2행: 임시저장 드롭다운 / 임시저장 / 저장 */}
+              {/* 2행: 자동저장 표시 / 임시저장 드롭다운 / 임시저장 / 저장 */}
               <div className="flex items-center justify-end gap-1.5 px-2 md:px-3 pb-2">
+                {autoSavedAt && (
+                  <span className="mr-auto text-[10px] text-muted-foreground" title="10초 이상 입력이 없으면 자동으로 임시저장됩니다">
+                    자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                )}
                 <Popover open={draftsOpen} onOpenChange={setDraftsOpen}>
                   <PopoverTrigger
                     className="relative flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground hover:bg-accent"

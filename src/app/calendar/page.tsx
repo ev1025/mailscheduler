@@ -71,7 +71,7 @@ function CalendarPageInner() {
   const [selectedDate, setSelectedDate] = useState("");
 
 
-  const { events, loading, addEvent, updateEvent, deleteEvent, batchUpdateSortOrder } =
+  const { events, loading, addEvent, addEventsBulk, updateEvent, deleteEvent, batchUpdateSortOrder } =
     useCalendarEvents(year, month, visibleUserIds);
   const { weatherMap } = useWeather(year, month);
   const { tags, addTag, deleteTag, updateTagColor } = useEventTags();
@@ -81,17 +81,13 @@ function CalendarPageInner() {
       return await updateEvent(editing.id, data);
     }
 
-    // 원본 저장
-    const result = await addEvent(data);
-    if (result.error) return result;
-
-    // 반복 이벤트 생성 (-1 = 무한 → 타입별 기본값)
+    // 반복 일정: 원본 + 추가분을 한 번에 bulk insert
     if (repeatCount && (repeatCount > 1 || repeatCount === -1) && data.repeat) {
       const start = new Date(data.start_date + "T00:00:00");
       const end = data.end_date ? new Date(data.end_date + "T00:00:00") : null;
       const duration = end ? (end.getTime() - start.getTime()) : 0;
 
-      // 무한(-1)인 경우: weekly 260회(5년), monthly 120회(10년), yearly 30회(30년)
+      // 무한(-1): weekly 260회(5년), monthly 120회(10년), yearly 30회(30년)
       let count = repeatCount;
       if (count === -1) {
         count = data.repeat === "weekly" ? 260 : data.repeat === "monthly" ? 120 : 30;
@@ -100,6 +96,7 @@ function CalendarPageInner() {
       const fmt = (d: Date) =>
         `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+      const batch: typeof data[] = [data];
       for (let i = 1; i < count; i++) {
         const next = new Date(start);
         if (data.repeat === "weekly") next.setDate(start.getDate() + 7 * i);
@@ -107,17 +104,19 @@ function CalendarPageInner() {
         else next.setFullYear(start.getFullYear() + i);
 
         const nextEnd = duration > 0 ? new Date(next.getTime() + duration) : null;
-
-        await addEvent({
+        batch.push({
           ...data,
           start_date: fmt(next),
           end_date: nextEnd ? fmt(nextEnd) : null,
           repeat: null,
         });
       }
+
+      return await addEventsBulk(batch);
     }
 
-    return result;
+    // 단일 저장
+    return await addEvent(data);
   };
 
   // 달력에서 날짜 클릭 → 일정 있으면 상세, 없으면 바로 새 일정
@@ -158,7 +157,7 @@ function CalendarPageInner() {
   };
 
   return (
-    <div className="p-4 md:p-6">
+    <div className="px-2 py-4 md:p-6 overflow-x-hidden">
       {/* 상단: MonthPicker (중앙) + 공유 관리 (우측) */}
       {view !== "travel" && (
         <>

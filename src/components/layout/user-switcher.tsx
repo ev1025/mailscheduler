@@ -29,7 +29,6 @@ import {
   useCurrentUserId,
   setCurrentUserId,
   logout,
-  isRemembered,
   addRememberedUser,
   removeRememberedUser,
   type AppUser,
@@ -55,7 +54,9 @@ interface Props {
   allowClose?: boolean;
 }
 
-type Mode = "list" | "create" | "login" | "edit";
+type Mode = "list" | "create" | "edit";
+
+const LOGIN_ID_RE = /^[a-zA-Z0-9_]{3,20}$/;
 
 export default function UserSwitcher({
   open,
@@ -89,7 +90,14 @@ export default function UserSwitcher({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
 
+  // 로그인 폼 상태 (list 모드에서 입력)
+  const [loginIdInput, setLoginIdInput] = useState("");
+  const [loginPwInput, setLoginPwInput] = useState("");
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [rememberLogin, setRememberLogin] = useState(false);
+
   // 생성 / 편집 상태
+  const [loginId, setLoginId] = useState("");
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🙂");
   const [color, setColor] = useState(PALETTE[0]);
@@ -104,6 +112,7 @@ export default function UserSwitcher({
     if (!open) {
       setMode("list");
       setTargetUser(null);
+      setLoginId("");
       setName("");
       setEmoji("🙂");
       setColor(PALETTE[0]);
@@ -111,6 +120,10 @@ export default function UserSwitcher({
       setPassword("");
       setPasswordConfirm("");
       setRemember(true);
+      setLoginIdInput("");
+      setLoginPwInput("");
+      setLoginError(null);
+      setRememberLogin(false);
     }
   }, [open]);
 
@@ -132,6 +145,7 @@ export default function UserSwitcher({
 
   const startCreate = () => {
     setMode("create");
+    setLoginId("");
     setName("");
     setEmoji("🙂");
     setColor(PALETTE[users.length % PALETTE.length]);
@@ -141,6 +155,18 @@ export default function UserSwitcher({
   };
 
   const handleCreate = async () => {
+    if (!loginId.trim()) {
+      toast.error("로그인 아이디를 입력하세요");
+      return;
+    }
+    if (!LOGIN_ID_RE.test(loginId.trim())) {
+      toast.error("아이디는 영문/숫자/_ 3~20자");
+      return;
+    }
+    if (users.some((u) => u.login_id === loginId.trim())) {
+      toast.error("이미 사용 중인 아이디입니다");
+      return;
+    }
     if (!name.trim()) {
       toast.error("이름을 입력하세요");
       return;
@@ -161,7 +187,8 @@ export default function UserSwitcher({
       emoji,
       avatarUrl,
       hash,
-      salt
+      salt,
+      loginId.trim()
     );
     if (error || !data) {
       toast.error(
@@ -174,52 +201,37 @@ export default function UserSwitcher({
     onOpenChange(false);
   };
 
-  const startLogin = (u: AppUser) => {
-    // 이미 로그인된 자기 프로필 클릭 → 편집 화면
-    if (currentId && u.id === currentId) {
-      startEdit(u);
+  const handleDirectLogin = async () => {
+    setLoginError(null);
+    const idInput = loginIdInput.trim();
+    if (!idInput) {
+      setLoginError("아이디를 입력하세요");
       return;
     }
-    // 자동 로그인 허용된 프로필이면 비번 스킵하고 바로 입장
-    if (isRemembered(u.id)) {
-      setCurrentUserId(u.id, true);
-      onOpenChange(false);
+    if (!loginPwInput) {
+      setLoginError("비밀번호를 입력하세요");
       return;
     }
-    // 비밀번호가 설정되지 않은 프로필 → 안내
-    if (!u.password_hash) {
-      toast.error(
-        "이 프로필은 비밀번호가 없습니다. 다른 프로필로 로그인 후 수정해주세요."
-      );
+    // login_id 컬럼이 없을 수 있어 client-side에서 매칭 (login_id 우선, 없으면 name)
+    const target =
+      users.find((u) => u.login_id && u.login_id === idInput) ||
+      users.find((u) => !u.login_id && u.name === idInput);
+    if (!target) {
+      setLoginError("아이디 또는 비밀번호가 올바르지 않습니다");
       return;
     }
-    // 그 외 → 비밀번호 입력 모드
-    setTargetUser(u);
-    setMode("login");
-    setPassword("");
-    setRemember(false); // 기본 OFF
-  };
-
-  const handleLogin = async () => {
-    if (!targetUser) return;
-    if (!targetUser.password_salt || !targetUser.password_hash) {
-      toast.error(
-        "이 프로필은 비밀번호가 설정되지 않았습니다. 프로필 수정에서 비밀번호를 설정하세요."
-      );
+    if (!target.password_salt || !target.password_hash) {
+      setLoginError("이 프로필은 비밀번호가 설정되지 않았습니다");
       return;
     }
-    if (!password) {
-      toast.error("비밀번호를 입력하세요");
+    const hash = await hashPassword(loginPwInput, target.password_salt);
+    if (hash !== target.password_hash) {
+      setLoginError("아이디 또는 비밀번호가 올바르지 않습니다");
       return;
     }
-    const hash = await hashPassword(password, targetUser.password_salt);
-    if (hash !== targetUser.password_hash) {
-      toast.error("비밀번호가 틀렸어요");
-      return;
-    }
-    setCurrentUserId(targetUser.id, remember);
-    if (remember) addRememberedUser(targetUser.id);
-    else removeRememberedUser(targetUser.id);
+    setCurrentUserId(target.id, rememberLogin);
+    if (rememberLogin) addRememberedUser(target.id);
+    else removeRememberedUser(target.id);
     onOpenChange(false);
   };
 
@@ -332,7 +344,7 @@ export default function UserSwitcher({
       >
         <DialogHeader>
           <div className="flex items-center gap-2">
-            {(mode === "create" || mode === "login" || mode === "edit") && (
+            {(mode === "create" || mode === "edit") && (
               <button
                 type="button"
                 onClick={() => setMode("list")}
@@ -344,135 +356,77 @@ export default function UserSwitcher({
             <DialogTitle>
               {mode === "list" && (users.length === 0 ? "프로필 만들기" : currentId ? "프로필" : "로그인")}
               {mode === "create" && "새 프로필 만들기"}
-              {mode === "login" && `${targetUser?.name}님 로그인`}
               {mode === "edit" && (targetUser?.id === currentId ? "내 프로필" : `${targetUser?.name} 수정`)}
             </DialogTitle>
           </div>
         </DialogHeader>
 
-        {/* LIST MODE */}
-        {mode === "list" && (
-          <div className="flex flex-col gap-2">
-            {users.map((u) => {
-              const isCurrent = u.id === currentId;
-              return (
-                <div
-                  key={u.id}
-                  className={`group flex items-center gap-3 rounded-lg border p-3 transition-all cursor-pointer ${
-                    isCurrent
-                      ? "border-primary bg-primary/5"
-                      : "hover:bg-accent"
-                  }`}
-                  onClick={() => startLogin(u)}
-                >
-                  <div
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg overflow-hidden"
-                    style={
-                      u.avatar_url
-                        ? { backgroundColor: "transparent" }
-                        : { backgroundColor: u.color + "30", color: u.color }
-                    }
-                  >
-                    {u.avatar_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={u.avatar_url}
-                        alt={u.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      u.emoji || u.name[0]
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1">
-                      <span className="font-medium">{u.name}</span>
-                      {isRemembered(u.id) ? (
-                        <span className="text-[9px] text-green-600 border border-green-300 bg-green-50 rounded px-1">
-                          자동 로그인
-                        </span>
-                      ) : u.password_hash ? (
-                        <Lock className="h-3 w-3 text-primary" />
-                      ) : null}
-                    </div>
-                  </div>
-                  </div>
-              );
-            })}
-
-            <button
-              type="button"
-              className="flex items-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
-              onClick={startCreate}
-            >
-              <Plus className="h-4 w-4" />새 프로필 만들기
-            </button>
-
-          </div>
-        )}
-
-        {/* LOGIN MODE */}
-        {mode === "login" && targetUser && (
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-full text-xl overflow-hidden"
-                style={
-                  targetUser.avatar_url
-                    ? { backgroundColor: "transparent" }
-                    : {
-                        backgroundColor: targetUser.color + "30",
-                        color: targetUser.color,
-                      }
-                }
-              >
-                {targetUser.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={targetUser.avatar_url}
-                    alt={targetUser.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  targetUser.emoji || targetUser.name[0]
-                )}
-              </div>
-              <span className="font-semibold">{targetUser.name}</span>
+        {/* LIST MODE — 로그인 폼 (사용자 목록 노출 금지) */}
+        {mode === "list" && !currentId && (
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <Label className="text-xs text-muted-foreground">아이디</Label>
+              <Input
+                value={loginIdInput}
+                onChange={(e) => { setLoginIdInput(e.target.value); setLoginError(null); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleDirectLogin(); }}
+                placeholder="영문/숫자"
+                autoComplete="username"
+                className="h-9"
+                autoFocus
+              />
             </div>
-
             <div className="flex flex-col gap-1">
               <Label className="text-xs text-muted-foreground">비밀번호</Label>
               <Input
                 type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleLogin();
-                }}
-                autoFocus
+                value={loginPwInput}
+                onChange={(e) => { setLoginPwInput(e.target.value); setLoginError(null); }}
+                onKeyDown={(e) => { if (e.key === "Enter") handleDirectLogin(); }}
+                autoComplete="current-password"
                 className="h-9"
               />
             </div>
-
+            {loginError && (
+              <p className="text-xs text-destructive">{loginError}</p>
+            )}
             <label className="flex items-center gap-2 text-xs cursor-pointer">
               <input
                 type="checkbox"
-                checked={remember}
-                onChange={(e) => setRemember(e.target.checked)}
+                checked={rememberLogin}
+                onChange={(e) => setRememberLogin(e.target.checked)}
               />
               자동 로그인
             </label>
-
-            <Button onClick={handleLogin} className="w-full">
+            <Button onClick={handleDirectLogin} className="w-full">
               <LogIn className="mr-1 h-4 w-4" />
               로그인
             </Button>
+            <button
+              type="button"
+              className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground hover:border-foreground hover:text-foreground transition-colors"
+              onClick={startCreate}
+            >
+              <Plus className="h-4 w-4" />새 프로필 만들기
+            </button>
           </div>
         )}
 
         {/* CREATE / EDIT MODE */}
         {(mode === "create" || mode === "edit") && (
           <div className="flex flex-col gap-3">
+            {mode === "create" && (
+              <div className="flex flex-col gap-1">
+                <Label className="text-[10px] text-muted-foreground">로그인 아이디 (영문/숫자/_ 3~20자)</Label>
+                <Input
+                  value={loginId}
+                  onChange={(e) => setLoginId(e.target.value)}
+                  placeholder="예: hyungseok123"
+                  className="h-9"
+                  autoComplete="username"
+                />
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <div
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full text-2xl overflow-hidden"
