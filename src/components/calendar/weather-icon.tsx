@@ -47,14 +47,14 @@ export default function WeatherIcon({
         <img
           src={getWeatherIconUrl(weather.weather_icon)}
           alt={weather.weather_description}
-          className="h-4 w-4 md:h-[18px] md:w-[18px] shrink-0 -mb-0.5"
+          className="h-[14px] w-[14px] md:h-[18px] md:w-[18px] shrink-0 -mb-0.5"
         />
-        <div className="flex items-center leading-[1] whitespace-nowrap">
-          <span className="text-[9px] md:text-[10px] text-blue-500">
+        <div className="flex items-center leading-[1] whitespace-nowrap tabular-nums">
+          <span className="text-[8px] md:text-[10px] text-blue-500">
             {weather.temperature_min}°
           </span>
-          <span className="text-[9px] md:text-[10px] text-muted-foreground">/</span>
-          <span className="text-[9px] md:text-[10px] text-red-500">
+          <span className="text-[8px] md:text-[10px] text-muted-foreground">/</span>
+          <span className="text-[8px] md:text-[10px] text-red-500">
             {weather.temperature_max}°
           </span>
         </div>
