@@ -18,7 +18,6 @@ import {
   Check,
   LogIn,
   LogOut,
-  ArrowLeft,
   Lock,
   Pencil,
   Share2,
@@ -357,6 +356,8 @@ export default function UserSwitcher({
     setAvatarUrl(u.avatar_url || "");
     setPassword("");
     setPasswordConfirm("");
+    setRecoveryQuestion(u.recovery_question || "");
+    setRecoveryAnswer(""); // 해시만 있으므로 공란으로 두고 새 값을 입력하면 저장
     setShowPasswordChange(false);
     setPwChangeConfirmOpen(false);
     setPwChangeCurrent("");
@@ -429,6 +430,22 @@ export default function UserSwitcher({
       updates.password_hash = hash;
       updates.password_salt = salt;
     }
+    // 복구 질문: 질문이 비었으면 초기화. 답변이 새로 입력된 경우에만 해시 갱신.
+    if (recoveryQuestion.trim() !== (targetUser.recovery_question || "") || recoveryAnswer.trim()) {
+      if (!recoveryQuestion.trim()) {
+        updates.recovery_question = null;
+        updates.recovery_answer_hash = null;
+        updates.recovery_answer_salt = null;
+      } else {
+        updates.recovery_question = recoveryQuestion.trim();
+        if (recoveryAnswer.trim()) {
+          const rSalt = generateSalt();
+          const rHash = await hashPassword(recoveryAnswer.trim().toLowerCase(), rSalt);
+          updates.recovery_answer_hash = rHash;
+          updates.recovery_answer_salt = rSalt;
+        }
+      }
+    }
     const { error } = await updateUser(targetUser.id, updates);
     if (error) {
       toast.error(typeof error === "string" ? error : "저장 실패");
@@ -453,19 +470,23 @@ export default function UserSwitcher({
     >
       <DialogContent
         className="sm:max-w-md max-h-[90vh] overflow-y-auto"
-        showCloseButton={allowClose}
+        showBackButton={
+          mode !== "list" || (mode === "list" && !!currentId)
+        }
+        onBack={() => {
+          // 로그인된 '내 프로필' 편집 → 닫기
+          // 그 외 create/forgot/다른 유저 편집 → list로
+          if (mode === "edit" && currentId && targetUser?.id === currentId) {
+            onOpenChange(false);
+          } else if (mode === "list" && currentId) {
+            onOpenChange(false);
+          } else {
+            setMode("list");
+          }
+        }}
       >
         <DialogHeader>
           <div className="flex items-center gap-2">
-            {(mode === "create" || mode === "edit" || mode === "forgot") && (
-              <button
-                type="button"
-                onClick={() => setMode("list")}
-                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-accent"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-            )}
             <DialogTitle>
               {mode === "list" && (users.length === 0 ? "프로필 만들기" : currentId ? "프로필" : "로그인")}
               {mode === "create" && "새 프로필 만들기"}
@@ -801,26 +822,47 @@ export default function UserSwitcher({
               </div>
             </div>
 
-            {/* 비밀번호 변경 — 편집 모드에서 토글 시에만 표시 (create는 위에서 입력) */}
+            {/* 비밀번호 변경 — 편집 모드에서 토글 시 비번 + 복구 질문/답변 같이 노출 */}
             {mode === "edit" && showPasswordChange && (
-              <div className="flex flex-col gap-1 pt-2 border-t">
-                <Label className="text-[10px] text-muted-foreground">
-                  새 비밀번호
-                </Label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="비밀번호 (4자 이상)"
-                  className="h-9"
-                />
-                <Input
-                  type="password"
-                  value={passwordConfirm}
-                  onChange={(e) => setPasswordConfirm(e.target.value)}
-                  placeholder="비밀번호 확인"
-                  className="h-9"
-                />
+              <div className="flex flex-col gap-2 pt-2 border-t">
+                <div className="flex flex-col gap-1">
+                  <Label className="text-[10px] text-muted-foreground">
+                    새 비밀번호
+                  </Label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="비밀번호 (4자 이상)"
+                    className="h-9"
+                    autoComplete="new-password"
+                  />
+                  <Input
+                    type="password"
+                    value={passwordConfirm}
+                    onChange={(e) => setPasswordConfirm(e.target.value)}
+                    placeholder="비밀번호 확인"
+                    className="h-9"
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-[10px] text-muted-foreground">
+                    비밀번호 찾기 (선택) — 복구 질문 / 답변
+                  </Label>
+                  <Input
+                    value={recoveryQuestion}
+                    onChange={(e) => setRecoveryQuestion(e.target.value)}
+                    placeholder="예: 어머니 성함은?"
+                    className="h-9 text-xs"
+                  />
+                  <Input
+                    value={recoveryAnswer}
+                    onChange={(e) => setRecoveryAnswer(e.target.value)}
+                    placeholder={targetUser?.recovery_answer_hash ? "답변 변경 시에만 입력 (비우면 유지)" : "답변 (대소문자 무시)"}
+                    className="h-9 text-xs"
+                  />
+                </div>
               </div>
             )}
 

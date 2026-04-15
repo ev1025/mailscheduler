@@ -259,17 +259,17 @@ export default function EventForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto" showCloseButton={false}>
+      <DialogContent
+        className="sm:max-w-md max-h-[90vh] overflow-y-auto"
+        onBack={
+          onBack && event
+            ? () => { onOpenChange(false); onBack(); }
+            : undefined
+        }
+      >
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {onBack && event && (
-                <button type="button" onClick={() => { onOpenChange(false); onBack(); }} className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-              )}
-              <DialogTitle>{event ? "일정 수정" : "새 일정"}</DialogTitle>
-            </div>
+            <DialogTitle>{event ? "일정 수정" : "새 일정"}</DialogTitle>
             {weatherMap && startDate && weatherMap[startDate] && (
               <WeatherIcon weather={weatherMap[startDate]} showRange />
             )}

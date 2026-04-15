@@ -12,7 +12,7 @@ import { useCalendarShares } from "@/hooks/use-calendar-shares";
 import { useAppUsers } from "@/lib/current-user";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
-import { Check, X, ArrowLeft } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -60,20 +60,10 @@ export default function NotificationsPanel({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto" showCloseButton={false}>
+      <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-accent"
-                aria-label="뒤로"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-              <DialogTitle>알림</DialogTitle>
-            </div>
+            <DialogTitle>알림</DialogTitle>
             {unreadCount > 0 && (
               <Button
                 variant="ghost"

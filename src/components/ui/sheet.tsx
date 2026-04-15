@@ -5,7 +5,7 @@ import { Dialog as SheetPrimitive } from "@base-ui/react/dialog"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { XIcon } from "lucide-react"
+import { ArrowLeft, XIcon } from "lucide-react"
 import { pushDialogEntry, popDialogEntry } from "@/lib/dialog-stack"
 
 function Sheet({ open, onOpenChange, ...props }: SheetPrimitive.Root.Props) {
@@ -56,11 +56,13 @@ function SheetContent({
   className,
   children,
   side = "right",
-  showCloseButton = true,
+  showCloseButton = false,
+  showBackButton = true,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
+  showBackButton?: boolean
 }) {
   return (
     <SheetPortal>
@@ -74,6 +76,20 @@ function SheetContent({
         )}
         {...props}
       >
+        {showBackButton && (
+          <SheetPrimitive.Close
+            data-slot="sheet-back"
+            render={
+              <button
+                type="button"
+                aria-label="뒤로"
+                className="absolute top-3 left-3 rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors z-10"
+              />
+            }
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </SheetPrimitive.Close>
+        )}
         {children}
         {showCloseButton && (
           <SheetPrimitive.Close
