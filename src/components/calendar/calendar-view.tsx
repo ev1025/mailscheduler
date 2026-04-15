@@ -362,7 +362,7 @@ export default function CalendarView({
                       onClick={() => onDateClick(dateStr)}
                     >
                       <div
-                        className={`flex w-full items-start justify-between gap-1 pl-1 pr-[17px] md:pl-1.5 md:pr-2.5 min-w-0 overflow-hidden ${
+                        className={`flex w-full items-start justify-between gap-1 pl-1 pr-[23px] md:pl-1.5 md:pr-2.5 min-w-0 overflow-hidden ${
                           !inMonth ? "opacity-30" : ""
                         }`}
                       >
