@@ -18,6 +18,7 @@ import DatabaseView from "@/components/calendar/database-view";
 import EventForm from "@/components/calendar/event-form";
 import DayDetail from "@/components/calendar/day-detail";
 import TravelList from "@/components/travel/travel-list";
+import RepeatScopeDialog, { type RepeatScope } from "@/components/calendar/repeat-scope-dialog";
 import { useCurrentUserId, useAppUsers } from "@/lib/current-user";
 import type { CalendarEvent } from "@/types";
 
@@ -72,17 +73,39 @@ function CalendarPageInner() {
   const [selectedDate, setSelectedDate] = useState("");
 
 
-  const { events, loading, addEvent, addEventsBulk, updateEvent, deleteEvent, batchUpdateSortOrder } =
-    useCalendarEvents(year, month, visibleUserIds);
+  const {
+    events,
+    loading,
+    addEvent,
+    addEventsBulk,
+    updateEvent,
+    updateEventSeries,
+    deleteEvent,
+    deleteEventSeries,
+    batchUpdateSortOrder,
+  } = useCalendarEvents(year, month, visibleUserIds);
+
+  // 반복 일정 scope dialog 상태
+  const [scopeDialog, setScopeDialog] = useState<
+    | { kind: "edit"; anchor: CalendarEvent; pendingUpdates: Partial<Omit<CalendarEvent, "id" | "created_at">> }
+    | { kind: "delete"; anchor: CalendarEvent }
+    | null
+  >(null);
   const { weatherMap } = useWeather(year, month);
   const { tags, addTag, deleteTag, updateTagColor } = useEventTags();
 
   const handleSave = async (data: Omit<CalendarEvent, "id" | "created_at">, repeatCount?: number) => {
     if (editing) {
+      // 시리즈 일정 수정 → scope 선택 다이얼로그 표시
+      if (editing.series_id) {
+        setScopeDialog({ kind: "edit", anchor: editing, pendingUpdates: data });
+        // 실제 저장은 scope 선택 후 진행 — form은 닫지 않기 위해 pending 반환
+        return { error: null };
+      }
       return await updateEvent(editing.id, data);
     }
 
-    // 반복 일정: 원본 + 추가분을 한 번에 bulk insert
+    // 반복 일정: 원본 + 추가분을 한 번에 bulk insert (series_id로 묶음)
     if (repeatCount && (repeatCount > 1 || repeatCount === -1) && data.repeat) {
       const start = new Date(data.start_date + "T00:00:00");
       const end = data.end_date ? new Date(data.end_date + "T00:00:00") : null;
@@ -97,7 +120,15 @@ function CalendarPageInner() {
       const fmt = (d: Date) =>
         `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
-      const batch: typeof data[] = [data];
+      // 시리즈 ID 생성 — 모든 반복 일정을 묶어 수정/삭제할 때 사용
+      const seriesId =
+        typeof crypto !== "undefined" && "randomUUID" in crypto
+          ? crypto.randomUUID()
+          : `series_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+      const batch: (typeof data & { series_id?: string | null })[] = [
+        { ...data, series_id: seriesId },
+      ];
       for (let i = 1; i < count; i++) {
         const next = new Date(start);
         if (data.repeat === "weekly") next.setDate(start.getDate() + 7 * i);
@@ -110,6 +141,7 @@ function CalendarPageInner() {
           start_date: fmt(next),
           end_date: nextEnd ? fmt(nextEnd) : null,
           repeat: null,
+          series_id: seriesId,
         });
       }
 
@@ -152,9 +184,26 @@ function CalendarPageInner() {
     setFormOpen(true);
   };
 
-  // DB뷰에서 삭제 (DB뷰 내부 EventDetail에서 mode 전달)
+  // 삭제 — 시리즈 일정이면 scope 다이얼로그 띄우고, 아니면 바로 삭제
   const handleDelete = async (id: string) => {
+    const target = events.find((e) => e.id === id);
+    if (target && target.series_id) {
+      setScopeDialog({ kind: "delete", anchor: target });
+      return;
+    }
     await deleteEvent(id);
+  };
+
+  const handleScopeConfirm = async (scope: RepeatScope) => {
+    if (!scopeDialog) return;
+    if (scopeDialog.kind === "edit") {
+      await updateEventSeries(scopeDialog.anchor, scope, scopeDialog.pendingUpdates);
+      setFormOpen(false);
+      setEditing(null);
+    } else {
+      await deleteEventSeries(scopeDialog.anchor, scope);
+    }
+    setScopeDialog(null);
   };
 
   return (
@@ -315,7 +364,7 @@ function CalendarPageInner() {
         tags={tags}
         onAddEvent={handleAddFromDay}
         onEditEvent={(ev) => { setDayDetailOpen(false); setEditing(ev); setFormOpen(true); }}
-        onDeleteEvent={async (id) => { await deleteEvent(id); }}
+        onDeleteEvent={async (id) => { await handleDelete(id); }}
         onReorder={batchUpdateSortOrder}
       />
 
@@ -339,6 +388,12 @@ function CalendarPageInner() {
         }}
       />
 
+      <RepeatScopeDialog
+        open={!!scopeDialog}
+        onOpenChange={(o) => { if (!o) setScopeDialog(null); }}
+        action={scopeDialog?.kind === "delete" ? "삭제" : "수정"}
+        onConfirm={handleScopeConfirm}
+      />
     </div>
     </>
   );
