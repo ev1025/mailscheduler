@@ -1,0 +1,143 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+
+interface Props {
+  src: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (dataUrl: string) => void;
+}
+
+const SIZE = 256;
+
+export default function AvatarCropDialog({ src, open, onOpenChange, onConfirm }: Props) {
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [imgDims, setImgDims] = useState({ w: 0, h: 0 });
+  const dragStart = useRef<{
+    x: number;
+    y: number;
+    offX: number;
+    offY: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!open || !src) return;
+    const img = new Image();
+    img.onload = () => {
+      setImgDims({ w: img.width, h: img.height });
+      // 초기 스케일: 원형 뷰포트를 완전히 덮는 cover 스케일
+      const s = Math.max(SIZE / img.width, SIZE / img.height);
+      setScale(s);
+      setOffset({ x: 0, y: 0 });
+    };
+    img.src = src;
+  }, [src, open]);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      offX: offset.x,
+      offY: offset.y,
+    };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStart.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    setOffset({
+      x: dragStart.current.offX + dx,
+      y: dragStart.current.offY + dy,
+    });
+  };
+  const onPointerUp = () => {
+    dragStart.current = null;
+  };
+
+  const handleConfirm = () => {
+    if (!src) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const displayW = imgDims.w * scale;
+    const displayH = imgDims.h * scale;
+    const imgLeft = SIZE / 2 - displayW / 2 + offset.x;
+    const imgTop = SIZE / 2 - displayH / 2 + offset.y;
+    const img = new Image();
+    img.onload = () => {
+      ctx.drawImage(img, imgLeft, imgTop, displayW, displayH);
+      onConfirm(canvas.toDataURL("image/jpeg", 0.9));
+      onOpenChange(false);
+    };
+    img.src = src;
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>프로필 이미지 편집</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3 items-center">
+          <p className="text-xs text-muted-foreground">드래그해서 위치, 아래 슬라이더로 확대/축소</p>
+          <div
+            className="relative rounded-full overflow-hidden bg-muted ring-2 ring-border cursor-grab active:cursor-grabbing"
+            style={{ width: SIZE, height: SIZE, touchAction: "none" }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+          >
+            {src && imgDims.w > 0 && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={src}
+                alt="crop"
+                draggable={false}
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 max-w-none select-none pointer-events-none"
+                style={{
+                  width: imgDims.w * scale,
+                  height: imgDims.h * scale,
+                  marginLeft: offset.x,
+                  marginTop: offset.y,
+                }}
+              />
+            )}
+          </div>
+          <div className="flex items-center gap-2 w-full">
+            <span className="text-xs text-muted-foreground shrink-0">확대</span>
+            <input
+              type="range"
+              min="0.1"
+              max="4"
+              step="0.01"
+              value={scale}
+              onChange={(e) => setScale(parseFloat(e.target.value))}
+              className="flex-1"
+            />
+          </div>
+          <div className="flex gap-2 w-full">
+            <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+              취소
+            </Button>
+            <Button onClick={handleConfirm} className="flex-1">
+              등록
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}

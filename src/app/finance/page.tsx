@@ -116,7 +116,7 @@ export default function FinancePage() {
               <div className="flex items-center gap-2">
                 <DatePicker value={dateFrom} onChange={setDateFrom} className="h-8 flex-1" placeholder="시작일" />
                 <span className="text-xs text-muted-foreground">~</span>
-                <DatePicker value={dateTo} onChange={setDateTo} className="h-8 flex-1" placeholder="종료일" />
+                <DatePicker value={dateTo} onChange={setDateTo} min={dateFrom} className="h-8 flex-1" placeholder="종료일" />
               </div>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" className="flex-1" onClick={() => {

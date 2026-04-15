@@ -23,6 +23,7 @@ import {
   Share2,
 } from "lucide-react";
 import ShareManager from "@/components/calendar/share-manager";
+import AvatarCropDialog from "./avatar-crop-dialog";
 import {
   useAppUsers,
   useCurrentUserId,
@@ -117,6 +118,8 @@ export default function UserSwitcher({
   const [remember, setRemember] = useState(true);
 
   const fileRef = useRef<HTMLInputElement>(null);
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
+  const [cropOpen, setCropOpen] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -149,14 +152,15 @@ export default function UserSwitcher({
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 500_000) {
-      alert("500KB 이하 이미지만 선택할 수 있어요");
+    if (file.size > 10_000_000) {
+      toast.error("10MB 이하 이미지만 선택할 수 있어요");
       return;
     }
+    // 원본을 data URL로 읽어 크롭 다이얼로그에 넘김 (크롭 결과를 avatarUrl로 저장)
     const reader = new FileReader();
     reader.onload = () => {
-      setAvatarUrl(reader.result as string);
-      setEmoji("");
+      setCropSrc(reader.result as string);
+      setCropOpen(true);
     };
     reader.readAsDataURL(file);
     e.target.value = "";
@@ -989,6 +993,15 @@ export default function UserSwitcher({
         )}
       </DialogContent>
       <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
+      <AvatarCropDialog
+        src={cropSrc}
+        open={cropOpen}
+        onOpenChange={setCropOpen}
+        onConfirm={(dataUrl) => {
+          setAvatarUrl(dataUrl);
+          setEmoji("");
+        }}
+      />
     </Dialog>
   );
 }

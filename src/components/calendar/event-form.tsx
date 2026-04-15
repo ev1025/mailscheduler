@@ -161,8 +161,8 @@ export default function EventForm({
       setDescription(event.description || "");
       setStartDate(event.start_date);
       setEndDate(event.end_date || "");
-      setStartTime(event.start_time || "");
-      setEndTime(event.end_time || "");
+      setStartTime(event.start_time ? event.start_time.slice(0, 5) : "");
+      setEndTime(event.end_time ? event.end_time.slice(0, 5) : "");
       setColor(event.color);
       setSelectedTags(event.tag ? event.tag.split(",") : []);
       setRepeat((event.repeat as RepeatType) || "none");
@@ -312,7 +312,7 @@ export default function EventForm({
               <DatePicker value={startDate} onChange={setStartDate} className="h-8 min-w-0 text-xs" />
               <span className="text-xs text-muted-foreground">~</span>
               {showEndDate ? (
-                <DatePicker value={endDate} onChange={setEndDate} className="h-8 min-w-0 text-xs" />
+                <DatePicker value={endDate} onChange={setEndDate} min={startDate} className="h-8 min-w-0 text-xs" />
               ) : (
                 <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-[11px] text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndDate(true)}>
                   종료 설정

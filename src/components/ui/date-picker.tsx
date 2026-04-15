@@ -27,11 +27,14 @@ interface DatePickerProps {
   onChange: (value: string) => void;
   className?: string;
   placeholder?: string;
+  min?: string; // "YYYY-MM-DD" — 이 날짜보다 과거는 선택 불가
 }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
-export default function DatePicker({ value, onChange, className, placeholder = "날짜 선택" }: DatePickerProps) {
+export default function DatePicker({ value, onChange, className, placeholder = "날짜 선택", min }: DatePickerProps) {
+  const minDate = min ? new Date(min + "T00:00:00") : null;
+  const isBeforeMin = (d: Date) => minDate ? d < minDate : false;
   const [open, setOpen] = useState(false);
   const parsed = value ? new Date(value + "T00:00:00") : new Date();
   const [viewYear, setViewYear] = useState(parsed.getFullYear());
@@ -65,6 +68,7 @@ export default function DatePicker({ value, onChange, className, placeholder = "
   };
 
   const selectDate = (day: Date) => {
+    if (isBeforeMin(day)) return;
     onChange(format(day, "yyyy-MM-dd"));
     setOpen(false);
   };
@@ -135,24 +139,27 @@ export default function DatePicker({ value, onChange, className, placeholder = "
                 const today = isToday(day);
                 const selected = value && isSameDay(day, new Date(value + "T00:00:00"));
                 const dow = day.getDay();
+                const disabled = isBeforeMin(day);
 
                 return (
                   <button
                     key={dateStr}
                     type="button"
+                    disabled={disabled}
                     onClick={() => selectDate(day)}
                     className={cn(
                       "h-8 w-8 mx-auto rounded-full text-sm transition-colors",
                       !inMonth && "text-muted-foreground/30",
+                      disabled && "text-muted-foreground/20 cursor-not-allowed line-through",
                       selected
                         ? "bg-primary text-primary-foreground font-bold"
                         : today
                           ? "bg-accent font-medium"
-                          : dow === 0
+                          : !disabled && dow === 0
                             ? "text-red-500 hover:bg-accent"
-                            : dow === 6
+                            : !disabled && dow === 6
                               ? "text-blue-500 hover:bg-accent"
-                              : "hover:bg-accent"
+                              : !disabled && "hover:bg-accent"
                     )}
                   >
                     {format(day, "d")}

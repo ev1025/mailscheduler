@@ -374,12 +374,19 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
 
   return (
     <div className="flex flex-col gap-3">
-      {/* 상단: 검색 + 필터 뱃지 + 추가 */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative w-72 shrink-0">
+      {/* 상단: 검색 + 추가 버튼 같은 행 */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="검색..." className="pl-8 h-8 text-xs" />
         </div>
+        <Button size="sm" className="h-8 shrink-0" onClick={() => { setEditing(null); setFormOpen(true); }}>
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          추가
+        </Button>
+      </div>
+      {/* 필터 행 */}
+      <div className="flex items-center gap-2 flex-wrap">
         <label className="flex items-center gap-1.5 text-xs cursor-pointer whitespace-nowrap shrink-0">
           <input type="checkbox" checked={showVisited} onChange={(e) => setShowVisited(e.target.checked)} className="rounded" />
           가본 곳 포함
@@ -407,11 +414,6 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
             </Badge>
           );
         })}
-        <div className="flex-1" />
-        <Button size="sm" className="h-8" onClick={() => { setEditing(null); setFormOpen(true); }}>
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          추가
-        </Button>
       </div>
 
       {filtered.length === 0 ? (

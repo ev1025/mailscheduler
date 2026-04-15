@@ -172,7 +172,7 @@ function KnowledgePageInner() {
   const handleAddItem = async (folderId: string | null) => {
     const { data } = await addItem({
       folder_id: folderId,
-      title: "새 노트",
+      title: "",
       content: "",
       excerpt: null,
       tags: null,
@@ -403,8 +403,8 @@ function KnowledgePageInner() {
                     setEditTitle(e.target.value);
                     setDirty(true);
                   }}
-                  className="flex-1 h-8 text-sm md:text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0"
-                  placeholder="제목"
+                  className="flex-1 h-8 text-sm md:text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
+                  placeholder="새 노트 제목..."
                 />
               </div>
 
@@ -465,7 +465,7 @@ function KnowledgePageInner() {
                             </div>
                             <button
                               type="button"
-                              className="opacity-0 group-hover:opacity-100 p-0.5 text-muted-foreground hover:text-destructive"
+                              className="p-0.5 text-muted-foreground/60 hover:text-destructive"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleDeleteDraft(d.id);

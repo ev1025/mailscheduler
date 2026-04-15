@@ -58,7 +58,7 @@ function ToolbarButton({
       type="button"
       onClick={onClick}
       title={title}
-      className={`flex h-8 w-8 items-center justify-center rounded transition-colors ${
+      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded transition-colors ${
         active
           ? "bg-primary/15 text-primary"
           : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -70,7 +70,7 @@ function ToolbarButton({
 }
 
 function ToolbarDivider() {
-  return <div className="mx-0.5 h-5 w-px bg-border" />;
+  return <div className="mx-0.5 h-5 w-px shrink-0 bg-border" />;
 }
 
 function Toolbar({ editor }: { editor: Editor }) {
@@ -79,15 +79,36 @@ function Toolbar({ editor }: { editor: Editor }) {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2_000_000) {
-      alert("2MB 이하 이미지만 삽입할 수 있어요");
+    if (file.size > 15_000_000) {
+      alert("15MB 이하 이미지만 삽입할 수 있어요");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      editor.chain().focus().setImage({ src: reader.result as string }).run();
+    // 큰 이미지는 canvas로 1600px 내로 축소 + JPEG 0.85 품질로 압축
+    const img = document.createElement("img");
+    img.onload = () => {
+      const MAX = 1600;
+      let w = img.width;
+      let h = img.height;
+      if (w > MAX || h > MAX) {
+        if (w >= h) {
+          h = Math.round((h * MAX) / w);
+          w = MAX;
+        } else {
+          w = Math.round((w * MAX) / h);
+          h = MAX;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      editor.chain().focus().setImage({ src: dataUrl }).run();
+      URL.revokeObjectURL(img.src);
     };
-    reader.readAsDataURL(file);
+    img.src = URL.createObjectURL(file);
     e.target.value = "";
   };
 
@@ -133,7 +154,7 @@ function Toolbar({ editor }: { editor: Editor }) {
   return (
     <div className="flex flex-col border-b bg-muted/30 sticky top-0 z-10">
       {/* 1행: 실행취소 | 제목/인용/목록/코드 (블록 서식) */}
-      <div className="flex flex-wrap items-center gap-0.5 p-1.5 pb-0.5">
+      <div className="flex items-center gap-0.5 p-1.5 pb-0.5 overflow-x-auto scrollbar-none whitespace-nowrap">
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
           title="실행 취소"
@@ -216,7 +237,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       </div>
 
       {/* 2행: 굵게/기울임/밑줄/취소선/색상 | 정렬 | 이미지/표/링크 (인라인 서식) */}
-      <div className="flex flex-wrap items-center gap-0.5 p-1.5 pt-0.5">
+      <div className="flex items-center gap-0.5 p-1.5 pt-0.5 overflow-x-auto scrollbar-none whitespace-nowrap">
         <ToolbarButton
           active={editor.isActive("bold")}
           onClick={() => editor.chain().focus().toggleBold().run()}
