@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Clock, Trash2, GripVertical } from "lucide-react";
+import { Plus, Clock, Trash2 } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -62,28 +62,24 @@ function SortableItem({ ev, tagColorMap, onEdit, onDelete }: {
     <div
       ref={setNodeRef}
       style={style}
-      className="group flex items-center gap-2 rounded-lg border px-2.5 py-2 hover:bg-accent/50 transition-colors"
+      {...attributes}
+      {...listeners}
+      className="group flex items-center gap-2 rounded-lg border pl-3 pr-1.5 py-2 hover:bg-accent/50 transition-colors touch-none"
     >
-      {/* 드래그 핸들 */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none"
-      >
-        <GripVertical className="h-4 w-4" />
-      </div>
-
       {/* 일정 내용 (클릭 시 수정) */}
       <div
         className="flex-1 min-w-0 cursor-pointer"
-        onClick={() => onEdit?.(ev)}
+        onClick={(e) => {
+          e.stopPropagation();
+          onEdit?.(ev);
+        }}
       >
         <div className="flex items-center gap-2">
-          <span className="inline-block h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: ev.color }} />
+          <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: ev.color }} />
           <p className="font-medium text-sm truncate">{ev.title}</p>
         </div>
         {(ev.start_time || ev.tag) && (
-          <div className="flex items-center gap-2 mt-0.5 pl-5">
+          <div className="flex items-center gap-2 mt-0.5 pl-[18px]">
             {ev.start_time && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="h-3 w-3" />
@@ -108,7 +104,10 @@ function SortableItem({ ev, tagColorMap, onEdit, onDelete }: {
         <button
           type="button"
           className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-          onClick={() => onDelete(ev.id)}
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(ev.id);
+          }}
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

@@ -361,7 +361,7 @@ export default function RichEditor({ content, onChange, placeholder }: Props) {
       TableRow,
       TableHeader,
       TableCell,
-      TextAlign.configure({ types: ["heading", "paragraph", "listItem", "taskItem"] }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       TextStyle,
       Color,
       Link.configure({ openOnClick: false, autolink: true }),

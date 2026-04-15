@@ -244,15 +244,6 @@
 .tiptap-editor li > p {
   margin: 0;
 }
-/* 리스트 아이템에 text-align이 걸리면 마커와 텍스트가 함께 정렬되도록 */
-.tiptap-editor li[style*="text-align: center"],
-.tiptap-editor li[style*="text-align: right"],
-.tiptap-editor li[style*="text-align: justify"],
-.tiptap-editor li:has(> p[style*="text-align: center"]),
-.tiptap-editor li:has(> p[style*="text-align: right"]),
-.tiptap-editor li:has(> p[style*="text-align: justify"]) {
-  list-style-position: inside;
-}
 
 .tiptap-editor blockquote {
   border-left: 3px solid var(--border);
