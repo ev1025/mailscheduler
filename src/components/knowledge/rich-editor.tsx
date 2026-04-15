@@ -33,8 +33,10 @@ import {
   Undo,
   Redo,
   Minus,
+  MoreHorizontal,
+  Type,
 } from "lucide-react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { uploadToStorage } from "@/lib/storage";
 import { toast } from "sonner";
 
@@ -75,8 +77,57 @@ function ToolbarDivider() {
   return <div className="mx-0.5 h-5 w-px shrink-0 bg-border" />;
 }
 
+type AlignMode = "left" | "center" | "right" | "justify";
+const ALIGN_CYCLE: AlignMode[] = ["left", "center", "right", "justify"];
+const ALIGN_ICON: Record<AlignMode, React.ComponentType<{ className?: string }>> = {
+  left: AlignLeft,
+  center: AlignCenter,
+  right: AlignRight,
+  justify: AlignJustify,
+};
+const ALIGN_LABEL: Record<AlignMode, string> = {
+  left: "왼쪽 정렬",
+  center: "가운데 정렬",
+  right: "오른쪽 정렬",
+  justify: "양쪽 정렬",
+};
+
+function MoreItem({
+  icon,
+  label,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col items-center justify-center gap-1.5 rounded-lg p-3 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+    >
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+        {icon}
+      </span>
+      {label}
+    </button>
+  );
+}
+
 function Toolbar({ editor }: { editor: Editor }) {
   const imageRef = useRef<HTMLInputElement>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [textPanelOpen, setTextPanelOpen] = useState(false);
+
+  const currentAlign: AlignMode =
+    (ALIGN_CYCLE.find((a) => editor.isActive({ textAlign: a })) as AlignMode) || "left";
+  const cycleAlign = () => {
+    const idx = ALIGN_CYCLE.indexOf(currentAlign);
+    const next = ALIGN_CYCLE[(idx + 1) % ALIGN_CYCLE.length];
+    editor.chain().focus().setTextAlign(next).run();
+  };
+  const AlignIcon = ALIGN_ICON[currentAlign];
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -170,9 +221,9 @@ function Toolbar({ editor }: { editor: Editor }) {
   };
 
   return (
-    <div className="flex flex-col border-b bg-muted/30 sticky top-0 z-10">
-      {/* 1행: 실행취소 | 제목/인용/목록/코드 (블록 서식) */}
-      <div className="flex items-center gap-0.5 p-1.5 pb-0.5 overflow-x-auto scrollbar-none whitespace-nowrap">
+    <div className="flex flex-col border-b bg-background sticky top-0 z-10">
+      {/* 메인 툴바 — 1줄, 네이버 블로그 스타일 */}
+      <div className="flex items-center gap-1 px-2 py-1.5 overflow-x-auto scrollbar-none whitespace-nowrap">
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
           title="실행 취소"
@@ -188,146 +239,8 @@ function Toolbar({ editor }: { editor: Editor }) {
 
         <ToolbarDivider />
 
-        <ToolbarButton
-          active={editor.isActive("heading", { level: 1 })}
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 1 }).run()
-          }
-          title="제목 1"
-        >
-          <Heading1 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("heading", { level: 2 })}
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 2 }).run()
-          }
-          title="제목 2"
-        >
-          <Heading2 className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("heading", { level: 3 })}
-          onClick={() =>
-            editor.chain().focus().toggleHeading({ level: 3 }).run()
-          }
-          title="제목 3"
-        >
-          <Heading3 className="h-4 w-4" />
-        </ToolbarButton>
-
-        <ToolbarDivider />
-
-        <ToolbarButton
-          active={editor.isActive("bulletList")}
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          title="글머리 기호"
-        >
-          <List className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("orderedList")}
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          title="번호 매기기"
-        >
-          <ListOrdered className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("blockquote")}
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          title="인용"
-        >
-          <Quote className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("codeBlock")}
-          onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          title="코드 블록"
-        >
-          <Code className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          title="수평선"
-        >
-          <Minus className="h-4 w-4" />
-        </ToolbarButton>
-      </div>
-
-      {/* 2행: 굵게/기울임/밑줄/취소선/색상 | 정렬 | 이미지/표/링크 (인라인 서식) */}
-      <div className="flex items-center gap-0.5 p-1.5 pt-0.5 overflow-x-auto scrollbar-none whitespace-nowrap">
-        <ToolbarButton
-          active={editor.isActive("bold")}
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          title="굵게"
-        >
-          <Bold className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("italic")}
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          title="기울임"
-        >
-          <Italic className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("underline")}
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          title="밑줄"
-        >
-          <UnderlineIcon className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive("strike")}
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          title="취소선"
-        >
-          <Strikethrough className="h-4 w-4" />
-        </ToolbarButton>
-        <input
-          type="color"
-          onChange={(e) =>
-            editor.chain().focus().setColor(e.target.value).run()
-          }
-          className="h-8 w-8 cursor-pointer rounded border-none bg-transparent"
-          title="글자 색상"
-        />
-
-        <ToolbarDivider />
-
-        <ToolbarButton
-          active={editor.isActive({ textAlign: "left" })}
-          onClick={() => editor.chain().focus().setTextAlign("left").run()}
-          title="왼쪽 정렬"
-        >
-          <AlignLeft className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive({ textAlign: "center" })}
-          onClick={() => editor.chain().focus().setTextAlign("center").run()}
-          title="가운데 정렬"
-        >
-          <AlignCenter className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive({ textAlign: "right" })}
-          onClick={() => editor.chain().focus().setTextAlign("right").run()}
-          title="오른쪽 정렬"
-        >
-          <AlignRight className="h-4 w-4" />
-        </ToolbarButton>
-        <ToolbarButton
-          active={editor.isActive({ textAlign: "justify" })}
-          onClick={() => editor.chain().focus().setTextAlign("justify").run()}
-          title="양쪽 정렬"
-        >
-          <AlignJustify className="h-4 w-4" />
-        </ToolbarButton>
-
-        <ToolbarDivider />
-
         <ToolbarButton onClick={() => imageRef.current?.click()} title="이미지">
-          <ImageIcon className="h-4 w-4" />
+          <ImageIcon className="h-5 w-5" />
         </ToolbarButton>
         <input
           ref={imageRef}
@@ -336,17 +249,154 @@ function Toolbar({ editor }: { editor: Editor }) {
           onChange={handleImageUpload}
           className="hidden"
         />
-        <ToolbarButton onClick={addTable} title="표">
-          <TableIcon className="h-4 w-4" />
-        </ToolbarButton>
+
         <ToolbarButton
-          active={editor.isActive("link")}
-          onClick={addLink}
-          title="링크"
+          active={textPanelOpen}
+          onClick={() => setTextPanelOpen((o) => !o)}
+          title="글자 서식"
         >
-          <LinkIcon className="h-4 w-4" />
+          <Type className="h-5 w-5" />
+        </ToolbarButton>
+
+        {/* 정렬 — 단일 버튼 사이클 */}
+        <ToolbarButton onClick={cycleAlign} title={ALIGN_LABEL[currentAlign]}>
+          <AlignIcon className="h-5 w-5" />
+        </ToolbarButton>
+
+        <ToolbarButton
+          active={editor.isActive("bulletList")}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          title="글머리 기호"
+        >
+          <List className="h-5 w-5" />
+        </ToolbarButton>
+
+        <ToolbarButton
+          active={editor.isActive("blockquote")}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          title="인용구"
+        >
+          <Quote className="h-5 w-5" />
+        </ToolbarButton>
+
+        <ToolbarButton
+          active={moreOpen}
+          onClick={() => setMoreOpen((o) => !o)}
+          title="더보기"
+        >
+          <MoreHorizontal className="h-5 w-5" />
         </ToolbarButton>
       </div>
+
+      {/* 글자 서식 확장 패널 (T 버튼 눌렀을 때만) */}
+      {textPanelOpen && (
+        <div className="flex items-center gap-1 border-t px-2 py-1.5 overflow-x-auto scrollbar-none whitespace-nowrap bg-muted/20">
+          <ToolbarButton
+            active={editor.isActive("heading", { level: 1 })}
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            title="제목 1"
+          >
+            <Heading1 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editor.isActive("heading", { level: 2 })}
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            title="제목 2"
+          >
+            <Heading2 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editor.isActive("heading", { level: 3 })}
+            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+            title="제목 3"
+          >
+            <Heading3 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarDivider />
+          <ToolbarButton
+            active={editor.isActive("bold")}
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            title="굵게"
+          >
+            <Bold className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editor.isActive("italic")}
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            title="기울임"
+          >
+            <Italic className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editor.isActive("underline")}
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            title="밑줄"
+          >
+            <UnderlineIcon className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            active={editor.isActive("strike")}
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            title="취소선"
+          >
+            <Strikethrough className="h-4 w-4" />
+          </ToolbarButton>
+          <input
+            type="color"
+            onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
+            className="h-8 w-8 cursor-pointer rounded border-none bg-transparent"
+            title="글자 색상"
+          />
+        </div>
+      )}
+
+      {/* 더보기 패널 — 네이버 블로그 스타일 4열 그리드 */}
+      {moreOpen && (
+        <div className="border-t bg-muted/30 p-4">
+          <div className="grid grid-cols-4 gap-2">
+            <MoreItem
+              icon={<LinkIcon className="h-5 w-5" />}
+              label="링크"
+              onClick={() => {
+                addLink();
+                setMoreOpen(false);
+              }}
+            />
+            <MoreItem
+              icon={<TableIcon className="h-5 w-5" />}
+              label="표"
+              onClick={() => {
+                addTable();
+                setMoreOpen(false);
+              }}
+            />
+            <MoreItem
+              icon={<ListOrdered className="h-5 w-5" />}
+              label="번호 목록"
+              onClick={() => {
+                editor.chain().focus().toggleOrderedList().run();
+                setMoreOpen(false);
+              }}
+            />
+            <MoreItem
+              icon={<Code className="h-5 w-5" />}
+              label="코드 블록"
+              onClick={() => {
+                editor.chain().focus().toggleCodeBlock().run();
+                setMoreOpen(false);
+              }}
+            />
+            <MoreItem
+              icon={<Minus className="h-5 w-5" />}
+              label="구분선"
+              onClick={() => {
+                editor.chain().focus().setHorizontalRule().run();
+                setMoreOpen(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

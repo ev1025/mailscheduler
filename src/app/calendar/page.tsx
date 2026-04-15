@@ -75,7 +75,6 @@ function CalendarPageInner() {
 
   const {
     events,
-    loading,
     addEvent,
     addEventsBulk,
     updateEvent,
@@ -330,8 +329,6 @@ function CalendarPageInner() {
             }
           }}
         />
-      ) : loading ? (
-        <p className="text-muted-foreground">불러오는 중...</p>
       ) : view === "calendar" ? (
         <div
           onTouchStart={(e) => {

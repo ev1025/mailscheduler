@@ -51,7 +51,7 @@ export default function FinancePage() {
   };
 
   const {
-    transactions, categories, loading,
+    transactions, categories,
     addTransaction, updateTransaction, deleteTransaction,
     addCategory, deleteCategory, updateCategoryColor,
     totalIncome, totalExpense, balance, expenseByCategory,
@@ -154,9 +154,7 @@ export default function FinancePage() {
         </div>
       )}
 
-      {loading ? (
-        <p className="text-muted-foreground">불러오는 중...</p>
-      ) : (
+      {(
         <div className="flex flex-col gap-6">
           <MonthlySummary
             totalIncome={isFiltered ? filteredIncome : totalIncome}

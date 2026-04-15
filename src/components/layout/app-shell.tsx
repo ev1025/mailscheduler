@@ -38,12 +38,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const allowClose = !!authUser && !!currentUser;
 
   return (
-    <div className="flex h-full min-h-dvh">
+    <div className="flex h-dvh overflow-hidden fixed inset-0 md:static md:h-full md:min-h-dvh">
       <Sidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed(!collapsed)}
       />
-      <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden pt-safe pb-safe-nav md:pb-0 md:pt-0">
+      <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden overscroll-none pt-safe pb-safe-nav md:pb-0 md:pt-0">
         {children}
       </main>
       <BottomNav />
