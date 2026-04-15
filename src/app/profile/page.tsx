@@ -21,12 +21,9 @@ import { uploadToStorage, deleteFromStorage } from "@/lib/storage";
 import AvatarCropDialog from "@/components/layout/avatar-crop-dialog";
 import ShareManager from "@/components/calendar/share-manager";
 import MobileBell from "@/components/layout/mobile-bell";
+import ColorPickerRow from "@/components/ui/color-picker-popover";
 
-const PALETTE = [
-  "#3B82F6", "#EC4899", "#22C55E", "#A855F7",
-  "#F59E0B", "#EF4444", "#06B6D4", "#8B5CF6",
-  "#10B981", "#F97316",
-];
+const DEFAULT_COLOR = "#3B82F6";
 
 const PRESET_EMOJIS = [
   "🙂", "💕", "🌸", "⭐", "🐱", "🍀", "☕", "🌙",
@@ -42,8 +39,9 @@ export default function ProfilePage() {
 
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🙂");
-  const [color, setColor] = useState(PALETTE[0]);
+  const [color, setColor] = useState(DEFAULT_COLOR);
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarMode, setAvatarMode] = useState<"image" | "emoji">("emoji");
   const [saving, setSaving] = useState(false);
 
   const fileRef = useRef<HTMLInputElement>(null);
@@ -65,8 +63,9 @@ export default function ProfilePage() {
     if (currentUser) {
       setName(currentUser.name);
       setEmoji(currentUser.emoji || "🙂");
-      setColor(currentUser.color || PALETTE[0]);
+      setColor(currentUser.color || DEFAULT_COLOR);
       setAvatarUrl(currentUser.avatar_url || "");
+      setAvatarMode(currentUser.avatar_url ? "image" : "emoji");
     }
   }, [currentUser]);
 
@@ -159,7 +158,7 @@ export default function ProfilePage() {
           />
         </div>
 
-        {/* 아바타 미리보기 */}
+        {/* 아바타 미리보기 + 이미지/이모지 토글 */}
         <div className="flex items-center gap-3">
           <div
             className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-3xl overflow-hidden"
@@ -176,80 +175,84 @@ export default function ProfilePage() {
               emoji || (name ? name[0] : "?")
             )}
           </div>
-          <span className="text-xs text-muted-foreground">
-            아래에서 이미지 / 이모지 / 색상을 선택하세요
-          </span>
+          <div className="flex rounded-md border p-0.5 text-sm">
+            <button
+              type="button"
+              onClick={() => setAvatarMode("image")}
+              className={`px-3 py-1.5 rounded ${avatarMode === "image" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+            >
+              이미지
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAvatarMode("emoji");
+                setAvatarUrl("");
+              }}
+              className={`px-3 py-1.5 rounded ${avatarMode === "emoji" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+            >
+              이모지
+            </button>
+          </div>
         </div>
 
-        {/* 이미지 업로드 */}
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => fileRef.current?.click()}
-            className="flex-1 h-9"
-          >
-            <Upload className="mr-1 h-4 w-4" /> 이미지 업로드
-          </Button>
-          {avatarUrl && (
+        {avatarMode === "image" ? (
+          <div className="flex gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setAvatarUrl("")}
-              className="h-9"
+              onClick={() => fileRef.current?.click()}
+              className="flex-1 h-10"
             >
-              이미지 초기화
+              <Upload className="mr-1 h-4 w-4" /> 이미지 업로드
             </Button>
-          )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-          />
-        </div>
-
-        {/* 이모지 */}
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">프리셋 이모지</Label>
-          <div className="grid grid-cols-8 gap-1.5">
-            {PRESET_EMOJIS.map((e) => (
-              <button
-                key={e}
+            {avatarUrl && (
+              <Button
                 type="button"
-                onClick={() => {
-                  setEmoji(e);
-                  setAvatarUrl("");
-                }}
-                className={`flex h-8 w-8 items-center justify-center rounded-md text-lg hover:bg-accent transition-colors ${
-                  emoji === e && !avatarUrl ? "ring-2 ring-primary" : ""
-                }`}
+                variant="outline"
+                size="sm"
+                onClick={() => setAvatarUrl("")}
+                className="h-10"
               >
-                {e}
-              </button>
-            ))}
+                이미지 초기화
+              </Button>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">이모지</Label>
+            <div className="grid grid-cols-8 gap-1.5">
+              {PRESET_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  onClick={() => {
+                    setEmoji(e);
+                    setAvatarUrl("");
+                  }}
+                  className={`flex h-9 w-9 items-center justify-center rounded-md text-lg hover:bg-accent transition-colors ${
+                    emoji === e && !avatarUrl ? "ring-2 ring-primary" : ""
+                  }`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* 색상 */}
+        {/* 배경색 — ColorPickerRow(8 presets + custom picker) */}
         <div className="flex flex-col gap-1.5">
           <Label className="text-xs text-muted-foreground">배경색</Label>
-          <div className="flex gap-2 flex-wrap">
-            {PALETTE.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setColor(c)}
-                className={`h-7 w-7 rounded-full transition-all ${
-                  color === c ? "ring-2 ring-offset-2 ring-primary scale-110" : "hover:scale-110"
-                }`}
-                style={{ backgroundColor: c }}
-              />
-            ))}
-          </div>
+          <ColorPickerRow color={color} onChange={setColor} />
         </div>
 
         {/* 저장 */}

@@ -18,16 +18,17 @@ interface Props {
 
 const SIZE = 256;
 
+type Pt = { x: number; y: number };
+
 export default function AvatarCropDialog({ src, open, onOpenChange, onConfirm }: Props) {
   const [scale, setScale] = useState(1);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [offset, setOffset] = useState<Pt>({ x: 0, y: 0 });
   const [imgDims, setImgDims] = useState({ w: 0, h: 0 });
-  const dragStart = useRef<{
-    x: number;
-    y: number;
-    offX: number;
-    offY: number;
-  } | null>(null);
+
+  // 포인터 추적: 1개면 드래그, 2개면 핀치 줌
+  const pointers = useRef<Map<number, Pt>>(new Map());
+  const dragStart = useRef<{ x: number; y: number; offX: number; offY: number } | null>(null);
+  const pinchStart = useRef<{ dist: number; scale: number } | null>(null);
 
   useEffect(() => {
     if (!open || !src) return;
@@ -42,26 +43,67 @@ export default function AvatarCropDialog({ src, open, onOpenChange, onConfirm }:
     img.src = src;
   }, [src, open]);
 
+  const pointerPositions = (): Pt[] => Array.from(pointers.current.values());
+
+  const distance = (a: Pt, b: Pt) => Math.hypot(b.x - a.x, b.y - a.y);
+
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    dragStart.current = {
-      x: e.clientX,
-      y: e.clientY,
-      offX: offset.x,
-      offY: offset.y,
-    };
-    e.currentTarget.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = pointerPositions();
+    if (pts.length === 1) {
+      dragStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        offX: offset.x,
+        offY: offset.y,
+      };
+      pinchStart.current = null;
+    } else if (pts.length === 2) {
+      pinchStart.current = { dist: distance(pts[0], pts[1]), scale };
+      dragStart.current = null;
+    }
   };
+
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragStart.current) return;
-    const dx = e.clientX - dragStart.current.x;
-    const dy = e.clientY - dragStart.current.y;
-    setOffset({
-      x: dragStart.current.offX + dx,
-      y: dragStart.current.offY + dy,
-    });
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const pts = pointerPositions();
+
+    if (pts.length >= 2 && pinchStart.current) {
+      const d = distance(pts[0], pts[1]);
+      const nextScale = Math.max(0.1, Math.min(5, pinchStart.current.scale * (d / pinchStart.current.dist)));
+      setScale(nextScale);
+      return;
+    }
+    if (pts.length === 1 && dragStart.current) {
+      const dx = e.clientX - dragStart.current.x;
+      const dy = e.clientY - dragStart.current.y;
+      setOffset({
+        x: dragStart.current.offX + dx,
+        y: dragStart.current.offY + dy,
+      });
+    }
   };
-  const onPointerUp = () => {
-    dragStart.current = null;
+
+  const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    pointers.current.delete(e.pointerId);
+    const pts = pointerPositions();
+    if (pts.length < 2) pinchStart.current = null;
+    if (pts.length === 0) dragStart.current = null;
+    else if (pts.length === 1) {
+      // 두 손가락에서 한 손가락으로 전환되면 드래그 재시작
+      const [p] = pts;
+      dragStart.current = { x: p.x, y: p.y, offX: offset.x, offY: offset.y };
+    }
+  };
+
+  // 데스크톱: 마우스 휠로도 zoom 가능
+  const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.95 : 1.05;
+    setScale((s) => Math.max(0.1, Math.min(5, s * delta)));
   };
 
   const handleConfirm = () => {
@@ -91,14 +133,17 @@ export default function AvatarCropDialog({ src, open, onOpenChange, onConfirm }:
           <DialogTitle>프로필 이미지 편집</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3 items-center">
-          <p className="text-xs text-muted-foreground">드래그해서 위치, 아래 슬라이더로 확대/축소</p>
+          <p className="text-xs text-muted-foreground">
+            한 손가락으로 이동, 두 손가락으로 확대/축소
+          </p>
           <div
-            className="relative rounded-full overflow-hidden bg-muted ring-2 ring-border cursor-grab active:cursor-grabbing"
+            className="relative rounded-full overflow-hidden bg-muted ring-2 ring-border cursor-grab active:cursor-grabbing select-none"
             style={{ width: SIZE, height: SIZE, touchAction: "none" }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
+            onWheel={onWheel}
           >
             {src && imgDims.w > 0 && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -115,18 +160,6 @@ export default function AvatarCropDialog({ src, open, onOpenChange, onConfirm }:
                 }}
               />
             )}
-          </div>
-          <div className="flex items-center gap-2 w-full">
-            <span className="text-xs text-muted-foreground shrink-0">확대</span>
-            <input
-              type="range"
-              min="0.1"
-              max="4"
-              step="0.01"
-              value={scale}
-              onChange={(e) => setScale(parseFloat(e.target.value))}
-              className="flex-1"
-            />
           </div>
           <div className="flex gap-2 w-full">
             <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
