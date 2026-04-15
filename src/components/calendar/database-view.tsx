@@ -226,29 +226,16 @@ export default function DatabaseView({
                   className="cursor-pointer hover:bg-accent/40 transition-colors border-b last:border-b-0"
                   onClick={() => onEdit(ev)}
                 >
-                  {/* 날짜 — 숫자 크게 + 요일 작게 2줄 스택 */}
+                  {/* 날짜 — 4/15(수) ~ 4/17(금), 검정색 */}
                   <td className="px-2 py-2 border-r whitespace-nowrap overflow-hidden">
                     {(() => {
                       const s = parseDay(ev.start_date);
                       const e = ev.end_date && ev.end_date !== ev.start_date ? parseDay(ev.end_date) : null;
-                      const dowColor = (dow: number) =>
-                        dow === 0 ? "text-red-500" : dow === 6 ? "text-blue-500" : "text-muted-foreground";
                       return (
-                        <div className="flex items-center gap-1.5">
-                          <span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: ev.color }} />
-                          <div className="flex flex-col leading-tight">
-                            <span className="text-sm font-semibold tabular-nums">
-                              {s.month}/{s.day}
-                              {e && (
-                                <span className="text-muted-foreground">~{e.month}/{e.day}</span>
-                              )}
-                            </span>
-                            <span className={`text-[10px] ${dowColor(s.dow)}`}>
-                              {s.weekday}
-                              {e && ` ~ ${e.weekday}`}
-                            </span>
-                          </div>
-                        </div>
+                        <span className="text-[11px] text-foreground tabular-nums">
+                          {s.month}/{s.day}({s.weekday})
+                          {e && ` ~ ${e.month}/${e.day}(${e.weekday})`}
+                        </span>
                       );
                     })()}
                   </td>

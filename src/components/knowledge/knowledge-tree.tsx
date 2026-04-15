@@ -21,6 +21,8 @@ import {
 } from "@dnd-kit/core";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
+import PromptDialog from "@/components/ui/prompt-dialog";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 interface TreeNode {
   type: "folder" | "item";
@@ -160,9 +162,9 @@ function NodeRow({
   onSelectItem,
   onAddFolder,
   onAddItem,
-  onRenameFolder,
-  onDeleteFolder,
-  onDeleteItem,
+  onRequestRenameFolder,
+  onRequestDeleteFolder,
+  onRequestDeleteItem,
 }: {
   node: TreeNode;
   depth: number;
@@ -172,9 +174,9 @@ function NodeRow({
   onSelectItem: (id: string) => void;
   onAddFolder: (parentId: string | null) => void;
   onAddItem: (folderId: string | null) => void;
-  onRenameFolder: (id: string, name: string) => void;
-  onDeleteFolder: (id: string) => void;
-  onDeleteItem: (id: string) => void;
+  onRequestRenameFolder: (id: string, currentName: string) => void;
+  onRequestDeleteFolder: (id: string, name: string) => void;
+  onRequestDeleteItem: (id: string, title: string) => void;
 }) {
   const isExpanded = expanded.has(node.id);
   const isSelected = node.type === "item" && selectedItemId === node.id;
@@ -225,8 +227,7 @@ function NodeRow({
           className="opacity-0 group-hover/row:opacity-100 p-0.5 text-muted-foreground hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation();
-            const name = prompt("새 폴더 이름:", f.name);
-            if (name && name.trim()) onRenameFolder(node.id, name.trim());
+            onRequestRenameFolder(node.id, f.name);
           }}
           title="이름 변경"
         >
@@ -237,8 +238,7 @@ function NodeRow({
           className="opacity-0 group-hover/row:opacity-100 p-0.5 text-muted-foreground hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation();
-            if (confirm(`"${f.name}" 폴더 삭제?\n내부 내용도 함께 이동/삭제됩니다`))
-              onDeleteFolder(node.id);
+            onRequestDeleteFolder(node.id, f.name);
           }}
           title="삭제"
         >
@@ -261,9 +261,9 @@ function NodeRow({
               onSelectItem={onSelectItem}
               onAddFolder={onAddFolder}
               onAddItem={onAddItem}
-              onRenameFolder={onRenameFolder}
-              onDeleteFolder={onDeleteFolder}
-              onDeleteItem={onDeleteItem}
+              onRequestRenameFolder={onRequestRenameFolder}
+              onRequestDeleteFolder={onRequestDeleteFolder}
+              onRequestDeleteItem={onRequestDeleteItem}
             />
           ))}
       </FolderDropZone>
@@ -289,7 +289,7 @@ function NodeRow({
           className="opacity-0 group-hover/row:opacity-100 p-0.5 text-muted-foreground hover:text-destructive"
           onClick={(e) => {
             e.stopPropagation();
-            if (confirm(`"${i.title}" 노트 삭제?`)) onDeleteItem(node.id);
+            onRequestDeleteItem(node.id, i.title);
           }}
           title="삭제"
         >
@@ -314,6 +314,9 @@ export default function KnowledgeTree({
   onMoveItem,
 }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [renameTarget, setRenameTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteItemTarget, setDeleteItemTarget] = useState<{ id: string; title: string } | null>(null);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
@@ -362,14 +365,58 @@ export default function KnowledgeTree({
                 onSelectItem={onSelectItem}
                 onAddFolder={onAddFolder}
                 onAddItem={onAddItem}
-                onRenameFolder={onRenameFolder}
-                onDeleteFolder={onDeleteFolder}
-                onDeleteItem={onDeleteItem}
+                onRequestRenameFolder={(id, name) => setRenameTarget({ id, name })}
+                onRequestDeleteFolder={(id, name) => setDeleteFolderTarget({ id, name })}
+                onRequestDeleteItem={(id, title) => setDeleteItemTarget({ id, title })}
               />
             ))}
           </div>
         </FolderDropZone>
       </div>
+
+      <PromptDialog
+        open={!!renameTarget}
+        onOpenChange={(o) => { if (!o) setRenameTarget(null); }}
+        title="폴더 이름 변경"
+        defaultValue={renameTarget?.name || ""}
+        confirmLabel="변경"
+        onConfirm={async (name) => {
+          if (renameTarget) onRenameFolder(renameTarget.id, name);
+          setRenameTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteFolderTarget}
+        onOpenChange={(o) => { if (!o) setDeleteFolderTarget(null); }}
+        title="폴더 삭제"
+        description={
+          <>
+            <strong>{deleteFolderTarget?.name}</strong> 폴더를 삭제할까요?
+            <br />
+            내부 내용도 함께 이동/삭제됩니다.
+          </>
+        }
+        confirmLabel="삭제"
+        destructive
+        onConfirm={async () => {
+          if (deleteFolderTarget) onDeleteFolder(deleteFolderTarget.id);
+          setDeleteFolderTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!deleteItemTarget}
+        onOpenChange={(o) => { if (!o) setDeleteItemTarget(null); }}
+        title="노트 삭제"
+        description={`"${deleteItemTarget?.title}" 노트를 삭제할까요?`}
+        confirmLabel="삭제"
+        destructive
+        onConfirm={async () => {
+          if (deleteItemTarget) onDeleteItem(deleteItemTarget.id);
+          setDeleteItemTarget(null);
+        }}
+      />
     </DndContext>
   );
 }

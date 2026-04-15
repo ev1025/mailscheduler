@@ -34,6 +34,8 @@ import { useProductCategories } from "@/hooks/use-product-categories";
 import ProductForm from "@/components/products/product-form";
 import type { Product } from "@/types";
 import PageHeader from "@/components/layout/page-header";
+import PromptDialog from "@/components/ui/prompt-dialog";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 const CATEGORY_COLORS: Record<string, string> = {
   영양제: "#22C55E",
@@ -154,6 +156,8 @@ function ProductsPageInner() {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   // 커스텀 순서 (sub-category별)
   const [customOrder, setCustomOrder] = useState<Record<string, string[]>>({});
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+  const [pendingDeleteCategory, setPendingDeleteCategory] = useState<string | null>(null);
 
   // 제품 ID별 최저 가격
   useEffect(() => {
@@ -316,37 +320,41 @@ function ProductsPageInner() {
             const color = c === "전체" ? "#6B7280" : CATEGORY_COLORS[c] || "#6B7280";
             const canDelete = c !== "전체" && !BUILTIN_CATEGORIES.has(c);
             return (
-              <div key={c} className="relative group/cat">
-                <button
-                  type="button"
-                  onClick={() => setCategoryFilter(c)}
-                  className={`rounded-full border px-3 py-1.5 text-sm transition-all ${canDelete ? "pr-7" : ""}`}
-                  style={
-                    active
-                      ? {
-                          borderColor: color,
-                          backgroundColor: color + "20",
-                          color,
-                          fontWeight: 600,
-                        }
-                      : { color: "#6B7280" }
+              <div
+                key={c}
+                role="button"
+                tabIndex={0}
+                onClick={() => setCategoryFilter(c)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setCategoryFilter(c);
                   }
-                >
-                  {c}
-                </button>
+                }}
+                className="group/cat inline-flex items-center rounded-full border pl-3 pr-3 py-1.5 text-sm transition-all cursor-pointer select-none"
+                style={
+                  active
+                    ? {
+                        borderColor: color,
+                        backgroundColor: color + "20",
+                        color,
+                        fontWeight: 600,
+                      }
+                    : { color: "#6B7280" }
+                }
+              >
+                <span>{c}</span>
                 {canDelete && (
                   <button
                     type="button"
                     onClick={async (e) => {
                       e.stopPropagation();
-                      if (!confirm(`"${c}" 분류를 삭제할까요?`)) return;
-                      if (categoryFilter === c) setCategoryFilter("전체");
-                      await deleteMidCategory(c);
+                      setPendingDeleteCategory(c);
                     }}
-                    className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-background border shadow-sm text-muted-foreground hover:text-destructive hover:border-destructive/40"
+                    className="ml-1 -mr-1 flex h-4 w-4 items-center justify-center rounded-full text-current/60 hover:bg-current/10 hover:text-current"
                     aria-label={`${c} 삭제`}
                   >
-                    <X className="h-2.5 w-2.5" />
+                    <X className="h-3 w-3" />
                   </button>
                 )}
               </div>
@@ -354,15 +362,10 @@ function ProductsPageInner() {
           })}
           <button
             type="button"
-            onClick={() => {
-              const name = prompt("새 중분류 이름")?.trim();
-              if (name) {
-                addCategory(name);
-                setCategoryFilter(name);
-              }
-            }}
+            onClick={() => setAddCategoryOpen(true)}
             className="rounded-full border border-dashed px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
-            title="중분류 추가"
+            title="분류 추가"
+            aria-label="분류 추가"
           >
             <Plus className="h-3 w-3" />
           </button>
@@ -495,6 +498,34 @@ function ProductsPageInner() {
         onDelete={async (id) => {
           const res = await deleteProduct(id);
           return { error: res?.error ?? null };
+        }}
+      />
+
+      <PromptDialog
+        open={addCategoryOpen}
+        onOpenChange={setAddCategoryOpen}
+        title="새 분류 추가"
+        placeholder="예: 비타민"
+        confirmLabel="추가"
+        onConfirm={async (name) => {
+          await addCategory(name);
+          setCategoryFilter(name);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDeleteCategory}
+        onOpenChange={(o) => { if (!o) setPendingDeleteCategory(null); }}
+        title="분류 삭제"
+        description={`"${pendingDeleteCategory}" 분류를 삭제할까요?`}
+        confirmLabel="삭제"
+        destructive
+        onConfirm={async () => {
+          const name = pendingDeleteCategory;
+          if (!name) return;
+          if (categoryFilter === name) setCategoryFilter("전체");
+          await deleteMidCategory(name);
+          setPendingDeleteCategory(null);
         }}
       />
     </div>

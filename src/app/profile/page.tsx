@@ -22,6 +22,7 @@ import AvatarCropDialog from "@/components/layout/avatar-crop-dialog";
 import ShareManager from "@/components/calendar/share-manager";
 import PageHeader from "@/components/layout/page-header";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 const DEFAULT_COLOR = "#3B82F6";
 
@@ -48,6 +49,7 @@ export default function ProfilePage() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   // 로그인 안 됐거나 프로필 없으면 홈으로 (AppShell의 게이트가 signin/setup 처리)
   useEffect(() => {
@@ -112,7 +114,6 @@ export default function ProfilePage() {
 
   const handleDeleteProfile = async () => {
     if (!currentUser) return;
-    if (!confirm("프로필과 로그인 세션을 삭제합니다. 계속할까요?")) return;
     await deleteUser(currentUser.id);
     await supabaseSignOut();
     router.replace("/");
@@ -287,7 +288,7 @@ export default function ProfilePage() {
           </button>
           <button
             type="button"
-            onClick={handleDeleteProfile}
+            onClick={() => setDeleteConfirmOpen(true)}
             className="flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-3 text-sm text-destructive hover:bg-destructive/5 transition-colors"
           >
             <Trash2 className="h-4 w-4" />
@@ -316,6 +317,16 @@ export default function ProfilePage() {
       />
 
       <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="프로필 삭제"
+        description="프로필과 로그인 세션을 삭제합니다. 계속할까요?"
+        confirmLabel="삭제"
+        destructive
+        onConfirm={handleDeleteProfile}
+      />
     </div>
     </>
   );

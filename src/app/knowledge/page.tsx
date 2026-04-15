@@ -31,6 +31,7 @@ import { toast } from "sonner";
 import { sanitizeRichHTML } from "@/lib/sanitize";
 import PageHeader from "@/components/layout/page-header";
 import PromptDialog from "@/components/ui/prompt-dialog";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 // --- 임시저장 (localStorage) ---
 const DRAFTS_KEY = "knowledge_drafts";
@@ -216,8 +217,17 @@ function KnowledgePageInner() {
     setDrafts(next);
   };
 
+  const [pendingDraft, setPendingDraft] = useState<Draft | null>(null);
+
   const handleLoadDraft = (d: Draft) => {
-    if (dirty && !confirm("작성 중인 내용이 사라집니다. 계속할까요?")) return;
+    if (dirty) {
+      setPendingDraft(d);
+      return;
+    }
+    performLoadDraft(d);
+  };
+
+  const performLoadDraft = (d: Draft) => {
     if (d.source_id) {
       // 기존 노트 수정본
       setSelectedItemId(d.source_id);
@@ -277,82 +287,66 @@ function KnowledgePageInner() {
 
   const editorOpen = !!selectedItem && !mobileSidebar;
 
-  const editorActions = (
-    <div className="flex items-center gap-2">
-      {autoSavedAt && (
-        <span
-          className="text-[11px] text-muted-foreground whitespace-nowrap"
-          title="10초 이상 입력이 없으면 자동으로 임시저장됩니다"
-        >
-          자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-        </span>
-      )}
-      <Popover open={draftsOpen} onOpenChange={setDraftsOpen}>
-        <PopoverTrigger
-          className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-          title="임시저장 목록"
-          aria-label="임시저장 목록"
-        >
-          <Archive className="h-5 w-5" strokeWidth={1.6} />
-          {drafts.length > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground ring-2 ring-background">
-              {drafts.length}
-            </span>
-          )}
-        </PopoverTrigger>
-        <PopoverContent className="w-72 p-0 max-h-80 overflow-y-auto" align="end">
-          <div className="p-2 border-b flex items-center justify-between">
-            <span className="text-xs font-semibold">
-              임시저장 ({drafts.length})
-            </span>
-          </div>
-          {drafts.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-6">
-              임시저장된 글이 없습니다
-            </p>
-          ) : (
-            <div className="flex flex-col">
-              {drafts.map((d) => (
-                <div
-                  key={d.id}
-                  className="group flex items-start gap-2 border-b p-2 hover:bg-accent cursor-pointer"
-                  onClick={() => handleLoadDraft(d)}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium line-clamp-1">{d.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {new Date(d.savedAt).toLocaleString("ko-KR", {
-                        month: "2-digit",
-                        day: "2-digit",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                      {d.source_id ? " · 수정본" : " · 신규"}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="p-0.5 text-muted-foreground/60 hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteDraft(d.id);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
+  const draftsPopover = (
+    <Popover open={draftsOpen} onOpenChange={setDraftsOpen}>
+      <PopoverTrigger
+        className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+        title="임시저장 목록"
+        aria-label="임시저장 목록"
+      >
+        <Archive className="h-5 w-5" strokeWidth={1.6} />
+        {drafts.length > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground ring-2 ring-background">
+            {drafts.length}
+          </span>
+        )}
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-0 max-h-80 overflow-y-auto" align="end">
+        <div className="p-2 border-b flex items-center justify-between">
+          <span className="text-xs font-semibold">
+            임시저장 ({drafts.length})
+          </span>
+        </div>
+        {drafts.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">
+            임시저장된 글이 없습니다
+          </p>
+        ) : (
+          <div className="flex flex-col">
+            {drafts.map((d) => (
+              <div
+                key={d.id}
+                className="group flex items-start gap-2 border-b p-2 hover:bg-accent cursor-pointer"
+                onClick={() => handleLoadDraft(d)}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium line-clamp-1">{d.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {new Date(d.savedAt).toLocaleString("ko-KR", {
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    {d.source_id ? " · 수정본" : " · 신규"}
+                  </p>
                 </div>
-              ))}
-            </div>
-          )}
-        </PopoverContent>
-      </Popover>
-      <Button size="sm" variant="outline" onClick={handleSaveDraft} className="h-8 text-xs">
-        임시저장
-      </Button>
-      <Button size="sm" onClick={handleSave} disabled={!dirty} className="h-8 text-xs">
-        저장
-      </Button>
-    </div>
+                <button
+                  type="button"
+                  className="p-0.5 text-muted-foreground/60 hover:text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteDraft(d.id);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 
   const listActions = (
@@ -380,12 +374,18 @@ function KnowledgePageInner() {
 
   return (
     <>
-      <PageHeader
-        title="지식창고"
-        actions={editorOpen ? editorActions : listActions}
-        showBell={!editorOpen}
-      />
-    <div className="flex h-[calc(100dvh-3.5rem-3.5rem)] md:h-[calc(100dvh-3.5rem)]">
+      {/* 모바일에서 에디터 열려있을 때 PageHeader 숨김 — 데스크톱은 항상 표시 */}
+      <div className={editorOpen ? "hidden md:block" : "block"}>
+        <PageHeader
+          title="지식창고"
+          actions={listActions}
+        />
+      </div>
+    <div
+      className={`flex md:h-[calc(100%-3.5rem)] min-h-0 ${
+        editorOpen ? "h-full" : "h-[calc(100%-3.5rem)]"
+      }`}
+    >
       {/* 왼쪽: 트리 */}
       <aside
         className={`${
@@ -475,16 +475,17 @@ function KnowledgePageInner() {
       >
         {selectedItem ? (
           <>
-            <div className="border-b flex flex-col">
-              {/* 1행: 뒤로 + 제목 + 핀 */}
-              <div className="flex items-center gap-2 px-2 md:px-3 pt-2 pb-1">
+            <div className="border-b flex flex-col shrink-0">
+              {/* 1행: 뒤로 + 제목 + 저장 액션 */}
+              <div className="flex items-center gap-1.5 px-2 md:px-3 h-12">
                 <button
                   type="button"
                   onClick={() => setMobileSidebar(true)}
                   className="md:hidden shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
                   title="목록"
+                  aria-label="목록"
                 >
-                  <ArrowLeft className="h-4 w-4" />
+                  <ArrowLeft className="h-5 w-5" />
                 </button>
                 <Input
                   value={editTitle}
@@ -492,11 +493,25 @@ function KnowledgePageInner() {
                     setEditTitle(e.target.value);
                     setDirty(true);
                   }}
-                  className="flex-1 h-8 text-sm md:text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
+                  className="flex-1 h-9 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
                   placeholder="새 노트 제목..."
                 />
+                <div className="flex items-center gap-1 shrink-0">
+                  {draftsPopover}
+                  <Button size="sm" variant="outline" onClick={handleSaveDraft} className="h-8 text-xs px-2.5">
+                    임시저장
+                  </Button>
+                  <Button size="sm" onClick={handleSave} disabled={!dirty} className="h-8 text-xs px-2.5">
+                    저장
+                  </Button>
+                </div>
               </div>
-
+              {/* 2행: 자동저장 안내 (왼쪽 정렬) */}
+              {autoSavedAt && (
+                <div className="px-3 pb-1.5 text-[11px] text-muted-foreground">
+                  자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                </div>
+              )}
             </div>
             <div className="flex-1 overflow-hidden">
               <RichEditor
@@ -536,6 +551,19 @@ function KnowledgePageInner() {
         confirmLabel="만들기"
         onConfirm={async (name) => {
           await addFolder(name, undefined, folderPromptParentId);
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!pendingDraft}
+        onOpenChange={(o) => { if (!o) setPendingDraft(null); }}
+        title="작성 중인 내용"
+        description="작성 중인 내용이 사라집니다. 계속할까요?"
+        confirmLabel="불러오기"
+        destructive
+        onConfirm={async () => {
+          if (pendingDraft) performLoadDraft(pendingDraft);
+          setPendingDraft(null);
         }}
       />
     </div>

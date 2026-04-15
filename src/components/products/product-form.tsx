@@ -20,6 +20,7 @@ import { useProductSubTags } from "@/hooks/use-product-subtags";
 import TagInput from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import type { Product, ProductCategory } from "@/types";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 interface PriceEntry {
   id?: string;
@@ -61,6 +62,7 @@ export default function ProductForm({
   const [siteDraft, setSiteDraft] = useState("");
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const { tags: subTags, addTag, deleteTag, updateTagColor } = useProductSubTags(category);
   const { upsertFixedFromProduct, deleteFixedByProduct } = useFixedExpenses();
@@ -418,12 +420,7 @@ export default function ProductForm({
                 variant="ghost"
                 size="icon"
                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={async () => {
-                  if (!confirm(`"${product.name}" 삭제할까요?`)) return;
-                  const { error } = await onDelete(product.id);
-                  if (!error) onOpenChange(false);
-                  else toast.error("삭제 실패");
-                }}
+                onClick={() => setDeleteConfirmOpen(true)}
                 title="삭제"
               >
                 <Trash2 className="h-4 w-4" />
@@ -443,6 +440,26 @@ export default function ProductForm({
           </div>
         </form>
       </DialogContent>
+
+      {product && onDelete && (
+        <ConfirmDialog
+          open={deleteConfirmOpen}
+          onOpenChange={setDeleteConfirmOpen}
+          title="제품 삭제"
+          description={`"${product.name}"을(를) 삭제할까요?`}
+          confirmLabel="삭제"
+          destructive
+          onConfirm={async () => {
+            const { error } = await onDelete(product.id);
+            if (!error) {
+              setDeleteConfirmOpen(false);
+              onOpenChange(false);
+            } else {
+              toast.error("삭제 실패");
+            }
+          }}
+        />
+      )}
     </Dialog>
   );
 }

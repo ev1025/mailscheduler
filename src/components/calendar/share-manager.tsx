@@ -12,6 +12,7 @@ import { UserPlus, X, Clock, Check, Users } from "lucide-react";
 import { useCalendarShares } from "@/hooks/use-calendar-shares";
 import { useAppUsers, useCurrentUserId } from "@/lib/current-user";
 import { toast } from "sonner";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 
 interface Props {
   open: boolean;
@@ -76,6 +77,7 @@ export default function ShareManager({ open, onOpenChange }: Props) {
   const { outgoing, incoming, invite, accept, reject, cancel } =
     useCalendarShares();
   const [tab, setTab] = useState<TabKey>("incoming");
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; name: string; kind: "outgoing" | "incoming" } | null>(null);
 
   const getUser = (id: string) => users.find((u) => u.id === id);
   const others = users.filter((u) => u.id !== currentUserId);
@@ -161,9 +163,7 @@ export default function ShareManager({ open, onOpenChange }: Props) {
                           size="sm"
                           variant="ghost"
                           className="h-8 px-2 text-muted-foreground hover:text-destructive shrink-0"
-                          onClick={async () => {
-                            if (confirm("공유 연결을 해제할까요?")) await cancel(s.id);
-                          }}
+                          onClick={() => setCancelTarget({ id: s.id, name: owner.name, kind: "incoming" })}
                         >
                           해제
                         </Button>
@@ -193,9 +193,7 @@ export default function ShareManager({ open, onOpenChange }: Props) {
                       <button
                         type="button"
                         className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
-                        onClick={async () => {
-                          if (confirm(`${viewer.name}님 공유를 취소할까요?`)) await cancel(s.id);
-                        }}
+                        onClick={() => setCancelTarget({ id: s.id, name: viewer.name, kind: "outgoing" })}
                         aria-label="공유 취소"
                       >
                         <X className="h-4 w-4" />
@@ -231,6 +229,23 @@ export default function ShareManager({ open, onOpenChange }: Props) {
           )}
         </div>
       </DialogContent>
+
+      <ConfirmDialog
+        open={!!cancelTarget}
+        onOpenChange={(o) => { if (!o) setCancelTarget(null); }}
+        title={cancelTarget?.kind === "incoming" ? "공유 해제" : "공유 취소"}
+        description={
+          cancelTarget?.kind === "incoming"
+            ? `${cancelTarget?.name}님과의 공유 연결을 해제할까요?`
+            : `${cancelTarget?.name}님에게 보낸 공유를 취소할까요?`
+        }
+        confirmLabel={cancelTarget?.kind === "incoming" ? "해제" : "취소"}
+        destructive
+        onConfirm={async () => {
+          if (cancelTarget) await cancel(cancelTarget.id);
+          setCancelTarget(null);
+        }}
+      />
     </Dialog>
   );
 }
