@@ -137,7 +137,7 @@ export default function FinancePage() {
 
         {/* 추가 */}
         <Button size="sm" className="h-8" onClick={() => { setEditing(null); setFormOpen(true); }}>
-          <Plus className="mr-1 h-3.5 w-3.5" />
+          <Plus className="mr-1 h-4 w-4" />
           추가
         </Button>
       </div>

@@ -290,11 +290,11 @@ function KnowledgePageInner() {
   const draftsPopover = (
     <Popover open={draftsOpen} onOpenChange={setDraftsOpen}>
       <PopoverTrigger
-        className="relative flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+        className="relative flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
         title="임시저장 목록"
         aria-label="임시저장 목록"
       >
-        <Archive className="h-5 w-5" strokeWidth={1.6} />
+        <Archive className="h-[22px] w-[22px]" strokeWidth={1.6} />
         {drafts.length > 0 && (
           <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground ring-2 ring-background">
             {drafts.length}
@@ -358,7 +358,7 @@ function KnowledgePageInner() {
         title="폴더 추가"
         className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
       >
-        <Folder className="h-[20px] w-[20px]" strokeWidth={1.6} />
+        <Folder className="h-[22px] w-[22px]" strokeWidth={1.6} />
       </button>
       <button
         type="button"
@@ -367,7 +367,7 @@ function KnowledgePageInner() {
         title="새 노트"
         className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
       >
-        <FileText className="h-[20px] w-[20px]" strokeWidth={1.6} />
+        <FileText className="h-[22px] w-[22px]" strokeWidth={1.6} />
       </button>
     </>
   );
@@ -476,12 +476,12 @@ function KnowledgePageInner() {
         {selectedItem ? (
           <>
             <div className="border-b flex flex-col shrink-0">
-              {/* 1행: 뒤로 + 자동저장 안내 + 저장 액션 */}
-              <div className="flex items-center gap-1.5 px-2 md:px-3 h-11">
+              {/* 1행 — PageHeader와 동일한 h-14 표준 */}
+              <div className="flex items-center gap-2 px-3 h-14">
                 <button
                   type="button"
                   onClick={() => setMobileSidebar(true)}
-                  className="md:hidden shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  className="md:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground -ml-1"
                   title="목록"
                   aria-label="목록"
                 >
@@ -504,14 +504,14 @@ function KnowledgePageInner() {
                 </div>
               </div>
               {/* 2행: 제목 입력창 */}
-              <div className="px-2 md:px-3 pb-2">
+              <div className="px-3 pb-3">
                 <Input
                   value={editTitle}
                   onChange={(e) => {
                     setEditTitle(e.target.value);
                     setDirty(true);
                   }}
-                  className="w-full h-9 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
+                  className="w-full h-10 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
                   placeholder="새 노트 제목..."
                 />
               </div>
