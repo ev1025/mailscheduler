@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useCurrentUserId } from "@/lib/current-user";
 import type { ProductPurchase } from "@/types";
 
 export function useProductPurchases(productId: string | null) {
+  const userId = useCurrentUserId();
   const [purchases, setPurchases] = useState<ProductPurchase[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -30,7 +32,10 @@ export function useProductPurchases(productId: string | null) {
   const addPurchase = async (
     item: Omit<ProductPurchase, "id" | "created_at">
   ) => {
-    const { error } = await supabase.from("product_purchases").insert(item);
+    if (!userId) return { error: "로그인이 필요합니다" };
+    const { error } = await supabase
+      .from("product_purchases")
+      .insert({ ...item, user_id: userId });
     if (!error) await fetchPurchases();
     return { error };
   };

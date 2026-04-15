@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useCurrentUserId } from "@/lib/current-user";
 import type { KnowledgeItem } from "@/types";
 
 export function useKnowledgeItems(folderId: string | null) {
+  const userId = useCurrentUserId();
   const [items, setItems] = useState<KnowledgeItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,11 +30,13 @@ export function useKnowledgeItems(folderId: string | null) {
   const addItem = async (
     item: Omit<KnowledgeItem, "id" | "created_at" | "updated_at">
   ) => {
+    if (!userId) return { data: null, error: "로그인이 필요합니다" };
     const { data, error } = await supabase
       .from("knowledge_items")
       .insert({
         ...item,
         excerpt: item.content ? item.content.slice(0, 200) : null,
+        user_id: userId,
       })
       .select()
       .single();

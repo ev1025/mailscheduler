@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useCurrentUserId } from "@/lib/current-user";
 import type { TravelTag } from "@/types";
 
 export function useTravelTags() {
+  const userId = useCurrentUserId();
   const [tags, setTags] = useState<TravelTag[]>([]);
 
   const fetchTags = useCallback(async () => {
@@ -17,7 +19,10 @@ export function useTravelTags() {
   }, [fetchTags]);
 
   const addTag = async (name: string, color: string) => {
-    const { error } = await supabase.from("travel_tags").insert({ name: name.trim(), color });
+    if (!userId) return { error: "로그인이 필요합니다" };
+    const { error } = await supabase
+      .from("travel_tags")
+      .insert({ name: name.trim(), color, user_id: userId });
     if (!error) await fetchTags();
     return { error };
   };

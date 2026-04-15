@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useCurrentUserId } from "@/lib/current-user";
 import type { KnowledgeFolder } from "@/types";
 
 export function useKnowledgeFolders() {
+  const userId = useCurrentUserId();
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +30,7 @@ export function useKnowledgeFolders() {
     icon?: string,
     parentId?: string | null
   ) => {
+    if (!userId) return { data: null, error: "로그인이 필요합니다" };
     const { data, error } = await supabase
       .from("knowledge_folders")
       .insert({
@@ -35,6 +38,7 @@ export function useKnowledgeFolders() {
         icon: icon || null,
         parent_id: parentId || null,
         sort_order: folders.length,
+        user_id: userId,
       })
       .select()
       .single();

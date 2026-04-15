@@ -101,12 +101,20 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate 
         borderBottomLeftRadius: isStart ? "3px" : 0,
         borderTopRightRadius: isEnd ? "3px" : 0,
         borderBottomRightRadius: isEnd ? "3px" : 0,
+        // 셀 경계에서 -2px씩 bleed해서 border-r 위로 덮음 → 완전 연속
+        marginLeft: isStart ? 0 : "-2px",
+        marginRight: isEnd ? 0 : "-2px",
         minHeight: "14px",
+        position: "relative",
       }}
     >
       {isStart ? (
-        <span className="truncate block whitespace-nowrap">
-          {event.title} <span className="opacity-80">({endLabel})</span>
+        /* 라벨은 셀 폭을 넘어 흐르도록 — 다음 셀의 연속 배경 위로 */
+        <span
+          className="whitespace-nowrap block"
+          style={{ maxWidth: "none" }}
+        >
+          {event.title} <span className="opacity-80">(~{endLabel})</span>
         </span>
       ) : (
         <span>&nbsp;</span>
