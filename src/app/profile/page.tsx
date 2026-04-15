@@ -132,33 +132,21 @@ export default function ProfilePage() {
       <PageHeader title="내 프로필" showBack />
     <div className="p-4 md:p-6 max-w-xl mx-auto">
 
-      <div className="flex flex-col gap-4">
-        {/* 이메일 (읽기 전용) */}
-        <div className="rounded-md bg-muted/40 p-3 text-sm">
-          <span className="text-xs text-muted-foreground">로그인 이메일</span>
-          <p className="font-medium">{authUser?.email}</p>
-        </div>
-
-        {/* 이름 */}
-        <div className="flex flex-col gap-1.5">
-          <Label className="text-xs text-muted-foreground">이름 (표시용)</Label>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="이름"
-            className="h-10 text-base"
-          />
-        </div>
-
-        {/* 아바타 미리보기 + 이미지/이모지 토글 */}
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full text-3xl overflow-hidden"
+      <div className="flex flex-col gap-5">
+        {/* 헤더 카드 — 아바타 + 이름 입력 + 이메일 */}
+        <div className="flex flex-col items-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (avatarMode === "image") fileRef.current?.click();
+            }}
+            className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full text-5xl overflow-hidden shadow-sm ring-4 ring-background transition-transform active:scale-95"
             style={
               avatarUrl
                 ? { backgroundColor: "transparent" }
                 : { backgroundColor: color + "30", color }
             }
+            aria-label="아바타 변경"
           >
             {avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -166,12 +154,27 @@ export default function ProfilePage() {
             ) : (
               emoji || (name ? name[0] : "?")
             )}
-          </div>
-          <div className="flex rounded-md border p-0.5 text-sm">
+          </button>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="이름"
+            className="h-10 text-center text-base font-semibold border-none bg-transparent focus-visible:ring-0 focus-visible:border-b focus-visible:border-border rounded-none shadow-none"
+          />
+          <p className="text-xs text-muted-foreground -mt-1">{authUser?.email}</p>
+        </div>
+
+        {/* 이미지/이모지 모드 세그먼트 — 가운데 정렬 */}
+        <div className="flex justify-center">
+          <div className="inline-flex rounded-full border bg-muted/40 p-0.5 text-sm">
             <button
               type="button"
               onClick={() => setAvatarMode("image")}
-              className={`px-3 py-1.5 rounded ${avatarMode === "image" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              className={`px-4 py-1.5 rounded-full transition-colors ${
+                avatarMode === "image"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground"
+              }`}
             >
               이미지
             </button>
@@ -181,7 +184,11 @@ export default function ProfilePage() {
                 setAvatarMode("emoji");
                 setAvatarUrl("");
               }}
-              className={`px-3 py-1.5 rounded ${avatarMode === "emoji" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+              className={`px-4 py-1.5 rounded-full transition-colors ${
+                avatarMode === "emoji"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground"
+              }`}
             >
               이모지
             </button>
@@ -207,7 +214,7 @@ export default function ProfilePage() {
                 onClick={() => setAvatarUrl("")}
                 className="h-10"
               >
-                이미지 초기화
+                초기화
               </Button>
             )}
             <input
@@ -219,7 +226,7 @@ export default function ProfilePage() {
             />
           </div>
         ) : (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <Label className="text-xs text-muted-foreground">이모지</Label>
             <div className="grid grid-cols-8 gap-1.5">
               {PRESET_EMOJIS.map((e) => (
@@ -241,9 +248,9 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* 배경색 — 이모지 모드일 때만 표시 (이미지는 배경이 가려짐) */}
+        {/* 배경색 — 이모지 모드일 때만 표시 */}
         {avatarMode === "emoji" && !avatarUrl && (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <Label className="text-xs text-muted-foreground">배경색</Label>
             <ColorPickerRow color={color} onChange={setColor} />
           </div>
@@ -254,7 +261,7 @@ export default function ProfilePage() {
           type="button"
           onClick={handleUpdate}
           disabled={!name.trim() || saving}
-          className="h-10 mt-1"
+          className="h-11"
         >
           <Check className="mr-1 h-4 w-4" />
           {saving ? "저장 중..." : "저장"}
