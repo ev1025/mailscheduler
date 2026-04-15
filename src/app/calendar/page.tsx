@@ -8,6 +8,7 @@ import {
   Plane,
 } from "lucide-react";
 import MonthPicker from "@/components/layout/month-picker";
+import MobileBell from "@/components/layout/mobile-bell";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useWeather } from "@/hooks/use-weather";
 import { useEventTags } from "@/hooks/use-event-tags";
@@ -158,7 +159,49 @@ function CalendarPageInner() {
 
   return (
     <div className="px-2 py-4 md:p-6 overflow-x-hidden">
-      {/* 상단: MonthPicker (중앙) + 공유 관리 (우측) */}
+      {/* 상단: 알림 벨만 (MonthPicker는 탭 아래로 이동) */}
+      <div className="mb-3 flex items-center justify-end">
+        <MobileBell />
+      </div>
+
+      {/* 탭: 달력 / 일정목록 / 여행 */}
+      <div className="mb-3 flex border-b">
+        <button
+          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
+            view === "calendar"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setView("calendar")}
+        >
+          <CalendarDays className="h-4 w-4" />
+          달력
+        </button>
+        <button
+          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
+            view === "database"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setView("database")}
+        >
+          <TableProperties className="h-4 w-4" />
+          일정목록
+        </button>
+        <button
+          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
+            view === "travel"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+          onClick={() => setView("travel")}
+        >
+          <Plane className="h-4 w-4" />
+          여행
+        </button>
+      </div>
+
+      {/* 탭 아래: MonthPicker + 사용자 필터 (달력/일정목록 탭에서만) */}
       {view !== "travel" && (
         <>
           <div className="mb-3 flex justify-center items-center">
@@ -169,7 +212,6 @@ function CalendarPageInner() {
               onMonthChange={setMonth}
             />
           </div>
-          {/* 사용자 필터 (본인 + 공유받은 사람) */}
           {viewableUserIds.length > 1 && (
             <div className="mb-3 flex flex-wrap items-center justify-center gap-1.5">
               {users
@@ -210,43 +252,6 @@ function CalendarPageInner() {
           )}
         </>
       )}
-
-      {/* 탭: 달력 / DB */}
-      <div className="mb-4 flex border-b">
-        <button
-          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
-            view === "calendar"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          onClick={() => setView("calendar")}
-        >
-          <CalendarDays className="h-4 w-4" />
-          달력
-        </button>
-        <button
-          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
-            view === "database"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          onClick={() => setView("database")}
-        >
-          <TableProperties className="h-4 w-4" />
-          일정목록
-        </button>
-        <button
-          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
-            view === "travel"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          onClick={() => setView("travel")}
-        >
-          <Plane className="h-4 w-4" />
-          여행
-        </button>
-      </div>
 
       {view === "travel" ? (
         <TravelList

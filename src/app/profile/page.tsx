@@ -20,6 +20,7 @@ import { useAppUsers, useCurrentUser } from "@/lib/current-user";
 import { uploadToStorage, deleteFromStorage } from "@/lib/storage";
 import AvatarCropDialog from "@/components/layout/avatar-crop-dialog";
 import ShareManager from "@/components/calendar/share-manager";
+import MobileBell from "@/components/layout/mobile-bell";
 
 const PALETTE = [
   "#3B82F6", "#EC4899", "#22C55E", "#A855F7",

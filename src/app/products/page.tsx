@@ -34,6 +34,7 @@ import { useProducts } from "@/hooks/use-products";
 import { useProductCategories } from "@/hooks/use-product-categories";
 import ProductForm from "@/components/products/product-form";
 import type { Product } from "@/types";
+import MobileBell from "@/components/layout/mobile-bell";
 
 const CATEGORY_COLORS: Record<string, string> = {
   영양제: "#22C55E",
@@ -297,26 +298,31 @@ function ProductsPageInner() {
     <div className="p-4 md:p-6">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="text-2xl font-bold">생필품 비교</h2>
-        <Button
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-        >
-          <Plus className="mr-1 h-4 w-4" />
-          제품 추가
-        </Button>
+        <MobileBell />
       </div>
 
       <div className="mb-4 flex flex-col gap-3">
-        <div className="relative max-w-sm">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="제품명/브랜드/소분류 검색"
-            className="pl-8 h-9 text-sm"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0 md:max-w-sm">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="제품명/브랜드/소분류 검색"
+              className="pl-8 h-9 text-sm"
+            />
+          </div>
+          <Button
+            size="sm"
+            className="h-9 shrink-0"
+            onClick={() => {
+              setEditing(null);
+              setFormOpen(true);
+            }}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            추가
+          </Button>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {(["전체", ...midCategories] as string[]).map((c) => {

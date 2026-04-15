@@ -30,6 +30,8 @@ import RichEditor from "@/components/knowledge/rich-editor";
 import type { KnowledgeItem } from "@/types";
 import { toast } from "sonner";
 import { sanitizeRichHTML } from "@/lib/sanitize";
+import MobileBell from "@/components/layout/mobile-bell";
+import PromptDialog from "@/components/ui/prompt-dialog";
 
 // --- 임시저장 (localStorage) ---
 const DRAFTS_KEY = "knowledge_drafts";
@@ -101,6 +103,8 @@ function KnowledgePageInner() {
   const [mobileSidebar, setMobileSidebar] = useState(true);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [draftsOpen, setDraftsOpen] = useState(false);
+  const [folderPromptOpen, setFolderPromptOpen] = useState(false);
+  const [folderPromptParentId, setFolderPromptParentId] = useState<string | null>(null);
   const [autoSavedAt, setAutoSavedAt] = useState<string | null>(null);
 
   useEffect(() => {
@@ -164,10 +168,9 @@ function KnowledgePageInner() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const handleAddFolder = async (parentId: string | null) => {
-    const name = prompt("새 폴더 이름:");
-    if (!name || !name.trim()) return;
-    await addFolder(name.trim(), undefined, parentId);
+  const handleAddFolder = (parentId: string | null) => {
+    setFolderPromptParentId(parentId);
+    setFolderPromptOpen(true);
   };
 
   const handleAddItem = async (folderId: string | null) => {
@@ -284,26 +287,27 @@ function KnowledgePageInner() {
         <div className="p-3 border-b flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold">지식창고</h2>
-            <div className="flex gap-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleAddFolder(null)}
-                className="h-9 px-2 text-sm"
-                title="최상위 폴더 추가"
-              >
-                <Folder className="h-4 w-4 mr-1" />+
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => handleAddItem(null)}
-                className="h-9 px-2 text-sm"
-                title="노트 추가"
-              >
-                <FileText className="h-4 w-4 mr-1" />+
-              </Button>
-            </div>
+            <MobileBell />
+          </div>
+          <div className="flex items-center gap-1 justify-end">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleAddFolder(null)}
+              className="h-9 px-2 text-sm"
+              title="최상위 폴더 추가"
+            >
+              <Folder className="h-4 w-4 mr-1" />+
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => handleAddItem(null)}
+              className="h-9 px-2 text-sm"
+              title="노트 추가"
+            >
+              <FileText className="h-4 w-4 mr-1" />+
+            </Button>
           </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -530,6 +534,16 @@ function KnowledgePageInner() {
           </div>
         )}
       </main>
+      <PromptDialog
+        open={folderPromptOpen}
+        onOpenChange={setFolderPromptOpen}
+        title="새 폴더 만들기"
+        placeholder="폴더 이름"
+        confirmLabel="만들기"
+        onConfirm={async (name) => {
+          await addFolder(name, undefined, folderPromptParentId);
+        }}
+      />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { useMemos } from "@/hooks/use-memos";
 import MemoCard from "@/components/memo/memo-card";
 import MemoForm from "@/components/memo/memo-form";
 import type { Memo } from "@/types";
+import MobileBell from "@/components/layout/mobile-bell";
 
 export default function MemoPage() {
   const { memos, loading, addMemo, updateMemo, deleteMemo, togglePin } =
@@ -37,8 +38,11 @@ export default function MemoPage() {
 
   return (
     <div className="p-4 md:p-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between">
         <h2 className="text-2xl font-bold">메모</h2>
+        <MobileBell />
+      </div>
+      <div className="mb-6 flex items-center justify-end">
         <Button
           onClick={() => {
             setEditingMemo(null);
