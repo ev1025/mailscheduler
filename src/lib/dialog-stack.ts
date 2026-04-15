@@ -3,6 +3,8 @@
 // 중첩된 오버레이에서 뒤로가기는 가장 최근 것만 닫고,
 // 코드로 닫힐 때는 history.back()이 상위로 전파되지 않도록 suppress 카운트를 사용한다.
 
+import * as React from "react";
+
 type StackEntry = { id: number; close: () => void };
 const stack: StackEntry[] = [];
 let bound = false;
@@ -42,4 +44,27 @@ export function popDialogEntry(id: number) {
     suppressCount++;
     window.history.back();
   }
+}
+
+/**
+ * Dialog/Sheet 같은 overlay 컴포넌트에서 open 상태를 스택에 연결하는 훅.
+ * open=true가 되면 push, false가 되거나 unmount되면 pop.
+ */
+export function useDialogStackEntry(
+  open: boolean | undefined,
+  onClose: ((o: boolean) => void) | undefined
+) {
+  const onCloseRef = React.useRef(onClose);
+  React.useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+  React.useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    const id = pushDialogEntry(() => {
+      onCloseRef.current?.(false);
+    });
+    return () => {
+      popDialogEntry(id);
+    };
+  }, [open]);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { readLocalJSON, writeLocalJSON } from "@/lib/tag-store";
 
 const CUSTOM_KEY = "product_mid_categories_custom"; // string[] (사용자 추가)
 const COLOR_KEY = "product_mid_categories_colors"; // Record<string, string>
@@ -16,28 +17,6 @@ const BUILTIN: { name: string; color: string }[] = [
   { name: "기타", color: "#6B7280" },
 ];
 
-function loadCustom(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(CUSTOM_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
-function loadColors(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(COLOR_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
-
 export interface ProductCategoryTag {
   id: string; // name 자체를 id로 사용
   name: string;
@@ -49,8 +28,8 @@ export function useProductCategories() {
   const [colors, setColors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setCustom(loadCustom());
-    setColors(loadColors());
+    setCustom(readLocalJSON<string[]>(CUSTOM_KEY, []));
+    setColors(readLocalJSON<Record<string, string>>(COLOR_KEY, {}));
   }, []);
 
   const builtinNames = BUILTIN.map((b) => b.name);
@@ -80,13 +59,13 @@ export function useProductCategories() {
     setCustom((prev) => {
       if (prev.includes(trimmed)) return prev;
       const next = [...prev, trimmed];
-      localStorage.setItem(CUSTOM_KEY, JSON.stringify(next));
+      writeLocalJSON(CUSTOM_KEY, next);
       return next;
     });
     if (color) {
       setColors((prev) => {
         const next = { ...prev, [trimmed]: color };
-        localStorage.setItem(COLOR_KEY, JSON.stringify(next));
+        writeLocalJSON(COLOR_KEY, next);
         return next;
       });
     }
@@ -98,7 +77,7 @@ export function useProductCategories() {
     if (builtinNames.includes(id)) return { error: "기본 분류는 삭제할 수 없습니다" };
     setCustom((prev) => {
       const next = prev.filter((c) => c !== id);
-      localStorage.setItem(CUSTOM_KEY, JSON.stringify(next));
+      writeLocalJSON(CUSTOM_KEY, next);
       return next;
     });
     return { error: null };
@@ -108,7 +87,7 @@ export function useProductCategories() {
   const updateCategoryColor = useCallback(async (id: string, color: string) => {
     setColors((prev) => {
       const next = { ...prev, [id]: color };
-      localStorage.setItem(COLOR_KEY, JSON.stringify(next));
+      writeLocalJSON(COLOR_KEY, next);
       return next;
     });
     return { error: null };

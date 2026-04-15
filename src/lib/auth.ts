@@ -1,6 +1,7 @@
 "use client";
 
 // SHA-256 (salt + password) 해시. 개인용 2~3명 앱 수준 보안.
+// ※ 2026 기준 프로덕션용으로는 약함. argon2id/scrypt 이관 예정.
 export async function hashPassword(
   password: string,
   salt: string
@@ -18,6 +19,30 @@ export function generateSalt(): string {
   return Array.from(arr)
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+/**
+ * 저장된 해시와 입력 비밀번호가 일치하는지 비교.
+ * salt 또는 hash가 없으면 false.
+ */
+export async function verifyPassword(
+  input: string,
+  salt: string | null | undefined,
+  expectedHash: string | null | undefined
+): Promise<boolean> {
+  if (!salt || !expectedHash) return false;
+  const hash = await hashPassword(input, salt);
+  return hash === expectedHash;
+}
+
+/**
+ * 새 비밀번호(또는 복구 답변)에 대해 salt + hash 한 쌍을 생성.
+ * 답변은 대소문자 무시해야 할 때 호출 전에 trim().toLowerCase() 처리.
+ */
+export async function hashWithNewSalt(plain: string): Promise<{ hash: string; salt: string }> {
+  const salt = generateSalt();
+  const hash = await hashPassword(plain, salt);
+  return { hash, salt };
 }
 
 // localStorage 세션 키

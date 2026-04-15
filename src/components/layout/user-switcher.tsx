@@ -33,7 +33,7 @@ import {
   removeRememberedUser,
   type AppUser,
 } from "@/lib/current-user";
-import { hashPassword, generateSalt } from "@/lib/auth";
+import { verifyPassword, hashWithNewSalt } from "@/lib/auth";
 import { toast } from "sonner";
 
 const PALETTE = [
@@ -202,8 +202,7 @@ export default function UserSwitcher({
       toast.error("비밀번호가 일치하지 않습니다");
       return;
     }
-    const salt = generateSalt();
-    const hash = await hashPassword(password, salt);
+    const { hash, salt } = await hashWithNewSalt(password);
 
     // 복구 질문/답변은 선택. 둘 다 입력 시에만 저장.
     let recoveryQ: string | undefined;
@@ -211,11 +210,9 @@ export default function UserSwitcher({
     let recoveryAS: string | undefined;
     if (recoveryQuestion.trim() && recoveryAnswer.trim()) {
       recoveryQ = recoveryQuestion.trim();
-      recoveryAS = generateSalt();
-      recoveryAH = await hashPassword(
-        recoveryAnswer.trim().toLowerCase(),
-        recoveryAS
-      );
+      const r = await hashWithNewSalt(recoveryAnswer.trim().toLowerCase());
+      recoveryAH = r.hash;
+      recoveryAS = r.salt;
     }
 
     const { data, error } = await addUser(
@@ -264,8 +261,7 @@ export default function UserSwitcher({
       setLoginError("이 프로필은 비밀번호가 설정되지 않았습니다");
       return;
     }
-    const hash = await hashPassword(loginPwInput, target.password_salt);
-    if (hash !== target.password_hash) {
+    if (!(await verifyPassword(loginPwInput, target.password_salt, target.password_hash))) {
       setLoginError("아이디 또는 비밀번호가 올바르지 않습니다");
       return;
     }
@@ -310,11 +306,12 @@ export default function UserSwitcher({
       setForgotError("답변을 입력하세요");
       return;
     }
-    const hash = await hashPassword(
+    const ok = await verifyPassword(
       forgotAnswer.trim().toLowerCase(),
-      forgotTarget.recovery_answer_salt!
+      forgotTarget.recovery_answer_salt,
+      forgotTarget.recovery_answer_hash
     );
-    if (hash !== forgotTarget.recovery_answer_hash) {
+    if (!ok) {
       setForgotError("답변이 일치하지 않습니다");
       return;
     }
@@ -332,8 +329,7 @@ export default function UserSwitcher({
       setForgotError("비밀번호가 일치하지 않습니다");
       return;
     }
-    const salt = generateSalt();
-    const hash = await hashPassword(forgotNewPw, salt);
+    const { hash, salt } = await hashWithNewSalt(forgotNewPw);
     const { error } = await updateUser(forgotTarget.id, {
       password_hash: hash,
       password_salt: salt,
@@ -379,8 +375,7 @@ export default function UserSwitcher({
       toast.error("현재 비밀번호를 입력하세요");
       return;
     }
-    const hash = await hashPassword(pwChangeCurrent, targetUser.password_salt);
-    if (hash !== targetUser.password_hash) {
+    if (!(await verifyPassword(pwChangeCurrent, targetUser.password_salt, targetUser.password_hash))) {
       toast.error("비밀번호가 틀렸어요");
       return;
     }
@@ -399,8 +394,7 @@ export default function UserSwitcher({
       toast.error("비밀번호를 입력하세요");
       return;
     }
-    const hash = await hashPassword(deletePassword, targetUser.password_salt);
-    if (hash !== targetUser.password_hash) {
+    if (!(await verifyPassword(deletePassword, targetUser.password_salt, targetUser.password_hash))) {
       toast.error("비밀번호가 틀렸어요");
       return;
     }
@@ -429,8 +423,7 @@ export default function UserSwitcher({
         toast.error("비밀번호가 일치하지 않습니다");
         return;
       }
-      const salt = generateSalt();
-      const hash = await hashPassword(password, salt);
+      const { hash, salt } = await hashWithNewSalt(password);
       updates.password_hash = hash;
       updates.password_salt = salt;
     }
@@ -443,10 +436,9 @@ export default function UserSwitcher({
       } else {
         updates.recovery_question = recoveryQuestion.trim();
         if (recoveryAnswer.trim()) {
-          const rSalt = generateSalt();
-          const rHash = await hashPassword(recoveryAnswer.trim().toLowerCase(), rSalt);
-          updates.recovery_answer_hash = rHash;
-          updates.recovery_answer_salt = rSalt;
+          const r = await hashWithNewSalt(recoveryAnswer.trim().toLowerCase());
+          updates.recovery_answer_hash = r.hash;
+          updates.recovery_answer_salt = r.salt;
         }
       }
     }

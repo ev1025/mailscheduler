@@ -6,24 +6,10 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, XIcon } from "lucide-react"
-import { pushDialogEntry, popDialogEntry } from "@/lib/dialog-stack"
+import { useDialogStackEntry } from "@/lib/dialog-stack"
 
 function Dialog({ open, onOpenChange, ...props }: DialogPrimitive.Root.Props) {
-  const onOpenChangeRef = React.useRef(onOpenChange)
-  React.useEffect(() => {
-    onOpenChangeRef.current = onOpenChange
-  })
-
-  React.useEffect(() => {
-    if (!open || typeof window === "undefined") return
-    const id = pushDialogEntry(() => {
-      (onOpenChangeRef.current as ((o: boolean) => void) | undefined)?.(false)
-    })
-    return () => {
-      popDialogEntry(id)
-    }
-  }, [open])
-
+  useDialogStackEntry(open, onOpenChange as ((o: boolean) => void) | undefined)
   return <DialogPrimitive.Root data-slot="dialog" open={open} onOpenChange={onOpenChange} {...props} />
 }
 
