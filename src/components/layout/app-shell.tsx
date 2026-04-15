@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "./sidebar";
 import BottomNav from "./bottom-nav";
 import MobileHeader from "./mobile-header";
@@ -16,8 +16,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const currentId = useCurrentUserId();
-  const { users, loading } = useAppUsers();
+  const { users, loading, refetch } = useAppUsers();
   const [gateOpen, setGateOpen] = useState(false);
+  const refetchedFor = useRef<string | null>(null);
 
   useEffect(() => {
     setHydrated(true);
@@ -26,16 +27,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!hydrated || loading) return;
     if (!currentId) {
-      // 자동 로그인 없음 → 로그인 화면
       setGateOpen(true);
-    } else if (!users.find((u) => u.id === currentId)) {
-      // 저장된 ID가 삭제된 경우 초기화
-      setCurrentUserId(null);
-      setGateOpen(true);
-    } else {
-      setGateOpen(false);
+      return;
     }
-  }, [hydrated, loading, users, currentId]);
+    if (users.find((u) => u.id === currentId)) {
+      setGateOpen(false);
+      refetchedFor.current = null;
+      return;
+    }
+    // users에 없음 → 방금 가입/로그인한 사용자가 stale한 것일 수 있으니 한 번 재조회.
+    if (refetchedFor.current !== currentId) {
+      refetchedFor.current = currentId;
+      refetch();
+      return;
+    }
+    // 재조회했는데도 없으면 실제로 삭제된 ID → 로그아웃.
+    setCurrentUserId(null);
+    setGateOpen(true);
+  }, [hydrated, loading, users, currentId, refetch]);
 
   return (
     <div className="flex h-full min-h-dvh">
