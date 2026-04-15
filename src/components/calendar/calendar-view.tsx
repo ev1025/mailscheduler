@@ -88,16 +88,33 @@ function DraggableEvent({ event, dateStr, isStart, isEnd, spanDays, endLabel, on
         marginLeft: isStart ? 0 : "-2px",
         marginRight: isEnd ? 0 : "-2px",
         height: "14px",
+        width: "100%",
       }}
     >
       {isStart && (
         <div
-          className="absolute top-0 left-0 flex items-center justify-center h-[14px] text-[10px] leading-none text-white whitespace-nowrap overflow-hidden px-1 pointer-events-none"
-          style={{ width: `calc(${spanDays} * 100% + ${(spanDays - 1) * 2}px)` }}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: `calc(${spanDays} * 100% + ${(spanDays - 1) * 2}px)`,
+            height: "14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "white",
+            fontSize: "10px",
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+            padding: "0 4px",
+            pointerEvents: "none",
+            overflow: "hidden",
+            zIndex: 1,
+          }}
         >
-          <span className="truncate">
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
             {event.title}
-            {endLabel && <span className="opacity-80"> ({endLabel})</span>}
+            {endLabel && <span style={{ opacity: 0.8 }}> ({endLabel})</span>}
           </span>
         </div>
       )}
