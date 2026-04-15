@@ -35,6 +35,8 @@ import {
   Minus,
 } from "lucide-react";
 import { useRef } from "react";
+import { uploadToStorage } from "@/lib/storage";
+import { toast } from "sonner";
 
 interface Props {
   content: string;
@@ -80,33 +82,49 @@ function Toolbar({ editor }: { editor: Editor }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 15_000_000) {
-      alert("15MB 이하 이미지만 삽입할 수 있어요");
+      toast.error("15MB 이하 이미지만 삽입할 수 있어요");
       return;
     }
-    // 큰 이미지는 canvas로 1600px 내로 축소 + JPEG 0.85 품질로 압축
+    // 큰 이미지는 canvas로 1600px 내로 축소 + JPEG 0.85 품질로 압축,
+    // 이후 Supabase Storage에 업로드 후 public URL을 삽입 (base64 DB 폭증 방지).
     const img = document.createElement("img");
-    img.onload = () => {
-      const MAX = 1600;
-      let w = img.width;
-      let h = img.height;
-      if (w > MAX || h > MAX) {
-        if (w >= h) {
-          h = Math.round((h * MAX) / w);
-          w = MAX;
-        } else {
-          w = Math.round((w * MAX) / h);
-          h = MAX;
+    img.onload = async () => {
+      try {
+        const MAX = 1600;
+        let w = img.width;
+        let h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w >= h) {
+            h = Math.round((h * MAX) / w);
+            w = MAX;
+          } else {
+            w = Math.round((w * MAX) / h);
+            h = MAX;
+          }
         }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, w, h);
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, "image/jpeg", 0.85)
+        );
+        if (!blob) {
+          toast.error("이미지 변환 실패");
+          return;
+        }
+        const uploadFile = new File([blob], `note-${Date.now()}.jpg`, { type: "image/jpeg" });
+        const { url, error } = await uploadToStorage("knowledge-images", uploadFile, "jpg");
+        if (error || !url) {
+          toast.error(error || "이미지 업로드 실패");
+          return;
+        }
+        editor.chain().focus().setImage({ src: url }).run();
+      } finally {
+        URL.revokeObjectURL(img.src);
       }
-      const canvas = document.createElement("canvas");
-      canvas.width = w;
-      canvas.height = h;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.drawImage(img, 0, 0, w, h);
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-      editor.chain().focus().setImage({ src: dataUrl }).run();
-      URL.revokeObjectURL(img.src);
     };
     img.src = URL.createObjectURL(file);
     e.target.value = "";

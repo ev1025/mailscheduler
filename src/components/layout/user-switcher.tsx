@@ -32,6 +32,7 @@ import {
   supabaseSignOut,
   useSupabaseAuth,
 } from "@/lib/auth-supabase";
+import { uploadToStorage, deleteFromStorage } from "@/lib/storage";
 import { toast } from "sonner";
 
 const PALETTE = [
@@ -437,9 +438,20 @@ export default function UserSwitcher({ open, onOpenChange, allowClose = true }: 
         src={cropSrc}
         open={cropOpen}
         onOpenChange={setCropOpen}
-        onConfirm={(dataUrl) => {
-          setAvatarUrl(dataUrl);
+        onConfirm={async (dataUrl) => {
+          // 크롭된 결과를 Supabase Storage에 업로드하고 public URL 저장
+          const prevUrl = avatarUrl;
+          const { url, error } = await uploadToStorage("avatars", dataUrl, "jpg");
+          if (error || !url) {
+            toast.error(error || "이미지 업로드 실패");
+            return;
+          }
+          setAvatarUrl(url);
           setEmoji("");
+          // 기존 스토리지 이미지면 정리
+          if (prevUrl && prevUrl.includes("/storage/v1/object/public/avatars/")) {
+            deleteFromStorage("avatars", prevUrl);
+          }
         }}
       />
     </Dialog>

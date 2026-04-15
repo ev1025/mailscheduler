@@ -29,6 +29,7 @@ import KnowledgeTree from "@/components/knowledge/knowledge-tree";
 import RichEditor from "@/components/knowledge/rich-editor";
 import type { KnowledgeItem } from "@/types";
 import { toast } from "sonner";
+import { sanitizeRichHTML } from "@/lib/sanitize";
 
 // --- 임시저장 (localStorage) ---
 const DRAFTS_KEY = "knowledge_drafts";
@@ -190,7 +191,7 @@ function KnowledgePageInner() {
     if (!selectedItem) return;
     await updateItem(selectedItem.id, {
       title: editTitle,
-      content: editContent,
+      content: sanitizeRichHTML(editContent),
     });
     setDirty(false);
   };
