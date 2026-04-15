@@ -480,3 +480,16 @@ ALTER TABLE app_users ADD COLUMN IF NOT EXISTS login_id TEXT UNIQUE;
 ALTER TABLE app_users ADD COLUMN IF NOT EXISTS recovery_question TEXT;
 ALTER TABLE app_users ADD COLUMN IF NOT EXISTS recovery_answer_hash TEXT;
 ALTER TABLE app_users ADD COLUMN IF NOT EXISTS recovery_answer_salt TEXT;
+
+-- ============================================
+-- source: 2026-04-15 Supabase Auth migration (PR1 / step 1-2)
+-- ============================================
+-- 기존 app_users 프로필을 auth.users와 1:1로 연결하는 브릿지 컬럼.
+-- 이전 기간 동안은 NULL 허용. 1-5 단계에서 사용자가 이메일로 로그인하면
+-- 자동으로 기존 프로필에 auth_user_id가 연결됨.
+-- 1-7 단계에서 login_id/password_hash 경로 제거 후 NOT NULL로 승격 예정.
+ALTER TABLE app_users
+  ADD COLUMN IF NOT EXISTS auth_user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS app_users_auth_user_id_idx
+  ON app_users(auth_user_id);

@@ -6,7 +6,8 @@ import { supabase } from "@/lib/supabase";
 export interface AppUser {
   id: string;
   name: string;
-  login_id?: string | null; // 영문/숫자 로그인 ID (없으면 name으로 폴백)
+  login_id?: string | null; // 영문/숫자 로그인 ID (없으면 name으로 폴백) — 1-7에서 제거 예정
+  auth_user_id?: string | null; // Supabase auth.users와 연결되는 UUID
   color: string;
   emoji: string | null;
   avatar_url: string | null;
