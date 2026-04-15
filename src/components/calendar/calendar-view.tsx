@@ -111,12 +111,13 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, isLabel, onC
       }}
     >
       {isLabel ? (
-        /* 가운데 셀에서 라벨을 표시. 양옆으로 넘쳐 보여도 됨 (셀 overflow-visible). */
-        <span
-          className="whitespace-nowrap block text-center"
-          style={{ maxWidth: "none", overflow: "visible" }}
-        >
-          {event.title} <span className="opacity-80">({endLabel})</span>
+        /* 가운데 셀에서 라벨 표시 — 셀 중심 기준으로 양옆으로 자유롭게 넘쳐 나감 */
+        <span className="relative block h-[14px]">
+          <span
+            className="absolute left-1/2 top-0 -translate-x-1/2 whitespace-nowrap pointer-events-none"
+          >
+            {event.title} <span className="opacity-80">({endLabel})</span>
+          </span>
         </span>
       ) : (
         <span>&nbsp;</span>
@@ -138,7 +139,7 @@ function DroppableCell({ dateStr, children, isOver, onClick }: {
     <div
       ref={setNodeRef}
       onClick={onClick}
-      className={`flex flex-col items-start border-b border-r py-2 md:py-2.5 px-0 min-h-[100px] md:min-h-[128px] min-w-0 text-left transition-colors cursor-pointer relative ${
+      className={`flex flex-col items-start border-b border-r py-1 px-0 min-w-0 min-h-0 text-left transition-colors cursor-pointer relative ${
         isOver ? "bg-blue-50 ring-1 ring-blue-300 ring-inset" : "hover:bg-accent/50"
       }`}
     >
@@ -257,6 +258,8 @@ export default function CalendarView({
     }
   };
 
+  const rowCount = Math.ceil(days.length / 7);
+
   return (
     <DndContext
       sensors={sensors}
@@ -264,13 +267,13 @@ export default function CalendarView({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="min-w-0 w-full">
+      <div className="min-w-0 w-full flex flex-col" style={{ height: "calc(100dvh - 14rem)" }}>
         {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 border-b">
+        <div className="grid grid-cols-7 border-b shrink-0">
           {WEEKDAYS.map((day, i) => (
             <div
               key={day}
-              className={`py-2.5 text-center text-sm font-semibold ${
+              className={`py-2 text-center text-sm font-semibold ${
                 i === 0 ? "text-red-500" : i === 6 ? "text-blue-500" : "text-muted-foreground"
               }`}
             >
@@ -279,8 +282,11 @@ export default function CalendarView({
           ))}
         </div>
 
-        {/* 날짜 그리드 — 7n번째 셀은 border-r 제거해 좌우 두께 균형 */}
-        <div className="grid grid-cols-7 [&>*:nth-child(7n)]:border-r-0">
+        {/* 날짜 그리드 — 뷰포트 남은 공간에 맞춰 flex-1, 행 수에 따라 자동 분할 */}
+        <div
+          className="grid grid-cols-7 [&>*:nth-child(7n)]:border-r-0 flex-1 min-h-0"
+          style={{ gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))` }}
+        >
           {days.map((day) => {
             const dateStr = format(day, "yyyy-MM-dd");
             const bars = getBarsForDate(day);

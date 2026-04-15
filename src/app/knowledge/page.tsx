@@ -281,7 +281,7 @@ function KnowledgePageInner() {
     <div className="flex items-center gap-2">
       {autoSavedAt && (
         <span
-          className="hidden sm:inline text-xs text-muted-foreground"
+          className="text-[11px] text-muted-foreground whitespace-nowrap"
           title="10초 이상 입력이 없으면 자동으로 임시저장됩니다"
         >
           자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
@@ -497,12 +497,6 @@ function KnowledgePageInner() {
                 />
               </div>
 
-              {/* 모바일: 자동저장 표시만 (버튼들은 PageHeader로 이동) */}
-              {autoSavedAt && (
-                <div className="sm:hidden px-3 pb-2 text-xs text-muted-foreground">
-                  자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-                </div>
-              )}
             </div>
             <div className="flex-1 overflow-hidden">
               <RichEditor
