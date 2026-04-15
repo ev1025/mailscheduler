@@ -169,7 +169,7 @@ export default function TagInput({
                     {onDeleteTag && (
                       <button
                         type="button"
-                        className="opacity-0 group-hover/item:opacity-100 text-muted-foreground hover:text-destructive transition-opacity p-0.5"
+                        className="text-muted-foreground/60 hover:text-destructive transition-colors p-0.5"
                         onClick={(e) => {
                           e.stopPropagation();
                           onDeleteTag(t.id);

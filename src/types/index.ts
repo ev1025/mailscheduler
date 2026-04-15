@@ -52,14 +52,8 @@ export interface Memo {
 }
 
 // --- Products (생필품: 영양제 포함 통합) ---
-export type ProductCategory =
-  | "영양제"
-  | "화장품"
-  | "단백질"
-  | "음식"
-  | "생필품"
-  | "구독"
-  | "기타";
+// 사용자가 임의 추가 가능 → 기본값은 '영양제/화장품/단백질/음식/생필품/구독/기타'.
+export type ProductCategory = string;
 
 export interface Product {
   id: string;

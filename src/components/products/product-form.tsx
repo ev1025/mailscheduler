@@ -11,12 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
 import { Trash2, HelpCircle, Crown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
@@ -50,7 +44,12 @@ export default function ProductForm({
 }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ProductCategory>("영양제");
-  const { categories: midCategories, addCategory: addMidCategory } = useProductCategories();
+  const {
+    tags: categoryTags,
+    addCategory: addMidCategory,
+    deleteCategory: deleteMidCategory,
+    updateCategoryColor: updateMidCategoryColor,
+  } = useProductCategories();
   const [subCategory, setSubCategory] = useState("");
   const [brand, setBrand] = useState("");
   const [notes, setNotes] = useState("");
@@ -239,36 +238,17 @@ export default function ProductForm({
 
           {/* 분류 / 세부분류 / 브랜드 한 행 */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-[11px] text-muted-foreground">분류</Label>
-                <button
-                  type="button"
-                  className="text-[10px] text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    const name = prompt("새 분류 이름")?.trim();
-                    if (!name) return;
-                    addMidCategory(name);
-                    setCategory(name as ProductCategory);
-                  }}
-                  title="새 분류 추가"
-                >
-                  + 추가
-                </button>
-              </div>
-              <Select
-                value={category}
-                onValueChange={(v) => v && setCategory(v as ProductCategory)}
-              >
-                <SelectTrigger className="h-9 w-full text-xs">{category}</SelectTrigger>
-                <SelectContent>
-                  {midCategories.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-col gap-1 min-w-0">
+              <Label className="text-[11px] text-muted-foreground">분류</Label>
+              <TagInput
+                selectedTags={category ? [category] : []}
+                allTags={categoryTags}
+                onChange={(tags) => setCategory((tags[tags.length - 1] || "") as ProductCategory)}
+                onAddTag={addMidCategory}
+                onDeleteTag={deleteMidCategory}
+                onUpdateTagColor={updateMidCategoryColor}
+                placeholder="검색/추가"
+              />
             </div>
             <div className="flex flex-col gap-1 min-w-0">
               <Label className="text-[11px] text-muted-foreground">세부분류</Label>
