@@ -85,9 +85,9 @@ function DraggableEvent({ event, dateStr, isStart, isEnd, spanDays, endLabel, on
         borderBottomLeftRadius: isStart ? "3px" : 0,
         borderTopRightRadius: isEnd ? "3px" : 0,
         borderBottomRightRadius: isEnd ? "3px" : 0,
-        // 셀 경계의 border-r를 확실히 덮도록 bleed 확대
-        marginLeft: isStart ? 0 : "-4px",
-        marginRight: isEnd ? 0 : "-4px",
+        // 셀 경계의 border-r(1px)를 덮기 위한 bleed
+        marginLeft: isStart ? 0 : "-2px",
+        marginRight: isEnd ? 0 : "-2px",
         height: "14px",
         width: "100%",
       }}
@@ -98,9 +98,9 @@ function DraggableEvent({ event, dateStr, isStart, isEnd, spanDays, endLabel, on
             position: "absolute",
             top: 0,
             left: 0,
-            // spanDays 전체 셀 너비만큼 오버레이 — 이벤트 색상 배경으로
-            // 셀 경계를 완전히 덮어 흰 선이 보이지 않게 함
-            width: `calc(${spanDays} * 100% + ${(spanDays - 1) * 8}px)`,
+            // 오버레이 너비: spanDays × 셀 content-box + 각 셀 경계 border(1px)
+            // (content-box가 cell 너비에서 border 1px만큼 짧아진 것을 보정)
+            width: `calc(${spanDays} * 100% + ${spanDays - 1}px)`,
             height: "14px",
             display: "flex",
             alignItems: "center",
