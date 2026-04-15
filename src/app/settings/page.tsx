@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, ArrowLeft, MapPin, Search } from "lucide-react";
+import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, MapPin, Search } from "lucide-react";
+import PageHeader from "@/components/layout/page-header";
 import {
   useWeatherLocation,
   setWeatherLocation,
@@ -93,18 +94,9 @@ export default function SettingsPage() {
   const daysLeft = Math.ceil((new Date(kmaExpiry).getTime() - Date.now()) / 86400000);
 
   return (
+    <>
+      <PageHeader title="설정" showBack />
     <div className="p-4 md:p-6 max-w-2xl">
-      <div className="flex items-center gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent"
-          aria-label="뒤로"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
-        <h2 className="text-xl font-bold">설정</h2>
-      </div>
 
       {/* 탭 */}
       <div className="flex border-b mb-6">
@@ -342,5 +334,6 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

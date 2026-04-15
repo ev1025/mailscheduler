@@ -7,7 +7,7 @@ import { useMemos } from "@/hooks/use-memos";
 import MemoCard from "@/components/memo/memo-card";
 import MemoForm from "@/components/memo/memo-form";
 import type { Memo } from "@/types";
-import MobileBell from "@/components/layout/mobile-bell";
+import PageHeader from "@/components/layout/page-header";
 
 export default function MemoPage() {
   const { memos, loading, addMemo, updateMemo, deleteMemo, togglePin } =
@@ -37,22 +37,24 @@ export default function MemoPage() {
   };
 
   return (
+    <>
+      <PageHeader
+        title="메모"
+        actions={
+          <button
+            type="button"
+            onClick={() => {
+              setEditingMemo(null);
+              setFormOpen(true);
+            }}
+            aria-label="새 메모"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+          >
+            <Plus className="h-[22px] w-[22px]" strokeWidth={1.8} />
+          </button>
+        }
+      />
     <div className="p-4 md:p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-2xl font-bold">메모</h2>
-        <MobileBell />
-      </div>
-      <div className="mb-6 flex items-center justify-end">
-        <Button
-          onClick={() => {
-            setEditingMemo(null);
-            setFormOpen(true);
-          }}
-        >
-          <Plus className="mr-1 h-4 w-4" />
-          새 메모
-        </Button>
-      </div>
 
       {loading ? (
         <p className="text-muted-foreground">불러오는 중...</p>
@@ -84,5 +86,6 @@ export default function MemoPage() {
         onSave={handleSave}
       />
     </div>
+    </>
   );
 }

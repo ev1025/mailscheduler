@@ -9,7 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import MonthPicker from "@/components/layout/month-picker";
-import MobileBell from "@/components/layout/mobile-bell";
+import PageHeader from "@/components/layout/page-header";
 import DatePicker from "@/components/ui/date-picker";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
@@ -97,12 +97,11 @@ export default function FinancePage() {
   };
 
   return (
+    <>
+      <PageHeader title="가계부" />
     <div className="p-4 md:p-6">
-      {/* 상단: MonthPicker + 알림 벨 */}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="w-10 md:hidden" />
+      <div className="mb-3 flex justify-center">
         <MonthPicker year={year} month={month} onYearChange={handleYearChange} onMonthChange={handleMonthChange} />
-        <MobileBell />
       </div>
 
       {/* 버튼 행: 오른쪽 정렬 */}
@@ -191,5 +190,6 @@ export default function FinancePage() {
       />
       <FixedExpenseManager open={fixedOpen} onOpenChange={setFixedOpen} fixedExpenses={fixedExpenses} categories={categories} onAdd={addFixed} onUpdate={updateFixed} onDelete={deleteFixed} />
     </div>
+    </>
   );
 }

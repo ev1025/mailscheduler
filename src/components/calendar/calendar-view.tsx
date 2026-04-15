@@ -94,24 +94,21 @@ function DraggableEvent({ event, dateStr, isSingle, isStart, isEnd, onClickDate 
       {...listeners}
       {...attributes}
       onClick={handleClick}
-      className={`text-xs leading-tight text-white px-1 py-[1px] cursor-grab active:cursor-grabbing overflow-hidden ${isDragging ? "opacity-30" : ""}`}
+      className={`text-[10px] leading-tight text-white px-1 py-[1px] cursor-grab active:cursor-grabbing ${isDragging ? "opacity-30" : ""}`}
       style={{
         backgroundColor: event.color,
         borderTopLeftRadius: isStart ? "3px" : 0,
         borderBottomLeftRadius: isStart ? "3px" : 0,
         borderTopRightRadius: isEnd ? "3px" : 0,
         borderBottomRightRadius: isEnd ? "3px" : 0,
-        marginLeft: isStart ? 0 : "-4px",
-        marginRight: isEnd ? 0 : "-4px",
         minHeight: "14px",
       }}
     >
       {isStart ? (
         <span className="truncate block whitespace-nowrap">
-          {event.title} <span className="opacity-80">{endLabel}</span>
+          {event.title} <span className="opacity-80">({endLabel})</span>
         </span>
       ) : (
-        /* 연속 배경 유지용 빈 공간 */
         <span>&nbsp;</span>
       )}
     </div>
@@ -131,7 +128,7 @@ function DroppableCell({ dateStr, children, isOver, onClick }: {
     <div
       ref={setNodeRef}
       onClick={onClick}
-      className={`flex flex-col items-start border-b border-r p-0.5 md:p-1 min-h-[86px] md:min-h-[100px] min-w-0 text-left transition-colors cursor-pointer overflow-hidden ${
+      className={`flex flex-col items-start border-b border-r py-0.5 md:py-1 px-0 min-h-[86px] md:min-h-[100px] min-w-0 text-left transition-colors cursor-pointer relative ${
         isOver ? "bg-blue-50 ring-1 ring-blue-300 ring-inset" : "hover:bg-accent/50"
       }`}
     >
@@ -303,8 +300,8 @@ export default function CalendarView({
                   </span>
                 )}
 
-                {/* 이벤트 바 (드래그 가능) */}
-                <div className="mt-0.5 flex flex-col gap-[2px] w-full overflow-hidden">
+                {/* 이벤트 바 (드래그 가능) — 수평 bleed 허용, 수직만 클립 */}
+                <div className="mt-0.5 flex flex-col gap-[2px] w-full" style={{ maxHeight: 58 }}>
                   {bars.slice(0, 3).map((bar) => (
                     <DraggableEvent
                       key={bar.event.id + dateStr}

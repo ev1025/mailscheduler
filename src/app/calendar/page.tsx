@@ -8,7 +8,7 @@ import {
   Plane,
 } from "lucide-react";
 import MonthPicker from "@/components/layout/month-picker";
-import MobileBell from "@/components/layout/mobile-bell";
+import PageHeader from "@/components/layout/page-header";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useWeather } from "@/hooks/use-weather";
 import { useEventTags } from "@/hooks/use-event-tags";
@@ -158,12 +158,9 @@ function CalendarPageInner() {
   };
 
   return (
+    <>
+      <PageHeader title="캘린더" />
     <div className="px-2 py-4 md:p-6 overflow-x-hidden">
-      {/* 상단: 알림 벨만 (MonthPicker는 탭 아래로 이동) */}
-      <div className="mb-3 flex items-center justify-end">
-        <MobileBell />
-      </div>
-
       {/* 탭: 달력 / 일정목록 / 여행 */}
       <div className="mb-3 flex border-b">
         <button
@@ -343,5 +340,6 @@ function CalendarPageInner() {
       />
 
     </div>
+    </>
   );
 }

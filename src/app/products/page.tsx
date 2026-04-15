@@ -34,7 +34,7 @@ import { useProducts } from "@/hooks/use-products";
 import { useProductCategories } from "@/hooks/use-product-categories";
 import ProductForm from "@/components/products/product-form";
 import type { Product } from "@/types";
-import MobileBell from "@/components/layout/mobile-bell";
+import PageHeader from "@/components/layout/page-header";
 
 const CATEGORY_COLORS: Record<string, string> = {
   영양제: "#22C55E",
@@ -295,11 +295,9 @@ function ProductsPageInner() {
   };
 
   return (
+    <>
+      <PageHeader title="생필품 비교" />
     <div className="p-4 md:p-6">
-      <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-2xl font-bold">생필품 비교</h2>
-        <MobileBell />
-      </div>
 
       <div className="mb-4 flex flex-col gap-3">
         <div className="flex items-center gap-2">
@@ -506,5 +504,6 @@ function ProductsPageInner() {
         onSave={handleSave}
       />
     </div>
+    </>
   );
 }

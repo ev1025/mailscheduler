@@ -30,7 +30,7 @@ import RichEditor from "@/components/knowledge/rich-editor";
 import type { KnowledgeItem } from "@/types";
 import { toast } from "sonner";
 import { sanitizeRichHTML } from "@/lib/sanitize";
-import MobileBell from "@/components/layout/mobile-bell";
+import PageHeader from "@/components/layout/page-header";
 import PromptDialog from "@/components/ui/prompt-dialog";
 
 // --- 임시저장 (localStorage) ---
@@ -277,7 +277,33 @@ function KnowledgePageInner() {
   const showingSearch = search.trim().length > 0;
 
   return (
-    <div className="flex h-[calc(100dvh-3.5rem)] md:h-dvh">
+    <>
+      <PageHeader
+        title="지식창고"
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => handleAddFolder(null)}
+              aria-label="폴더 추가"
+              title="폴더 추가"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+            >
+              <Folder className="h-[20px] w-[20px]" strokeWidth={1.6} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAddItem(null)}
+              aria-label="새 노트"
+              title="새 노트"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+            >
+              <FileText className="h-[20px] w-[20px]" strokeWidth={1.6} />
+            </button>
+          </>
+        }
+      />
+    <div className="flex h-[calc(100dvh-3.5rem-3.5rem)] md:h-[calc(100dvh-3.5rem)]">
       {/* 왼쪽: 트리 */}
       <aside
         className={`${
@@ -285,30 +311,6 @@ function KnowledgePageInner() {
         } flex-col w-full md:w-64 border-r overflow-hidden`}
       >
         <div className="p-3 border-b flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold">지식창고</h2>
-            <MobileBell />
-          </div>
-          <div className="flex items-center gap-1 justify-end">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleAddFolder(null)}
-              className="h-9 px-2 text-sm"
-              title="최상위 폴더 추가"
-            >
-              <Folder className="h-4 w-4 mr-1" />+
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleAddItem(null)}
-              className="h-9 px-2 text-sm"
-              title="노트 추가"
-            >
-              <FileText className="h-4 w-4 mr-1" />+
-            </Button>
-          </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -545,5 +547,6 @@ function KnowledgePageInner() {
         }}
       />
     </div>
+    </>
   );
 }

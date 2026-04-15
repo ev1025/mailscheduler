@@ -20,7 +20,7 @@ import { useAppUsers, useCurrentUser } from "@/lib/current-user";
 import { uploadToStorage, deleteFromStorage } from "@/lib/storage";
 import AvatarCropDialog from "@/components/layout/avatar-crop-dialog";
 import ShareManager from "@/components/calendar/share-manager";
-import MobileBell from "@/components/layout/mobile-bell";
+import PageHeader from "@/components/layout/page-header";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
 
 const DEFAULT_COLOR = "#3B82F6";
@@ -127,18 +127,9 @@ export default function ProfilePage() {
   }
 
   return (
+    <>
+      <PageHeader title="내 프로필" showBack />
     <div className="p-4 md:p-6 max-w-xl mx-auto">
-      <div className="flex items-center gap-2 mb-5">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent"
-          aria-label="뒤로"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <h1 className="text-xl font-bold">내 프로필</h1>
-      </div>
 
       <div className="flex flex-col gap-4">
         {/* 이메일 (읽기 전용) */}
@@ -324,5 +315,6 @@ export default function ProfilePage() {
 
       <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
     </div>
+    </>
   );
 }
