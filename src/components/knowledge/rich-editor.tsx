@@ -9,8 +9,6 @@ import { TextStyle, Color } from "@tiptap/extension-text-style";
 import Underline from "@tiptap/extension-underline";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import GlobalDragHandle from "tiptap-extension-global-drag-handle";
-import AutoJoiner from "tiptap-extension-auto-joiner";
 import {
   Bold,
   Italic,
@@ -370,11 +368,6 @@ export default function RichEditor({ content, onChange, placeholder }: Props) {
       Placeholder.configure({
         placeholder: placeholder || "내용을 입력하세요...",
       }),
-      GlobalDragHandle.configure({
-        dragHandleWidth: 20,
-        scrollTreshold: 100,
-      }),
-      AutoJoiner,
     ],
     content,
     onUpdate: ({ editor }) => {

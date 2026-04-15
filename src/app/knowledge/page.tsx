@@ -476,8 +476,8 @@ function KnowledgePageInner() {
         {selectedItem ? (
           <>
             <div className="border-b flex flex-col shrink-0">
-              {/* 1행: 뒤로 + 제목 + 저장 액션 */}
-              <div className="flex items-center gap-1.5 px-2 md:px-3 h-12">
+              {/* 1행: 뒤로 + 자동저장 안내 + 저장 액션 */}
+              <div className="flex items-center gap-1.5 px-2 md:px-3 h-11">
                 <button
                   type="button"
                   onClick={() => setMobileSidebar(true)}
@@ -487,15 +487,12 @@ function KnowledgePageInner() {
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
-                <Input
-                  value={editTitle}
-                  onChange={(e) => {
-                    setEditTitle(e.target.value);
-                    setDirty(true);
-                  }}
-                  className="flex-1 h-9 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
-                  placeholder="새 노트 제목..."
-                />
+                {autoSavedAt && (
+                  <span className="text-[11px] text-muted-foreground truncate">
+                    자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                )}
+                <div className="flex-1" />
                 <div className="flex items-center gap-1 shrink-0">
                   {draftsPopover}
                   <Button size="sm" variant="outline" onClick={handleSaveDraft} className="h-8 text-xs px-2.5">
@@ -506,12 +503,18 @@ function KnowledgePageInner() {
                   </Button>
                 </div>
               </div>
-              {/* 2행: 자동저장 안내 (왼쪽 정렬) */}
-              {autoSavedAt && (
-                <div className="px-3 pb-1.5 text-[11px] text-muted-foreground">
-                  자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-                </div>
-              )}
+              {/* 2행: 제목 입력창 */}
+              <div className="px-2 md:px-3 pb-2">
+                <Input
+                  value={editTitle}
+                  onChange={(e) => {
+                    setEditTitle(e.target.value);
+                    setDirty(true);
+                  }}
+                  className="w-full h-9 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
+                  placeholder="새 노트 제목..."
+                />
+              </div>
             </div>
             <div className="flex-1 overflow-hidden">
               <RichEditor
