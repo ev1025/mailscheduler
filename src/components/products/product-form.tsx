@@ -238,7 +238,7 @@ export default function ProductForm({
 
           {/* 분류 / 세부분류 / 브랜드 한 행 */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex flex-col gap-1.5 min-w-0">
               <Label className="text-xs text-muted-foreground">분류</Label>
               <TagInput
                 selectedTags={category ? [category] : []}
@@ -250,7 +250,7 @@ export default function ProductForm({
                 placeholder="검색/추가"
               />
             </div>
-            <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex flex-col gap-1.5 min-w-0">
               <Label className="text-xs text-muted-foreground">세부분류</Label>
               <TagInput
                 selectedTags={subCategory ? [subCategory] : []}
@@ -262,7 +262,7 @@ export default function ProductForm({
                 placeholder="검색/추가"
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <Label className="text-xs text-muted-foreground">브랜드</Label>
               <Input
                 value={brand}
@@ -397,7 +397,7 @@ export default function ProductForm({
             </span>
           </label>
 
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">
               성분/메모
             </Label>

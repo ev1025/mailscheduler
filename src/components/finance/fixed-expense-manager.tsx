@@ -113,7 +113,7 @@ export default function FixedExpenseManager({
               등록된 고정비가 없습니다
             </p>
           ) : (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               {fixedExpenses.map((fx) => {
                 const isEditing = editingId === fx.id;
                 return (
@@ -191,7 +191,7 @@ export default function FixedExpenseManager({
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5">
                   <Label className="text-xs">금액 *</Label>
                   <Input
                     type="number"
@@ -202,7 +202,7 @@ export default function FixedExpenseManager({
                     className="h-8"
                   />
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-1.5">
                   <Label className="text-xs">매월 결제일</Label>
                   <Input
                     type="number"
@@ -214,7 +214,7 @@ export default function FixedExpenseManager({
                   />
                 </div>
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5">
                 <Label className="text-xs">카테고리 *</Label>
                 <Select
                   value={categoryId}
@@ -236,7 +236,7 @@ export default function FixedExpenseManager({
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5">
                 <Label className="text-xs">설명</Label>
                 <Input
                   value={description}

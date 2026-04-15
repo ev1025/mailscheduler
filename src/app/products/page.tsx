@@ -77,7 +77,7 @@ function ProductRow({
       className="border-t hover:bg-accent/40 cursor-pointer group"
       onClick={() => onEdit(p)}
     >
-      <td className="text-center px-1 py-2 whitespace-nowrap w-6">
+      <td className="text-center px-1 py-3 whitespace-nowrap w-6">
         <button
           type="button"
           {...attributes}
@@ -88,7 +88,7 @@ function ProductRow({
           <GripVertical className="h-3 w-3" />
         </button>
       </td>
-      <td className="text-center px-2 py-2 whitespace-nowrap w-10">
+      <td className="text-center px-2 py-3 whitespace-nowrap w-10">
         <span
           className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${
             idx === 0
@@ -103,23 +103,23 @@ function ProductRow({
           {idx + 1}
         </span>
       </td>
-      <td className="px-2 py-2 w-auto">
+      <td className="px-2 py-3 w-auto">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-medium break-words">{p.name}</span>
+          <span className="font-medium text-sm break-words">{p.name}</span>
           {idx === 0 && stat?.minPrice && (
             <Crown className="h-3 w-3 text-yellow-500 shrink-0" />
           )}
         </div>
       </td>
-      <td className="px-2 py-2 text-muted-foreground hidden sm:table-cell whitespace-nowrap">
+      <td className="px-2 py-3 text-muted-foreground hidden sm:table-cell whitespace-nowrap">
         {p.brand || "-"}
       </td>
-      <td className="px-2 py-2 text-right whitespace-nowrap font-semibold">
+      <td className="px-2 py-3 text-right whitespace-nowrap font-semibold">
         {stat?.minPrice
           ? `₩${stat.minPrice.toLocaleString()}`
           : "-"}
       </td>
-      <td className="px-1 py-2 w-8">
+      <td className="px-1 py-3 w-8">
         <button
           type="button"
           className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity"
@@ -402,7 +402,7 @@ function ProductsPageInner() {
                       <button
                         type="button"
                         onClick={() => toggleGroup(groupKey)}
-                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent/50 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-3 hover:bg-accent/50 transition-colors"
                       >
                         {expanded ? (
                           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -436,16 +436,16 @@ function ProductsPageInner() {
                               <thead className="bg-muted/30 text-muted-foreground">
                                 <tr>
                                   <th></th>
-                                  <th className="text-center px-2 py-2 font-medium">
+                                  <th className="text-center px-2 py-3 font-medium">
                                     순위
                                   </th>
-                                  <th className="text-left px-2 py-2 font-medium">
+                                  <th className="text-left px-2 py-3 font-medium">
                                     제품
                                   </th>
-                                  <th className="text-left px-2 py-2 font-medium hidden sm:table-cell whitespace-nowrap">
+                                  <th className="text-left px-2 py-3 font-medium hidden sm:table-cell whitespace-nowrap">
                                     브랜드
                                   </th>
-                                  <th className="text-right px-2 py-2 font-medium whitespace-nowrap">
+                                  <th className="text-right px-2 py-3 font-medium whitespace-nowrap">
                                     가격
                                   </th>
                                   <th></th>

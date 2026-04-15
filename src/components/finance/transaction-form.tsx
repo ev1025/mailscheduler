@@ -101,7 +101,7 @@ export default function TransactionForm({
             {transaction ? "내역 수정" : "내역 추가"}
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Tabs
             value={type}
             onValueChange={(v) => {
@@ -121,7 +121,7 @@ export default function TransactionForm({
 
           {/* 1행: 금액 | 날짜 */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex flex-col gap-1.5 min-w-0">
               <Label
                 htmlFor="amount"
                 className="text-xs text-muted-foreground"
@@ -139,7 +139,7 @@ export default function TransactionForm({
                 className="h-9"
               />
             </div>
-            <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex flex-col gap-1.5 min-w-0">
               <Label
                 htmlFor="date"
                 className="text-xs text-muted-foreground"
@@ -158,7 +158,7 @@ export default function TransactionForm({
 
           {/* 2행: 카테고리 | 결제수단 (태그 형식) */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex flex-col gap-1.5 min-w-0">
               <Label className="text-xs text-muted-foreground">
                 카테고리 *
               </Label>
@@ -188,7 +188,7 @@ export default function TransactionForm({
                 placeholder="검색/추가"
               />
             </div>
-            <div className="flex flex-col gap-1 min-w-0">
+            <div className="flex flex-col gap-1.5 min-w-0">
               <Label className="text-xs text-muted-foreground">
                 결제수단
               </Label>

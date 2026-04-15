@@ -135,7 +135,7 @@ export default function TravelForm({
 
           {/* 시기 / 지역 / 가봄 */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <Label className="text-xs text-muted-foreground">시기</Label>
               <Select
                 value={month != null ? String(month) : "none"}
@@ -152,7 +152,7 @@ export default function TravelForm({
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <Label className="text-xs text-muted-foreground">지역</Label>
               <Input
                 value={region}
@@ -161,7 +161,7 @@ export default function TravelForm({
                 className="h-8 w-full"
               />
             </div>
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1.5">
               <Label className="text-xs text-muted-foreground invisible">.</Label>
               <div className="h-8 flex items-center justify-center gap-2">
                 <button
