@@ -415,7 +415,7 @@ export default function CalendarView({
                     >
                       {/* 헤더: 날짜 + 날씨 — flex-none, 자체 layout */}
                       <div
-                        className={`flex shrink-0 items-start justify-between gap-1 overflow-hidden pl-1 pr-[7px] pt-1 md:pl-1.5 md:pr-2 ${
+                        className={`flex shrink-0 items-start justify-between gap-1 overflow-hidden pl-1 pr-[13px] pt-1 md:pl-1.5 md:pr-2 ${
                           !inMonth ? "opacity-30" : ""
                         }`}
                       >
