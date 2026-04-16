@@ -10,7 +10,6 @@ import {
   isToday,
   isSameMonth,
   isSameDay,
-  isWithinInterval,
   parseISO,
   differenceInDays,
 } from "date-fns";
@@ -25,7 +24,7 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import type { CalendarEvent, WeatherData } from "@/types";
 import WeatherIcon from "./weather-icon";
 import { getHolidayMap } from "@/lib/holidays";
@@ -150,6 +149,25 @@ export default function CalendarView({
   const [overDate, setOverDate] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
+  // 셀 높이 기반 동적 슬롯 수 — ResizeObserver로 주 행 높이 추적
+  const rowRef = useRef<HTMLDivElement>(null);
+  const [dynamicMax, setDynamicMax] = useState(MAX_VISIBLE_SLOTS);
+  useEffect(() => {
+    const el = rowRef.current;
+    if (!el) return;
+    const calc = () => {
+      const h = el.getBoundingClientRect().height;
+      // 사용 가능 높이 = 행 높이 - 헤더 영역(~36px) - +N 표시(~14px)
+      const available = h - 36 - 14;
+      const fits = Math.max(0, Math.min(MAX_VISIBLE_SLOTS, Math.floor(available / BAR_STEP)));
+      setDynamicMax(fits);
+    };
+    calc();
+    const ro = new ResizeObserver(calc);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const weeks = useMemo(() => {
     const r: Date[][] = [];
     for (let i = 0; i < days.length; i += 7) r.push(days.slice(i, i + 7));
@@ -198,17 +216,17 @@ export default function CalendarView({
     });
   }, [weeks, events]);
 
-  /* 셀당 숨겨진 이벤트 수 */
+  /* 셀당 숨겨진 이벤트 수 — dynamicMax 기준 */
   const weekHidden = useMemo(() => {
     return weekSegs.map((segs) => {
       const per = new Array(7).fill(0) as number[];
       for (const s of segs) {
-        if (s.slot < MAX_VISIBLE_SLOTS) continue;
+        if (s.slot < dynamicMax) continue;
         for (let c = s.startCol; c < s.startCol + s.spanDays && c < 7; c++) per[c]++;
       }
       return per;
     });
-  }, [weekSegs]);
+  }, [weekSegs, dynamicMax]);
 
   const handleDragStart = (e: DragStartEvent) => setActiveEvent(e.active.data.current?.event || null);
   const handleDragOver = (e: { over: { id: string | number } | null }) => setOverDate(e.over ? String(e.over.id) : null);
@@ -248,7 +266,7 @@ export default function CalendarView({
             const segs = weekSegs[wi];
             const hidden = weekHidden[wi];
             return (
-              <div key={wi} className="relative grid min-h-0 flex-1 grid-cols-7 overflow-hidden [&>*:nth-child(7)]:border-r-0">
+              <div key={wi} ref={wi === 0 ? rowRef : undefined} className="relative grid min-h-0 flex-1 grid-cols-7 overflow-hidden [&>*:nth-child(7)]:border-r-0">
                 {/* ── 셀 레이어: 날짜·날씨·공휴일·+N ── */}
                 {week.map((day, di) => {
                   const ds = format(day, "yyyy-MM-dd");
@@ -290,7 +308,7 @@ export default function CalendarView({
                   style={{ gridAutoRows: 0 }}
                 >
                   {segs
-                    .filter((s) => s.slot < MAX_VISIBLE_SLOTS)
+                    .filter((s) => s.slot < dynamicMax)
                     .map((seg) => (
                       <DraggableBar key={seg.event.id + "-" + wi} seg={seg} onClickDate={onDateClick} />
                     ))}
