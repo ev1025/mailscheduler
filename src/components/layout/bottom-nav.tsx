@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/lib/current-user";
 
 const navItems = [
-  { href: "/finance", label: "가계부", icon: Wallet, also: ["/products"] },
   { href: "/calendar", label: "캘린더", icon: Calendar },
-  { href: "/memo", label: "메모", icon: StickyNote },
+  { href: "/finance", label: "가계부", icon: Wallet, also: ["/products"] },
   { href: "/knowledge", label: "지식", icon: BookOpen },
+  { href: "/memo", label: "메모", icon: StickyNote },
 ];
 
 export default function BottomNav() {
