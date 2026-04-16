@@ -123,27 +123,22 @@ function EventBarSegment({
         marginRight: isRightEdge ? 0 : -CELL_BLEED_PX,
       }}
     >
-      {/* 제목은 실제 이벤트 시작 셀 혹은 주 경계의 첫 셀에만 표시 (ellipsis) */}
-      {isEventStart || (isLeftEdge && !isEventStart) ? (
+      {/* 라벨: 시작 셀에서 absolute로 span 전체 너비를 덮고 text-center */}
+      {(isEventStart || (isLeftEdge && !isEventStart)) && spanDaysInWeek > 0 && (
         <span
-          className="truncate px-1 font-medium"
+          className="pointer-events-none absolute left-0 top-0 flex items-center justify-center truncate px-1"
           style={{
             fontSize: "10px",
-            lineHeight: `${BAR_HEIGHT_PX}px`,
-            // 이 주 내 전체 span만큼의 폭으로 보이도록 오른쪽으로 확장
-            // (옆 셀의 bleed에 걸리므로 자연스럽게 이어져 보임)
+            height: `${BAR_HEIGHT_PX}px`,
             width: spanDaysInWeek > 1 ? `calc(${spanDaysInWeek} * 100%)` : "100%",
+            zIndex: 1,
           }}
         >
           {event.title}
           {endLabel && (
-            <span className="opacity-80" style={{ marginLeft: 2 }}>
-              ({endLabel})
-            </span>
+            <span className="ml-0.5 opacity-80">({endLabel})</span>
           )}
         </span>
-      ) : (
-        <span>&nbsp;</span>
       )}
     </div>
   );
@@ -444,7 +439,7 @@ export default function CalendarView({
 
                       {/* 이벤트 슬롯 — flex-col로 고정 높이 슬롯 3개, overflow:hidden으로 넘침 방지 */}
                       <div
-                        className="mt-0.5 flex min-h-0 flex-col overflow-hidden"
+                        className="mt-0.5 flex min-h-0 flex-col"
                         style={{ gap: `${BAR_GAP_PX}px` }}
                       >
                         {cellData.slots.map((slot, i) => {
