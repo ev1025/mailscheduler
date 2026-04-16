@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { Suspense, useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
@@ -105,28 +105,6 @@ function KnowledgePageInner() {
 
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
-  const [mobileSidebar, setMobileSidebar] = useState(!urlItemId); // 노트 URL이면 닫힌 상태
-
-  // 모바일 왼쪽 스와이프 → 사이드바 열기
-  const touchRef = useRef<{ sx: number; sy: number } | null>(null);
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const t = e.touches[0];
-    // 왼쪽 가장자리 30px 이내에서 시작한 터치만 처리
-    if (t.clientX < 30) {
-      touchRef.current = { sx: t.clientX, sy: t.clientY };
-    }
-  }, []);
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (!touchRef.current) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchRef.current.sx;
-    const dy = t.clientY - touchRef.current.sy;
-    touchRef.current = null;
-    // 오른쪽으로 50px 이상 + 세로 이동보다 큰 경우에만 → 사이드바 열기
-    if (dx > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      setMobileSidebar(true);
-    }
-  }, []);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [folderPromptOpen, setFolderPromptOpen] = useState(false);
@@ -227,7 +205,6 @@ function KnowledgePageInner() {
       setSelectedItemId(data.id);
       setViewFolderId(null);
       setEditing(true);
-      setMobileSidebar(false);
     }
   };
 
@@ -325,9 +302,7 @@ function KnowledgePageInner() {
     await updateFolder(id, { name });
   };
 
-  const showingSearch = search.trim().length > 0;
-
-  const noteOpen = !!selectedItem && !mobileSidebar;
+  const noteOpen = !!selectedItem;
   const editorOpen = noteOpen && editing;
 
   const draftsPopover = (
@@ -425,29 +400,13 @@ function KnowledgePageInner() {
         />
       </div>
     <div
-      className={`relative flex md:h-[calc(100%-3.5rem)] min-h-0 ${
+      className={`flex md:h-[calc(100%-3.5rem)] min-h-0 ${
         editorOpen ? "h-full" : "h-[calc(100%-3.5rem)]"
       }`}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
     >
-      {/* 모바일: 백드롭 (사이드바 열림 시) */}
-      {mobileSidebar && (
-        <div
-          className="fixed inset-0 z-30 bg-black/30 md:hidden"
-          onClick={() => setMobileSidebar(false)}
-        />
-      )}
-
-      {/* 왼쪽: 트리 — 모바일에서는 슬라이드 드로어 */}
-      <aside
-        className={`
-          fixed left-0 top-0 bottom-0 z-40 flex w-[35vw] min-w-[140px] max-w-[200px] flex-col border-r bg-background transition-transform duration-200 ease-out
-          md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:transition-none
-          ${mobileSidebar ? "translate-x-0" : "-translate-x-full"}
-        `}
-      >
-        <div className="p-3 border-b flex flex-col gap-2">
+      {/* 데스크톱 사이드바 — 모바일은 없음 */}
+      <aside className="hidden md:flex flex-col w-64 border-r overflow-hidden">
+        <div className="p-3 border-b">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -459,70 +418,23 @@ function KnowledgePageInner() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {showingSearch ? (
-            <div className="flex flex-col gap-0.5">
-              <p className="text-xs text-muted-foreground px-1 mb-1">
-                검색 결과 {searchResults.length}개
-              </p>
-              {searchResults.length === 0 ? (
-                <p className="text-xs text-muted-foreground text-center py-4">
-                  결과 없음
-                </p>
-              ) : (
-                searchResults.map((i) => (
-                  <button
-                    key={i.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedItemId(i.id);
-                      setMobileSidebar(false);
-                    }}
-                    className={`flex flex-col gap-0.5 p-2 text-left rounded-md hover:bg-accent transition-colors ${
-                      selectedItemId === i.id ? "bg-accent" : ""
-                    }`}
-                  >
-                    <div className="flex items-center gap-1">
-                      {i.pinned && (
-                        <Pin className="h-3 w-3 text-primary" />
-                      )}
-                      <span className="text-sm font-medium line-clamp-1">
-                        {i.title}
-                      </span>
-                    </div>
-                    {i.excerpt && (
-                      <span className="text-xs text-muted-foreground line-clamp-2">
-                        {i.excerpt}
-                      </span>
-                    )}
-                  </button>
-                ))
-              )}
-            </div>
-          ) : (
-            <KnowledgeTree
-              folders={folders}
-              items={items}
-              selectedItemId={selectedItemId}
-              onSelectItem={(id) => {
-                setSelectedItemId(id);
-                setMobileSidebar(false);
-              }}
-              onAddFolder={handleAddFolder}
-              onAddItem={handleAddItem}
-              onRenameFolder={renameFolder}
-              onDeleteFolder={(id) => {
-                deleteFolder(id);
-                refetch();
-              }}
-              onDeleteItem={handleDelete}
-              onMoveFolder={moveFolder}
-              onMoveItem={moveItem}
-            />
-          )}
+          <KnowledgeTree
+            folders={folders}
+            items={items}
+            selectedItemId={selectedItemId}
+            onSelectItem={(id) => setSelectedItemId(id)}
+            onAddFolder={handleAddFolder}
+            onAddItem={handleAddItem}
+            onRenameFolder={renameFolder}
+            onDeleteFolder={(id) => { deleteFolder(id); refetch(); }}
+            onDeleteItem={handleDelete}
+            onMoveFolder={moveFolder}
+            onMoveItem={moveItem}
+          />
         </div>
       </aside>
 
-      {/* 오른쪽: 읽기 모드 / 편집 모드 — 항상 표시 (사이드바는 overlay) */}
+      {/* 메인 영역 */}
       <main className="flex flex-1 flex-col overflow-hidden">
         {selectedItem ? (
           editing ? (
@@ -584,10 +496,13 @@ function KnowledgePageInner() {
               <div className="flex items-center gap-2 border-b px-3 h-14 shrink-0">
                 <button
                   type="button"
-                  onClick={() => setMobileSidebar(true)}
-                  className="md:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground -ml-1"
-                  title="목록 열기"
-                  aria-label="사이드바 열기"
+                  onClick={() => {
+                    setSelectedItemId(null);
+                    setViewFolderId(null);
+                  }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground -ml-1"
+                  title="지식창고 홈"
+                  aria-label="홈으로"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
