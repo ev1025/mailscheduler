@@ -11,6 +11,7 @@ import {
   Archive,
   Trash2,
   ArrowLeft,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +98,7 @@ function KnowledgePageInner() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [dirty, setDirty] = useState(false);
+  const [editing, setEditing] = useState(false); // false=읽기모드, true=편집모드
 
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
@@ -154,9 +156,12 @@ function KnowledgePageInner() {
       setEditTitle(selectedItem.title);
       setEditContent(selectedItem.content || "");
       setDirty(false);
+      // 기존 노트 선택 시 읽기 모드로 시작 (내용 없으면 바로 편집)
+      setEditing(!selectedItem.content && !selectedItem.title);
     } else {
       setEditTitle("");
       setEditContent("");
+      setEditing(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedItem?.id]);
@@ -191,6 +196,7 @@ function KnowledgePageInner() {
     });
     if (data) {
       setSelectedItemId(data.id);
+      setEditing(true); // 새 노트는 바로 편집 모드
       setMobileSidebar(false);
     }
   };
@@ -202,6 +208,7 @@ function KnowledgePageInner() {
       content: sanitizeRichHTML(editContent),
     });
     setDirty(false);
+    setEditing(false); // 저장 후 읽기 모드로
   };
 
   const handleSaveDraft = () => {
@@ -290,7 +297,8 @@ function KnowledgePageInner() {
 
   const showingSearch = search.trim().length > 0;
 
-  const editorOpen = !!selectedItem && !mobileSidebar;
+  const noteOpen = !!selectedItem && !mobileSidebar;
+  const editorOpen = noteOpen && editing;
 
   const draftsPopover = (
     <Popover open={draftsOpen} onOpenChange={setDraftsOpen}>
@@ -472,17 +480,76 @@ function KnowledgePageInner() {
         </div>
       </aside>
 
-      {/* 오른쪽: 에디터 */}
+      {/* 오른쪽: 읽기 모드 / 편집 모드 */}
       <main
         className={`${
           mobileSidebar ? "hidden md:flex" : "flex"
         } flex-1 flex-col overflow-hidden`}
       >
         {selectedItem ? (
-          <>
-            <div className="border-b flex flex-col shrink-0">
-              {/* 1행 — PageHeader와 동일한 h-14 표준 */}
-              <div className="flex items-center gap-2 px-3 h-14">
+          editing ? (
+            /* ── 편집 모드 ── */
+            <>
+              <div className="border-b flex flex-col shrink-0">
+                <div className="flex items-center gap-2 px-3 h-14">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dirty) {
+                        setEditing(false);
+                      } else {
+                        setEditing(false);
+                      }
+                    }}
+                    className="md:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground -ml-1"
+                    title="보기로 돌아가기"
+                    aria-label="뒤로"
+                  >
+                    <ArrowLeft className="h-5 w-5" />
+                  </button>
+                  {autoSavedAt && (
+                    <span className="text-[11px] text-muted-foreground truncate">
+                      자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
+                  <div className="flex-1" />
+                  <div className="flex items-center gap-1 shrink-0">
+                    {draftsPopover}
+                    <Button size="sm" variant="outline" onClick={handleSaveDraft} className="h-8 text-xs px-2.5">
+                      임시저장
+                    </Button>
+                    <Button size="sm" onClick={handleSave} disabled={!dirty} className="h-8 text-xs px-2.5">
+                      저장
+                    </Button>
+                  </div>
+                </div>
+                <div className="px-3 pb-3">
+                  <Input
+                    value={editTitle}
+                    onChange={(e) => {
+                      setEditTitle(e.target.value);
+                      setDirty(true);
+                    }}
+                    className="w-full h-10 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
+                    placeholder="새 노트 제목..."
+                  />
+                </div>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <RichEditor
+                  key={selectedItem.id}
+                  content={selectedItem.content || ""}
+                  onChange={(html) => {
+                    setEditContent(html);
+                    setDirty(true);
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            /* ── 읽기 모드 ── */
+            <>
+              <div className="flex items-center gap-2 border-b px-3 h-14 shrink-0">
                 <button
                   type="button"
                   onClick={() => setMobileSidebar(true)}
@@ -492,50 +559,52 @@ function KnowledgePageInner() {
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
-                {autoSavedAt && (
-                  <span className="text-[11px] text-muted-foreground truncate">
-                    자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
+                <h2 className="flex-1 truncate text-base font-semibold min-w-0">
+                  {selectedItem.title || "(제목 없음)"}
+                </h2>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setEditing(true)}
+                  className="h-8 text-xs px-3 shrink-0"
+                >
+                  <Pencil className="mr-1 h-3 w-3" />
+                  편집
+                </Button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                {selectedItem.content ? (
+                  <div
+                    className="tiptap-editor"
+                    dangerouslySetInnerHTML={{ __html: selectedItem.content }}
+                  />
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-12">
+                    내용이 없습니다.
+                    <button
+                      type="button"
+                      className="ml-1 text-primary underline"
+                      onClick={() => setEditing(true)}
+                    >
+                      편집하기
+                    </button>
+                  </p>
                 )}
-                <div className="flex-1" />
-                <div className="flex items-center gap-1 shrink-0">
-                  {draftsPopover}
-                  <Button size="sm" variant="outline" onClick={handleSaveDraft} className="h-8 text-xs px-2.5">
-                    임시저장
-                  </Button>
-                  <Button size="sm" onClick={handleSave} disabled={!dirty} className="h-8 text-xs px-2.5">
-                    저장
-                  </Button>
-                </div>
               </div>
-              {/* 2행: 제목 입력창 */}
-              <div className="px-3 pb-3">
-                <Input
-                  value={editTitle}
-                  onChange={(e) => {
-                    setEditTitle(e.target.value);
-                    setDirty(true);
-                  }}
-                  className="w-full h-10 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
-                  placeholder="새 노트 제목..."
-                />
+              <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground shrink-0">
+                <span>
+                  {selectedItem.updated_at
+                    ? `수정 ${new Date(selectedItem.updated_at).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
+                    : ""}
+                </span>
+                <span>
+                  {selectedItem.created_at
+                    ? `생성 ${new Date(selectedItem.created_at).toLocaleString("ko-KR", { month: "short", day: "numeric" })}`
+                    : ""}
+                </span>
               </div>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <RichEditor
-                key={selectedItem.id}
-                /* selectedItem.content를 직접 넘겨 리마운트 시점에 항상 DB 값으로
-                   초기화됨. TipTap의 content prop은 초기 마운트 시에만 읽히므로
-                   useState를 거치면 첫 렌더에 빈 값으로 마운트되어 편집 내용이
-                   소실되는 이슈가 있음 */
-                content={selectedItem.content || ""}
-                onChange={(html) => {
-                  setEditContent(html);
-                  setDirty(true);
-                }}
-              />
-            </div>
-          </>
+            </>
+          )
         ) : (
           <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
             <div className="text-center flex flex-col items-center gap-2 px-4">
