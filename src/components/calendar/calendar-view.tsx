@@ -31,7 +31,7 @@ import WeatherIcon from "./weather-icon";
 import { getHolidayMap } from "@/lib/holidays";
 
 /* ── 레이아웃 상수 ── */
-const MAX_VISIBLE_SLOTS = 4;
+const MAX_VISIBLE_SLOTS = 3;
 const BAR_H = 12;
 const BAR_GAP = 1;
 const BAR_STEP = BAR_H + BAR_GAP;
