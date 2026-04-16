@@ -51,7 +51,7 @@ export default function PromptDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-3">
+        <div className="flex items-center gap-2">
           <Input
             value={value}
             onChange={(e) => setValue(e.target.value)}
@@ -60,16 +60,11 @@ export default function PromptDialog({
             }}
             placeholder={placeholder}
             autoFocus
-            className="h-10"
+            className="h-10 flex-1"
           />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              취소
-            </Button>
-            <Button size="sm" onClick={submit} disabled={!value.trim()}>
-              {confirmLabel}
-            </Button>
-          </div>
+          <Button size="sm" onClick={submit} disabled={!value.trim()} className="h-10 shrink-0">
+            {confirmLabel}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

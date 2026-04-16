@@ -314,8 +314,21 @@ function ProductsPageInner() {
             추가
           </Button>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {(["전체", ...midCategories] as string[]).map((c) => {
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
+          {/* 순서: 전체 → + 추가 → 나머지 분류 */}
+          {(["전체", "__add__", ...midCategories.filter((c) => c !== "전체")] as string[]).map((c) => {
+            if (c === "__add__") {
+              return (
+                <button
+                  key="__add__"
+                  type="button"
+                  onClick={() => setAddCategoryOpen(true)}
+                  className="shrink-0 rounded-full border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+              );
+            }
             const active = categoryFilter === c;
             const color = c === "전체" ? "#6B7280" : CATEGORY_COLORS[c] || "#6B7280";
             const canDelete = c !== "전체" && !BUILTIN_CATEGORIES.has(c);
@@ -331,7 +344,7 @@ function ProductsPageInner() {
                     setCategoryFilter(c);
                   }
                 }}
-                className={`group/cat inline-flex items-center gap-1 rounded-full border py-1.5 text-sm transition-all cursor-pointer select-none ${
+                className={`group/cat inline-flex shrink-0 items-center gap-1 rounded-full border py-1.5 text-xs transition-all cursor-pointer select-none ${
                   canDelete ? "pl-3 pr-1.5" : "px-3"
                 }`}
                 style={
@@ -362,15 +375,6 @@ function ProductsPageInner() {
               </div>
             );
           })}
-          <button
-            type="button"
-            onClick={() => setAddCategoryOpen(true)}
-            className="rounded-full border border-dashed px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
-            title="분류 추가"
-            aria-label="분류 추가"
-          >
-            <Plus className="h-3 w-3" />
-          </button>
         </div>
       </div>
 
@@ -416,14 +420,14 @@ function ProductsPageInner() {
                       <button
                         type="button"
                         onClick={() => toggleGroup(groupKey)}
-                        className="w-full flex items-center gap-2 px-3 py-3 hover:bg-accent/50 transition-colors"
+                        className="w-full flex items-center gap-1.5 px-2.5 py-2 hover:bg-accent/50 transition-colors"
                       >
                         {expanded ? (
-                          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
                         ) : (
-                          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+                          <ChevronRight className="h-3 w-3 text-muted-foreground" />
                         )}
-                        <span className="text-sm font-semibold">{sub}</span>
+                        <span className="text-xs font-semibold">{sub}</span>
                       </button>
                       {expanded && (
                         <div className="border-t overflow-x-auto">
@@ -440,23 +444,6 @@ function ProductsPageInner() {
                                 <col className="hidden sm:table-column" />
                                 <col style={{ width: "1%" }} />
                               </colgroup>
-                              <thead className="bg-muted/30 text-muted-foreground">
-                                <tr>
-                                  <th></th>
-                                  <th className="text-center px-2 py-3 font-medium">
-                                    순위
-                                  </th>
-                                  <th className="text-left px-2 py-3 font-medium">
-                                    제품
-                                  </th>
-                                  <th className="text-left px-2 py-3 font-medium hidden sm:table-cell whitespace-nowrap">
-                                    브랜드
-                                  </th>
-                                  <th className="text-right px-2 py-3 font-medium whitespace-nowrap">
-                                    가격
-                                  </th>
-                                </tr>
-                              </thead>
                               <SortableContext
                                 items={list.map((p) => p.id)}
                                 strategy={verticalListSortingStrategy}

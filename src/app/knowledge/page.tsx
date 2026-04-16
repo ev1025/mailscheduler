@@ -433,7 +433,7 @@ function KnowledgePageInner() {
       {/* 왼쪽: 트리 — 모바일에서는 슬라이드 드로어 */}
       <aside
         className={`
-          fixed left-0 top-0 bottom-0 z-40 flex w-[75vw] max-w-[300px] flex-col border-r bg-background transition-transform duration-200 ease-out
+          fixed left-0 top-0 bottom-0 z-40 flex w-[35vw] min-w-[140px] max-w-[200px] flex-col border-r bg-background transition-transform duration-200 ease-out
           md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:transition-none
           ${mobileSidebar ? "translate-x-0" : "-translate-x-full"}
         `}

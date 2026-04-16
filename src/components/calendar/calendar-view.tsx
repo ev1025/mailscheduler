@@ -158,7 +158,7 @@ export default function CalendarView({
     const calc = () => {
       const h = el.getBoundingClientRect().height;
       // 사용 가능 높이 = 행 높이 - 헤더 영역(~36px) - +N 표시(~14px)
-      const available = h - 36 - 14;
+      const available = h - 38 - 10;
       const fits = Math.max(0, Math.min(MAX_VISIBLE_SLOTS, Math.floor(available / BAR_STEP)));
       setDynamicMax(fits);
     };
@@ -292,7 +292,7 @@ export default function CalendarView({
                       </div>
                       {/* 공휴일 */}
                       {h && inM && (
-                        <span className="-mt-[3px] block w-full shrink-0 truncate px-1 text-[8px] leading-tight text-red-500 md:px-1.5 md:text-[9px]">
+                        <span className="mt-[2px] block w-full shrink-0 truncate px-1 text-[8px] leading-tight text-red-500 md:px-1.5 md:text-[9px]">
                           {h}
                         </span>
                       )}
@@ -304,7 +304,7 @@ export default function CalendarView({
 
                 {/* ── 바 오버레이: grid-column span으로 너비, 텍스트 중앙정렬 ── */}
                 <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[31.5px] md:top-[33.5px]"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[36.5px] md:top-[38.5px]"
                   style={{ gridAutoRows: 0 }}
                 >
                   {segs
