@@ -274,7 +274,7 @@ export default function CalendarView({
                       </div>
                       {/* 공휴일 */}
                       {h && inM && (
-                        <span className="mt-0.5 block w-full shrink-0 truncate px-1 text-[9px] leading-tight text-red-500 md:px-1.5 md:text-[10px]">
+                        <span className="mt-0.5 block w-full shrink-0 truncate px-1 text-[8px] leading-tight text-red-500 md:px-1.5 md:text-[9px]">
                           {h}
                         </span>
                       )}
@@ -286,7 +286,7 @@ export default function CalendarView({
 
                 {/* ── 바 오버레이: grid-column span으로 너비, 텍스트 중앙정렬 ── */}
                 <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[38px] md:top-[42px]"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[38px] md:top-[40px]"
                   style={{ gridAutoRows: 0 }}
                 >
                   {segs
