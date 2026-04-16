@@ -27,6 +27,8 @@ import {
 } from "@/hooks/use-knowledge-items";
 import KnowledgeTree from "@/components/knowledge/knowledge-tree";
 import RichEditor from "@/components/knowledge/rich-editor";
+import KnowledgeDashboard, { getTemplateContent, type NoteTemplate } from "@/components/knowledge/knowledge-dashboard";
+import FolderNoteList from "@/components/knowledge/folder-note-list";
 import type { KnowledgeItem } from "@/types";
 import { toast } from "sonner";
 import { sanitizeRichHTML } from "@/lib/sanitize";
@@ -98,7 +100,8 @@ function KnowledgePageInner() {
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [dirty, setDirty] = useState(false);
-  const [editing, setEditing] = useState(false); // false=읽기모드, true=편집모드
+  const [editing, setEditing] = useState(false);
+  const [viewFolderId, setViewFolderId] = useState<string | null>(null); // 폴더 탐색 모드
 
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
@@ -204,20 +207,26 @@ function KnowledgePageInner() {
     setFolderPromptOpen(true);
   };
 
-  const handleAddItem = async (folderId: string | null) => {
+  const handleAddItem = async (folderId: string | null, template?: NoteTemplate) => {
+    const tpl = template || "free";
+    const content = getTemplateContent(tpl);
+    const typeMap: Record<NoteTemplate, string> = {
+      free: "note", recipe: "recipe", cheatsheet: "snippet", checklist: "note",
+    };
     const { data } = await addItem({
       folder_id: folderId,
       title: "",
-      content: "",
-      excerpt: null,
+      content,
+      excerpt: content ? content.slice(0, 200) : null,
       tags: null,
       pinned: false,
-      type: "note",
+      type: typeMap[tpl] as "note" | "recipe" | "snippet" | "link",
       url: null,
     });
     if (data) {
       setSelectedItemId(data.id);
-      setEditing(true); // 새 노트는 바로 편집 모드
+      setViewFolderId(null);
+      setEditing(true);
       setMobileSidebar(false);
     }
   };
@@ -614,37 +623,62 @@ function KnowledgePageInner() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center justify-between border-t px-4 py-2 text-xs text-muted-foreground shrink-0">
-                <span>
-                  {selectedItem.updated_at
-                    ? `수정 ${new Date(selectedItem.updated_at).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
-                    : ""}
-                </span>
-                <span>
-                  {selectedItem.created_at
-                    ? `생성 ${new Date(selectedItem.created_at).toLocaleString("ko-KR", { month: "short", day: "numeric" })}`
-                    : ""}
-                </span>
+              <div className="flex flex-col gap-2 border-t px-4 py-2 shrink-0">
+                {/* 태그 */}
+                {selectedItem.tags && selectedItem.tags.length > 0 && (
+                  <div className="flex gap-1 flex-wrap">
+                    {selectedItem.tags.map((t) => (
+                      <span key={t} className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    {selectedItem.updated_at
+                      ? `수정 ${new Date(selectedItem.updated_at).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
+                      : ""}
+                  </span>
+                  <span>
+                    {selectedItem.created_at
+                      ? `생성 ${new Date(selectedItem.created_at).toLocaleString("ko-KR", { month: "short", day: "numeric" })}`
+                      : ""}
+                  </span>
+                </div>
               </div>
             </>
           )
+        ) : viewFolderId ? (
+          /* ── 폴더 노트 목록 ── */
+          <FolderNoteList
+            folder={
+              viewFolderId === "__unfiled__"
+                ? null
+                : folders.find((f) => f.id === viewFolderId) || null
+            }
+            items={items}
+            selectedItemId={selectedItemId}
+            onSelectItem={(id) => {
+              setSelectedItemId(id);
+              setViewFolderId(null);
+            }}
+            onBack={() => setViewFolderId(null)}
+            onAddItem={handleAddItem}
+          />
         ) : (
-          <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
-            <div className="text-center flex flex-col items-center gap-2 px-4">
-              <FileText className="h-12 w-12 opacity-20" />
-              <p className="font-medium">노트를 선택하거나 새로 만들어보세요</p>
-              <p className="text-xs">
-                왼쪽 트리에서 폴더를 만들고 노트를 드래그해서 이동할 수 있어요
-              </p>
-              <Button
-                onClick={() => handleAddItem(null)}
-                size="sm"
-                className="mt-2"
-              >
-                <Plus className="mr-1 h-3 w-3" /> 새 노트
-              </Button>
-            </div>
-          </div>
+          /* ── 대시보드 홈 ── */
+          <KnowledgeDashboard
+            folders={folders}
+            items={items}
+            onSelectItem={(id) => setSelectedItemId(id)}
+            onSelectFolder={(fid) => setViewFolderId(fid)}
+            onAddItem={handleAddItem}
+            onAddFolder={handleAddFolder}
+            onSearch={(q) => setSearch(q)}
+            searchQuery={search}
+            searchResults={searchResults}
+          />
         )}
       </main>
       <PromptDialog
