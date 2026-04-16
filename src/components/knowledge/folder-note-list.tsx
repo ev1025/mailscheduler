@@ -2,15 +2,14 @@
 
 import { ArrowLeft, Pin, Plus, FileText } from "lucide-react";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
-import { TEMPLATES, type NoteTemplate } from "./knowledge-dashboard";
 
 interface Props {
-  folder: KnowledgeFolder | null; // null = 미분류
+  folder: KnowledgeFolder | null;
   items: KnowledgeItem[];
   selectedItemId: string | null;
   onSelectItem: (id: string) => void;
   onBack: () => void;
-  onAddItem: (folderId: string | null, template?: NoteTemplate) => void;
+  onAddItem: (folderId: string | null) => void;
 }
 
 export default function FolderNoteList({
@@ -86,18 +85,15 @@ export default function FolderNoteList({
       </div>
 
       {/* 하단 새 노트 추가 */}
-      <div className="shrink-0 border-t p-2 flex gap-1.5 overflow-x-auto scrollbar-none">
-        {TEMPLATES.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => onAddItem(folderId, key)}
-            className="flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1.5 text-[10px] text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
-          >
-            <Icon className="h-3 w-3" />
-            {label}
-          </button>
-        ))}
+      <div className="shrink-0 border-t p-2">
+        <button
+          type="button"
+          onClick={() => onAddItem(folderId)}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2 text-xs text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          새 노트
+        </button>
       </div>
     </div>
   );

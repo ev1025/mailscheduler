@@ -4,9 +4,6 @@ import { Suspense, useState, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
-  Search,
-  Pin,
-  Folder,
   FileText,
   Archive,
   Trash2,
@@ -25,9 +22,8 @@ import {
   useKnowledgeItems,
   searchKnowledge,
 } from "@/hooks/use-knowledge-items";
-import KnowledgeTree from "@/components/knowledge/knowledge-tree";
 import RichEditor from "@/components/knowledge/rich-editor";
-import KnowledgeDashboard, { getTemplateContent, type NoteTemplate } from "@/components/knowledge/knowledge-dashboard";
+import KnowledgeDashboard from "@/components/knowledge/knowledge-dashboard";
 import FolderNoteList from "@/components/knowledge/folder-note-list";
 import type { KnowledgeItem } from "@/types";
 import { toast } from "sonner";
@@ -185,20 +181,15 @@ function KnowledgePageInner() {
     setFolderPromptOpen(true);
   };
 
-  const handleAddItem = async (folderId: string | null, template?: NoteTemplate) => {
-    const tpl = template || "free";
-    const content = getTemplateContent(tpl);
-    const typeMap: Record<NoteTemplate, string> = {
-      free: "note", recipe: "recipe", cheatsheet: "snippet", checklist: "note",
-    };
+  const handleAddItem = async (folderId: string | null) => {
     const { data } = await addItem({
       folder_id: folderId,
       title: "",
-      content,
-      excerpt: content ? content.slice(0, 200) : null,
+      content: "",
+      excerpt: null,
       tags: null,
       pinned: false,
-      type: typeMap[tpl] as "note" | "recipe" | "snippet" | "link",
+      type: "note",
       url: null,
     });
     if (data) {
@@ -368,26 +359,15 @@ function KnowledgePageInner() {
   );
 
   const listActions = (
-    <>
-      <button
-        type="button"
-        onClick={() => handleAddFolder(null)}
-        aria-label="폴더 추가"
-        title="폴더 추가"
-        className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-      >
-        <Folder className="h-[22px] w-[22px]" strokeWidth={1.6} />
-      </button>
-      <button
-        type="button"
-        onClick={() => handleAddItem(null)}
-        aria-label="새 노트"
-        title="새 노트"
-        className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-      >
-        <FileText className="h-[22px] w-[22px]" strokeWidth={1.6} />
-      </button>
-    </>
+    <button
+      type="button"
+      onClick={() => handleAddItem(null)}
+      aria-label="새 노트"
+      title="새 노트"
+      className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+    >
+      <Plus className="h-[22px] w-[22px]" strokeWidth={1.6} />
+    </button>
   );
 
   return (
@@ -400,41 +380,10 @@ function KnowledgePageInner() {
         />
       </div>
     <div
-      className={`flex md:h-[calc(100%-3.5rem)] min-h-0 ${
+      className={`flex min-h-0 ${
         editorOpen ? "h-full" : "h-[calc(100%-3.5rem)]"
       }`}
     >
-      {/* 데스크톱 사이드바 — 모바일은 없음 */}
-      <aside className="hidden md:flex flex-col w-64 border-r overflow-hidden">
-        <div className="p-3 border-b">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="검색"
-              className="pl-8 h-9 text-sm"
-            />
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2">
-          <KnowledgeTree
-            folders={folders}
-            items={items}
-            selectedItemId={selectedItemId}
-            onSelectItem={(id) => setSelectedItemId(id)}
-            onAddFolder={handleAddFolder}
-            onAddItem={handleAddItem}
-            onRenameFolder={renameFolder}
-            onDeleteFolder={(id) => { deleteFolder(id); refetch(); }}
-            onDeleteItem={handleDelete}
-            onMoveFolder={moveFolder}
-            onMoveItem={moveItem}
-          />
-        </div>
-      </aside>
-
-      {/* 메인 영역 */}
       <main className="flex flex-1 flex-col overflow-hidden">
         {selectedItem ? (
           editing ? (
@@ -588,8 +537,6 @@ function KnowledgePageInner() {
             items={items}
             onSelectItem={(id) => setSelectedItemId(id)}
             onSelectFolder={(fid) => setViewFolderId(fid)}
-            onAddItem={handleAddItem}
-            onAddFolder={handleAddFolder}
             onSearch={(q) => setSearch(q)}
             searchQuery={search}
             searchResults={searchResults}
