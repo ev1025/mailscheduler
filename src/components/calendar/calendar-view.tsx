@@ -281,13 +281,17 @@ export default function CalendarView({
       const segments = weekSegments[weekIdx];
       return week.map((day) => {
         const col = day.getDay();
-        const slots: (DaySegmentPart | null)[] = new Array(MAX_VISIBLE_SLOTS).fill(null);
+        const dateStr = format(day, "yyyy-MM-dd");
+        // 공휴일이 있는 셀은 한 줄을 공휴일 이름에 내주므로 슬롯 하나 덜 표시
+        const hasHoliday = !!holidayMap[dateStr] && isSameMonth(day, monthStart);
+        const visibleCount = hasHoliday ? MAX_VISIBLE_SLOTS - 1 : MAX_VISIBLE_SLOTS;
+        const slots: (DaySegmentPart | null)[] = new Array(visibleCount).fill(null);
         let hiddenCount = 0;
 
         for (const seg of segments) {
           const endCol = seg.startCol + seg.spanDays - 1;
           if (col < seg.startCol || col > endCol) continue;
-          if (seg.slot >= MAX_VISIBLE_SLOTS) {
+          if (seg.slot >= visibleCount) {
             hiddenCount++;
             continue;
           }
@@ -308,13 +312,13 @@ export default function CalendarView({
 
         return {
           day,
-          dateStr: format(day, "yyyy-MM-dd"),
+          dateStr,
           slots,
           hiddenCount,
         };
       });
     });
-  }, [weeks, weekSegments]);
+  }, [weeks, weekSegments, holidayMap, monthStart]);
 
   const handleDragStart = (e: DragStartEvent) => {
     setActiveEvent(e.active.data.current?.event || null);
