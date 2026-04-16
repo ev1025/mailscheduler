@@ -30,6 +30,13 @@ import type { CalendarEvent, WeatherData } from "@/types";
 import WeatherIcon from "./weather-icon";
 import { getHolidayMap } from "@/lib/holidays";
 
+/* ---------- 레이아웃 상수 (매직넘버 외부화) ---------- */
+const MAX_VISIBLE_SLOTS = 3; // 셀당 최대 보여주는 이벤트 수
+const BAR_HEIGHT_PX = 11; // 이벤트 바 높이
+const BAR_GAP_PX = 1; // 바 사이 간격
+const CELL_BLEED_PX = 1; // 셀 경계(border-r) 위로 덮어 연결하는 음수 마진
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
 interface CalendarViewProps {
   year: number;
   month: number;
@@ -40,32 +47,56 @@ interface CalendarViewProps {
   onReorder?: (ids: string[]) => void;
 }
 
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
-const MAX_VISIBLE_SLOTS = 3;
-const BAR_HEIGHT = 13; // px
-const BAR_GAP = 2; // px
+/* ---------- 타입 ---------- */
 
-// 주 내에서 특정 이벤트가 차지하는 세그먼트
+/** 주 내 한 이벤트의 세그먼트 (시각적 바 하나) */
 interface WeekSegment {
   event: CalendarEvent;
-  startCol: number; // 0-6 (일=0)
-  spanDays: number; // 이 주 내에서 몇 칸
-  isEventStart: boolean; // 실제 이벤트 시작 여부 (주 경계에서 잘렸으면 false)
+  startCol: number; // 0..6
+  spanDays: number; // 주 내에서 차지하는 칸 수
+  isEventStart: boolean; // 실제 이벤트 시작일에 이 세그먼트가 걸리는지
   isEventEnd: boolean;
-  slot: number; // 세로 위치
-  endLabel: string; // "~M/D"
+  slot: number; // 세로 슬롯 (0..MAX_VISIBLE_SLOTS-1 안쪽만 렌더)
+  endLabel: string; // "~M/D" 표시 (멀티데이 끝 라벨)
 }
 
-function DraggableSegment({
-  segment,
+/** 셀 하나가 가진 렌더용 데이터 */
+interface DayCellData {
+  day: Date;
+  dateStr: string;
+  slots: (DaySegmentPart | null)[]; // length === MAX_VISIBLE_SLOTS
+  hiddenCount: number; // slot >= MAX_VISIBLE_SLOTS 로 잘린 이벤트 수
+}
+
+/** 한 셀 안에서 본 세그먼트의 일부 (이 셀 기준의 시작/끝/라벨 표시 여부) */
+interface DaySegmentPart {
+  event: CalendarEvent;
+  /** 이 셀이 세그먼트의 왼쪽 끝인가 (실제 시작 or 주 시작) */
+  isLeftEdge: boolean;
+  /** 이 셀이 세그먼트의 오른쪽 끝인가 (실제 종료 or 주 끝) */
+  isRightEdge: boolean;
+  /** 실제 이벤트의 시작일에 해당하는 셀인가 (제목 표시 기준) */
+  isEventStart: boolean;
+  /** 실제 이벤트의 종료일에 해당하는 셀인가 */
+  isEventEnd: boolean;
+  /** 이 주 내에서의 spanDays (제목 라벨 ellipsis 계산용, 참고만) */
+  spanDaysInWeek: number;
+  endLabel: string;
+}
+
+/* ---------- 드래그 가능한 이벤트 바 세그먼트 ---------- */
+function EventBarSegment({
+  part,
+  dateStr,
   onClickDate,
 }: {
-  segment: WeekSegment;
-  onClickDate: (dateStr: string) => void;
+  part: DaySegmentPart;
+  dateStr: string;
+  onClickDate: () => void;
 }) {
-  const { event, startCol, spanDays, isEventStart, isEventEnd, slot, endLabel } = segment;
+  const { event, isLeftEdge, isRightEdge, isEventStart, spanDaysInWeek, endLabel } = part;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: `${event.id}__${event.start_date}__week${startCol}`,
+    id: `${event.id}__${dateStr}`,
     data: { event },
   });
 
@@ -76,41 +107,49 @@ function DraggableSegment({
       {...attributes}
       onClick={(e) => {
         e.stopPropagation();
-        if (!isDragging) onClickDate(event.start_date);
+        if (!isDragging) onClickDate();
       }}
-      className={`flex items-center justify-center cursor-grab active:cursor-grabbing pointer-events-auto ${
+      className={`relative flex items-center text-white cursor-grab active:cursor-grabbing ${
         isDragging ? "opacity-30" : ""
       }`}
       style={{
-        // CSS Grid 네이티브 배치 — 픽셀 계산 불필요, 완전 동적
-        gridColumnStart: startCol + 1,
-        gridColumnEnd: `span ${spanDays}`,
-        gridRowStart: 1,
-        // 세로 위치: slot * (바 높이 + 갭). 모든 바를 grid row 1에 포갠 뒤 margin-top으로 분리
-        marginTop: slot * (BAR_HEIGHT + BAR_GAP),
         backgroundColor: event.color,
-        color: "white",
-        height: `${BAR_HEIGHT}px`,
-        fontSize: "10px",
-        lineHeight: 1,
-        padding: "0 4px",
-        borderTopLeftRadius: isEventStart ? 3 : 0,
-        borderBottomLeftRadius: isEventStart ? 3 : 0,
-        borderTopRightRadius: isEventEnd ? 3 : 0,
-        borderBottomRightRadius: isEventEnd ? 3 : 0,
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        alignSelf: "start",
+        height: `${BAR_HEIGHT_PX}px`,
+        borderTopLeftRadius: isLeftEdge ? 3 : 0,
+        borderBottomLeftRadius: isLeftEdge ? 3 : 0,
+        borderTopRightRadius: isRightEdge ? 3 : 0,
+        borderBottomRightRadius: isRightEdge ? 3 : 0,
+        marginLeft: isLeftEdge ? 0 : -CELL_BLEED_PX,
+        marginRight: isRightEdge ? 0 : -CELL_BLEED_PX,
       }}
     >
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", maxWidth: "100%" }}>
-        {event.title}
-        {endLabel && <span style={{ opacity: 0.85 }}> ({endLabel})</span>}
-      </span>
+      {/* 제목은 실제 이벤트 시작 셀 혹은 주 경계의 첫 셀에만 표시 (ellipsis) */}
+      {isEventStart || (isLeftEdge && !isEventStart) ? (
+        <span
+          className="truncate px-1 font-medium"
+          style={{
+            fontSize: "10px",
+            lineHeight: `${BAR_HEIGHT_PX}px`,
+            // 이 주 내 전체 span만큼의 폭으로 보이도록 오른쪽으로 확장
+            // (옆 셀의 bleed에 걸리므로 자연스럽게 이어져 보임)
+            width: spanDaysInWeek > 1 ? `calc(${spanDaysInWeek} * 100%)` : "100%",
+          }}
+        >
+          {event.title}
+          {endLabel && (
+            <span className="opacity-80" style={{ marginLeft: 2 }}>
+              ({endLabel})
+            </span>
+          )}
+        </span>
+      ) : (
+        <span>&nbsp;</span>
+      )}
     </div>
   );
 }
 
+/* ---------- 드롭 가능 셀 ---------- */
 function DroppableCell({
   dateStr,
   children,
@@ -123,12 +162,11 @@ function DroppableCell({
   onClick: () => void;
 }) {
   const { setNodeRef } = useDroppable({ id: dateStr });
-
   return (
     <div
       ref={setNodeRef}
       onClick={onClick}
-      className={`flex flex-col items-start border-b border-r py-1 px-0 min-w-0 min-h-0 text-left transition-colors cursor-pointer ${
+      className={`flex min-h-0 min-w-0 cursor-pointer flex-col border-b border-r text-left transition-colors ${
         isOver ? "bg-blue-50 ring-1 ring-blue-300 ring-inset" : "hover:bg-accent/50"
       }`}
     >
@@ -137,6 +175,7 @@ function DroppableCell({
   );
 }
 
+/* ---------- 메인 ---------- */
 export default function CalendarView({
   year,
   month,
@@ -160,52 +199,48 @@ export default function CalendarView({
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  // 주 단위로 days를 나눔
+  /* 주 단위로 분할 */
   const weeks = useMemo(() => {
-    const result: Date[][] = [];
-    for (let i = 0; i < days.length; i += 7) result.push(days.slice(i, i + 7));
-    return result;
+    const res: Date[][] = [];
+    for (let i = 0; i < days.length; i += 7) res.push(days.slice(i, i + 7));
+    return res;
   }, [days]);
 
-  // 주별 세그먼트 + 슬롯 계산
-  // 슬롯은 "각 주에서 독립적으로" greedy로 할당 →
-  // 같은 이벤트라도 주마다 최소 슬롯을 사용해 빈 위쪽 슬롯이 남지 않음.
-  // (주 경계는 자연스러운 시각 단절이므로 슬롯이 바뀌어도 무방)
-  const weekSegments = useMemo(() => {
+  /**
+   * 각 주별로 greedy interval packing으로 슬롯 배치.
+   * - 이어지는 세그먼트(startCol=0 && !isEventStart)를 먼저 배치해 연속성 유지
+   * - 같은 col에서는 긴 세그먼트 우선
+   * - 슬롯은 주 단위로 독립적 → 빈 위쪽 슬롯이 남지 않도록 재패킹됨
+   */
+  const weekSegments = useMemo<WeekSegment[][]>(() => {
     return weeks.map((week) => {
       const weekStart = week[0];
       const weekEnd = week[6];
 
-      // 1) 이 주에 걸친 이벤트 수집
-      type Draft = {
-        ev: CalendarEvent;
-        startCol: number;
-        endCol: number; // inclusive
-        spanDays: number;
-        isEventStart: boolean;
-        isEventEnd: boolean;
-      };
+      type Draft = Omit<WeekSegment, "slot">;
       const drafts: Draft[] = [];
+
       for (const ev of events) {
         const start = parseISO(ev.start_date);
         const end = ev.end_date ? parseISO(ev.end_date) : start;
         if (end < weekStart || start > weekEnd) continue;
+
         const segStart = start < weekStart ? weekStart : start;
         const segEnd = end > weekEnd ? weekEnd : end;
         const startCol = segStart.getDay();
         const spanDays = differenceInDays(segEnd, segStart) + 1;
+        const single = isSameDay(start, end);
+
         drafts.push({
-          ev,
+          event: ev,
           startCol,
-          endCol: startCol + spanDays - 1,
           spanDays,
           isEventStart: isSameDay(segStart, start),
           isEventEnd: isSameDay(segEnd, end),
+          endLabel: single ? "" : `~${end.getMonth() + 1}/${end.getDate()}`,
         });
       }
 
-      // 2) 정렬: 이전 주에서 이어져 오는(startCol=0이면서 실제 시작일이 아닌)
-      //    이벤트를 우선 → 긴 것 우선 → startCol 오름차순 (안정적 슬롯)
       drafts.sort((a, b) => {
         const aCont = !a.isEventStart && a.startCol === 0 ? 0 : 1;
         const bCont = !b.isEventStart && b.startCol === 0 ? 0 : 1;
@@ -214,77 +249,93 @@ export default function CalendarView({
         return b.spanDays - a.spanDays;
       });
 
-      // 3) greedy 슬롯 배치 — 이 주 내에서만 충돌하지 않는 가장 낮은 슬롯
+      // 슬롯별로 사용 중인 열 범위를 기록
       const slotRanges: Array<Array<[number, number]>> = [];
       const segments: WeekSegment[] = [];
       for (const d of drafts) {
+        const endCol = d.startCol + d.spanDays - 1;
         let slot = 0;
         while (slot < slotRanges.length) {
           const overlaps = slotRanges[slot].some(
-            ([s, e]) => !(d.startCol > e || d.endCol < s)
+            ([s, e]) => !(d.startCol > e || endCol < s)
           );
           if (!overlaps) break;
           slot++;
         }
         if (slot >= slotRanges.length) slotRanges.push([]);
-        slotRanges[slot].push([d.startCol, d.endCol]);
-
-        const end = d.ev.end_date ? parseISO(d.ev.end_date) : parseISO(d.ev.start_date);
-        const start = parseISO(d.ev.start_date);
-        const single = isSameDay(start, end);
-
-        segments.push({
-          event: d.ev,
-          startCol: d.startCol,
-          spanDays: d.spanDays,
-          isEventStart: d.isEventStart,
-          isEventEnd: d.isEventEnd,
-          slot,
-          endLabel: single ? "" : `~${end.getMonth() + 1}/${end.getDate()}`,
-        });
+        slotRanges[slot].push([d.startCol, endCol]);
+        segments.push({ ...d, slot });
       }
       return segments;
     });
   }, [weeks, events]);
 
-  // 주별로 각 날짜의 "hidden 개수" 계산 (slot >= MAX_VISIBLE_SLOTS인 이벤트)
-  const weekHiddenCounts = useMemo(() => {
-    return weekSegments.map((segments) => {
-      const perDay = new Array(7).fill(0) as number[];
-      for (const seg of segments) {
-        if (seg.slot < MAX_VISIBLE_SLOTS) continue;
-        for (let i = 0; i < seg.spanDays; i++) {
-          perDay[seg.startCol + i] = (perDay[seg.startCol + i] || 0) + 1;
+  /**
+   * 셀 단위 렌더 데이터.
+   * 각 셀은 고정 길이 MAX_VISIBLE_SLOTS 슬롯 배열을 가짐.
+   * 슬롯에 해당 이벤트가 있으면 DaySegmentPart, 없으면 null (빈 spacer 렌더).
+   * 잘린 이벤트 수는 hiddenCount.
+   */
+  const weekCellsData = useMemo<DayCellData[][]>(() => {
+    return weeks.map((week, weekIdx) => {
+      const segments = weekSegments[weekIdx];
+      return week.map((day) => {
+        const col = day.getDay();
+        const slots: (DaySegmentPart | null)[] = new Array(MAX_VISIBLE_SLOTS).fill(null);
+        let hiddenCount = 0;
+
+        for (const seg of segments) {
+          const endCol = seg.startCol + seg.spanDays - 1;
+          if (col < seg.startCol || col > endCol) continue;
+          if (seg.slot >= MAX_VISIBLE_SLOTS) {
+            hiddenCount++;
+            continue;
+          }
+          const isLeftEdge = col === seg.startCol;
+          const isRightEdge = col === endCol;
+          const start = parseISO(seg.event.start_date);
+          const end = seg.event.end_date ? parseISO(seg.event.end_date) : start;
+          slots[seg.slot] = {
+            event: seg.event,
+            isLeftEdge,
+            isRightEdge,
+            isEventStart: isSameDay(day, start),
+            isEventEnd: isSameDay(day, end),
+            spanDaysInWeek: seg.spanDays,
+            endLabel: seg.endLabel,
+          };
         }
-      }
-      return perDay;
+
+        return {
+          day,
+          dateStr: format(day, "yyyy-MM-dd"),
+          slots,
+          hiddenCount,
+        };
+      });
     });
-  }, [weekSegments]);
+  }, [weeks, weekSegments]);
 
   const handleDragStart = (e: DragStartEvent) => {
     setActiveEvent(e.active.data.current?.event || null);
   };
-
   const handleDragOver = (e: { over: { id: string | number } | null }) => {
     setOverDate(e.over ? String(e.over.id) : null);
   };
-
   const handleDragEnd = (e: DragEndEvent) => {
     const draggedEvent = activeEvent;
     setActiveEvent(null);
     setOverDate(null);
-
     if (!e.over || !draggedEvent) return;
     const targetDateStr = String(e.over.id);
 
     if (targetDateStr === draggedEvent.start_date && onReorder) {
-      // 같은 날 내 순서 변경 (단일 일정들 대상)
-      const dayEvents = events
-        .filter((ev) => {
-          const s = parseISO(ev.start_date);
-          const en = ev.end_date ? parseISO(ev.end_date) : s;
-          return isSameDay(s, en) && isSameDay(s, parseISO(targetDateStr));
-        });
+      // 같은 날 내 순서 변경 (단일 일정들만)
+      const dayEvents = events.filter((ev) => {
+        const s = parseISO(ev.start_date);
+        const en = ev.end_date ? parseISO(ev.end_date) : s;
+        return isSameDay(s, en) && isSameDay(s, parseISO(targetDateStr));
+      });
       const oldIdx = dayEvents.findIndex((ev) => ev.id === draggedEvent.id);
       if (oldIdx !== -1) {
         const reordered = [...dayEvents];
@@ -317,9 +368,9 @@ export default function CalendarView({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="min-w-0 w-full flex flex-col flex-1 min-h-0">
+      <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
         {/* 요일 헤더 */}
-        <div className="grid grid-cols-7 border-b shrink-0">
+        <div className="grid shrink-0 grid-cols-7 border-b">
           {WEEKDAYS.map((day, i) => (
             <div
               key={day}
@@ -332,47 +383,45 @@ export default function CalendarView({
           ))}
         </div>
 
-        {/* 주별 행 — 각 주가 flex-1로 공간 분할, 행 내부는 cells 레이어 + 이벤트 오버레이 레이어 */}
-        <div className="flex flex-col flex-1 min-h-0">
+        {/* 주 단위로 1fr 분할 */}
+        <div className="flex min-h-0 flex-1 flex-col">
           {weeks.map((week, weekIdx) => {
-            const segments = weekSegments[weekIdx];
-            const hiddenPerDay = weekHiddenCounts[weekIdx];
+            const cells = weekCellsData[weekIdx];
             return (
               <div
                 key={weekIdx}
-                className="relative flex-1 min-h-0 grid grid-cols-7 [&>*:nth-child(7)]:border-r-0"
+                className="grid min-h-0 flex-1 grid-cols-7 [&>*:nth-child(7)]:border-r-0"
               >
-                {/* 셀 레이어 */}
-                {week.map((day) => {
-                  const dateStr = format(day, "yyyy-MM-dd");
-                  const weather = weatherMap[dateStr];
-                  const holiday = holidayMap[dateStr];
+                {week.map((day, dayIdx) => {
+                  const cellData = cells[dayIdx];
+                  const weather = weatherMap[cellData.dateStr];
+                  const holiday = holidayMap[cellData.dateStr];
                   const inMonth = isSameMonth(day, monthStart);
                   const today = isToday(day);
-                  const dayOfWeek = day.getDay();
-                  const isHoliday = !!holiday || dayOfWeek === 0;
-                  const isOverThis = overDate === dateStr;
-                  const hidden = hiddenPerDay[dayOfWeek];
+                  const dow = day.getDay();
+                  const isHoliday = !!holiday || dow === 0;
+                  const isOverThis = overDate === cellData.dateStr;
 
                   return (
                     <DroppableCell
-                      key={dateStr}
-                      dateStr={dateStr}
+                      key={cellData.dateStr}
+                      dateStr={cellData.dateStr}
                       isOver={isOverThis}
-                      onClick={() => onDateClick(dateStr)}
+                      onClick={() => onDateClick(cellData.dateStr)}
                     >
+                      {/* 헤더: 날짜 + 날씨 — flex-none, 자체 layout */}
                       <div
-                        className={`flex w-full items-start justify-between gap-1 pl-1 pr-[27px] md:pl-1.5 md:pr-2.5 min-w-0 overflow-hidden ${
+                        className={`flex shrink-0 items-start justify-between gap-1 overflow-hidden px-1 pt-1 md:px-1.5 ${
                           !inMonth ? "opacity-30" : ""
                         }`}
                       >
                         <span
-                          className={`inline-flex h-[18px] w-[18px] md:h-5 md:w-5 items-center justify-center rounded-full text-[11px] md:text-xs font-semibold shrink-0 ${
+                          className={`inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[11px] font-semibold md:h-5 md:w-5 md:text-xs ${
                             today
                               ? "bg-primary text-primary-foreground"
                               : isHoliday
                                 ? "text-red-500"
-                                : dayOfWeek === 6
+                                : dow === 6
                                   ? "text-blue-500"
                                   : ""
                           }`}
@@ -381,40 +430,50 @@ export default function CalendarView({
                         </span>
                         {weather && inMonth && <WeatherIcon weather={weather} compact />}
                       </div>
+
+                      {/* 공휴일 — truncate로 긴 이름 안전 처리 */}
                       {holiday && inMonth && (
-                        <span className="text-[9px] md:text-[10px] text-red-500 leading-tight truncate w-full px-1.5 md:px-2 mt-0.5">
+                        <span className="mt-0.5 block w-full shrink-0 truncate px-1 text-[9px] leading-tight text-red-500 md:px-1.5 md:text-[10px]">
                           {holiday}
                         </span>
                       )}
-                      {/* 숨겨진 이벤트 수 — 셀 하단 */}
-                      {hidden > 0 && (
-                        <span
-                          className="mt-auto text-[9px] text-muted-foreground px-1"
-                          style={{ marginBottom: 2 }}
-                        >
-                          +{hidden}
+
+                      {/* 이벤트 슬롯 — flex-col로 고정 높이 슬롯 3개, overflow:hidden으로 넘침 방지 */}
+                      <div
+                        className="mt-0.5 flex min-h-0 flex-col overflow-hidden"
+                        style={{ gap: `${BAR_GAP_PX}px` }}
+                      >
+                        {cellData.slots.map((slot, i) => {
+                          if (!slot) {
+                            // 빈 슬롯 — 같은 높이 spacer로 아래 슬롯 위치 고정
+                            return (
+                              <div
+                                key={`empty-${i}`}
+                                style={{ height: BAR_HEIGHT_PX }}
+                                aria-hidden
+                              />
+                            );
+                          }
+                          return (
+                            <EventBarSegment
+                              key={slot.event.id + "-" + i}
+                              part={slot}
+                              dateStr={cellData.dateStr}
+                              onClickDate={() => onDateClick(cellData.dateStr)}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      {/* +N 더보기 — 셀 하단, mt-auto로 밀어냄 */}
+                      {cellData.hiddenCount > 0 && (
+                        <span className="mt-auto shrink-0 px-1 pb-0.5 text-[9px] text-muted-foreground md:px-1.5 md:text-[10px]">
+                          +{cellData.hiddenCount}
                         </span>
                       )}
                     </DroppableCell>
                   );
                 })}
-
-                {/* 이벤트 바 오버레이 — 같은 7열 그리드, 각 세그먼트가 grid-column span 사용
-                    top은 date/weather row 아래로 충분히 내려 데스크톱·모바일 모두 겹침 방지 */}
-                <div
-                  className="pointer-events-none absolute inset-x-0 grid grid-cols-7 top-[34px] md:top-[40px]"
-                  style={{ gridAutoRows: "0" }}
-                >
-                  {segments
-                    .filter((seg) => seg.slot < MAX_VISIBLE_SLOTS)
-                    .map((seg) => (
-                      <DraggableSegment
-                        key={seg.event.id + "-w" + weekIdx}
-                        segment={seg}
-                        onClickDate={onDateClick}
-                      />
-                    ))}
-                </div>
               </div>
             );
           })}
@@ -424,7 +483,7 @@ export default function CalendarView({
       <DragOverlay>
         {activeEvent && (
           <div
-            className="text-xs text-white px-2 py-1 rounded shadow-lg"
+            className="rounded px-2 py-1 text-xs text-white shadow-lg"
             style={{ backgroundColor: activeEvent.color }}
           >
             {activeEvent.title}
