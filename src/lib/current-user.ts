@@ -68,6 +68,7 @@ function translateError(msg: string | undefined | null): string {
 }
 
 export function useAppUsers() {
+  const { user: authUser } = useSupabaseAuth();
   const [state, setState] = useState<UsersState>(cache);
 
   useEffect(() => {
@@ -79,6 +80,15 @@ export function useAppUsers() {
       listeners.delete(fn);
     };
   }, []);
+
+  // 로그인/로그아웃 시 app_users 재조회 — 초기 fetch가 인증 전에 실행돼
+  // RLS에 막혀 빈 결과를 받은 경우, 인증 후 재조회로 프로필을 찾아냄
+  useEffect(() => {
+    if (authUser) {
+      const hasMatch = cache.users.some((u) => u.auth_user_id === authUser.id);
+      if (!hasMatch && !cache.loading) fetchAppUsers();
+    }
+  }, [authUser?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * 새 프로필 생성. 이메일 로그인 직후 처음 접속할 때 호출.
