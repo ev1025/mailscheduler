@@ -71,15 +71,12 @@ interface DayCellData {
 /** 한 셀 안에서 본 세그먼트의 일부 (이 셀 기준의 시작/끝/라벨 표시 여부) */
 interface DaySegmentPart {
   event: CalendarEvent;
-  /** 이 셀이 세그먼트의 왼쪽 끝인가 (실제 시작 or 주 시작) */
   isLeftEdge: boolean;
-  /** 이 셀이 세그먼트의 오른쪽 끝인가 (실제 종료 or 주 끝) */
   isRightEdge: boolean;
-  /** 실제 이벤트의 시작일에 해당하는 셀인가 (제목 표시 기준) */
   isEventStart: boolean;
-  /** 실제 이벤트의 종료일에 해당하는 셀인가 */
   isEventEnd: boolean;
-  /** 이 주 내에서의 spanDays (제목 라벨 ellipsis 계산용, 참고만) */
+  /** 이 셀이 span의 가운데 셀인가 → 여기에서만 제목 표시 */
+  isCenterCell: boolean;
   spanDaysInWeek: number;
   endLabel: string;
 }
@@ -94,7 +91,7 @@ function EventBarSegment({
   dateStr: string;
   onClickDate: () => void;
 }) {
-  const { event, isLeftEdge, isRightEdge, isEventStart, spanDaysInWeek, endLabel } = part;
+  const { event, isLeftEdge, isRightEdge, isCenterCell, endLabel } = part;
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${event.id}__${dateStr}`,
     data: { event },
@@ -109,7 +106,7 @@ function EventBarSegment({
         e.stopPropagation();
         if (!isDragging) onClickDate();
       }}
-      className={`relative flex items-center text-white cursor-grab active:cursor-grabbing ${
+      className={`flex items-center justify-center text-white cursor-grab active:cursor-grabbing ${
         isDragging ? "opacity-30" : ""
       }`}
       style={{
@@ -123,23 +120,16 @@ function EventBarSegment({
         marginRight: isRightEdge ? 0 : -CELL_BLEED_PX,
       }}
     >
-      {/* 라벨: 시작 셀에서 absolute로 span 전체 너비를 덮고 text-center */}
-      {(isEventStart || (isLeftEdge && !isEventStart)) && spanDaysInWeek > 0 && (
+      {/* 제목: span 가운데 셀에서만 표시. 셀 내부에서 truncate. overflow 불필요 */}
+      {isCenterCell ? (
         <span
-          className="pointer-events-none absolute left-0 top-0 flex items-center justify-center truncate px-1"
-          style={{
-            fontSize: "10px",
-            height: `${BAR_HEIGHT_PX}px`,
-            width: spanDaysInWeek > 1 ? `calc(${spanDaysInWeek} * 100%)` : "100%",
-            zIndex: 1,
-          }}
+          className="truncate px-0.5"
+          style={{ fontSize: "9px", lineHeight: `${BAR_HEIGHT_PX}px` }}
         >
           {event.title}
-          {endLabel && (
-            <span className="ml-0.5 opacity-80">({endLabel})</span>
-          )}
+          {endLabel && <span className="ml-0.5 opacity-80">({endLabel})</span>}
         </span>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -150,13 +140,11 @@ function DroppableCell({
   children,
   isOver,
   onClick,
-  elevated,
 }: {
   dateStr: string;
   children: React.ReactNode;
   isOver: boolean;
   onClick: () => void;
-  elevated?: boolean;
 }) {
   const { setNodeRef } = useDroppable({ id: dateStr });
   return (
@@ -166,7 +154,6 @@ function DroppableCell({
       className={`flex min-h-0 min-w-0 cursor-pointer flex-col border-b border-r text-left transition-colors ${
         isOver ? "bg-blue-50 ring-1 ring-blue-300 ring-inset" : "hover:bg-accent/50"
       }`}
-      style={elevated ? { position: "relative", zIndex: 2 } : undefined}
     >
       {children}
     </div>
@@ -297,12 +284,15 @@ export default function CalendarView({
           const isRightEdge = col === endCol;
           const start = parseISO(seg.event.start_date);
           const end = seg.event.end_date ? parseISO(seg.event.end_date) : start;
+          // span의 가운데 셀: floor((span-1)/2) 번째 셀
+          const centerCol = seg.startCol + Math.floor((seg.spanDays - 1) / 2);
           slots[seg.slot] = {
             event: seg.event,
             isLeftEdge,
             isRightEdge,
             isEventStart: isSameDay(day, start),
             isEventEnd: isSameDay(day, end),
+            isCenterCell: col === centerCol,
             spanDaysInWeek: seg.spanDays,
             endLabel: seg.endLabel,
           };
@@ -410,9 +400,6 @@ export default function CalendarView({
                       dateStr={cellData.dateStr}
                       isOver={isOverThis}
                       onClick={() => onDateClick(cellData.dateStr)}
-                      elevated={cellData.slots.some(
-                        (s) => s && s.isLeftEdge && s.spanDaysInWeek > 1
-                      )}
                     >
                       {/* 헤더: 날짜 + 날씨 — flex-none, 자체 layout */}
                       <div
