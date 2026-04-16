@@ -106,7 +106,7 @@ function EventBarSegment({
         e.stopPropagation();
         if (!isDragging) onClickDate();
       }}
-      className={`flex items-center justify-center text-white cursor-grab active:cursor-grabbing ${
+      className={`flex items-center justify-center overflow-hidden text-white cursor-grab active:cursor-grabbing ${
         isDragging ? "opacity-30" : ""
       }`}
       style={{
@@ -118,18 +118,16 @@ function EventBarSegment({
         borderBottomRightRadius: isRightEdge ? 3 : 0,
         marginLeft: isLeftEdge ? 0 : -CELL_BLEED_PX,
         marginRight: isRightEdge ? 0 : -CELL_BLEED_PX,
+        fontSize: "10px",
+        lineHeight: `${BAR_HEIGHT_PX}px`,
       }}
     >
-      {/* 제목: span 가운데 셀에서만 표시. 셀 내부에서 truncate. overflow 불필요 */}
-      {isCenterCell ? (
-        <span
-          className="truncate px-0.5"
-          style={{ fontSize: "9px", lineHeight: `${BAR_HEIGHT_PX}px` }}
-        >
+      {isCenterCell && (
+        <span className="truncate px-0.5">
           {event.title}
           {endLabel && <span className="ml-0.5 opacity-80">({endLabel})</span>}
         </span>
-      ) : null}
+      )}
     </div>
   );
 }
