@@ -4,13 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, ChevronLeft, ChevronRight, Wallet, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import PageHeader from "@/components/layout/page-header";
-import DatePicker from "@/components/ui/date-picker";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
 import MonthlySummary from "@/components/finance/monthly-summary";
@@ -30,25 +24,12 @@ export default function FinancePage() {
   const [editing, setEditing] = useState<Expense | null>(null);
   const [fixedOpen, setFixedOpen] = useState(false);
 
-  // 날짜 필터
-  const lastDay = new Date(year, month, 0).getDate();
-  const defaultFrom = `${year}-${String(month).padStart(2, "0")}-01`;
-  const defaultTo = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
-  const [dateFrom, setDateFrom] = useState(defaultFrom);
-  const [dateTo, setDateTo] = useState(defaultTo);
-  const [filterOpen, setFilterOpen] = useState(false);
 
   const handleYearChange = (y: number) => {
     setYear(y);
-    const ld = new Date(y, month, 0).getDate();
-    setDateFrom(`${y}-${String(month).padStart(2, "0")}-01`);
-    setDateTo(`${y}-${String(month).padStart(2, "0")}-${String(ld).padStart(2, "0")}`);
   };
   const handleMonthChange = (m: number) => {
     setMonth(m);
-    const ld = new Date(year, m, 0).getDate();
-    setDateFrom(`${year}-${String(m).padStart(2, "0")}-01`);
-    setDateTo(`${year}-${String(m).padStart(2, "0")}-${String(ld).padStart(2, "0")}`);
   };
 
   const {
@@ -75,10 +56,6 @@ export default function FinancePage() {
   }).filter(Boolean) as Expense[];
 
   const allTransactions = [...transactions, ...fixedAsTransactions].sort((a, b) => b.date.localeCompare(a.date));
-  const filteredTransactions = allTransactions.filter((t) => t.date >= dateFrom && t.date <= dateTo);
-  const filteredIncome = filteredTransactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-  const filteredExpense = filteredTransactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-  const isFiltered = dateFrom !== defaultFrom || dateTo !== defaultTo;
 
   const handleSave = async (data: {
     amount: number; category_id: string; description: string | null;
@@ -118,8 +95,8 @@ export default function FinancePage() {
         </button>
       </div>
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
-      {/* 통합 기간 네비게이터: < 기간 표시 > 클릭 시 상세 선택 */}
-      <div className="mb-3 flex items-center justify-center gap-1">
+      {/* 월 네비게이터 */}
+      <div className="mb-3 flex items-center justify-center gap-2">
         <button
           type="button"
           onClick={() => {
@@ -130,31 +107,9 @@ export default function FinancePage() {
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
-        <Popover open={filterOpen} onOpenChange={setFilterOpen}>
-          <PopoverTrigger className="flex items-center gap-1.5 rounded-lg border px-3 h-8 text-xs font-medium hover:bg-accent transition-colors cursor-pointer">
-            <span>
-              {isFiltered
-                ? `${dateFrom.slice(5).replace("-", "/")} ~ ${dateTo.slice(5).replace("-", "/")}`
-                : `${year}년 ${String(month).padStart(2, "0")}월`}
-            </span>
-          </PopoverTrigger>
-          <PopoverContent className="w-[280px] p-3" align="center" side="bottom">
-            <div className="flex flex-col gap-3">
-              <p className="text-xs font-medium text-muted-foreground">기간 선택</p>
-              <div className="flex items-center gap-2">
-                <DatePicker value={dateFrom} onChange={setDateFrom} className="h-8 flex-1" placeholder="시작일" />
-                <span className="text-xs text-muted-foreground">~</span>
-                <DatePicker value={dateTo} onChange={setDateTo} min={dateFrom} className="h-8 flex-1" placeholder="종료일" />
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="flex-1" onClick={() => {
-                  setDateFrom(defaultFrom); setDateTo(defaultTo); setFilterOpen(false);
-                }}>이번 달 전체</Button>
-                <Button size="sm" className="flex-1" onClick={() => setFilterOpen(false)}>적용</Button>
-              </div>
-            </div>
-          </PopoverContent>
-        </Popover>
+        <span className="text-sm font-semibold min-w-[100px] text-center">
+          {year}년 {String(month).padStart(2, "0")}월
+        </span>
         <button
           type="button"
           onClick={() => {
@@ -193,18 +148,18 @@ export default function FinancePage() {
       {(
         <div className="flex flex-col gap-6">
           <MonthlySummary
-            totalIncome={isFiltered ? filteredIncome : totalIncome}
-            totalExpense={isFiltered ? filteredExpense : totalExpense}
-            balance={isFiltered ? filteredIncome - filteredExpense : balance}
+            totalIncome={totalIncome}
+            totalExpense={totalExpense}
+            balance={balance}
           />
           <CategoryChart expenseByCategory={expenseByCategory} totalExpense={totalExpense} />
-          {filteredTransactions.length === 0 ? (
+          {allTransactions.length === 0 ? (
             <div className="flex items-center justify-center py-12">
-              <p className="text-muted-foreground">{isFiltered ? "해당 기간의 내역이 없습니다" : "이 달의 내역이 없습니다"}</p>
+              <p className="text-muted-foreground">이 달의 내역이 없습니다</p>
             </div>
           ) : (
             <TransactionList
-              transactions={filteredTransactions}
+              transactions={allTransactions}
               onEdit={(tx) => { setEditing(tx); setFormOpen(true); }}
               onDelete={async (id) => { await deleteTransaction(id); }}
             />
