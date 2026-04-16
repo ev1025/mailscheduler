@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, ChevronLeft, ChevronRight, Wallet, ShoppingBag } from "lucide-react";
+import { Plus, Wallet, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import MonthPicker from "@/components/layout/month-picker";
 import PageHeader from "@/components/layout/page-header";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
@@ -95,31 +96,8 @@ export default function FinancePage() {
         </button>
       </div>
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
-      {/* 월 네비게이터 */}
-      <div className="mb-3 flex items-center justify-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            if (month === 1) { handleYearChange(year - 1); handleMonthChange(12); }
-            else handleMonthChange(month - 1);
-          }}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <span className="text-sm font-semibold min-w-[100px] text-center">
-          {year}년 {String(month).padStart(2, "0")}월
-        </span>
-        <button
-          type="button"
-          onClick={() => {
-            if (month === 12) { handleYearChange(year + 1); handleMonthChange(1); }
-            else handleMonthChange(month + 1);
-          }}
-          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
+      <div className="mb-3 flex justify-center">
+        <MonthPicker year={year} month={month} onYearChange={handleYearChange} onMonthChange={handleMonthChange} />
       </div>
 
       {/* 버튼 행 */}
