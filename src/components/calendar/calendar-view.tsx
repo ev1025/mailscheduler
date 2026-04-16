@@ -278,15 +278,15 @@ export default function CalendarView({
                           {h}
                         </span>
                       )}
-                      {/* +N */}
-                      {hc > 0 && <span className="mt-auto shrink-0 px-1 pb-0.5 text-[9px] text-muted-foreground">+{hc}</span>}
+                      {/* +N — 바 오버레이 위에 표시되도록 z-index */}
+                      {hc > 0 && <span className="relative z-10 mt-auto shrink-0 px-1 pb-0.5 text-[9px] text-muted-foreground">+{hc}</span>}
                     </DropCell>
                   );
                 })}
 
                 {/* ── 바 오버레이: grid-column span으로 너비, 텍스트 중앙정렬 ── */}
                 <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[34px] md:top-[38px]"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[38px] md:top-[42px]"
                   style={{ gridAutoRows: 0 }}
                 >
                   {segs
