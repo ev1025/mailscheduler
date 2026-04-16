@@ -274,19 +274,19 @@ export default function CalendarView({
                       </div>
                       {/* 공휴일 */}
                       {h && inM && (
-                        <span className="mt-0.5 block w-full shrink-0 truncate px-1 text-[8px] leading-tight text-red-500 md:px-1.5 md:text-[9px]">
+                        <span className="-mt-[3px] block w-full shrink-0 truncate px-1 text-[8px] leading-tight text-red-500 md:px-1.5 md:text-[9px]">
                           {h}
                         </span>
                       )}
                       {/* +N — 바 오버레이 위에 표시되도록 z-index */}
-                      {hc > 0 && <span className="relative z-10 mt-auto shrink-0 px-1 pb-0.5 text-[9px] text-muted-foreground">+{hc}</span>}
+                      {hc > 0 && <span className="relative z-10 mt-auto mb-[2px] shrink-0 px-1 text-[9px] text-muted-foreground">+{hc}</span>}
                     </DropCell>
                   );
                 })}
 
                 {/* ── 바 오버레이: grid-column span으로 너비, 텍스트 중앙정렬 ── */}
                 <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[35.5px] md:top-[37.5px]"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[31.5px] md:top-[33.5px]"
                   style={{ gridAutoRows: 0 }}
                 >
                   {segs
