@@ -82,7 +82,7 @@ function ProductRow({
       className="border-t hover:bg-accent/40 cursor-pointer group"
       onClick={() => onEdit(p)}
     >
-      <td className="text-center px-1 py-3 whitespace-nowrap w-6">
+      <td className="text-center px-1 py-1.5 whitespace-nowrap w-6">
         <button
           type="button"
           {...attributes}
@@ -93,9 +93,9 @@ function ProductRow({
           <GripVertical className="h-3 w-3" />
         </button>
       </td>
-      <td className="text-center px-2 py-3 whitespace-nowrap w-10">
+      <td className="text-center px-1 py-1.5 whitespace-nowrap w-8">
         <span
-          className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold ${
+          className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${
             idx === 0
               ? "bg-yellow-100 text-yellow-700"
               : idx === 1
@@ -108,18 +108,18 @@ function ProductRow({
           {idx + 1}
         </span>
       </td>
-      <td className="px-2 py-3 w-auto">
-        <div className="flex items-center gap-1.5 min-w-0">
-          <span className="font-medium text-sm break-words">{p.name}</span>
+      <td className="px-2 py-1.5 w-auto">
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="font-medium text-xs">{p.name}</span>
           {idx === 0 && stat?.minPrice && (
             <Crown className="h-3 w-3 text-yellow-500 shrink-0" />
           )}
         </div>
       </td>
-      <td className="px-2 py-3 text-muted-foreground hidden sm:table-cell whitespace-nowrap">
+      <td className="px-2 py-1.5 text-xs text-muted-foreground hidden sm:table-cell whitespace-nowrap">
         {p.brand || "-"}
       </td>
-      <td className="px-2 py-3 text-right whitespace-nowrap font-semibold">
+      <td className="px-2 py-1.5 text-right whitespace-nowrap text-xs font-semibold">
         {stat?.minPrice
           ? `₩${stat.minPrice.toLocaleString()}`
           : "-"}

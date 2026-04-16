@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Trash2, HelpCircle, Crown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useCurrentUserId } from "@/lib/current-user";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useProductCategories } from "@/hooks/use-product-categories";
@@ -63,6 +64,7 @@ export default function ProductForm({
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const userId = useCurrentUserId();
 
   const { tags: subTags, addTag, deleteTag, updateTagColor } = useProductSubTags(category);
   const { upsertFixedFromProduct, deleteFixedByProduct } = useFixedExpenses();
@@ -184,7 +186,7 @@ export default function ProductForm({
       .delete()
       .eq("product_id", productId);
 
-    if (validPrices.length > 0) {
+    if (validPrices.length > 0 && userId) {
       await supabase.from("product_purchases").insert(
         validPrices.map((p) => ({
           product_id: productId,
@@ -196,6 +198,7 @@ export default function ProductForm({
           store: null,
           link: p.site_url.trim() || null,
           notes: null,
+          user_id: userId,
         }))
       );
     }
