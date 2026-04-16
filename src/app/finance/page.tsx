@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, CalendarRange, Wallet, ShoppingBag } from "lucide-react";
+import { Plus, ChevronLeft, ChevronRight, Wallet, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import MonthPicker from "@/components/layout/month-picker";
 import PageHeader from "@/components/layout/page-header";
 import DatePicker from "@/components/ui/date-picker";
 import { useTransactions } from "@/hooks/use-transactions";
@@ -119,19 +118,27 @@ export default function FinancePage() {
         </button>
       </div>
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
-      <div className="mb-3 flex justify-center">
-        <MonthPicker year={year} month={month} onYearChange={handleYearChange} onMonthChange={handleMonthChange} />
-      </div>
-
-      {/* 버튼 행: 오른쪽 정렬 */}
-      <div className="mb-4 flex items-center justify-end gap-2">
-        {/* 날짜 필터 */}
+      {/* 통합 기간 네비게이터: < 기간 표시 > 클릭 시 상세 선택 */}
+      <div className="mb-3 flex items-center justify-center gap-1">
+        <button
+          type="button"
+          onClick={() => {
+            if (month === 1) { handleYearChange(year - 1); handleMonthChange(12); }
+            else handleMonthChange(month - 1);
+          }}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
         <Popover open={filterOpen} onOpenChange={setFilterOpen}>
-          <PopoverTrigger className="flex items-center gap-1.5 rounded-md border px-2.5 h-8 text-xs hover:bg-accent transition-colors cursor-pointer shrink-0 max-w-[45vw] min-w-0">
-            <CalendarRange className={`h-3.5 w-3.5 shrink-0 ${isFiltered ? "text-blue-600" : "text-muted-foreground"}`} />
-            <span className="truncate">{isFiltered ? `${dateFrom} ~ ${dateTo}` : "날짜 필터"}</span>
+          <PopoverTrigger className="flex items-center gap-1.5 rounded-lg border px-3 h-8 text-xs font-medium hover:bg-accent transition-colors cursor-pointer">
+            <span>
+              {isFiltered
+                ? `${dateFrom.slice(5).replace("-", "/")} ~ ${dateTo.slice(5).replace("-", "/")}`
+                : `${year}년 ${String(month).padStart(2, "0")}월`}
+            </span>
           </PopoverTrigger>
-          <PopoverContent className="w-[280px] p-3" align="end" side="bottom">
+          <PopoverContent className="w-[280px] p-3" align="center" side="bottom">
             <div className="flex flex-col gap-3">
               <p className="text-xs font-medium text-muted-foreground">기간 선택</p>
               <div className="flex items-center gap-2">
@@ -142,19 +149,29 @@ export default function FinancePage() {
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" className="flex-1" onClick={() => {
                   setDateFrom(defaultFrom); setDateTo(defaultTo); setFilterOpen(false);
-                }}>초기화</Button>
+                }}>이번 달 전체</Button>
                 <Button size="sm" className="flex-1" onClick={() => setFilterOpen(false)}>적용</Button>
               </div>
             </div>
           </PopoverContent>
         </Popover>
+        <button
+          type="button"
+          onClick={() => {
+            if (month === 12) { handleYearChange(year + 1); handleMonthChange(1); }
+            else handleMonthChange(month + 1);
+          }}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
 
-        {/* 고정비 관리 */}
+      {/* 버튼 행 */}
+      <div className="mb-4 flex items-center justify-end gap-2">
         <Button size="sm" variant="outline" className="h-8" onClick={() => setFixedOpen(true)}>
           고정비
         </Button>
-
-        {/* 추가 */}
         <Button size="sm" className="h-8" onClick={() => { setEditing(null); setFormOpen(true); }}>
           <Plus className="mr-1 h-4 w-4" />
           추가
