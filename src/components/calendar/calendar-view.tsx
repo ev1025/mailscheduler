@@ -248,7 +248,7 @@ export default function CalendarView({
             const segs = weekSegs[wi];
             const hidden = weekHidden[wi];
             return (
-              <div key={wi} className="relative grid min-h-0 flex-1 grid-cols-7 [&>*:nth-child(7)]:border-r-0">
+              <div key={wi} className="relative grid min-h-0 flex-1 grid-cols-7 overflow-hidden [&>*:nth-child(7)]:border-r-0">
                 {/* ── 셀 레이어: 날짜·날씨·공휴일·+N ── */}
                 {week.map((day, di) => {
                   const ds = format(day, "yyyy-MM-dd");
