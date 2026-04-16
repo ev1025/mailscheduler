@@ -150,11 +150,13 @@ function DroppableCell({
   children,
   isOver,
   onClick,
+  elevated,
 }: {
   dateStr: string;
   children: React.ReactNode;
   isOver: boolean;
   onClick: () => void;
+  elevated?: boolean;
 }) {
   const { setNodeRef } = useDroppable({ id: dateStr });
   return (
@@ -164,6 +166,7 @@ function DroppableCell({
       className={`flex min-h-0 min-w-0 cursor-pointer flex-col border-b border-r text-left transition-colors ${
         isOver ? "bg-blue-50 ring-1 ring-blue-300 ring-inset" : "hover:bg-accent/50"
       }`}
+      style={elevated ? { position: "relative", zIndex: 2 } : undefined}
     >
       {children}
     </div>
@@ -407,6 +410,9 @@ export default function CalendarView({
                       dateStr={cellData.dateStr}
                       isOver={isOverThis}
                       onClick={() => onDateClick(cellData.dateStr)}
+                      elevated={cellData.slots.some(
+                        (s) => s && s.isLeftEdge && s.spanDaysInWeek > 1
+                      )}
                     >
                       {/* 헤더: 날짜 + 날씨 — flex-none, 자체 layout */}
                       <div
