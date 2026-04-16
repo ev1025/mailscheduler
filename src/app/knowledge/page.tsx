@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect, useMemo } from "react";
+import { Suspense, useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
@@ -102,7 +102,28 @@ function KnowledgePageInner() {
 
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
-  const [mobileSidebar, setMobileSidebar] = useState(true);
+  const [mobileSidebar, setMobileSidebar] = useState(!urlItemId); // 노트 URL이면 닫힌 상태
+
+  // 모바일 왼쪽 스와이프 → 사이드바 열기
+  const touchRef = useRef<{ sx: number; sy: number } | null>(null);
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const t = e.touches[0];
+    // 왼쪽 가장자리 30px 이내에서 시작한 터치만 처리
+    if (t.clientX < 30) {
+      touchRef.current = { sx: t.clientX, sy: t.clientY };
+    }
+  }, []);
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!touchRef.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchRef.current.sx;
+    const dy = t.clientY - touchRef.current.sy;
+    touchRef.current = null;
+    // 오른쪽으로 50px 이상 + 세로 이동보다 큰 경우에만 → 사이드바 열기
+    if (dx > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      setMobileSidebar(true);
+    }
+  }, []);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [draftsOpen, setDraftsOpen] = useState(false);
   const [folderPromptOpen, setFolderPromptOpen] = useState(false);
@@ -395,15 +416,27 @@ function KnowledgePageInner() {
         />
       </div>
     <div
-      className={`flex md:h-[calc(100%-3.5rem)] min-h-0 ${
+      className={`relative flex md:h-[calc(100%-3.5rem)] min-h-0 ${
         editorOpen ? "h-full" : "h-[calc(100%-3.5rem)]"
       }`}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
-      {/* 왼쪽: 트리 */}
+      {/* 모바일: 백드롭 (사이드바 열림 시) */}
+      {mobileSidebar && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          onClick={() => setMobileSidebar(false)}
+        />
+      )}
+
+      {/* 왼쪽: 트리 — 모바일에서는 슬라이드 드로어 */}
       <aside
-        className={`${
-          mobileSidebar ? "flex" : "hidden md:flex"
-        } flex-col w-full md:w-64 border-r overflow-hidden`}
+        className={`
+          fixed left-0 top-0 bottom-0 z-40 flex w-[75vw] max-w-[300px] flex-col border-r bg-background transition-transform duration-200 ease-out
+          md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:transition-none
+          ${mobileSidebar ? "translate-x-0" : "-translate-x-full"}
+        `}
       >
         <div className="p-3 border-b flex flex-col gap-2">
           <div className="relative">
@@ -480,12 +513,8 @@ function KnowledgePageInner() {
         </div>
       </aside>
 
-      {/* 오른쪽: 읽기 모드 / 편집 모드 */}
-      <main
-        className={`${
-          mobileSidebar ? "hidden md:flex" : "flex"
-        } flex-1 flex-col overflow-hidden`}
-      >
+      {/* 오른쪽: 읽기 모드 / 편집 모드 — 항상 표시 (사이드바는 overlay) */}
+      <main className="flex flex-1 flex-col overflow-hidden">
         {selectedItem ? (
           editing ? (
             /* ── 편집 모드 ── */
@@ -494,13 +523,7 @@ function KnowledgePageInner() {
                 <div className="flex items-center gap-2 px-3 h-14">
                   <button
                     type="button"
-                    onClick={() => {
-                      if (dirty) {
-                        setEditing(false);
-                      } else {
-                        setEditing(false);
-                      }
-                    }}
+                    onClick={() => setEditing(false)}
                     className="md:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground -ml-1"
                     title="보기로 돌아가기"
                     aria-label="뒤로"
@@ -554,8 +577,8 @@ function KnowledgePageInner() {
                   type="button"
                   onClick={() => setMobileSidebar(true)}
                   className="md:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground -ml-1"
-                  title="목록"
-                  aria-label="목록"
+                  title="목록 열기"
+                  aria-label="사이드바 열기"
                 >
                   <ArrowLeft className="h-5 w-5" />
                 </button>
