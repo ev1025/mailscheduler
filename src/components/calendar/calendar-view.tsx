@@ -31,7 +31,7 @@ import WeatherIcon from "./weather-icon";
 import { getHolidayMap } from "@/lib/holidays";
 
 /* ---------- 레이아웃 상수 (매직넘버 외부화) ---------- */
-const MAX_VISIBLE_SLOTS = 3; // 셀당 최대 보여주는 이벤트 수
+const MAX_VISIBLE_SLOTS = 4; // 셀당 최대 보여주는 이벤트 수
 const BAR_HEIGHT_PX = 11; // 이벤트 바 높이
 const BAR_GAP_PX = 1; // 바 사이 간격
 const CELL_BLEED_PX = 1; // 셀 경계(border-r) 위로 덮어 연결하는 음수 마진
@@ -411,7 +411,7 @@ export default function CalendarView({
                     >
                       {/* 헤더: 날짜 + 날씨 — flex-none, 자체 layout */}
                       <div
-                        className={`flex shrink-0 items-start justify-between gap-1 overflow-hidden px-1 pt-1 md:px-1.5 ${
+                        className={`flex shrink-0 items-start justify-between gap-1 overflow-hidden pl-1 pr-[7px] pt-1 md:pl-1.5 md:pr-2 ${
                           !inMonth ? "opacity-30" : ""
                         }`}
                       >
