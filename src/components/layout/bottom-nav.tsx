@@ -6,7 +6,6 @@ import {
   Calendar,
   Wallet,
   StickyNote,
-  ShoppingBag,
   BookOpen,
   User,
 } from "lucide-react";
@@ -14,10 +13,9 @@ import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/lib/current-user";
 
 const navItems = [
+  { href: "/finance", label: "가계부", icon: Wallet, also: ["/products"] },
   { href: "/calendar", label: "캘린더", icon: Calendar },
-  { href: "/finance", label: "가계부", icon: Wallet },
   { href: "/memo", label: "메모", icon: StickyNote },
-  { href: "/products", label: "생필품", icon: ShoppingBag },
   { href: "/knowledge", label: "지식", icon: BookOpen },
 ];
 
@@ -31,7 +29,8 @@ export default function BottomNav() {
       <div className="flex h-14 items-stretch justify-around">
         {navItems.map((item) => {
           const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+            pathname === item.href || pathname.startsWith(item.href + "/") ||
+            (item.also?.some((p: string) => pathname === p || pathname.startsWith(p + "/")));
           return (
             <Link
               key={item.href}

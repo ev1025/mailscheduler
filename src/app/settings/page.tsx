@@ -149,23 +149,19 @@ export default function SettingsPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm flex items-center gap-2">
-                <MapPin className="h-4 w-4" />날씨 위치
+                <MapPin className="h-4 w-4" />날씨 지역
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
-              <div className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2 text-sm">
+              <div className="rounded-md bg-muted/40 px-3 py-2.5 text-sm">
                 <span className="font-medium">{currentLocation.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {currentLocation.country} · {currentLocation.lat.toFixed(2)},{" "}
-                  {currentLocation.lon.toFixed(2)}
-                </span>
               </div>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={locQuery}
                   onChange={(e) => setLocQuery(e.target.value)}
-                  placeholder="도시 검색 (서울, Paris, Tokyo ...)"
+                  placeholder="지역 변경 (예: 서울, 부산, Tokyo)"
                   className="pl-8 h-9 text-sm"
                 />
               </div>
@@ -181,27 +177,24 @@ export default function SettingsPage() {
                         key={r.id}
                         type="button"
                         onClick={() => pickLocation(r)}
-                        className="flex w-full items-center justify-between gap-2 border-b p-2 text-left text-sm last:border-b-0 hover:bg-accent"
+                        className="flex w-full items-center justify-between gap-2 border-b px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-accent"
                       >
                         <span className="font-medium">
                           {r.name}
-                          {r.admin1 ? ` · ${r.admin1}` : ""}
+                          {r.admin1 ? `, ${r.admin1}` : ""}
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          {r.country_code} · {r.country}
-                        </span>
+                        <span className="text-xs text-muted-foreground">{r.country}</span>
                       </button>
                     ))
                   )}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">
-                국내는 기상청 + Open-Meteo를 함께 사용하고, 해외는 Open-Meteo
-                단독으로 조회합니다.
-              </p>
             </CardContent>
           </Card>
-
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {/* 앱 정보 */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">앱 정보</CardTitle>
@@ -217,9 +210,7 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
+
           {/* 데이터베이스 */}
           <ApiSection title="데이터베이스 — Supabase">
             <div className="flex flex-col gap-2 text-sm">

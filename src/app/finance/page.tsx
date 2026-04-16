@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, CalendarRange } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Plus, CalendarRange, Wallet, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -22,6 +23,7 @@ import type { Expense } from "@/types";
 import { toast } from "sonner";
 
 export default function FinancePage() {
+  const router = useRouter();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -99,7 +101,24 @@ export default function FinancePage() {
   return (
     <>
       <PageHeader title="가계부" />
-    <div className="p-4 md:p-6">
+    <div className="flex flex-col h-[calc(100%-3.5rem)]">
+      {/* 탭: 가계부 / 생필품 */}
+      <div className="flex border-b shrink-0 px-2">
+        <button
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 border-primary text-foreground"
+        >
+          <Wallet className="h-3.5 w-3.5" />
+          가계부
+        </button>
+        <button
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground"
+          onClick={() => router.push("/products")}
+        >
+          <ShoppingBag className="h-3.5 w-3.5" />
+          생필품
+        </button>
+      </div>
+    <div className="flex-1 overflow-y-auto p-4 md:p-6">
       <div className="mb-3 flex justify-center">
         <MonthPicker year={year} month={month} onYearChange={handleYearChange} onMonthChange={handleMonthChange} />
       </div>
@@ -187,6 +206,7 @@ export default function FinancePage() {
         onUpdateCategoryColor={updateCategoryColor}
       />
       <FixedExpenseManager open={fixedOpen} onOpenChange={setFixedOpen} fixedExpenses={fixedExpenses} categories={categories} onAdd={addFixed} onUpdate={updateFixed} onDelete={deleteFixed} />
+    </div>
     </div>
     </>
   );

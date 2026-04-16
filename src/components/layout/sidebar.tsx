@@ -7,7 +7,6 @@ import {
   Calendar,
   Wallet,
   StickyNote,
-  ShoppingBag,
   BookOpen,
   PanelLeftClose,
   PanelLeftOpen,
@@ -24,7 +23,6 @@ const navItems = [
   { href: "/calendar", label: "캘린더", icon: Calendar },
   { href: "/finance", label: "가계부", icon: Wallet },
   { href: "/memo", label: "메모", icon: StickyNote },
-  { href: "/products", label: "생필품", icon: ShoppingBag },
   { href: "/knowledge", label: "지식창고", icon: BookOpen },
 ];
 
