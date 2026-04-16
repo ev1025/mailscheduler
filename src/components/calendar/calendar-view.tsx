@@ -286,7 +286,7 @@ export default function CalendarView({
 
                 {/* ── 바 오버레이: grid-column span으로 너비, 텍스트 중앙정렬 ── */}
                 <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[38px] md:top-[40px]"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[34px] md:top-[36px]"
                   style={{ gridAutoRows: 0 }}
                 >
                   {segs
