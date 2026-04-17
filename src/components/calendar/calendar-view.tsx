@@ -27,7 +27,7 @@ import {
 import { useState, useMemo, useRef, useEffect } from "react";
 import type { CalendarEvent, WeatherData } from "@/types";
 import WeatherIcon from "./weather-icon";
-import { getHolidayMap } from "@/lib/holidays";
+import { useHolidayMap } from "@/lib/holidays";
 
 /* ── 레이아웃 상수 ── */
 const MAX_VISIBLE_SLOTS = 3;
@@ -139,7 +139,7 @@ export default function CalendarView({
   onEventMove,
   onReorder,
 }: CalendarViewProps) {
-  const holidayMap = getHolidayMap(year);
+  const holidayMap = useHolidayMap(year);
 
   // 공휴일을 가상 이벤트로 변환해 달력에 빨간 바로 표시
   const allEvents = useMemo(() => {
