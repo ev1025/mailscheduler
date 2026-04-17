@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Plus, Search, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, ArrowUpDown, GripVertical } from "lucide-react";
+import { Plus, Search, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, ArrowUpDown, GripVertical, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -398,29 +398,92 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
           <input type="checkbox" checked={showVisited} onChange={(e) => updateShowVisited(e.target.checked)} className="rounded" />
           가본 곳 포함
         </label>
-        {filterCategories.map((c) => (
-          <Badge
-            key={c}
-            className="cursor-pointer shrink-0"
-            style={{ backgroundColor: CATEGORY_COLORS[c] + "20", color: CATEGORY_COLORS[c], borderColor: CATEGORY_COLORS[c] + "40" }}
-            onClick={() => setFilterCategories((prev) => prev.filter((x) => x !== c))}
-          >
-            {c} ✕
-          </Badge>
-        ))}
-        {filterTags.map((ft) => {
-          const c = tagColorMap[ft] || "#6B7280";
-          return (
-            <Badge
-              key={ft}
-              className="cursor-pointer shrink-0"
-              style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}
-              onClick={() => setFilterTags((prev) => prev.filter((t) => t !== ft))}
+        {/* 분류 필터 드롭다운 */}
+        {allCategories.length > 0 && (
+          <Popover>
+            <PopoverTrigger
+              className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-7 text-xs transition-colors ${
+                filterCategories.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
+              }`}
             >
-              {ft} ✕
-            </Badge>
-          );
-        })}
+              <Filter className="h-3 w-3" />
+              분류{filterCategories.length > 0 && ` (${filterCategories.length})`}
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-1" align="start">
+              <button
+                type="button"
+                className="w-full px-2 py-1.5 text-xs text-left hover:bg-accent rounded"
+                onClick={() => setFilterCategories([])}
+              >
+                전체 보기
+              </button>
+              <div className="border-t my-1" />
+              <div className="max-h-[200px] overflow-y-auto">
+                {allCategories.map((c) => {
+                  const active = filterCategories.includes(c);
+                  const color = CATEGORY_COLORS[c] || "#6B7280";
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      className="flex w-full items-center gap-2 px-2 py-1.5 text-xs text-left hover:bg-accent rounded"
+                      onClick={() =>
+                        setFilterCategories((prev) => (active ? prev.filter((x) => x !== c) : [...prev, c]))
+                      }
+                    >
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="flex-1">{c}</span>
+                      {active && <Check className="h-3 w-3 text-primary" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+        {/* 태그 필터 드롭다운 */}
+        {allItemTags.length > 0 && (
+          <Popover>
+            <PopoverTrigger
+              className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-7 text-xs transition-colors ${
+                filterTags.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              <Filter className="h-3 w-3" />
+              태그{filterTags.length > 0 && ` (${filterTags.length})`}
+            </PopoverTrigger>
+            <PopoverContent className="w-48 p-1" align="start">
+              <button
+                type="button"
+                className="w-full px-2 py-1.5 text-xs text-left hover:bg-accent rounded"
+                onClick={() => setFilterTags([])}
+              >
+                전체 보기
+              </button>
+              <div className="border-t my-1" />
+              <div className="max-h-[200px] overflow-y-auto">
+                {allItemTags.map((t) => {
+                  const active = filterTags.includes(t);
+                  const color = tagColorMap[t] || "#6B7280";
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      className="flex w-full items-center gap-2 px-2 py-1.5 text-xs text-left hover:bg-accent rounded"
+                      onClick={() =>
+                        setFilterTags((prev) => (active ? prev.filter((x) => x !== t) : [...prev, t]))
+                      }
+                    >
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                      <span className="flex-1">{t}</span>
+                      {active && <Check className="h-3 w-3 text-primary" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
 
       {filtered.length === 0 ? (

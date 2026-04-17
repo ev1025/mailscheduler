@@ -200,7 +200,8 @@ export default function DatabaseView({
           <p className="text-sm text-muted-foreground">{search || filterTags.length > 0 ? "검색 결과가 없습니다" : "이 달의 일정이 없습니다"}</p>
         </div>
       ) : (
-        <div className={`rounded-lg border flex-1 min-h-0 overflow-auto ${isResizing ? "select-none cursor-col-resize" : ""}`}>
+        <div className={`flex-1 min-h-0 overflow-auto ${isResizing ? "select-none cursor-col-resize" : ""}`}>
+          <div className="rounded-lg border">
           <table
             ref={tableRef}
             className="w-full border-collapse"
@@ -283,6 +284,7 @@ export default function DatabaseView({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
