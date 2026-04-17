@@ -526,14 +526,16 @@ function KnowledgePageInner() {
                 ? null
                 : folders.find((f) => f.id === viewFolderId) || null
             }
+            folders={folders}
             items={items}
-            selectedItemId={selectedItemId}
-            onSelectItem={(id) => {
-              setSelectedItemId(id);
-              setViewFolderId(null);
+            onSelectItem={(id) => setSelectedItemId(id)}
+            onSelectFolder={(fid) => setViewFolderId(fid)}
+            onBack={() => {
+              // 부모 폴더로 이동, 없으면 대시보드
+              const current = folders.find((f) => f.id === viewFolderId);
+              if (current?.parent_id) setViewFolderId(current.parent_id);
+              else setViewFolderId(null);
             }}
-            onBack={() => setViewFolderId(null)}
-            onAddItem={handleAddItem}
           />
         ) : (
           /* ── 대시보드 홈 ── */
@@ -545,6 +547,13 @@ function KnowledgePageInner() {
             onSearch={(q) => setSearch(q)}
             searchQuery={search}
             searchResults={searchResults}
+            onDeleteItems={async (ids) => {
+              for (const id of ids) await deleteItem(id);
+            }}
+            onDeleteFolders={async (ids) => {
+              for (const id of ids) { deleteFolder(id); }
+              refetch();
+            }}
           />
         )}
       </main>
