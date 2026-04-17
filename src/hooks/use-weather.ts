@@ -62,67 +62,74 @@ export function useWeather(year: number, month: number) {
 
   const locKey = `${location.lat.toFixed(3)},${location.lon.toFixed(3)}`;
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const cache = loadCache(locKey);
-    const today = todayISO();
+  useEffect(() => {
+    const abortController = new AbortController();
+    let cancelled = false;
 
-    // 1) 즉시: 캐시에서 이 달 범위 데이터 보여주기
-    const initial: Record<string, WeatherData> = {};
-    for (const [date, entry] of Object.entries(cache)) {
-      if (date >= startDate && date <= endDate) {
-        initial[date] = entry.data;
-      }
-    }
-    setWeatherMap(initial);
-    setLoading(false);
+    (async () => {
+      setLoading(true);
+      const cache = loadCache(locKey);
+      const today = todayISO();
 
-    // 2) 백그라운드: 빠진 날짜가 있거나 예보가 오래됐으면 재요청
-    const needsRefresh = (() => {
-      // 범위 내 오늘 이전 중 캐시 없는 날짜
-      const cursor = new Date(startDate + "T00:00:00");
-      const end = new Date(endDate + "T00:00:00");
-      while (cursor <= end) {
-        const d = cursor.toISOString().split("T")[0];
-        const entry = cache[d];
-        if (!entry) return true;
-        if (entry.type === "forecast" && isForecastExpired(entry.cachedAt)) {
-          return true;
+      // 1) 즉시: 캐시에서 이 달 범위 데이터 보여주기
+      const initial: Record<string, WeatherData> = {};
+      for (const [date, entry] of Object.entries(cache)) {
+        if (date >= startDate && date <= endDate) {
+          initial[date] = entry.data;
         }
-        cursor.setDate(cursor.getDate() + 1);
       }
-      return false;
+      if (!cancelled) {
+        setWeatherMap(initial);
+        setLoading(false);
+      }
+
+      // 2) 백그라운드: 빠진 날짜가 있거나 예보가 오래됐으면 재요청
+      const needsRefresh = (() => {
+        const cursor = new Date(startDate + "T00:00:00");
+        const end = new Date(endDate + "T00:00:00");
+        while (cursor <= end) {
+          const d = cursor.toISOString().split("T")[0];
+          const entry = cache[d];
+          if (!entry) return true;
+          if (entry.type === "forecast" && isForecastExpired(entry.cachedAt)) return true;
+          cursor.setDate(cursor.getDate() + 1);
+        }
+        return false;
+      })();
+
+      if (!needsRefresh || cancelled) return;
+
+      try {
+        const res = await fetch(
+          `/api/weather?start=${startDate}&end=${endDate}&lat=${location.lat}&lon=${location.lon}&country=${location.country}`,
+          { signal: abortController.signal }
+        );
+        if (!res.ok || cancelled) return;
+        const fresh: Record<string, WeatherData> = await res.json();
+        if (cancelled) return;
+        const nowIso = new Date().toISOString();
+        const nextCache: Cache = { ...cache };
+        const merged: Record<string, WeatherData> = { ...initial };
+        for (const [date, data] of Object.entries(fresh)) {
+          merged[date] = data;
+          nextCache[date] = {
+            data,
+            cachedAt: nowIso,
+            type: date >= today ? "forecast" : "past",
+          };
+        }
+        saveCache(locKey, nextCache);
+        if (!cancelled) setWeatherMap(merged);
+      } catch {
+        /* 네트워크 실패 또는 abort */
+      }
     })();
 
-    if (!needsRefresh) return;
-
-    try {
-      const res = await fetch(
-        `/api/weather?start=${startDate}&end=${endDate}&lat=${location.lat}&lon=${location.lon}&country=${location.country}`
-      );
-      if (!res.ok) return;
-      const fresh: Record<string, WeatherData> = await res.json();
-      const nowIso = new Date().toISOString();
-      const nextCache: Cache = { ...cache };
-      const merged: Record<string, WeatherData> = { ...initial };
-      for (const [date, data] of Object.entries(fresh)) {
-        merged[date] = data;
-        nextCache[date] = {
-          data,
-          cachedAt: nowIso,
-          type: date >= today ? "forecast" : "past",
-        };
-      }
-      saveCache(locKey, nextCache);
-      setWeatherMap(merged);
-    } catch {
-      /* 네트워크 실패 시 캐시 그대로 */
-    }
+    return () => {
+      cancelled = true;
+      abortController.abort();
+    };
   }, [startDate, endDate, locKey, location.lat, location.lon, location.country]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
 
   return { weatherMap, loading };
 }
