@@ -125,6 +125,7 @@ function KnowledgePageInner() {
   const [dirty, setDirty] = useState(false);
   const [editing, setEditing] = useState(false);
   const [dashSelectMode, setDashSelectMode] = useState(false);
+  const [folderSelectMode, setFolderSelectMode] = useState(false);
 
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
@@ -415,8 +416,8 @@ function KnowledgePageInner() {
 
   return (
     <>
-      {/* 노트 열려있거나 선택모드면 PageHeader 숨김 */}
-      {!noteOpen && !dashSelectMode && (
+      {/* 노트 열려있거나 선택모드(루트/하위)면 PageHeader 숨김 */}
+      {!noteOpen && !dashSelectMode && !folderSelectMode && (
         <PageHeader
           title="지식창고"
           actions={listActions}
@@ -424,7 +425,7 @@ function KnowledgePageInner() {
       )}
     <div
       className={`flex min-h-0 ${
-        noteOpen || dashSelectMode ? "h-full" : "h-[calc(100%-3.5rem)]"
+        noteOpen || dashSelectMode || folderSelectMode ? "h-full" : "h-[calc(100%-3.5rem)]"
       }`}
     >
       <main className="flex flex-1 flex-col overflow-hidden">
@@ -589,6 +590,7 @@ function KnowledgePageInner() {
             onMoveFolders={async (ids, targetFolderId) => {
               for (const id of ids) await updateFolder(id, { parent_id: targetFolderId });
             }}
+            onSelectModeChange={setFolderSelectMode}
           />
         ) : (
           /* ── 대시보드 홈 ── */

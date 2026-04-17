@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Pin, FileText, ChevronRight, Trash2, CheckSquare, Square, Pencil, Folder, FolderInput } from "lucide-react";
+import { Pin, FileText, ChevronRight, Trash2, CheckSquare, Square, Pencil, Folder, FolderInput, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
 
@@ -19,6 +19,7 @@ interface Props {
   onRenameItem?: (id: string, title: string) => void;
   onMoveItems?: (ids: string[], targetFolderId: string | null) => void;
   onMoveFolders?: (ids: string[], targetFolderId: string | null) => void;
+  onSelectModeChange?: (active: boolean) => void;
 }
 
 function MoveTreeInner({ folders, excludeIds, parentId, depth, onSelect }: {
@@ -45,6 +46,7 @@ function MoveTreeInner({ folders, excludeIds, parentId, depth, onSelect }: {
 export default function FolderNoteList({
   folder, folders, items, onSelectItem, onSelectFolder, onBack, onNavigateToFolder,
   onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onMoveItems, onMoveFolders,
+  onSelectModeChange,
 }: Props) {
   const folderId = folder?.id ?? null;
   const subFolders = folders.filter((f) => f.parent_id === folderId);
@@ -63,7 +65,7 @@ export default function FolderNoteList({
   const [moveMode, setMoveMode] = useState(false);
   const dragRef = useRef(false);
 
-  const exitSelect = () => { setSelectMode(false); setSelFolders(new Set()); setSelItems(new Set()); setRenamingId(null); setMoveMode(false); };
+  const exitSelect = () => { setSelectMode(false); setSelFolders(new Set()); setSelItems(new Set()); setRenamingId(null); setMoveMode(false); onSelectModeChange?.(false); };
   const totalSel = selFolders.size + selItems.size;
 
   const addToSelection = useCallback((id: string, type: "folder" | "item") => {
@@ -78,9 +80,10 @@ export default function FolderNoteList({
 
   const handleLongPress = useCallback((id: string, type: "folder" | "item") => {
     setSelectMode(true);
+    onSelectModeChange?.(true);
     addToSelection(id, type);
     dragRef.current = true;
-  }, [addToSelection]);
+  }, [addToSelection, onSelectModeChange]);
 
   // 드래그 선택
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -135,21 +138,23 @@ export default function FolderNoteList({
 
   return (
     <div className="flex flex-col h-full" onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-      {/* 헤더 */}
-      <div className="flex items-center gap-1 border-b px-3 h-14 shrink-0 min-w-0 overflow-hidden">
+      {/* 헤더 — PageHeader와 동일 규격(h-14, h-10 w-10 버튼, h-[20px] 아이콘) */}
+      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 min-w-0 overflow-hidden">
         {selectMode ? (
           <>
-            <button type="button" onClick={exitSelect} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent shrink-0">
-              <ChevronRight className="h-4 w-4 rotate-180" />
+            <button type="button" onClick={exitSelect} aria-label="선택 해제" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent -ml-1">
+              <ArrowLeft className="h-5 w-5" />
             </button>
-            <span className="text-sm font-medium flex-1">{totalSel}개 선택</span>
-            {totalSel === 1 && (
-              <button type="button" onClick={startRename} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경"><Pencil className="h-3.5 w-3.5" /></button>
-            )}
-            {totalSel > 0 && (
-              <button type="button" onClick={() => setMoveMode(true)} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동"><FolderInput className="h-3.5 w-3.5" /></button>
-            )}
-            <button type="button" onClick={handleDelete} disabled={totalSel === 0} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button>
+            <h1 className="text-lg font-bold leading-tight truncate flex-1">{totalSel}개 선택</h1>
+            <div className="flex items-center gap-0.5 shrink-0">
+              {totalSel === 1 && (
+                <button type="button" onClick={startRename} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경" aria-label="이름 변경"><Pencil className="h-[20px] w-[20px]" strokeWidth={1.6} /></button>
+              )}
+              {totalSel > 0 && (
+                <button type="button" onClick={() => setMoveMode(true)} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동" aria-label="폴더 이동"><FolderInput className="h-[20px] w-[20px]" strokeWidth={1.6} /></button>
+              )}
+              <button type="button" onClick={handleDelete} disabled={totalSel === 0} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제" aria-label="삭제"><Trash2 className="h-[20px] w-[20px] text-destructive" strokeWidth={1.6} /></button>
+            </div>
           </>
         ) : (
           <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
@@ -164,7 +169,7 @@ export default function FolderNoteList({
             ))}
           </div>
         )}
-      </div>
+      </header>
 
       {/* 폴더 이동 — 트리 구조 */}
       {moveMode && (
