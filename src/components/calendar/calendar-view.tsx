@@ -60,6 +60,7 @@ interface Seg {
 /* ── 드래그 바 ── */
 function DraggableBar({ seg, onClickDate }: { seg: Seg; onClickDate: (d: string) => void }) {
   const { event, startCol, spanDays, isEventStart, isEventEnd, slot, endLabel } = seg;
+  const isHoliday = event.id.startsWith("__holiday__");
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${event.id}__bar`,
     data: { event },
@@ -89,7 +90,7 @@ function DraggableBar({ seg, onClickDate }: { seg: Seg; onClickDate: (d: string)
         borderBottomLeftRadius: isEventStart ? 3 : 0,
         borderTopRightRadius: isEventEnd ? 3 : 0,
         borderBottomRightRadius: isEventEnd ? 3 : 0,
-        fontSize: 10,
+        fontSize: isHoliday ? 7 : 10,
         lineHeight: `${BAR_H}px`,
         whiteSpace: "nowrap",
       }}

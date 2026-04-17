@@ -89,6 +89,37 @@ const LUNAR_HOLIDAYS: Record<number, Holiday[]> = {
   ],
 };
 
+// 대체공휴일 계산: 공휴일이 토/일이면 다음 평일로 이동
+function computeSubstitutes(holidays: Holiday[]): Holiday[] {
+  const dateSet = new Set(holidays.map((h) => h.date));
+  const substitutes: Holiday[] = [];
+
+  for (const h of holidays) {
+    // 대체공휴일은 건너뜀 (이미 음력 데이터에 포함된 경우)
+    if (h.name.includes("대체")) continue;
+
+    const d = new Date(h.date + "T00:00:00");
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) {
+      // 다음 평일 찾기
+      const sub = new Date(d);
+      do {
+        sub.setDate(sub.getDate() + 1);
+      } while (
+        sub.getDay() === 0 ||
+        sub.getDay() === 6 ||
+        dateSet.has(sub.toISOString().split("T")[0])
+      );
+      const subDate = sub.toISOString().split("T")[0];
+      if (!dateSet.has(subDate)) {
+        dateSet.add(subDate);
+        substitutes.push({ date: subDate, name: `대체공휴일(${h.name})` });
+      }
+    }
+  }
+  return substitutes;
+}
+
 export function getHolidays(year: number): Holiday[] {
   const holidays: Holiday[] = [];
 
@@ -104,6 +135,12 @@ export function getHolidays(year: number): Holiday[] {
   const lunar = LUNAR_HOLIDAYS[year];
   if (lunar) {
     holidays.push(...lunar);
+  }
+
+  // 대체공휴일 자동 계산 (2021년부터 적용)
+  if (year >= 2021) {
+    const subs = computeSubstitutes(holidays);
+    holidays.push(...subs);
   }
 
   return holidays;
