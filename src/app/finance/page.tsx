@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Wallet, ShoppingBag, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,16 @@ export default function FinancePage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [formOpen, setFormOpen] = useState(false);
   const [finMenuOpen, setFinMenuOpen] = useState(false);
+  const finMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!finMenuOpen) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (finMenuRef.current && !finMenuRef.current.contains(e.target as Node)) setFinMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("touchstart", handler); };
+  }, [finMenuOpen]);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [fixedOpen, setFixedOpen] = useState(false);
 
@@ -81,7 +91,7 @@ export default function FinancePage() {
       <PageHeader
         title="가계부"
         actions={
-          <div className="relative">
+          <div className="relative" ref={finMenuRef}>
             <button
               type="button"
               onClick={() => setFinMenuOpen((o) => !o)}
@@ -91,9 +101,7 @@ export default function FinancePage() {
               <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
             </button>
             {finMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setFinMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
+              <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
                   <button
                     type="button"
                     onClick={() => setFinMenuOpen(false)}
@@ -109,7 +117,6 @@ export default function FinancePage() {
                     <ShoppingBag className="h-4 w-4" /> 쇼핑기록
                   </button>
                 </div>
-              </>
             )}
           </div>
         }

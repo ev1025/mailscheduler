@@ -180,7 +180,14 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
   const { tags: eventTags, addTag: addEventTag, deleteTag: deleteEventTag, updateTagColor: updateEventTagColor, refetch: refetchEventTags } = useEventTags();
 
   const [search, setSearch] = useState("");
-  const [showVisited, setShowVisited] = useState(true);
+  const [showVisited, setShowVisited] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return localStorage.getItem("travel_show_visited") !== "false";
+  });
+  const updateShowVisited = (v: boolean) => {
+    setShowVisited(v);
+    localStorage.setItem("travel_show_visited", String(v));
+  };
   const [customOrder, setCustomOrder] = useState<string[]>([]);
 
   useEffect(() => {
@@ -388,7 +395,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
       {/* 필터 행 */}
       <div className="flex items-center gap-2 flex-wrap">
         <label className="flex items-center gap-1.5 text-xs cursor-pointer whitespace-nowrap shrink-0">
-          <input type="checkbox" checked={showVisited} onChange={(e) => setShowVisited(e.target.checked)} className="rounded" />
+          <input type="checkbox" checked={showVisited} onChange={(e) => updateShowVisited(e.target.checked)} className="rounded" />
           가본 곳 포함
         </label>
         {filterCategories.map((c) => (

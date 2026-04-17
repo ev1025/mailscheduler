@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useMemo, useEffect } from "react";
+import { Suspense, useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
@@ -290,13 +290,23 @@ function ProductsPageInner() {
   };
 
   const [prodMenuOpen, setProdMenuOpen] = useState(false);
+  const prodMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!prodMenuOpen) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (prodMenuRef.current && !prodMenuRef.current.contains(e.target as Node)) setProdMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("touchstart", handler); };
+  }, [prodMenuOpen]);
 
   return (
     <>
       <PageHeader
         title="쇼핑기록"
         actions={
-          <div className="relative">
+          <div className="relative" ref={prodMenuRef}>
             <button
               type="button"
               onClick={() => setProdMenuOpen((o) => !o)}
@@ -306,8 +316,6 @@ function ProductsPageInner() {
               <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
             </button>
             {prodMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setProdMenuOpen(false)} />
                 <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
                   <button
                     type="button"
@@ -324,7 +332,6 @@ function ProductsPageInner() {
                     <ShoppingBag className="h-4 w-4" /> 쇼핑기록
                   </button>
                 </div>
-              </>
             )}
           </div>
         }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CalendarDays,
@@ -209,6 +209,16 @@ function CalendarPageInner() {
   };
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("touchstart", handler); };
+  }, [menuOpen]);
   const viewLabel = view === "calendar" ? "달력" : view === "database" ? "일정목록" : "여행";
   const viewMenuItems = [
     { key: "calendar" as const, label: "달력", icon: CalendarDays },
@@ -221,7 +231,7 @@ function CalendarPageInner() {
       <PageHeader
         title={viewLabel}
         actions={
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
               type="button"
               onClick={() => setMenuOpen((o) => !o)}
@@ -231,24 +241,21 @@ function CalendarPageInner() {
               <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
             </button>
             {menuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
-                  {viewMenuItems.map(({ key, label, icon: Icon }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => { setView(key); setMenuOpen(false); }}
-                      className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                        view === key ? "bg-accent font-medium" : "hover:bg-accent/50"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </>
+              <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
+                {viewMenuItems.map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => { setView(key); setMenuOpen(false); }}
+                    className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                      view === key ? "bg-accent font-medium" : "hover:bg-accent/50"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         }
