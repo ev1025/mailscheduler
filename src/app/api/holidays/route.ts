@@ -55,9 +55,13 @@ export async function GET(req: NextRequest) {
       .filter((item) => item.isHoliday === "Y")
       .map((item) => {
         const d = String(item.locdate);
+        // "대체공휴일(부처님오신날)" 같이 괄호 붙은 건 "대체공휴일"만 표시
+        const name = item.dateName.startsWith("대체공휴일")
+          ? "대체공휴일"
+          : item.dateName;
         return {
           date: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`,
-          name: item.dateName,
+          name,
         };
       });
 
