@@ -387,7 +387,7 @@ function KnowledgePageInner() {
   const listActions = (
     <button
       type="button"
-      onClick={() => handleAddFolder(null)}
+      onClick={() => handleAddFolder(viewFolderId)}
       aria-label="폴더 추가"
       title="폴더 추가"
       className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
@@ -398,7 +398,7 @@ function KnowledgePageInner() {
 
   return (
     <>
-      {/* 노트 열려있으면 PageHeader 숨김 */}
+      {/* 노트 열려있으면 PageHeader 숨김, 대시보드/폴더에서는 표시 */}
       {!noteOpen && (
         <PageHeader
           title="지식창고"
@@ -552,10 +552,16 @@ function KnowledgePageInner() {
             onSelectItem={(id) => setSelectedItemId(id)}
             onSelectFolder={(fid) => setViewFolderId(fid)}
             onBack={() => {
-              // 부모 폴더로 이동, 없으면 대시보드
               const current = folders.find((f) => f.id === viewFolderId);
               if (current?.parent_id) setViewFolderId(current.parent_id);
               else setViewFolderId(null);
+            }}
+            onDeleteItems={async (ids) => {
+              for (const id of ids) await deleteItem(id);
+            }}
+            onDeleteFolders={async (ids) => {
+              for (const id of ids) { deleteFolder(id); }
+              refetch();
             }}
           />
         ) : (

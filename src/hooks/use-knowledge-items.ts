@@ -5,6 +5,10 @@ import { supabase } from "@/lib/supabase";
 import { useCurrentUserId } from "@/lib/current-user";
 import type { KnowledgeItem } from "@/types";
 
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+}
+
 export function useKnowledgeItems(folderId: string | null) {
   const userId = useCurrentUserId();
   const [items, setItems] = useState<KnowledgeItem[]>([]);
@@ -35,7 +39,7 @@ export function useKnowledgeItems(folderId: string | null) {
       .from("knowledge_items")
       .insert({
         ...item,
-        excerpt: item.content ? item.content.slice(0, 200) : null,
+        excerpt: item.content ? stripHtml(item.content).slice(0, 200) || null : null,
         user_id: userId,
       })
       .select()
@@ -50,7 +54,8 @@ export function useKnowledgeItems(folderId: string | null) {
       updated_at: new Date().toISOString(),
     };
     if (updates.content !== undefined) {
-      patch.excerpt = updates.content ? updates.content.slice(0, 200) : null;
+      const plain = updates.content ? stripHtml(updates.content) : "";
+      patch.excerpt = plain ? plain.slice(0, 200) : null;
     }
     const { error } = await supabase
       .from("knowledge_items")
