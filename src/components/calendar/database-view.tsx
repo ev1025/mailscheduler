@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from "react";
 import { Search, ArrowUp, ArrowDown, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import FilterPanel from "@/components/ui/filter-panel";
 import WeatherIcon from "./weather-icon";
 import type { CalendarEvent, EventTag, WeatherData } from "@/types";
 import { format } from "date-fns";
@@ -167,6 +168,7 @@ export default function DatabaseView({
           {allTags.length > 0 && (
             <button
               type="button"
+              data-filter-btn
               onClick={() => setTagFilterOpen((o) => !o)}
               className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-9 text-xs transition-colors ${
                 filterTags.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
@@ -177,48 +179,20 @@ export default function DatabaseView({
             </button>
           )}
         </div>
-        {/* 태그 필터 패널 */}
-        {tagFilterOpen && allTags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 rounded-md border bg-muted/20 p-2">
-            <button
-              type="button"
-              onClick={() => setFilterTags([])}
-              className={`rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
-                filterTags.length === 0 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
-              }`}
-            >
-              전체
-            </button>
-            {allTags.map((t) => {
-              const active = filterTags.includes(t);
-              const c = tagColorMap[t] || "#6B7280";
-              return (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setFilterTags((prev) => active ? prev.filter((x) => x !== t) : [...prev, t])}
-                  className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors"
-                  style={active ? { borderColor: c, backgroundColor: c + "20", color: c, fontWeight: 600 } : {}}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: c }} />
-                  {t}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        {/* 활성 필터 배지 */}
-        {filterTags.length > 0 && !tagFilterOpen && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {filterTags.map((ft) => {
-              const c = tagColorMap[ft] || "#6B7280";
-              return (
-                <Badge key={ft} className="cursor-pointer shrink-0 text-[10px]" style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}
-                  onClick={() => setFilterTags((prev) => prev.filter((t) => t !== ft))}>{ft} ✕</Badge>
-              );
-            })}
-          </div>
-        )}
+        {/* 태그 필터 패널 — 바깥 클릭 시 자동 닫힘 */}
+        <FilterPanel
+          open={tagFilterOpen && allTags.length > 0}
+          items={allTags}
+          selected={filterTags}
+          colorOf={(t) => tagColorMap[t] || "#6B7280"}
+          onToggle={(t) =>
+            setFilterTags((prev) =>
+              prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+            )
+          }
+          onClear={() => setFilterTags([])}
+          onClose={() => setTagFilterOpen(false)}
+        />
       </div>
 
       {filtered.length === 0 ? (

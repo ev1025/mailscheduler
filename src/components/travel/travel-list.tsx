@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import FilterPanel from "@/components/ui/filter-panel";
 import TravelForm from "./travel-form";
 import TravelToCalendarDialog from "./travel-to-calendar-dialog";
 import { useTravelItems } from "@/hooks/use-travel-items";
@@ -202,6 +203,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
   );
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
   const [filterTags, setFilterTags] = useState<string[]>([]);
+  const [openFilter, setOpenFilter] = useState<"category" | "tag" | null>(null);
   const [sortKeys, setSortKeys] = useState<SortKey[]>([]);
 
   const [formOpen, setFormOpen] = useState(false);
@@ -409,93 +411,62 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
           <Check className="h-3 w-3" />
           가본 곳 포함
         </button>
-        {/* 분류 필터 드롭다운 */}
+        {/* 분류 필터 토글 — 클릭 시 같은 자리에 분류 패널, 태그가 열려있으면 교체 */}
         {allCategories.length > 0 && (
-          <Popover>
-            <PopoverTrigger
-              className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-7 text-xs transition-colors ${
-                filterCategories.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
-              }`}
-            >
-              <Filter className="h-3 w-3" />
-              분류{filterCategories.length > 0 && ` (${filterCategories.length})`}
-            </PopoverTrigger>
-            <PopoverContent className="w-48 p-1" align="start">
-              <button
-                type="button"
-                className="w-full px-2 py-1.5 text-xs text-left hover:bg-accent rounded"
-                onClick={() => setFilterCategories([])}
-              >
-                전체 보기
-              </button>
-              <div className="border-t my-1" />
-              <div className="max-h-[200px] overflow-y-auto">
-                {allCategories.map((c) => {
-                  const active = filterCategories.includes(c);
-                  const color = CATEGORY_COLORS[c] || "#6B7280";
-                  return (
-                    <button
-                      key={c}
-                      type="button"
-                      className="flex w-full items-center gap-2 px-2 py-1.5 text-xs text-left hover:bg-accent rounded"
-                      onClick={() =>
-                        setFilterCategories((prev) => (active ? prev.filter((x) => x !== c) : [...prev, c]))
-                      }
-                    >
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="flex-1">{c}</span>
-                      {active && <Check className="h-3 w-3 text-primary" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <button
+            type="button"
+            data-filter-btn
+            onClick={() => setOpenFilter((o) => (o === "category" ? null : "category"))}
+            className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-7 text-xs transition-colors ${
+              filterCategories.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
+            }`}
+          >
+            <Filter className="h-3 w-3" />
+            분류{filterCategories.length > 0 && ` (${filterCategories.length})`}
+          </button>
         )}
-        {/* 태그 필터 드롭다운 */}
+        {/* 태그 필터 토글 */}
         {allItemTags.length > 0 && (
-          <Popover>
-            <PopoverTrigger
-              className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-7 text-xs transition-colors ${
-                filterTags.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
-              }`}
-            >
-              <Filter className="h-3 w-3" />
-              태그{filterTags.length > 0 && ` (${filterTags.length})`}
-            </PopoverTrigger>
-            <PopoverContent className="w-48 p-1" align="start">
-              <button
-                type="button"
-                className="w-full px-2 py-1.5 text-xs text-left hover:bg-accent rounded"
-                onClick={() => setFilterTags([])}
-              >
-                전체 보기
-              </button>
-              <div className="border-t my-1" />
-              <div className="max-h-[200px] overflow-y-auto">
-                {allItemTags.map((t) => {
-                  const active = filterTags.includes(t);
-                  const color = tagColorMap[t] || "#6B7280";
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      className="flex w-full items-center gap-2 px-2 py-1.5 text-xs text-left hover:bg-accent rounded"
-                      onClick={() =>
-                        setFilterTags((prev) => (active ? prev.filter((x) => x !== t) : [...prev, t]))
-                      }
-                    >
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="flex-1">{t}</span>
-                      {active && <Check className="h-3 w-3 text-primary" />}
-                    </button>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <button
+            type="button"
+            data-filter-btn
+            onClick={() => setOpenFilter((o) => (o === "tag" ? null : "tag"))}
+            className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-7 text-xs transition-colors ${
+              filterTags.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
+            }`}
+          >
+            <Filter className="h-3 w-3" />
+            태그{filterTags.length > 0 && ` (${filterTags.length})`}
+          </button>
         )}
       </div>
+      {/* 필터 패널 — 분류/태그 모두 같은 자리에서 교체 (바깥 클릭 시 자동 닫힘) */}
+      <FilterPanel
+        open={openFilter === "category" && allCategories.length > 0}
+        items={allCategories}
+        selected={filterCategories}
+        colorOf={(c) => CATEGORY_COLORS[c] || "#6B7280"}
+        onToggle={(c) =>
+          setFilterCategories((prev) =>
+            prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
+          )
+        }
+        onClear={() => setFilterCategories([])}
+        onClose={() => setOpenFilter(null)}
+      />
+      <FilterPanel
+        open={openFilter === "tag" && allItemTags.length > 0}
+        items={allItemTags}
+        selected={filterTags}
+        colorOf={(t) => tagColorMap[t] || "#6B7280"}
+        onToggle={(t) =>
+          setFilterTags((prev) =>
+            prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+          )
+        }
+        onClear={() => setFilterTags([])}
+        onClose={() => setOpenFilter(null)}
+      />
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2">
