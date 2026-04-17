@@ -10,8 +10,8 @@ interface Holiday {
 // API에 없을 수 있는 추가 공휴일 (API가 제공하면 중복 방지됨)
 const MANUAL_HOLIDAYS: Record<number, Holiday[]> = {};
 
-// 캐시 키 변경 → 이전 캐시(Nager.Date) 무효화
-const CACHE_KEY = "holidays_cache_v4";
+// 캐시 키 변경 → 이전 캐시 무효화 (v5: API 키 인코딩 처리 개선 배포)
+const CACHE_KEY = "holidays_cache_v5";
 const NAME_MAP: Record<string, string> = {
   "New Year's Day": "새해",
   "Independence Movement Day": "삼일절",

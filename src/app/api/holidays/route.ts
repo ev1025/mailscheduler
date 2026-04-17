@@ -17,16 +17,32 @@ export async function GET(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "API key not configured" }, { status: 500 });
 
   try {
-    // 전체 연도 조회 (numOfRows=100으로 넉넉히)
-    const url = `${BASE}?serviceKey=${API_KEY}&solYear=${year}&numOfRows=100&_type=json`;
+    // Vercel/로컬에 Decoding(원문) 키를 등록했어도 동작하도록 재인코딩
+    // 이미 인코딩된 키(%2B 등 포함)는 원문으로 복원 후 다시 인코딩 → 항상 정확
+    const rawKey = API_KEY.includes("%") ? decodeURIComponent(API_KEY) : API_KEY;
+    const keyForUrl = encodeURIComponent(rawKey);
+
+    const url = `${BASE}?serviceKey=${keyForUrl}&solYear=${year}&numOfRows=100&_type=json`;
     const res = await fetch(url, { next: { revalidate: 86400 } }); // 24시간 캐시
     if (!res.ok) {
-      // 폴백: 월별 시도
+      const text = await res.text().catch(() => "");
+      console.error("[holidays] API error", res.status, text.slice(0, 200));
       return NextResponse.json({ error: "API error", status: res.status }, { status: 502 });
     }
 
-    const json = await res.json();
-    const body = json?.response?.body;
+    const text = await res.text();
+    // 공공데이터 포털은 에러 시 XML을 반환하기도 함 — 감지해서 로그
+    if (text.trim().startsWith("<")) {
+      console.error("[holidays] got XML (likely auth error)", text.slice(0, 300));
+      return NextResponse.json({ error: "auth or XML error" }, { status: 502 });
+    }
+
+    let json: unknown;
+    try { json = JSON.parse(text); } catch {
+      console.error("[holidays] non-JSON response", text.slice(0, 200));
+      return NextResponse.json({ error: "invalid response" }, { status: 502 });
+    }
+    const body = (json as { response?: { body?: { items?: { item?: HolidayItem | HolidayItem[] } } } })?.response?.body;
     if (!body) return NextResponse.json([]);
 
     const rawItems = body.items?.item;
@@ -47,6 +63,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(holidays);
   } catch (err) {
+    console.error("[holidays] fetch exception", err);
     return NextResponse.json({ error: "fetch failed" }, { status: 502 });
   }
 }
