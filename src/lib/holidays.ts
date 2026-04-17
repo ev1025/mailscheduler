@@ -77,11 +77,30 @@ const FALLBACK_FIXED = [
   { month: 12, day: 25, name: "크리스마스" },
 ];
 
+function computeSubstitutes(holidays: Holiday[]): Holiday[] {
+  const dateSet = new Set(holidays.map((h) => h.date));
+  const subs: Holiday[] = [];
+  for (const h of holidays) {
+    if (h.name.includes("대체") || h.name.includes("연휴")) continue;
+    const d = new Date(h.date + "T00:00:00");
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) {
+      const sub = new Date(d);
+      do { sub.setDate(sub.getDate() + 1); } while (sub.getDay() === 0 || sub.getDay() === 6 || dateSet.has(sub.toISOString().split("T")[0]));
+      const sd = sub.toISOString().split("T")[0];
+      if (!dateSet.has(sd)) { dateSet.add(sd); subs.push({ date: sd, name: `대체공휴일(${h.name})` }); }
+    }
+  }
+  return subs;
+}
+
 function getFallbackHolidays(year: number): Holiday[] {
-  return FALLBACK_FIXED.map((h) => ({
+  const base = FALLBACK_FIXED.map((h) => ({
     date: `${year}-${String(h.month).padStart(2, "0")}-${String(h.day).padStart(2, "0")}`,
     name: h.name,
   }));
+  if (year >= 2021) base.push(...computeSubstitutes(base));
+  return base;
 }
 
 // API 호출 (Nager.Date — 무료, 키 불필요)
