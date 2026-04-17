@@ -18,11 +18,33 @@ interface Props {
   onRenameFolder?: (id: string, name: string) => void;
   onRenameItem?: (id: string, title: string) => void;
   onMoveItems?: (ids: string[], targetFolderId: string | null) => void;
+  onMoveFolders?: (ids: string[], targetFolderId: string | null) => void;
+}
+
+function MoveTreeInner({ folders, excludeIds, parentId, depth, onSelect }: {
+  folders: KnowledgeFolder[]; excludeIds: Set<string>; parentId: string | null; depth: number; onSelect: (id: string) => void;
+}) {
+  const children = folders.filter((f) => f.parent_id === parentId && !excludeIds.has(f.id));
+  if (children.length === 0) return null;
+  return (
+    <>
+      {children.map((f) => (
+        <div key={f.id}>
+          <button type="button" onClick={() => onSelect(f.id)}
+            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
+            style={{ paddingLeft: (depth + 1) * 16 + 8 }}>
+            <Folder className="h-3.5 w-3.5 shrink-0" /> {f.name}
+          </button>
+          <MoveTreeInner folders={folders} excludeIds={excludeIds} parentId={f.id} depth={depth + 1} onSelect={onSelect} />
+        </div>
+      ))}
+    </>
+  );
 }
 
 export default function FolderNoteList({
   folder, folders, items, onSelectItem, onSelectFolder, onBack, onNavigateToFolder,
-  onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onMoveItems,
+  onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onMoveItems, onMoveFolders,
 }: Props) {
   const folderId = folder?.id ?? null;
   const subFolders = folders.filter((f) => f.parent_id === folderId);
@@ -97,8 +119,9 @@ export default function FolderNoteList({
   };
 
   // 폴더 이동
-  const handleMove = (targetId: string | null) => {
+  const doMove = (targetId: string | null) => {
     if (selItems.size > 0 && onMoveItems) onMoveItems(Array.from(selItems), targetId);
+    if (selFolders.size > 0 && onMoveFolders) onMoveFolders(Array.from(selFolders), targetId);
     exitSelect();
   };
 
@@ -121,14 +144,12 @@ export default function FolderNoteList({
             </button>
             <span className="text-sm font-medium flex-1">{totalSel}개 선택</span>
             {totalSel === 1 && (
-              <button type="button" onClick={startRename} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"><Pencil className="h-3.5 w-3.5" /></button>
+              <button type="button" onClick={startRename} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경"><Pencil className="h-3.5 w-3.5" /></button>
             )}
-            {totalSel > 0 && selItems.size > 0 && (
-              <button type="button" onClick={() => setMoveMode(true)} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"><FolderInput className="h-3.5 w-3.5" /></button>
+            {totalSel > 0 && (
+              <button type="button" onClick={() => setMoveMode(true)} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동"><FolderInput className="h-3.5 w-3.5" /></button>
             )}
-            <Button size="sm" variant="destructive" className="h-8 text-xs" disabled={totalSel === 0} onClick={handleDelete}>
-              <Trash2 className="h-3 w-3 mr-1" />삭제
-            </Button>
+            <button type="button" onClick={handleDelete} disabled={totalSel === 0} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button>
           </>
         ) : (
           <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
@@ -145,19 +166,15 @@ export default function FolderNoteList({
         )}
       </div>
 
-      {/* 폴더 이동 선택 */}
+      {/* 폴더 이동 — 트리 구조 */}
       {moveMode && (
         <div className="border-b p-3 bg-muted/30 flex flex-col gap-2">
           <p className="text-xs font-medium text-muted-foreground">이동할 폴더 선택</p>
-          <div className="flex flex-col gap-0.5 max-h-[200px] overflow-y-auto">
-            <button type="button" onClick={() => handleMove(null)} className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent">
+          <div className="flex flex-col gap-0.5 max-h-[250px] overflow-y-auto">
+            <button type="button" onClick={() => doMove(null)} className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent font-medium">
               <Folder className="h-3.5 w-3.5" /> 루트 (최상위)
             </button>
-            {folders.filter((f) => !selFolders.has(f.id)).map((f) => (
-              <button key={f.id} type="button" onClick={() => handleMove(f.id)} className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent">
-                <Folder className="h-3.5 w-3.5" /> {f.name}
-              </button>
-            ))}
+            <MoveTreeInner folders={folders} excludeIds={selFolders} parentId={null} depth={0} onSelect={doMove} />
           </div>
           <Button size="sm" variant="outline" className="h-7 text-xs self-end" onClick={() => setMoveMode(false)}>취소</Button>
         </div>

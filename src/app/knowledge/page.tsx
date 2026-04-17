@@ -586,6 +586,9 @@ function KnowledgePageInner() {
             onMoveItems={async (ids, targetFolderId) => {
               for (const id of ids) await updateItem(id, { folder_id: targetFolderId });
             }}
+            onMoveFolders={async (ids, targetFolderId) => {
+              for (const id of ids) await updateFolder(id, { parent_id: targetFolderId });
+            }}
           />
         ) : (
           /* ── 대시보드 홈 ── */
