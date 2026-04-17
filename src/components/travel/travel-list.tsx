@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, ArrowUpDown, GripVertical, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -206,9 +206,6 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
   const [editing, setEditing] = useState<TravelItem | null>(null);
   const [calendarItem, setCalendarItem] = useState<TravelItem | null>(null);
 
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; field: string } | null>(null);
-  const contextMenuRef = useRef<HTMLDivElement>(null);
-
   const tagColorMap: Record<string, string> = {};
   for (const t of tags) tagColorMap[t.name] = t.color;
   for (const t of eventTags) tagColorMap[t.name] = t.color;
@@ -244,27 +241,6 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
       </span>
     );
   };
-
-  const handleHeaderContext = (e: React.MouseEvent, field: string) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, field });
-  };
-
-  useEffect(() => {
-    if (!contextMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
-      }
-    };
-    const timer = setTimeout(() => {
-      document.addEventListener("mousedown", handleClick);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [contextMenu]);
 
   const hasActiveSortOrFilter =
     !!search.trim() ||
@@ -546,7 +522,6 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
                     <th
                       key={col.label || "grip"}
                       className="text-left font-medium px-2 py-2 border-b border-r last:border-r-0 select-none whitespace-nowrap"
-                      onContextMenu={col.field ? (e) => handleHeaderContext(e, col.label) : undefined}
                     >
                       {col.field ? (
                         <button className="flex items-center font-medium" onClick={() => cycleSort(col.field!)}>
@@ -575,79 +550,6 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
               </tbody>
             </table>
           </DndContext>
-        </div>
-      )}
-
-      {/* 우클릭 컨텍스트 메뉴 */}
-      {contextMenu && (
-        <div
-          ref={contextMenuRef}
-          className="fixed z-50 bg-popover border rounded-md shadow-lg py-1 min-w-[160px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-        >
-          {contextMenu.field === "분류" && allCategories.length > 0 && (
-            <>
-              <div className="px-3 py-1 text-xs text-muted-foreground font-medium">분류 필터 (복수)</div>
-              <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => setFilterCategories([])}>
-                전체 보기
-              </button>
-              <div className="max-h-[180px] overflow-y-auto">
-                {allCategories.map((c) => {
-                  const active = filterCategories.includes(c);
-                  return (
-                    <button key={c} className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent flex items-center gap-2" onClick={() => {
-                      setFilterCategories((prev) => active ? prev.filter((x) => x !== c) : [...prev, c]);
-                    }}>
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[c] }} />
-                      {c} {active && "✓"}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="border-t my-1" />
-            </>
-          )}
-          {contextMenu.field === "태그" && allItemTags.length > 0 && (
-            <>
-              <div className="px-3 py-1 text-xs text-muted-foreground font-medium">태그 필터 (복수)</div>
-              <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => setFilterTags([])}>
-                전체 보기
-              </button>
-              <div className="max-h-[180px] overflow-y-auto">
-                {allItemTags.map((t) => {
-                  const active = filterTags.includes(t);
-                  return (
-                    <button key={t} className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent flex items-center gap-2" onClick={() => {
-                      setFilterTags((prev) => active ? prev.filter((x) => x !== t) : [...prev, t]);
-                    }}>
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: tagColorMap[t] || "#6B7280" }} />
-                      {t} {active && "✓"}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="border-t my-1" />
-            </>
-          )}
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => {
-            const f = (contextMenu.field === "제목" ? "title" : contextMenu.field === "분류" ? "category" : contextMenu.field === "지역" ? "region" : "tag") as SortField;
-            setSortKeys([{ field: f, dir: "asc" }]);
-            setContextMenu(null);
-          }}>
-            <ArrowUp className="inline h-3 w-3 mr-1.5" />오름차순 (단일)
-          </button>
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => {
-            const f = (contextMenu.field === "제목" ? "title" : contextMenu.field === "분류" ? "category" : contextMenu.field === "지역" ? "region" : "tag") as SortField;
-            setSortKeys([{ field: f, dir: "desc" }]);
-            setContextMenu(null);
-          }}>
-            <ArrowDown className="inline h-3 w-3 mr-1.5" />내림차순 (단일)
-          </button>
-          {sortKeys.length > 0 && (
-            <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent text-muted-foreground" onClick={() => { setSortKeys([]); setContextMenu(null); }}>
-              정렬 모두 해제
-            </button>
-          )}
         </div>
       )}
 
