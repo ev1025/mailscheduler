@@ -24,6 +24,9 @@ export default function KnowledgeDashboard({
   const pinnedItems = items.filter((i) => i.pinned);
   const rootFolders = folders.filter((f) => !f.parent_id);
 
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
+  const toggleExpand = (id: string) => setExpandedFolders((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
   const [selectMode, setSelectMode] = useState(false);
   const [selFolders, setSelFolders] = useState<Set<string>>(new Set());
   const [selItems, setSelItems] = useState<Set<string>>(new Set());
@@ -132,20 +135,55 @@ export default function KnowledgeDashboard({
 
             {rootFolders.length > 0 && (
               <section className="flex flex-col">
-                {rootFolders.map((f) => (
-                  <div
-                    key={f.id} data-sel-id={f.id} data-sel-type="folder" role="button" tabIndex={0}
-                    onClick={() => selectMode ? toggleSelection(f.id, "folder") : onSelectFolder(f.id)}
-                    onTouchStart={() => startLongPress(f.id, "folder")} onTouchEnd={cancelLongPress}
-                    onContextMenu={(e) => { e.preventDefault(); setSelectMode(true); addToSelection(f.id, "folder"); }}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors select-none ${selFolders.has(f.id) ? "bg-primary/10" : "hover:bg-accent/50"}`}
-                  >
-                    {selectMode && (selFolders.has(f.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
-                    <span className="text-base">{f.icon || "📁"}</span>
-                    <span className="flex-1 text-sm font-medium text-left">{f.name}</span>
-                    {!selectMode && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                  </div>
-                ))}
+                {rootFolders.map((f) => {
+                  const subFolders = folders.filter((sf) => sf.parent_id === f.id);
+                  const isExpanded = expandedFolders.has(f.id);
+                  return (
+                    <div key={f.id}>
+                      <div
+                        data-sel-id={f.id} data-sel-type="folder" role="button" tabIndex={0}
+                        onClick={() => selectMode ? toggleSelection(f.id, "folder") : onSelectFolder(f.id)}
+                        onTouchStart={() => startLongPress(f.id, "folder")} onTouchEnd={cancelLongPress}
+                        onContextMenu={(e) => { e.preventDefault(); setSelectMode(true); addToSelection(f.id, "folder"); }}
+                        className={`flex items-center gap-2 rounded-lg px-1 py-2.5 transition-colors select-none ${selFolders.has(f.id) ? "bg-primary/10" : "hover:bg-accent/50"}`}
+                      >
+                        {/* 토글 화살표 (왼쪽 끝) */}
+                        {subFolders.length > 0 && !selectMode ? (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); toggleExpand(f.id); }}
+                            className="flex h-6 w-6 items-center justify-center shrink-0 text-muted-foreground"
+                          >
+                            <ChevronRight className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                          </button>
+                        ) : (
+                          <span className="w-6 shrink-0" />
+                        )}
+                        {selectMode && (selFolders.has(f.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
+                        <span className="text-base">{f.icon || "📁"}</span>
+                        <span className="flex-1 text-sm font-medium text-left">{f.name}</span>
+                      </div>
+                      {/* 하위 폴더 토글 */}
+                      {isExpanded && subFolders.length > 0 && (
+                        <div className="ml-8 flex flex-col border-l pl-2">
+                          {subFolders.map((sf) => (
+                            <div
+                              key={sf.id} data-sel-id={sf.id} data-sel-type="folder" role="button" tabIndex={0}
+                              onClick={() => selectMode ? toggleSelection(sf.id, "folder") : onSelectFolder(sf.id)}
+                              onTouchStart={() => startLongPress(sf.id, "folder")} onTouchEnd={cancelLongPress}
+                              onContextMenu={(e) => { e.preventDefault(); setSelectMode(true); addToSelection(sf.id, "folder"); }}
+                              className={`flex items-center gap-2 rounded-lg px-2 py-2 transition-colors select-none ${selFolders.has(sf.id) ? "bg-primary/10" : "hover:bg-accent/50"}`}
+                            >
+                              {selectMode && (selFolders.has(sf.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
+                              <span className="text-sm">{sf.icon || "📁"}</span>
+                              <span className="flex-1 text-xs font-medium text-left">{sf.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </section>
             )}
 
