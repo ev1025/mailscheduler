@@ -290,12 +290,6 @@ export default function CalendarView({
                         </span>
                         {w && inM && <WeatherIcon weather={w} compact />}
                       </div>
-                      {/* 공휴일 */}
-                      {h && inM && (
-                        <span className="mt-[2px] block w-full shrink-0 truncate px-1 text-[8px] leading-tight text-red-500 md:px-1.5 md:text-[9px]">
-                          {h}
-                        </span>
-                      )}
                       {/* +N — 바 오버레이 위에 표시되도록 z-index */}
                       {hc > 0 && <span className="relative z-10 mt-auto mb-[2px] shrink-0 px-1 text-[9px] text-muted-foreground">+{hc}</span>}
                     </DropCell>

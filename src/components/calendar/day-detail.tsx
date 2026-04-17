@@ -38,6 +38,7 @@ interface DayDetailProps {
   events: CalendarEvent[];
   weather?: WeatherData;
   tags?: EventTag[];
+  holiday?: string;
   onAddEvent: () => void;
   onEditEvent?: (event: CalendarEvent) => void;
   onDeleteEvent?: (id: string) => void;
@@ -123,6 +124,7 @@ export default function DayDetail({
   events,
   weather,
   tags: tagList = [],
+  holiday,
   onAddEvent,
   onEditEvent,
   onDeleteEvent,
@@ -175,9 +177,16 @@ export default function DayDetail({
           </div>
         </DialogHeader>
         <div className="flex flex-col gap-2 min-h-0">
-          {dayEvents.length === 0 ? (
+          {/* 공휴일 — 삭제 불가 고정 항목 */}
+          {holiday && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 pl-3 pr-2.5 py-2">
+              <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-400 shrink-0" />
+              <p className="text-sm font-medium text-red-600 flex-1">{holiday}</p>
+            </div>
+          )}
+          {dayEvents.length === 0 && !holiday ? (
             <p className="text-sm text-muted-foreground py-4 text-center">일정이 없습니다</p>
-          ) : (
+          ) : dayEvents.length > 0 ? (
             <div className="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto -mx-1 px-1">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={dayEvents.map((ev) => ev.id)} strategy={verticalListSortingStrategy}>
@@ -193,7 +202,7 @@ export default function DayDetail({
                 </SortableContext>
               </DndContext>
             </div>
-          )}
+          ) : null}
           <Button
             variant="outline"
             className="w-full mt-1 shrink-0"

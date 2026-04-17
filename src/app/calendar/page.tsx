@@ -20,6 +20,7 @@ import DayDetail from "@/components/calendar/day-detail";
 import TravelList from "@/components/travel/travel-list";
 import RepeatScopeDialog, { type RepeatScope } from "@/components/calendar/repeat-scope-dialog";
 import { useCurrentUserId, useAppUsers } from "@/lib/current-user";
+import { getHolidayMap } from "@/lib/holidays";
 import type { CalendarEvent } from "@/types";
 
 export default function CalendarPage() {
@@ -151,7 +152,7 @@ function CalendarPageInner() {
     return await addEvent(data);
   };
 
-  // 달력에서 날짜 클릭 → 일정 있으면 상세, 없으면 바로 새 일정
+  // 달력에서 날짜 클릭 → 일정 또는 공휴일 있으면 상세, 없으면 새 일정
   const handleDateClick = (date: string) => {
     const d = new Date(date + "T00:00:00");
     const hasEvents = events.some((ev) => {
@@ -159,7 +160,8 @@ function CalendarPageInner() {
       const end = ev.end_date ? new Date(ev.end_date + "T00:00:00") : start;
       return d >= start && d <= end;
     });
-    if (hasEvents) {
+    const hasHoliday = !!getHolidayMap(d.getFullYear())[date];
+    if (hasEvents || hasHoliday) {
       setSelectedDate(date);
       setDayDetailOpen(true);
     } else {
@@ -397,6 +399,7 @@ function CalendarPageInner() {
         events={events}
         weather={weatherMap[selectedDate]}
         tags={tags}
+        holiday={selectedDate ? getHolidayMap(new Date(selectedDate + "T00:00:00").getFullYear())[selectedDate] : undefined}
         onAddEvent={handleAddFromDay}
         onEditEvent={(ev) => { setDayDetailOpen(false); setEditing(ev); setFormOpen(true); }}
         onDeleteEvent={async (id) => { await handleDelete(id); }}
