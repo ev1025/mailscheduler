@@ -19,6 +19,7 @@ interface DatabaseViewProps {
 
 type SortField = "date" | "title" | "tag";
 type SortDir = "asc" | "desc";
+type SortKey = { field: SortField; dir: SortDir };
 
 function parseDay(dateStr: string) {
   const d = new Date(dateStr + "T00:00:00");
@@ -41,8 +42,7 @@ export default function DatabaseView({
   for (const t of tagList) tagColorMap[t.name] = t.color;
 
   const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState<SortField>("date");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortKeys, setSortKeys] = useState<SortKey[]>([]);
   const [filterTags, setFilterTags] = useState<string[]>([]);
   const [tagFilterOpen, setTagFilterOpen] = useState(false);
 
@@ -58,16 +58,34 @@ export default function DatabaseView({
 
   const allTags = [...new Set(events.map((e) => e.tag).filter(Boolean).flatMap((t) => t!.split(",")))] as string[];
 
-  // 정렬 3단계: asc → desc → none(정렬 해제)
+  // 3단계 사이클 + 다중 정렬
+  // 미선택 → 오름차순 추가 → 내림차순 → 정렬 해제(리스트에서 제거)
+  // 여러 컬럼을 순서대로 누르면 우선순위에 맞춰 다중정렬
   const cycleSort = (field: SortField) => {
-    if (sortField !== field) { setSortField(field); setSortDir("asc"); }
-    else if (sortDir === "asc") setSortDir("desc");
-    else { setSortField("date"); setSortDir("asc"); } // 해제 → 기본 날짜순 복귀
+    setSortKeys((prev) => {
+      const idx = prev.findIndex((k) => k.field === field);
+      if (idx === -1) return [...prev, { field, dir: "asc" }];
+      if (prev[idx].dir === "asc") {
+        const next = [...prev];
+        next[idx] = { field, dir: "desc" };
+        return next;
+      }
+      return prev.filter((k) => k.field !== field);
+    });
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return null; // 비활성 열에는 아이콘 없음
-    return sortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-0.5" /> : <ArrowDown className="h-3 w-3 ml-0.5" />;
+    const idx = sortKeys.findIndex((k) => k.field === field);
+    if (idx === -1) return null;
+    const k = sortKeys[idx];
+    return (
+      <span className="inline-flex items-center ml-0.5">
+        {k.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+        {sortKeys.length > 1 && (
+          <span className="ml-0.5 text-[9px] tabular-nums font-semibold text-primary">{idx + 1}</span>
+        )}
+      </span>
+    );
   };
 
   const onResizeStart = useCallback((colIdx: number, e: React.MouseEvent) => {
@@ -108,6 +126,12 @@ export default function DatabaseView({
   }, [colWidths]);
 
 
+  const cmpByField = (a: CalendarEvent, b: CalendarEvent, field: SortField): number => {
+    if (field === "date") return a.start_date.localeCompare(b.start_date);
+    if (field === "title") return a.title.localeCompare(b.title);
+    return (a.tag || "").localeCompare(b.tag || "");
+  };
+
   const filtered = events
     .filter((ev) => {
       if (filterTags.length > 0 && (!ev.tag || !filterTags.some((ft) => ev.tag!.split(",").includes(ft)))) return false;
@@ -116,10 +140,12 @@ export default function DatabaseView({
       return ev.title.toLowerCase().includes(q) || (ev.description || "").toLowerCase().includes(q) || (ev.tag || "").toLowerCase().includes(q);
     })
     .sort((a, b) => {
-      const dir = sortDir === "asc" ? 1 : -1;
-      if (sortField === "date") return a.start_date.localeCompare(b.start_date) * dir;
-      if (sortField === "title") return a.title.localeCompare(b.title) * dir;
-      return (a.tag || "").localeCompare(b.tag || "") * dir;
+      for (const k of sortKeys) {
+        const cmp = cmpByField(a, b, k.field) * (k.dir === "asc" ? 1 : -1);
+        if (cmp !== 0) return cmp;
+      }
+      // 정렬 키 없으면 기본 날짜 오름차순
+      return sortKeys.length === 0 ? a.start_date.localeCompare(b.start_date) : 0;
     });
 
   const columns = [

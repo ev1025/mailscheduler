@@ -48,6 +48,7 @@ function saveCustomOrder(ids: string[]) {
 
 type SortField = "title" | "category" | "region" | "tag" | "month";
 type SortDir = "asc" | "desc";
+type SortKey = { field: SortField; dir: SortDir };
 
 const CATEGORY_COLORS: Record<string, string> = {
   자연: "#22C55E",
@@ -199,8 +200,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
   );
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
   const [filterTags, setFilterTags] = useState<string[]>([]);
-  const [sortField, setSortField] = useState<SortField>("title");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortKeys, setSortKeys] = useState<SortKey[]>([]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TravelItem | null>(null);
@@ -216,14 +216,33 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
   const allCategories = [...new Set(items.map((i) => i.category))];
   const allItemTags = [...new Set(items.flatMap((i) => i.tag ? i.tag.split(",") : []))];
 
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortField(field); setSortDir("asc"); }
+  // 3단계 사이클 + 다중 정렬
+  // 미선택 → 오름차순 추가 → 내림차순 → 정렬 해제(리스트에서 제거)
+  const cycleSort = (field: SortField) => {
+    setSortKeys((prev) => {
+      const idx = prev.findIndex((k) => k.field === field);
+      if (idx === -1) return [...prev, { field, dir: "asc" }];
+      if (prev[idx].dir === "asc") {
+        const next = [...prev];
+        next[idx] = { field, dir: "desc" };
+        return next;
+      }
+      return prev.filter((k) => k.field !== field);
+    });
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-0.5 opacity-30" />;
-    return sortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-0.5" /> : <ArrowDown className="h-3 w-3 ml-0.5" />;
+    const idx = sortKeys.findIndex((k) => k.field === field);
+    if (idx === -1) return <ArrowUpDown className="h-3 w-3 ml-0.5 opacity-30" />;
+    const k = sortKeys[idx];
+    return (
+      <span className="inline-flex items-center ml-0.5">
+        {k.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+        {sortKeys.length > 1 && (
+          <span className="ml-0.5 text-[9px] tabular-nums font-semibold text-primary">{idx + 1}</span>
+        )}
+      </span>
+    );
   };
 
   const handleHeaderContext = (e: React.MouseEvent, field: string) => {
@@ -251,8 +270,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
     !!search.trim() ||
     filterCategories.length > 0 ||
     filterTags.length > 0 ||
-    sortField !== "title" ||
-    sortDir !== "asc";
+    sortKeys.length > 0;
 
   const filteredBase = items.filter((item) => {
     if (!showVisited && item.visited) return false;
@@ -265,14 +283,22 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
     return true;
   });
 
+  const cmpByField = (a: TravelItem, b: TravelItem, field: SortField): number => {
+    if (field === "title") return a.title.localeCompare(b.title);
+    if (field === "category") return a.category.localeCompare(b.category);
+    if (field === "region") return (a.region || "").localeCompare(b.region || "");
+    if (field === "month") return (a.month ?? 99) - (b.month ?? 99);
+    return (a.tag || "").localeCompare(b.tag || "");
+  };
+
   const filtered = hasActiveSortOrFilter || customOrder.length === 0
     ? [...filteredBase].sort((a, b) => {
-        const dir = sortDir === "asc" ? 1 : -1;
-        if (sortField === "title") return a.title.localeCompare(b.title) * dir;
-        if (sortField === "category") return a.category.localeCompare(b.category) * dir;
-        if (sortField === "region") return (a.region || "").localeCompare(b.region || "") * dir;
-        if (sortField === "month") return ((a.month ?? 99) - (b.month ?? 99)) * dir;
-        return (a.tag || "").localeCompare(b.tag || "") * dir;
+        for (const k of sortKeys) {
+          const cmp = cmpByField(a, b, k.field) * (k.dir === "asc" ? 1 : -1);
+          if (cmp !== 0) return cmp;
+        }
+        // 정렬 키가 없으면 제목 오름차순 기본
+        return sortKeys.length === 0 ? a.title.localeCompare(b.title) : 0;
       })
     : (() => {
         const orderMap = new Map(customOrder.map((id, i) => [id, i]));
@@ -392,12 +418,19 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
           추가
         </Button>
       </div>
-      {/* 필터 행 */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <label className="flex items-center gap-1.5 text-xs cursor-pointer whitespace-nowrap shrink-0">
-          <input type="checkbox" checked={showVisited} onChange={(e) => updateShowVisited(e.target.checked)} className="rounded" />
+      {/* 필터 행 — 전부 버튼, 오른쪽 정렬 */}
+      <div className="flex items-center justify-end gap-2 flex-wrap">
+        {/* 가본 곳 포함 토글 버튼 */}
+        <button
+          type="button"
+          onClick={() => updateShowVisited(!showVisited)}
+          className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-7 text-xs transition-colors ${
+            showVisited ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
+          }`}
+        >
+          <Check className="h-3 w-3" />
           가본 곳 포함
-        </label>
+        </button>
         {/* 분류 필터 드롭다운 */}
         {allCategories.length > 0 && (
           <Popover>
@@ -516,7 +549,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
                       onContextMenu={col.field ? (e) => handleHeaderContext(e, col.label) : undefined}
                     >
                       {col.field ? (
-                        <button className="flex items-center font-medium" onClick={() => toggleSort(col.field!)}>
+                        <button className="flex items-center font-medium" onClick={() => cycleSort(col.field!)}>
                           {col.label} <SortIcon field={col.field} />
                         </button>
                       ) : null}
@@ -597,21 +630,24 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
             </>
           )}
           <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => {
-            const f = contextMenu.field === "제목" ? "title" : contextMenu.field === "분류" ? "category" : contextMenu.field === "지역" ? "region" : "tag";
-            setSortField(f as SortField);
-            setSortDir("asc");
+            const f = (contextMenu.field === "제목" ? "title" : contextMenu.field === "분류" ? "category" : contextMenu.field === "지역" ? "region" : "tag") as SortField;
+            setSortKeys([{ field: f, dir: "asc" }]);
             setContextMenu(null);
           }}>
-            <ArrowUp className="inline h-3 w-3 mr-1.5" />오름차순
+            <ArrowUp className="inline h-3 w-3 mr-1.5" />오름차순 (단일)
           </button>
           <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => {
-            const f = contextMenu.field === "제목" ? "title" : contextMenu.field === "분류" ? "category" : contextMenu.field === "지역" ? "region" : "tag";
-            setSortField(f as SortField);
-            setSortDir("desc");
+            const f = (contextMenu.field === "제목" ? "title" : contextMenu.field === "분류" ? "category" : contextMenu.field === "지역" ? "region" : "tag") as SortField;
+            setSortKeys([{ field: f, dir: "desc" }]);
             setContextMenu(null);
           }}>
-            <ArrowDown className="inline h-3 w-3 mr-1.5" />내림차순
+            <ArrowDown className="inline h-3 w-3 mr-1.5" />내림차순 (단일)
           </button>
+          {sortKeys.length > 0 && (
+            <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent text-muted-foreground" onClick={() => { setSortKeys([]); setContextMenu(null); }}>
+              정렬 모두 해제
+            </button>
+          )}
         </div>
       )}
 
