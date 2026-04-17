@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
-import { Search, ArrowUp, ArrowDown, ArrowUpDown, Filter } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Search, ArrowUp, ArrowDown, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import WeatherIcon from "./weather-icon";
@@ -44,6 +44,7 @@ export default function DatabaseView({
   const [sortField, setSortField] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [filterTags, setFilterTags] = useState<string[]>([]);
+  const [tagFilterOpen, setTagFilterOpen] = useState(false);
 
   // 초기에는 빈 배열 → CSS auto/1%로 컨텐츠 너비 자동 맞춤
   // 첫 드래그 시 실제 px 너비 측정 → fixed 모드로 전환
@@ -54,19 +55,18 @@ export default function DatabaseView({
   const resizeStartX = useRef(0);
   const resizeStartW = useRef(0);
 
-  // 우클릭 필터 메뉴
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; field: string } | null>(null);
-  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const allTags = [...new Set(events.map((e) => e.tag).filter(Boolean).flatMap((t) => t!.split(",")))] as string[];
 
-  const toggleSort = (field: SortField) => {
-    if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    else { setSortField(field); setSortDir("asc"); }
+  // 정렬 3단계: asc → desc → none(정렬 해제)
+  const cycleSort = (field: SortField) => {
+    if (sortField !== field) { setSortField(field); setSortDir("asc"); }
+    else if (sortDir === "asc") setSortDir("desc");
+    else { setSortField("date"); setSortDir("asc"); } // 해제 → 기본 날짜순 복귀
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ArrowUpDown className="h-3 w-3 ml-0.5 opacity-30" />;
+    if (sortField !== field) return null; // 비활성 열에는 아이콘 없음
     return sortDir === "asc" ? <ArrowUp className="h-3 w-3 ml-0.5" /> : <ArrowDown className="h-3 w-3 ml-0.5" />;
   };
 
@@ -107,27 +107,6 @@ export default function DatabaseView({
     document.addEventListener("mouseup", onUp);
   }, [colWidths]);
 
-  const handleHeaderContext = (e: React.MouseEvent, field: string) => {
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, field });
-  };
-
-  // 외부 클릭 시 컨텍스트 메뉴 닫기 (메뉴 내부 클릭은 무시)
-  useEffect(() => {
-    if (!contextMenu) return;
-    const handleClick = (e: MouseEvent) => {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
-        setContextMenu(null);
-      }
-    };
-    const timer = setTimeout(() => {
-      document.addEventListener("mousedown", handleClick);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [contextMenu]);
 
   const filtered = events
     .filter((ev) => {
@@ -152,29 +131,69 @@ export default function DatabaseView({
 
   return (
     <div className="flex flex-col gap-3 h-full min-h-0">
-      {/* 검색 */}
-      <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="검색..." className="pl-8 h-9 text-sm" />
-      </div>
-      {/* 필터 태그 (모바일에서 오른쪽으로 잘리지 않게 wrap) */}
-      {filterTags.length > 0 && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {filterTags.map((ft) => {
-            const c = tagColorMap[ft] || "#6B7280";
-            return (
-              <Badge
-                key={ft}
-                className="cursor-pointer shrink-0"
-                style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}
-                onClick={() => setFilterTags((prev) => prev.filter((t) => t !== ft))}
-              >
-                {ft} ✕
-              </Badge>
-            );
-          })}
+      {/* 검색 + 태그 필터 */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="검색..." className="pl-8 h-9 text-sm" />
+          </div>
+          {allTags.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setTagFilterOpen((o) => !o)}
+              className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-9 text-xs transition-colors ${
+                filterTags.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              <Filter className="h-3 w-3" />
+              태그{filterTags.length > 0 && ` (${filterTags.length})`}
+            </button>
+          )}
         </div>
-      )}
+        {/* 태그 필터 패널 */}
+        {tagFilterOpen && allTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 rounded-md border bg-muted/20 p-2">
+            <button
+              type="button"
+              onClick={() => setFilterTags([])}
+              className={`rounded-full border px-2 py-0.5 text-[10px] transition-colors ${
+                filterTags.length === 0 ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              전체
+            </button>
+            {allTags.map((t) => {
+              const active = filterTags.includes(t);
+              const c = tagColorMap[t] || "#6B7280";
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setFilterTags((prev) => active ? prev.filter((x) => x !== t) : [...prev, t])}
+                  className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] transition-colors"
+                  style={active ? { borderColor: c, backgroundColor: c + "20", color: c, fontWeight: 600 } : {}}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: c }} />
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {/* 활성 필터 배지 */}
+        {filterTags.length > 0 && !tagFilterOpen && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {filterTags.map((ft) => {
+              const c = tagColorMap[ft] || "#6B7280";
+              return (
+                <Badge key={ft} className="cursor-pointer shrink-0 text-[10px]" style={{ backgroundColor: c + "20", color: c, borderColor: c + "40" }}
+                  onClick={() => setFilterTags((prev) => prev.filter((t) => t !== ft))}>{ft} ✕</Badge>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
       {filtered.length === 0 ? (
         <div className="flex items-center justify-center py-20">
@@ -202,10 +221,9 @@ export default function DatabaseView({
                   <th
                     key={col.label}
                     className="relative text-left font-medium px-3 py-2.5 border-b border-r last:border-r-0 select-none whitespace-nowrap"
-                    onContextMenu={(e) => handleHeaderContext(e, col.label)}
                   >
                     {col.field ? (
-                      <button className="flex items-center font-medium" onClick={() => toggleSort(col.field!)}>
+                      <button className="flex items-center font-medium" onClick={() => cycleSort(col.field!)}>
                         {col.label} <SortIcon field={col.field} />
                       </button>
                     ) : (
@@ -268,43 +286,6 @@ export default function DatabaseView({
         </div>
       )}
 
-      {/* 우클릭 컨텍스트 메뉴 */}
-      {contextMenu && (
-        <div
-          ref={contextMenuRef}
-          className="fixed z-50 bg-popover border rounded-md shadow-lg py-1 min-w-[140px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-        >
-          {contextMenu.field === "태그" && allTags.length > 0 && (
-            <>
-              <div className="px-3 py-1 text-xs text-muted-foreground font-medium">태그 필터 (복수 선택)</div>
-              <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => { setFilterTags([]); }}>
-                전체 보기
-              </button>
-              <div className="max-h-[180px] overflow-y-auto">
-                {allTags.map((t) => {
-                  const active = filterTags.includes(t);
-                  return (
-                    <button key={t} className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent flex items-center gap-2" onClick={() => {
-                      setFilterTags((prev) => active ? prev.filter((x) => x !== t) : [...prev, t]);
-                    }}>
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: tagColorMap[t] || "#6B7280" }} />
-                      {t} {active && "✓"}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="border-t my-1" />
-            </>
-          )}
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => { toggleSort(sortField); setContextMenu(null); }}>
-            <ArrowUp className="inline h-3 w-3 mr-1.5" />오름차순 정렬
-          </button>
-          <button className="w-full px-3 py-1.5 text-xs text-left hover:bg-accent" onClick={() => { setSortDir("desc"); setContextMenu(null); }}>
-            <ArrowDown className="inline h-3 w-3 mr-1.5" />내림차순 정렬
-          </button>
-        </div>
-      )}
     </div>
   );
 }
