@@ -91,7 +91,10 @@ function KnowledgePageInner() {
     if (id) params.set("item", id);
     else params.delete("item");
     const qs = params.toString();
-    router.replace(qs ? `/knowledge?${qs}` : "/knowledge", { scroll: false });
+    const url = qs ? `/knowledge?${qs}` : "/knowledge";
+    // push로 히스토리 쌓아 Android/iOS 뒤로가기가 지식창고 내부에서 동작
+    if (id) router.push(url, { scroll: false });
+    else router.replace(url, { scroll: false });
   };
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
@@ -119,10 +122,12 @@ function KnowledgePageInner() {
     [items, searchResults, selectedItemId]
   );
 
-  // 10초 idle 자동 임시저장: source_id 기준으로 한 건만 유지 (덮어쓰기).
+  // 60초 idle 자동 임시저장. 빈 내용(공백/줄바꿈만)은 저장하지 않음.
   useEffect(() => {
     if (!dirty) return;
-    if (!editTitle.trim() && !editContent.trim()) return;
+    // HTML 태그 제거 후 실제 텍스트가 있는지 확인
+    const textOnly = editContent.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    if (!editTitle.trim() && !textOnly) return;
     const timer = setTimeout(() => {
       const key = selectedItem?.id ?? "__new__";
       const now = new Date().toISOString();
@@ -141,7 +146,7 @@ function KnowledgePageInner() {
         return next;
       });
       setAutoSavedAt(now);
-    }, 10000);
+    }, 60000);
     return () => clearTimeout(timer);
   }, [editTitle, editContent, dirty, selectedItem?.id, selectedItem?.folder_id]);
 
@@ -361,9 +366,9 @@ function KnowledgePageInner() {
   const listActions = (
     <button
       type="button"
-      onClick={() => handleAddItem(null)}
-      aria-label="새 노트"
-      title="새 노트"
+      onClick={() => handleAddFolder(null)}
+      aria-label="폴더 추가"
+      title="폴더 추가"
       className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
     >
       <Plus className="h-[22px] w-[22px]" strokeWidth={1.6} />
@@ -372,16 +377,16 @@ function KnowledgePageInner() {
 
   return (
     <>
-      {/* 모바일에서 에디터 열려있을 때 PageHeader 숨김 — 데스크톱은 항상 표시 */}
-      <div className={editorOpen ? "hidden md:block" : "block"}>
+      {/* 노트 열려있으면 PageHeader 숨김 */}
+      {!noteOpen && (
         <PageHeader
           title="지식창고"
           actions={listActions}
         />
-      </div>
+      )}
     <div
       className={`flex min-h-0 ${
-        editorOpen ? "h-full" : "h-[calc(100%-3.5rem)]"
+        noteOpen ? "h-full" : "h-[calc(100%-3.5rem)]"
       }`}
     >
       <main className="flex flex-1 flex-col overflow-hidden">

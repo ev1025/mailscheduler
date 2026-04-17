@@ -41,7 +41,6 @@ export default function FolderNoteList({
         </button>
         <span className="text-base">{folder?.icon || "📁"}</span>
         <h2 className="text-sm font-semibold truncate flex-1">{folder?.name || "미분류"}</h2>
-        <span className="text-xs text-muted-foreground">{folderItems.length}개</span>
       </div>
 
       {/* 노트 목록 */}
@@ -84,17 +83,6 @@ export default function FolderNoteList({
         )}
       </div>
 
-      {/* 하단 새 노트 추가 */}
-      <div className="shrink-0 border-t p-2">
-        <button
-          type="button"
-          onClick={() => onAddItem(folderId)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed py-2 text-xs text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          새 노트
-        </button>
-      </div>
     </div>
   );
 }

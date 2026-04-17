@@ -188,12 +188,12 @@ function Toolbar({ editor }: { editor: Editor }) {
     }
   };
 
-  const addTable = () => {
-    editor
-      .chain()
-      .focus()
-      .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
-      .run();
+  const toggleTable = () => {
+    if (editor.isActive("table")) {
+      editor.chain().focus().deleteTable().run();
+    } else {
+      editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    }
   };
 
   return (
@@ -256,7 +256,7 @@ function Toolbar({ editor }: { editor: Editor }) {
           <LinkIcon className="h-5 w-5" />
         </ToolbarButton>
 
-        <ToolbarButton onClick={addTable} title="표">
+        <ToolbarButton active={editor.isActive("table")} onClick={toggleTable} title="표 (활성 시 삭제)">
           <TableIcon className="h-5 w-5" />
         </ToolbarButton>
 

@@ -115,34 +115,21 @@ export default function KnowledgeDashboard({
                 >
                   <span className="text-base">{f.icon || "📁"}</span>
                   <span className="flex-1 text-sm font-medium text-left">{f.name}</span>
-                  <span className="text-xs text-muted-foreground">{folderCounts[f.id] || 0}</span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </button>
               ))}
             </section>
           )}
 
-          {/* 미분류 노트 */}
-          {unfiledItems.length > 0 && (
-            <section className="flex flex-col gap-1.5">
-              <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
-                <FileText className="h-3 w-3" /> 노트
-              </h3>
-              {unfiledItems.map((item) => (
-                <NoteCard key={item.id} item={item} onClick={() => onSelectItem(item.id)} />
-              ))}
-            </section>
-          )}
-
           {/* 완전 비어있을 때 */}
-          {pinnedItems.length === 0 && rootFolders.length === 0 && unfiledItems.length === 0 && (
+          {pinnedItems.length === 0 && rootFolders.length === 0 && (
             <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
               <FileText className="h-12 w-12 opacity-20" />
               <p className="text-sm text-muted-foreground">
-                아직 노트가 없습니다
+                폴더를 만들어 노트를 정리해보세요
               </p>
               <p className="text-xs text-muted-foreground">
-                오른쪽 상단 + 버튼으로 첫 노트를 만들어보세요
+                오른쪽 상단 + 버튼으로 폴더를 추가할 수 있어요
               </p>
             </div>
           )}
