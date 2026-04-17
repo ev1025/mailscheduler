@@ -7,24 +7,11 @@ interface Holiday {
   name: string;
 }
 
-// API에 없는 임시·추가 공휴일 (선거일, 근로자의날 등)
-const MANUAL_HOLIDAYS: Record<number, Holiday[]> = {
-  2025: [
-    { date: "2025-05-01", name: "근로자의날" },
-  ],
-  2026: [
-    { date: "2026-05-01", name: "근로자의날" },
-    { date: "2026-06-03", name: "제9회 지방선거" },
-  ],
-  2027: [
-    { date: "2027-05-01", name: "근로자의날" },
-  ],
-  2028: [
-    { date: "2028-05-01", name: "근로자의날" },
-  ],
-};
+// API에 없을 수 있는 추가 공휴일 (API가 제공하면 중복 방지됨)
+const MANUAL_HOLIDAYS: Record<number, Holiday[]> = {};
 
-const CACHE_KEY = "holidays_cache_v3";
+// 캐시 키 변경 → 이전 캐시(Nager.Date) 무효화
+const CACHE_KEY = "holidays_cache_v4";
 const NAME_MAP: Record<string, string> = {
   "New Year's Day": "새해",
   "Independence Movement Day": "삼일절",
