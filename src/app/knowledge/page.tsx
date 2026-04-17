@@ -577,8 +577,10 @@ function KnowledgePageInner() {
               for (const id of ids) { deleteFolder(id); }
               refetch();
             }}
-            onRenameFolder={async (id, name) => {
-              await updateFolder(id, { name });
+            onRenameFolder={async (id, name) => { await updateFolder(id, { name }); }}
+            onRenameItem={async (id, title) => { await updateItem(id, { title }); }}
+            onMoveItems={async (ids, targetFolderId) => {
+              for (const id of ids) await updateItem(id, { folder_id: targetFolderId });
             }}
           />
         ) : (
