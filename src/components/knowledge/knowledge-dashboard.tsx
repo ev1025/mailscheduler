@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Search, Pin, ChevronRight, FileText, Folder, Trash2, CheckSquare, Square, ArrowLeft, Pencil } from "lucide-react";
+import { Search, Pin, ChevronRight, FileText, Folder, Trash2, CheckSquare, Square, ArrowLeft, Pencil, FolderInput } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +24,9 @@ interface DashboardProps {
   onRenameFolder?: (id: string, name: string) => void;
   onRenameItem?: (id: string, title: string) => void;
   onReorderFolders?: (ids: string[]) => void;
+  onSelectModeChange?: (active: boolean) => void;
+  onMoveItems?: (ids: string[], targetFolderId: string | null) => void;
+  onMoveFolders?: (ids: string[], targetFolderId: string | null) => void;
 }
 
 /* ── 노트 트리 행 ── */
@@ -197,7 +200,7 @@ function FolderTreeRow({
 
 /* ── 메인 대시보드 ── */
 export default function KnowledgeDashboard({
-  folders, items, onSelectItem, onSelectFolder, onSearch, searchQuery, searchResults, onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onReorderFolders,
+  folders, items, onSelectItem, onSelectFolder, onSearch, searchQuery, searchResults, onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onReorderFolders, onSelectModeChange, onMoveItems, onMoveFolders,
 }: DashboardProps) {
   const pinnedItems = items.filter((i) => i.pinned);
   const rootFolders = folders.filter((f) => !f.parent_id);
@@ -221,9 +224,10 @@ export default function KnowledgeDashboard({
   const [selItems, setSelItems] = useState<Set<string>>(new Set());
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [moveMode, setMoveMode] = useState(false);
   const dragRef = useRef(false);
 
-  const exitSelect = () => { setSelectMode(false); setSelFolders(new Set()); setSelItems(new Set()); setRenamingId(null); };
+  const exitSelect = () => { setSelectMode(false); setSelFolders(new Set()); setSelItems(new Set()); setRenamingId(null); setMoveMode(false); onSelectModeChange?.(false); };
   const totalSel = selFolders.size + selItems.size;
   const addToSelection = useCallback((id: string, type: "folder" | "item") => {
     if (type === "folder") setSelFolders((p) => new Set([...p, id]));
@@ -236,10 +240,10 @@ export default function KnowledgeDashboard({
 
   const handleLongPress = useCallback((id: string, type: "folder" | "item") => {
     setSelectMode(true);
+    onSelectModeChange?.(true);
     addToSelection(id, type);
     dragRef.current = true;
-    if (navigator.vibrate) navigator.vibrate(30);
-  }, [addToSelection]);
+  }, [addToSelection, onSelectModeChange]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!dragRef.current) return;
@@ -283,10 +287,29 @@ export default function KnowledgeDashboard({
         <div className="flex items-center gap-2 border-b px-3 h-12 shrink-0 bg-muted/30">
           <button type="button" onClick={exitSelect} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"><ArrowLeft className="h-4 w-4" /></button>
           <span className="text-sm font-medium flex-1">{totalSel}개 선택</span>
-          {totalSel === 1 && (
-            <button type="button" onClick={startInlineRename} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"><Pencil className="h-3.5 w-3.5" /></button>
+          {totalSel > 0 && (
+            <button type="button" onClick={() => setMoveMode(true)} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동"><FolderInput className="h-3.5 w-3.5" /></button>
           )}
-          <Button size="sm" variant="destructive" className="h-8 text-xs" disabled={totalSel === 0} onClick={handleDeleteBulk}><Trash2 className="h-3 w-3 mr-1" />삭제</Button>
+          {totalSel === 1 && (
+            <button type="button" onClick={startInlineRename} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경"><Pencil className="h-3.5 w-3.5" /></button>
+          )}
+          <button type="button" onClick={handleDeleteBulk} disabled={totalSel === 0} className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제"><Trash2 className="h-3.5 w-3.5 text-destructive" /></button>
+        </div>
+      )}
+
+      {/* 폴더 이동 패널 */}
+      {moveMode && (
+        <div className="border-b p-3 bg-muted/30 flex flex-col gap-2 shrink-0">
+          <p className="text-xs font-medium text-muted-foreground">이동할 폴더 선택</p>
+          <div className="flex flex-col gap-0.5 max-h-[200px] overflow-y-auto">
+            <button type="button" onClick={() => { if (selItems.size > 0 && onMoveItems) onMoveItems(Array.from(selItems), null); if (selFolders.size > 0 && onMoveFolders) onMoveFolders(Array.from(selFolders), null); exitSelect(); }}
+              className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"><Folder className="h-3.5 w-3.5" /> 루트 (최상위)</button>
+            {folders.filter((f) => !selFolders.has(f.id)).map((f) => (
+              <button key={f.id} type="button" onClick={() => { if (selItems.size > 0 && onMoveItems) onMoveItems(Array.from(selItems), f.id); if (selFolders.size > 0 && onMoveFolders) onMoveFolders(Array.from(selFolders), f.id); exitSelect(); }}
+                className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"><Folder className="h-3.5 w-3.5" /> {f.name}</button>
+            ))}
+          </div>
+          <Button size="sm" variant="outline" className="h-7 text-xs self-end" onClick={() => setMoveMode(false)}>취소</Button>
         </div>
       )}
 

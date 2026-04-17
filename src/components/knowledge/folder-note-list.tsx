@@ -58,7 +58,6 @@ export default function FolderNoteList({
     setSelectMode(true);
     addToSelection(id, type);
     dragRef.current = true;
-    if (navigator.vibrate) navigator.vibrate(30);
   }, [addToSelection]);
 
   // 드래그 선택

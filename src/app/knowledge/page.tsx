@@ -124,6 +124,7 @@ function KnowledgePageInner() {
   const [editContent, setEditContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [dashSelectMode, setDashSelectMode] = useState(false);
 
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
@@ -221,9 +222,12 @@ function KnowledgePageInner() {
       url: null,
     });
     if (data) {
-      setSelectedItemId(data.id);
-      setViewFolderId(null);
+      // 현재 폴더 경로 유지한 채 노트 에디터 열기
+      _setSelectedItemId(data.id);
       setEditing(true);
+      const params = new URLSearchParams();
+      params.set("item", data.id);
+      router.push(`/knowledge?${params.toString()}`, { scroll: false });
     }
   };
 
@@ -411,8 +415,8 @@ function KnowledgePageInner() {
 
   return (
     <>
-      {/* 노트 열려있으면 PageHeader 숨김, 대시보드/폴더에서는 표시 */}
-      {!noteOpen && (
+      {/* 노트 열려있거나 선택모드면 PageHeader 숨김 */}
+      {!noteOpen && !dashSelectMode && (
         <PageHeader
           title="지식창고"
           actions={listActions}
@@ -420,7 +424,7 @@ function KnowledgePageInner() {
       )}
     <div
       className={`flex min-h-0 ${
-        noteOpen ? "h-full" : "h-[calc(100%-3.5rem)]"
+        noteOpen || dashSelectMode ? "h-full" : "h-[calc(100%-3.5rem)]"
       }`}
     >
       <main className="flex flex-1 flex-col overflow-hidden">
@@ -603,9 +607,14 @@ function KnowledgePageInner() {
             onRenameFolder={async (id, name) => { await updateFolder(id, { name }); }}
             onRenameItem={async (id, title) => { await updateItem(id, { title }); }}
             onReorderFolders={async (ids) => {
-              for (let i = 0; i < ids.length; i++) {
-                await updateFolder(ids[i], { sort_order: i });
-              }
+              for (let i = 0; i < ids.length; i++) await updateFolder(ids[i], { sort_order: i });
+            }}
+            onSelectModeChange={setDashSelectMode}
+            onMoveItems={async (ids, targetFolderId) => {
+              for (const id of ids) await updateItem(id, { folder_id: targetFolderId });
+            }}
+            onMoveFolders={async (ids, targetFolderId) => {
+              for (const id of ids) await updateFolder(id, { parent_id: targetFolderId });
             }}
           />
         )}
