@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   FileText,
-  Folder,
+  FolderPlus,
+  FilePlus,
   Archive,
   Trash2,
   ArrowLeft,
@@ -394,7 +395,7 @@ function KnowledgePageInner() {
         title="폴더 추가"
         className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
       >
-        <Folder className="h-[20px] w-[20px]" strokeWidth={1.6} />
+        <FolderPlus className="h-[20px] w-[20px]" strokeWidth={1.6} />
       </button>
       <button
         type="button"
@@ -403,7 +404,7 @@ function KnowledgePageInner() {
         title="새 노트"
         className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
       >
-        <FileText className="h-[20px] w-[20px]" strokeWidth={1.6} />
+        <FilePlus className="h-[20px] w-[20px]" strokeWidth={1.6} />
       </button>
     </>
   );
