@@ -173,10 +173,12 @@ interface TravelListProps {
   onAddEvent?: (event: Omit<CalendarEvent, "id" | "created_at">) => Promise<{ error: unknown }>;
   onAddEventTagToCalendar?: (name: string, color: string) => Promise<{ error: unknown }>;
   onDeleteCalendarEventsByTitleDate?: (title: string, date: string) => Promise<void>;
+  /** 달력 상단에서 선택된 "볼 사용자들" — 여행 항목도 이 기준으로 필터 */
+  visibleUserIds?: string[];
 }
 
-export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTagToCalendar, onDeleteCalendarEventsByTitleDate }: TravelListProps = {}) {
-  const { items, addItem, updateItem, deleteItem, toggleVisited } = useTravelItems();
+export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTagToCalendar, onDeleteCalendarEventsByTitleDate, visibleUserIds }: TravelListProps = {}) {
+  const { items, addItem, updateItem, deleteItem, toggleVisited } = useTravelItems(visibleUserIds);
   const { tags, addTag, deleteTag, updateTagColor } = useTravelTags();
   const { tags: eventTags, addTag: addEventTag, deleteTag: deleteEventTag, updateTagColor: updateEventTagColor, refetch: refetchEventTags } = useEventTags();
 

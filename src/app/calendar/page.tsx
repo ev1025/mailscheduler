@@ -51,13 +51,30 @@ function CalendarPageInner() {
   const currentUserId = useCurrentUserId();
   const { users } = useAppUsers();
   const { viewableUserIds } = useCalendarShares();
-  const [visibleUserIds, setVisibleUserIds] = useState<string[]>([]);
+  // localStorage에 영속 — 껏다 켜도 마지막 선택값 유지
+  const VISIBLE_KEY = "calendar_visible_user_ids";
+  const [visibleUserIds, setVisibleUserIds] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem(VISIBLE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
 
+  // 최초 1회: 저장된 값이 없으면 내 ID로 기본 세팅
   useEffect(() => {
     if (currentUserId && visibleUserIds.length === 0) {
       setVisibleUserIds([currentUserId]);
     }
   }, [currentUserId, visibleUserIds.length]);
+
+  // 바뀔 때마다 저장
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (visibleUserIds.length > 0) {
+      try { localStorage.setItem(VISIBLE_KEY, JSON.stringify(visibleUserIds)); } catch {}
+    }
+  }, [visibleUserIds]);
 
   const toggleVisible = (uid: string) => {
     setVisibleUserIds((prev) =>
@@ -262,60 +279,60 @@ function CalendarPageInner() {
       />
     <div className="flex flex-col h-[calc(100%-3.5rem)] min-h-0 px-2 py-2 md:p-6 overflow-hidden">
 
-      {/* 탭 아래: MonthPicker + 사용자 필터 (달력/일정목록 탭에서만) */}
+      {/* MonthPicker: 달력/일정목록에서만 (여행은 월 개념 없음) */}
       {view !== "travel" && (
-        <>
-          <div className="mb-2 flex justify-center items-center shrink-0">
-            <MonthPicker
-              year={year}
-              month={month}
-              onYearChange={setYear}
-              onMonthChange={setMonth}
-            />
-          </div>
-          {viewableUserIds.length > 1 && (
-            <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5 shrink-0">
-              {users
-                .filter((u) => viewableUserIds.includes(u.id))
-                .map((u) => {
-                  const active = visibleUserIds.includes(u.id);
-                  return (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => toggleVisible(u.id)}
-                      className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all"
-                      style={
-                        active
-                          ? {
-                              borderColor: u.color,
-                              backgroundColor: u.color + "20",
-                              color: u.color,
-                            }
-                          : { opacity: 0.4 }
-                      }
-                    >
-                      {u.avatar_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={u.avatar_url}
-                          alt={u.name}
-                          className="h-4 w-4 rounded-full object-cover"
-                        />
-                      ) : (
-                        <span>{u.emoji || u.name[0]}</span>
-                      )}
-                      <span className="font-medium">{u.name}</span>
-                    </button>
-                  );
-                })}
-            </div>
-          )}
-        </>
+        <div className="mb-2 flex justify-center items-center shrink-0">
+          <MonthPicker
+            year={year}
+            month={month}
+            onYearChange={setYear}
+            onMonthChange={setMonth}
+          />
+        </div>
+      )}
+      {/* 사용자 필터: 달력 탭에서만 노출 — 여기서 선택한 값이 일정목록/여행에도 자동 적용 */}
+      {view === "calendar" && viewableUserIds.length > 1 && (
+        <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5 shrink-0">
+          {users
+            .filter((u) => viewableUserIds.includes(u.id))
+            .map((u) => {
+              const active = visibleUserIds.includes(u.id);
+              return (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => toggleVisible(u.id)}
+                  className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all"
+                  style={
+                    active
+                      ? {
+                          borderColor: u.color,
+                          backgroundColor: u.color + "20",
+                          color: u.color,
+                        }
+                      : { opacity: 0.4 }
+                  }
+                >
+                  {u.avatar_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={u.avatar_url}
+                      alt={u.name}
+                      className="h-4 w-4 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span>{u.emoji || u.name[0]}</span>
+                  )}
+                  <span className="font-medium">{u.name}</span>
+                </button>
+              );
+            })}
+        </div>
       )}
 
       {view === "travel" ? (
         <TravelList
+          visibleUserIds={visibleUserIds}
           onNavigateToMonth={(y, m) => {
             setYear(y);
             setMonth(m);

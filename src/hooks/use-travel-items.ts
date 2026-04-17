@@ -5,10 +5,18 @@ import { supabase } from "@/lib/supabase";
 import type { TravelItem } from "@/types";
 import { useCurrentUserId } from "@/lib/current-user";
 
-export function useTravelItems() {
+/**
+ * visibleUserIds: 달력 탭에서 선택한 "볼 사용자들"
+ *  - 전달 시 해당 사용자들의 여행 항목만 조회 (공유된 여행 포함)
+ *  - 생략 시 내 항목만
+ */
+export function useTravelItems(visibleUserIds?: string[]) {
   const userId = useCurrentUserId();
   const [items, setItems] = useState<TravelItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // 의존성 안정화를 위해 join한 문자열 사용
+  const visibleKey = visibleUserIds?.join(",") ?? "";
 
   const fetchItems = useCallback(async () => {
     setLoading(true);
@@ -17,9 +25,13 @@ export function useTravelItems() {
       .select("*")
       .order("visited")
       .order("created_at", { ascending: false });
-    if (userId) query = query.eq("user_id", userId);
+    const filterIds = visibleUserIds && visibleUserIds.length > 0
+      ? visibleUserIds
+      : (userId ? [userId] : []);
+    if (filterIds.length > 0) query = query.in("user_id", filterIds);
     const { data, error } = await query;
     if (error) {
+      // user_id 컬럼이 없는 구버전 테이블 대비 fallback
       const fallback = await supabase
         .from("travel_items")
         .select("*")
@@ -30,7 +42,8 @@ export function useTravelItems() {
       setItems(data);
     }
     setLoading(false);
-  }, [userId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, visibleKey]);
 
   useEffect(() => {
     fetchItems();
