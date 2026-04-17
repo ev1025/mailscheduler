@@ -139,6 +139,28 @@ export default function CalendarView({
   onReorder,
 }: CalendarViewProps) {
   const holidayMap = getHolidayMap(year);
+
+  // 공휴일을 가상 이벤트로 변환해 달력에 빨간 바로 표시
+  const allEvents = useMemo(() => {
+    const holidayEvents: CalendarEvent[] = Object.entries(holidayMap).map(([date, name]) => ({
+      id: `__holiday__${date}`,
+      title: name,
+      description: null,
+      start_date: date,
+      end_date: null,
+      start_time: null,
+      end_time: null,
+      color: "#EF4444",
+      tag: null,
+      repeat: null,
+      series_id: null,
+      sort_order: -1,
+      created_at: "",
+      user_id: "",
+    }));
+    return [...holidayEvents, ...events];
+  }, [events, holidayMap]);
+
   const monthStart = startOfMonth(new Date(year, month - 1));
   const monthEnd = endOfMonth(monthStart);
   const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
@@ -158,7 +180,7 @@ export default function CalendarView({
     const calc = () => {
       const h = el.getBoundingClientRect().height;
       // 사용 가능 높이 = 행 높이 - 헤더 영역(~36px) - +N 표시(~14px)
-      const available = h - 38 - 10;
+      const available = h - 30 - 10;
       const fits = Math.max(0, Math.min(MAX_VISIBLE_SLOTS, Math.floor(available / BAR_STEP)));
       setDynamicMax(fits);
     };
@@ -180,7 +202,7 @@ export default function CalendarView({
       const ws = week[0], we = week[6];
       type D = Omit<Seg, "slot">;
       const drafts: D[] = [];
-      for (const ev of events) {
+      for (const ev of allEvents) {
         const s = parseISO(ev.start_date);
         const e = ev.end_date ? parseISO(ev.end_date) : s;
         if (e < ws || s > we) continue;
@@ -214,7 +236,7 @@ export default function CalendarView({
       }
       return segs;
     });
-  }, [weeks, events]);
+  }, [weeks, allEvents]);
 
   /* 셀당 숨겨진 이벤트 수 — dynamicMax 기준 */
   const weekHidden = useMemo(() => {
@@ -298,7 +320,7 @@ export default function CalendarView({
 
                 {/* ── 바 오버레이: grid-column span으로 너비, 텍스트 중앙정렬 ── */}
                 <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[36.5px] md:top-[38.5px]"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[28px] md:top-[32px]"
                   style={{ gridAutoRows: 0 }}
                 >
                   {segs

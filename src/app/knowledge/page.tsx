@@ -84,23 +84,44 @@ function KnowledgePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlItemId = searchParams.get("item");
+  const urlFolderId = searchParams.get("folder");
+
   const [selectedItemId, _setSelectedItemId] = useState<string | null>(urlItemId);
-  const setSelectedItemId = (id: string | null) => {
-    _setSelectedItemId(id);
-    const params = new URLSearchParams(searchParams.toString());
-    if (id) params.set("item", id);
-    else params.delete("item");
+  const [viewFolderId, _setViewFolderId] = useState<string | null>(urlFolderId);
+
+  // URL 기반 상태 관리 — push로 히스토리 쌓아 뒤로가기가 지식창고 내부에서 동작
+  const updateUrl = (item: string | null, folder: string | null, push = true) => {
+    const params = new URLSearchParams();
+    if (item) params.set("item", item);
+    if (folder) params.set("folder", folder);
     const qs = params.toString();
     const url = qs ? `/knowledge?${qs}` : "/knowledge";
-    // push로 히스토리 쌓아 Android/iOS 뒤로가기가 지식창고 내부에서 동작
-    if (id) router.push(url, { scroll: false });
+    if (push) router.push(url, { scroll: false });
     else router.replace(url, { scroll: false });
   };
+
+  const setSelectedItemId = (id: string | null) => {
+    _setSelectedItemId(id);
+    _setViewFolderId(null);
+    updateUrl(id, null, !!id);
+  };
+
+  const setViewFolderId = (fid: string | null) => {
+    _setViewFolderId(fid);
+    _setSelectedItemId(null);
+    updateUrl(null, fid, !!fid);
+  };
+
+  // URL 변경 감지 (뒤로가기 시 state 동기화)
+  useEffect(() => {
+    _setSelectedItemId(searchParams.get("item"));
+    _setViewFolderId(searchParams.get("folder"));
+  }, [searchParams]);
+
   const [editTitle, setEditTitle] = useState("");
   const [editContent, setEditContent] = useState("");
   const [dirty, setDirty] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [viewFolderId, setViewFolderId] = useState<string | null>(null); // 폴더 탐색 모드
 
   const [search, setSearch] = useState("");
   const [searchResults, setSearchResults] = useState<KnowledgeItem[]>([]);
