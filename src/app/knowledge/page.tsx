@@ -569,12 +569,16 @@ function KnowledgePageInner() {
               if (current?.parent_id) setViewFolderId(current.parent_id);
               else setViewFolderId(null);
             }}
+            onNavigateToFolder={(fid) => setViewFolderId(fid)}
             onDeleteItems={async (ids) => {
               for (const id of ids) await deleteItem(id);
             }}
             onDeleteFolders={async (ids) => {
               for (const id of ids) { deleteFolder(id); }
               refetch();
+            }}
+            onRenameFolder={async (id, name) => {
+              await updateFolder(id, { name });
             }}
           />
         ) : (

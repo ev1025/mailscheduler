@@ -76,8 +76,9 @@ function FolderTreeRow({
   onLongPress: (id: string, type: "folder" | "item") => void;
 }) {
   const subFolders = allFolders.filter((f) => f.parent_id === folder.id);
-  const folderNotes = allItems.filter((i) => i.folder_id === folder.id);
-  const hasChildren = subFolders.length > 0 || folderNotes.length > 0;
+  // 이 폴더에 직접 속한 노트만 (하위 폴더의 노트는 제외)
+  const directNotes = allItems.filter((i) => i.folder_id === folder.id);
+  const hasChildren = subFolders.length > 0 || directNotes.length > 0;
   const isOpen = expanded.has(folder.id);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -140,8 +141,8 @@ function FolderTreeRow({
               onLongPress={onLongPress}
             />
           ))}
-          {/* 폴더 내 노트 */}
-          {folderNotes.map((item) => (
+          {/* 이 폴더에 직접 속한 노트 */}
+          {directNotes.map((item) => (
             <NoteTreeRow
               key={item.id}
               item={item}
