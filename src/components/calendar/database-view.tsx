@@ -151,7 +151,7 @@ export default function DatabaseView({
   ];
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 h-full min-h-0">
       {/* 검색 */}
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -181,7 +181,7 @@ export default function DatabaseView({
           <p className="text-sm text-muted-foreground">{search || filterTags.length > 0 ? "검색 결과가 없습니다" : "이 달의 일정이 없습니다"}</p>
         </div>
       ) : (
-        <div className={`rounded-lg border max-h-[65vh] overflow-auto ${isResizing ? "select-none cursor-col-resize" : ""}`}>
+        <div className={`rounded-lg border flex-1 min-h-0 overflow-auto ${isResizing ? "select-none cursor-col-resize" : ""}`}>
           <table
             ref={tableRef}
             className="w-full border-collapse"
