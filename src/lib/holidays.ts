@@ -1,13 +1,72 @@
-// 대한민국 공휴일 (양력 고정 + 음력 변동)
-// 음력 공휴일은 연도별로 양력 날짜가 다르므로 연도별 데이터 필요
+// 공휴일 데이터 — Nager.Date API(무료) + 수동 임시공휴일 + 캐시
 
 interface Holiday {
   date: string; // YYYY-MM-DD
   name: string;
 }
 
-// 양력 고정 공휴일
-const FIXED_HOLIDAYS: { month: number; day: number; name: string }[] = [
+// 임시공휴일 (선거일 등 — API에 없을 수 있는 일회성 공휴일)
+const MANUAL_HOLIDAYS: Record<number, Holiday[]> = {
+  2026: [
+    { date: "2026-06-03", name: "제9회 지방선거" },
+  ],
+};
+
+const CACHE_KEY = "holidays_cache_v2";
+
+interface CacheEntry {
+  holidays: Holiday[];
+  fetchedAt: string;
+}
+
+function loadCache(year: number): Holiday[] | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(`${CACHE_KEY}:${year}`);
+    if (!raw) return null;
+    const entry: CacheEntry = JSON.parse(raw);
+    // 30일 이내 캐시만 사용
+    const age = Date.now() - new Date(entry.fetchedAt).getTime();
+    if (age > 30 * 86400000) return null;
+    return entry.holidays;
+  } catch {
+    return null;
+  }
+}
+
+function saveCache(year: number, holidays: Holiday[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const entry: CacheEntry = { holidays, fetchedAt: new Date().toISOString() };
+    localStorage.setItem(`${CACHE_KEY}:${year}`, JSON.stringify(entry));
+  } catch { /* ignore */ }
+}
+
+// 한국어 공휴일 이름 매핑
+const NAME_MAP: Record<string, string> = {
+  "New Year's Day": "새해",
+  "Independence Movement Day": "삼일절",
+  "Children's Day": "어린이날",
+  "Memorial Day": "현충일",
+  "Liberation Day": "광복절",
+  "National Foundation Day": "개천절",
+  "Hangul Day": "한글날",
+  "Christmas Day": "크리스마스",
+  "Lunar New Year": "설날",
+  "Lunar New Year's Eve": "설날 연휴",
+  "Second day of Lunar New Year": "설날 연휴",
+  "Buddha's Birthday": "부처님오신날",
+  "Chuseok": "추석",
+  "The day before Chuseok": "추석 연휴",
+  "Second day of Chuseok": "추석 연휴",
+};
+
+function translateName(name: string, localName: string): string {
+  return NAME_MAP[name] || localName || name;
+}
+
+// 양력 고정 공휴일 (API 실패 시 폴백)
+const FALLBACK_FIXED = [
   { month: 1, day: 1, name: "새해" },
   { month: 3, day: 1, name: "삼일절" },
   { month: 5, day: 5, name: "어린이날" },
@@ -18,132 +77,72 @@ const FIXED_HOLIDAYS: { month: number; day: number; name: string }[] = [
   { month: 12, day: 25, name: "크리스마스" },
 ];
 
-// 음력 기반 공휴일 (양력 변환 - 주요 연도만)
-// 설날(음력1/1), 추석(음력8/15), 부처님오신날(음력4/8)
-const LUNAR_HOLIDAYS: Record<number, Holiday[]> = {
-  2024: [
-    { date: "2024-02-09", name: "설날 연휴" },
-    { date: "2024-02-10", name: "설날" },
-    { date: "2024-02-11", name: "설날 연휴" },
-    { date: "2024-02-12", name: "대체공휴일(설날)" },
-    { date: "2024-05-15", name: "부처님오신날" },
-    { date: "2024-09-16", name: "추석 연휴" },
-    { date: "2024-09-17", name: "추석" },
-    { date: "2024-09-18", name: "추석 연휴" },
-  ],
-  2025: [
-    { date: "2025-01-28", name: "설날 연휴" },
-    { date: "2025-01-29", name: "설날" },
-    { date: "2025-01-30", name: "설날 연휴" },
-    { date: "2025-05-05", name: "부처님오신날" },
-    { date: "2025-10-05", name: "추석 연휴" },
-    { date: "2025-10-06", name: "추석" },
-    { date: "2025-10-07", name: "추석 연휴" },
-    { date: "2025-10-08", name: "대체공휴일(추석)" },
-  ],
-  2026: [
-    { date: "2026-02-16", name: "설날 연휴" },
-    { date: "2026-02-17", name: "설날" },
-    { date: "2026-02-18", name: "설날 연휴" },
-    { date: "2026-05-24", name: "부처님오신날" },
-    { date: "2026-09-24", name: "추석 연휴" },
-    { date: "2026-09-25", name: "추석" },
-    { date: "2026-09-26", name: "추석 연휴" },
-  ],
-  2027: [
-    { date: "2027-02-06", name: "설날 연휴" },
-    { date: "2027-02-07", name: "설날" },
-    { date: "2027-02-08", name: "설날 연휴" },
-    { date: "2027-02-09", name: "대체공휴일(설날)" },
-    { date: "2027-05-13", name: "부처님오신날" },
-    { date: "2027-09-14", name: "추석 연휴" },
-    { date: "2027-09-15", name: "추석" },
-    { date: "2027-09-16", name: "추석 연휴" },
-  ],
-  2028: [
-    { date: "2028-01-26", name: "설날 연휴" },
-    { date: "2028-01-27", name: "설날" },
-    { date: "2028-01-28", name: "설날 연휴" },
-    { date: "2028-05-02", name: "부처님오신날" },
-    { date: "2028-10-02", name: "추석 연휴" },
-    { date: "2028-10-03", name: "추석" },
-    { date: "2028-10-04", name: "추석 연휴" },
-  ],
-  2029: [
-    { date: "2029-02-12", name: "설날 연휴" },
-    { date: "2029-02-13", name: "설날" },
-    { date: "2029-02-14", name: "설날 연휴" },
-    { date: "2029-05-20", name: "부처님오신날" },
-    { date: "2029-09-21", name: "추석 연휴" },
-    { date: "2029-09-22", name: "추석" },
-    { date: "2029-09-23", name: "추석 연휴" },
-  ],
-  2030: [
-    { date: "2030-02-02", name: "설날 연휴" },
-    { date: "2030-02-03", name: "설날" },
-    { date: "2030-02-04", name: "설날 연휴" },
-    { date: "2030-05-09", name: "부처님오신날" },
-    { date: "2030-09-11", name: "추석 연휴" },
-    { date: "2030-09-12", name: "추석" },
-    { date: "2030-09-13", name: "추석 연휴" },
-  ],
-};
-
-// 대체공휴일 계산: 공휴일이 토/일이면 다음 평일로 이동
-function computeSubstitutes(holidays: Holiday[]): Holiday[] {
-  const dateSet = new Set(holidays.map((h) => h.date));
-  const substitutes: Holiday[] = [];
-
-  for (const h of holidays) {
-    // 대체공휴일은 건너뜀 (이미 음력 데이터에 포함된 경우)
-    if (h.name.includes("대체")) continue;
-
-    const d = new Date(h.date + "T00:00:00");
-    const dow = d.getDay();
-    if (dow === 0 || dow === 6) {
-      // 다음 평일 찾기
-      const sub = new Date(d);
-      do {
-        sub.setDate(sub.getDate() + 1);
-      } while (
-        sub.getDay() === 0 ||
-        sub.getDay() === 6 ||
-        dateSet.has(sub.toISOString().split("T")[0])
-      );
-      const subDate = sub.toISOString().split("T")[0];
-      if (!dateSet.has(subDate)) {
-        dateSet.add(subDate);
-        substitutes.push({ date: subDate, name: `대체공휴일(${h.name})` });
-      }
-    }
-  }
-  return substitutes;
+function getFallbackHolidays(year: number): Holiday[] {
+  return FALLBACK_FIXED.map((h) => ({
+    date: `${year}-${String(h.month).padStart(2, "0")}-${String(h.day).padStart(2, "0")}`,
+    name: h.name,
+  }));
 }
 
-export function getHolidays(year: number): Holiday[] {
-  const holidays: Holiday[] = [];
+// API 호출 (Nager.Date — 무료, 키 불필요)
+async function fetchFromAPI(year: number): Promise<Holiday[] | null> {
+  try {
+    const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/KR`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const data: Array<{ date: string; name: string; localName: string }> = await res.json();
+    return data.map((d) => ({
+      date: d.date,
+      name: translateName(d.name, d.localName),
+    }));
+  } catch {
+    return null;
+  }
+}
 
-  // 양력 고정 공휴일
-  for (const h of FIXED_HOLIDAYS) {
-    holidays.push({
-      date: `${year}-${String(h.month).padStart(2, "0")}-${String(h.day).padStart(2, "0")}`,
-      name: h.name,
+// 인메모리 캐시 (같은 세션 내 반복 호출 방지)
+const memCache: Record<number, Holiday[]> = {};
+const fetchPromises: Record<number, Promise<void>> = {};
+
+/** 공휴일 목록 가져오기 (동기 — 캐시 우선, 백그라운드 갱신) */
+export function getHolidays(year: number): Holiday[] {
+  // 1. 메모리 캐시
+  if (memCache[year]) return memCache[year];
+
+  // 2. localStorage 캐시
+  const cached = loadCache(year);
+  if (cached) {
+    const merged = mergeManual(cached, year);
+    memCache[year] = merged;
+    return merged;
+  }
+
+  // 3. 폴백 (API 아직 안 온 상태)
+  const fallback = mergeManual(getFallbackHolidays(year), year);
+  memCache[year] = fallback;
+
+  // 4. 백그라운드 API 호출
+  if (!fetchPromises[year]) {
+    fetchPromises[year] = fetchFromAPI(year).then((apiData) => {
+      if (apiData) {
+        saveCache(year, apiData);
+        memCache[year] = mergeManual(apiData, year);
+      }
     });
   }
 
-  // 음력 기반 공휴일
-  const lunar = LUNAR_HOLIDAYS[year];
-  if (lunar) {
-    holidays.push(...lunar);
-  }
+  return fallback;
+}
 
-  // 대체공휴일 자동 계산 (2021년부터 적용)
-  if (year >= 2021) {
-    const subs = computeSubstitutes(holidays);
-    holidays.push(...subs);
+function mergeManual(holidays: Holiday[], year: number): Holiday[] {
+  const manual = MANUAL_HOLIDAYS[year] || [];
+  const dateSet = new Set(holidays.map((h) => h.date));
+  const merged = [...holidays];
+  for (const m of manual) {
+    if (!dateSet.has(m.date)) merged.push(m);
   }
-
-  return holidays;
+  return merged.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export function getHolidayMap(year: number): Record<string, string> {
