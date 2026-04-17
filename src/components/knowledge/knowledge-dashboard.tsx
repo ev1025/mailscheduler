@@ -4,6 +4,11 @@ import { useState, useRef, useCallback } from "react";
 import { Search, Pin, ChevronRight, FileText, Folder, Trash2, CheckSquare, Square, ArrowLeft, Pencil } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
 
 interface DashboardProps {
@@ -18,6 +23,7 @@ interface DashboardProps {
   onDeleteFolders?: (ids: string[]) => void;
   onRenameFolder?: (id: string, name: string) => void;
   onRenameItem?: (id: string, title: string) => void;
+  onReorderFolders?: (ids: string[]) => void;
 }
 
 /* ── 노트 트리 행 ── */
@@ -52,6 +58,16 @@ function NoteTreeRow({ item, depth, selectMode, selected, onToggle, onClick, onL
       ) : (
         <span className="flex-1 text-sm text-left truncate">{item.title || "(제목 없음)"}</span>
       )}
+    </div>
+  );
+}
+
+/* ── Sortable 래퍼 ── */
+function SortableFolderRow(props: Parameters<typeof FolderTreeRow>[0]) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.folder.id });
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }} {...attributes} {...listeners}>
+      <FolderTreeRow {...props} />
     </div>
   );
 }
@@ -97,9 +113,7 @@ function FolderTreeRow({
   onRenameSubmit: () => void;
 }) {
   const subFolders = allFolders.filter((f) => f.parent_id === folder.id);
-  // 이 폴더에 직접 속한 노트만 (하위 폴더의 노트는 제외)
-  const directNotes = allItems.filter((i) => i.folder_id === folder.id);
-  const hasChildren = subFolders.length > 0 || directNotes.length > 0;
+  const hasChildren = subFolders.length > 0;
   const isOpen = expanded.has(folder.id);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -175,23 +189,6 @@ function FolderTreeRow({
               onRenameSubmit={onRenameSubmit}
             />
           ))}
-          {/* 이 폴더에 직접 속한 노트 */}
-          {directNotes.map((item) => (
-            <NoteTreeRow
-              key={item.id}
-              item={item}
-              depth={depth + 1}
-              selectMode={selectMode}
-              selected={selItems.has(item.id)}
-              onToggle={() => onToggleItem(item.id)}
-              onClick={() => onClickItem(item.id)}
-              onLongPress={() => onLongPress(item.id, "item")}
-              renamingId={renamingId}
-              renameValue={renameValue}
-              onRenameChange={onRenameChange}
-              onRenameSubmit={onRenameSubmit}
-            />
-          ))}
         </div>
       )}
     </div>
@@ -200,10 +197,20 @@ function FolderTreeRow({
 
 /* ── 메인 대시보드 ── */
 export default function KnowledgeDashboard({
-  folders, items, onSelectItem, onSelectFolder, onSearch, searchQuery, searchResults, onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem,
+  folders, items, onSelectItem, onSelectFolder, onSearch, searchQuery, searchResults, onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onReorderFolders,
 }: DashboardProps) {
   const pinnedItems = items.filter((i) => i.pinned);
   const rootFolders = folders.filter((f) => !f.parent_id);
+
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const handleDragEnd = (e: DragEndEvent) => {
+    if (!e.over || e.active.id === e.over.id || !onReorderFolders) return;
+    const oldIdx = rootFolders.findIndex((f) => f.id === e.active.id);
+    const newIdx = rootFolders.findIndex((f) => f.id === e.over!.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(rootFolders, oldIdx, newIdx);
+    onReorderFolders(reordered.map((f) => f.id));
+  };
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -325,33 +332,37 @@ export default function KnowledgeDashboard({
               </section>
             )}
 
-            {/* 폴더 트리 (재귀) */}
+            {/* 폴더 트리 (드래그 정렬 + 재귀) */}
             {rootFolders.length > 0 && (
-              <section className="flex flex-col">
-                {rootFolders.map((f) => (
-                  <FolderTreeRow
-                    key={f.id}
-                    folder={f}
-                    allFolders={folders}
-                    allItems={items}
-                    depth={0}
-                    expanded={expanded}
-                    onToggle={toggleExpand}
-                    selectMode={selectMode}
-                    selFolders={selFolders}
-                    selItems={selItems}
-                    onToggleFolder={(id) => toggleSelection(id, "folder")}
-                    onToggleItem={(id) => toggleSelection(id, "item")}
-                    onClickFolder={onSelectFolder}
-                    onClickItem={onSelectItem}
-                    onLongPress={handleLongPress}
+              <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={rootFolders.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                  <section className="flex flex-col">
+                    {rootFolders.map((f) => (
+                      <SortableFolderRow
+                        key={f.id}
+                        folder={f}
+                        allFolders={folders}
+                        allItems={items}
+                        depth={0}
+                        expanded={expanded}
+                        onToggle={toggleExpand}
+                        selectMode={selectMode}
+                        selFolders={selFolders}
+                        selItems={selItems}
+                        onToggleFolder={(id) => toggleSelection(id, "folder")}
+                        onToggleItem={(id) => toggleSelection(id, "item")}
+                        onClickFolder={onSelectFolder}
+                        onClickItem={onSelectItem}
+                        onLongPress={handleLongPress}
                     renamingId={renamingId}
                     renameValue={renameValue}
                     onRenameChange={setRenameValue}
                     onRenameSubmit={submitRename}
-                  />
-                ))}
-              </section>
+                      />
+                    ))}
+                  </section>
+                </SortableContext>
+              </DndContext>
             )}
 
             {pinnedItems.length === 0 && rootFolders.length === 0 && !selectMode && (

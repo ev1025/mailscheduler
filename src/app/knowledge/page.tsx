@@ -204,9 +204,9 @@ function KnowledgePageInner() {
     return () => clearTimeout(t);
   }, [search]);
 
-  const handleAddFolder = (parentId: string | null) => {
-    setFolderPromptParentId(parentId);
-    setFolderPromptOpen(true);
+  const handleAddFolder = async (parentId: string | null) => {
+    // 팝업 없이 바로 생성 + 이름은 "새 폴더"로 — 대시보드에서 인라인 수정 가능
+    await addFolder("새 폴더", undefined, parentId);
   };
 
   const handleAddItem = async (folderId: string | null) => {
@@ -600,6 +600,11 @@ function KnowledgePageInner() {
             }}
             onRenameFolder={async (id, name) => { await updateFolder(id, { name }); }}
             onRenameItem={async (id, title) => { await updateItem(id, { title }); }}
+            onReorderFolders={async (ids) => {
+              for (let i = 0; i < ids.length; i++) {
+                await updateFolder(ids[i], { sort_order: i });
+              }
+            }}
           />
         )}
       </main>
