@@ -61,10 +61,17 @@ function saveCache(year: number, holidays: Holiday[]) {
 
 async function fetchFromAPI(year: number): Promise<Holiday[] | null> {
   try {
-    const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/KR`, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return null;
-    const data: Array<{ date: string; name: string; localName: string }> = await res.json();
-    return data.map((d) => ({ date: d.date, name: NAME_MAP[d.name] || d.localName || d.name }));
+    // 1차: 자체 API 라우트 (한국천문연구원 특일정보)
+    const res = await fetch(`/api/holidays?year=${year}`, { signal: AbortSignal.timeout(8000) });
+    if (res.ok) {
+      const data: Holiday[] = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+    // 2차 폴백: Nager.Date
+    const res2 = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/KR`, { signal: AbortSignal.timeout(5000) });
+    if (!res2.ok) return null;
+    const data2: Array<{ date: string; name: string; localName: string }> = await res2.json();
+    return data2.map((d) => ({ date: d.date, name: NAME_MAP[d.name] || d.localName || d.name }));
   } catch { return null; }
 }
 

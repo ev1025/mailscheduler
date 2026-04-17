@@ -91,7 +91,13 @@ export default function SettingsPage() {
   };
 
   const kmaExpiry = "2028-04-12";
+  const holidayExpiry = "2028-04-18";
   const daysLeft = Math.ceil((new Date(kmaExpiry).getTime() - Date.now()) / 86400000);
+  const holidayDaysLeft = Math.ceil((new Date(holidayExpiry).getTime() - Date.now()) / 86400000);
+
+  // 만료 2개월(60일) 전부터 알림
+  const kmaWarning = daysLeft <= 60 && daysLeft > 0;
+  const holidayWarning = holidayDaysLeft <= 60 && holidayDaysLeft > 0;
 
   return (
     <>
@@ -249,7 +255,7 @@ export default function SettingsPage() {
                   <span className="text-muted-foreground">만료일</span>
                   <div className="flex items-center gap-2">
                     <span className="text-xs">{kmaExpiry}</span>
-                    <Badge variant={daysLeft > 30 ? "secondary" : "destructive"} className="text-xs">
+                    <Badge variant={kmaWarning || daysLeft <= 0 ? "destructive" : "secondary"} className="text-xs">
                       {daysLeft > 0 ? `${daysLeft}일 남음` : "만료됨"}
                     </Badge>
                   </div>
@@ -267,7 +273,7 @@ export default function SettingsPage() {
                   <span className="text-muted-foreground">만료일</span>
                   <div className="flex items-center gap-2">
                     <span className="text-xs">{kmaExpiry}</span>
-                    <Badge variant={daysLeft > 30 ? "secondary" : "destructive"} className="text-xs">
+                    <Badge variant={kmaWarning || daysLeft <= 0 ? "destructive" : "secondary"} className="text-xs">
                       {daysLeft > 0 ? `${daysLeft}일 남음` : "만료됨"}
                     </Badge>
                   </div>
@@ -299,6 +305,34 @@ export default function SettingsPage() {
                   <span className="text-muted-foreground">만료</span>
                   <Badge variant="secondary" className="text-xs">만료 없음</Badge>
                 </div>
+              </div>
+            </div>
+          </ApiSection>
+
+          {/* 특일정보 API */}
+          <ApiSection title="공휴일 API — 한국천문연구원">
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">API 이름</span>
+                <span className="text-xs">특일 정보 (SpcdeInfoService)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">만료일</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs">{holidayExpiry}</span>
+                  <Badge variant={holidayWarning ? "destructive" : holidayDaysLeft <= 0 ? "destructive" : "secondary"} className="text-xs">
+                    {holidayDaysLeft > 0 ? `${holidayDaysLeft}일 남음` : "만료됨"}
+                  </Badge>
+                </div>
+              </div>
+              {holidayWarning && (
+                <p className="text-xs text-destructive font-medium">⚠️ 만료 2개월 이내 — 갱신이 필요합니다</p>
+              )}
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                <span>갱신 사이트</span>
+                <a href="https://www.data.go.kr" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
+                  공공데이터포털 <ExternalLink className="h-3 w-3" />
+                </a>
               </div>
             </div>
           </ApiSection>
