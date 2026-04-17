@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/lib/current-user";
+import { useNotifications } from "@/hooks/use-notifications";
 
 const navItems = [
   { href: "/calendar", label: "캘린더", icon: Calendar },
@@ -22,6 +23,7 @@ const navItems = [
 export default function BottomNav() {
   const pathname = usePathname();
   const currentUser = useCurrentUser();
+  const { unreadCount } = useNotifications();
   const profileActive = pathname === "/profile" || pathname.startsWith("/profile/");
 
   return (
@@ -52,10 +54,13 @@ export default function BottomNav() {
         <Link
           href="/profile"
           className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs transition-colors active:bg-accent/50",
+            "relative flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs transition-colors active:bg-accent/50",
             profileActive ? "text-foreground font-medium" : "text-muted-foreground"
           )}
         >
+          {unreadCount > 0 && (
+            <span className="absolute top-1 right-[calc(50%-2px)] h-2 w-2 rounded-full bg-red-500" />
+          )}
           {currentUser ? (
             <span
               className="flex h-5 w-5 items-center justify-center rounded-full text-xs overflow-hidden"

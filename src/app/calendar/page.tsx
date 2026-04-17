@@ -6,6 +6,7 @@ import {
   CalendarDays,
   TableProperties,
   Plane,
+  Menu,
 } from "lucide-react";
 import MonthPicker from "@/components/layout/month-picker";
 import PageHeader from "@/components/layout/page-header";
@@ -207,46 +208,52 @@ function CalendarPageInner() {
     setScopeDialog(null);
   };
 
+  const [menuOpen, setMenuOpen] = useState(false);
+  const viewLabel = view === "calendar" ? "달력" : view === "database" ? "일정목록" : "여행";
+  const viewMenuItems = [
+    { key: "calendar" as const, label: "달력", icon: CalendarDays },
+    { key: "database" as const, label: "일정목록", icon: TableProperties },
+    { key: "travel" as const, label: "여행", icon: Plane },
+  ];
+
   return (
     <>
-      <PageHeader title="캘린더" />
+      <PageHeader
+        title={viewLabel}
+        actions={
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setMenuOpen((o) => !o)}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+              aria-label="메뉴"
+            >
+              <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
+                  {viewMenuItems.map(({ key, label, icon: Icon }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => { setView(key); setMenuOpen(false); }}
+                      className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                        view === key ? "bg-accent font-medium" : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        }
+      />
     <div className="flex flex-col h-[calc(100%-3.5rem)] min-h-0 px-2 py-2 md:p-6 overflow-hidden">
-      {/* 탭: 달력 / 일정목록 / 여행 */}
-      <div className="mb-2 flex border-b shrink-0">
-        <button
-          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
-            view === "calendar"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          onClick={() => setView("calendar")}
-        >
-          <CalendarDays className="h-4 w-4" />
-          달력
-        </button>
-        <button
-          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
-            view === "database"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          onClick={() => setView("database")}
-        >
-          <TableProperties className="h-4 w-4" />
-          일정목록
-        </button>
-        <button
-          className={`flex items-center gap-1 md:gap-1.5 px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors ${
-            view === "travel"
-              ? "border-primary text-foreground"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          }`}
-          onClick={() => setView("travel")}
-        >
-          <Plane className="h-4 w-4" />
-          여행
-        </button>
-      </div>
 
       {/* 탭 아래: MonthPicker + 사용자 필터 (달력/일정목록 탭에서만) */}
       {view !== "travel" && (

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Wallet, ShoppingBag } from "lucide-react";
+import { Plus, Wallet, ShoppingBag, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MonthPicker from "@/components/layout/month-picker";
 import PageHeader from "@/components/layout/page-header";
@@ -22,6 +22,7 @@ export default function FinancePage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [formOpen, setFormOpen] = useState(false);
+  const [finMenuOpen, setFinMenuOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [fixedOpen, setFixedOpen] = useState(false);
 
@@ -77,24 +78,43 @@ export default function FinancePage() {
 
   return (
     <>
-      <PageHeader title="가계부" />
+      <PageHeader
+        title="가계부"
+        actions={
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setFinMenuOpen((o) => !o)}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+              aria-label="메뉴"
+            >
+              <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
+            </button>
+            {finMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setFinMenuOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => setFinMenuOpen(false)}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm bg-accent font-medium"
+                  >
+                    <Wallet className="h-4 w-4" /> 가계부
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setFinMenuOpen(false); router.push("/products"); }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent/50"
+                  >
+                    <ShoppingBag className="h-4 w-4" /> 쇼핑기록
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        }
+      />
     <div className="flex flex-col h-[calc(100%-3.5rem)]">
-      {/* 탭: 가계부 / 생필품 */}
-      <div className="flex border-b shrink-0 px-2">
-        <button
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 border-primary text-foreground"
-        >
-          <Wallet className="h-3.5 w-3.5" />
-          가계부
-        </button>
-        <button
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 border-transparent text-muted-foreground hover:text-foreground"
-          onClick={() => router.push("/products")}
-        >
-          <ShoppingBag className="h-3.5 w-3.5" />
-          생필품
-        </button>
-      </div>
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
       <div className="mb-3 flex justify-center">
         <MonthPicker year={year} month={month} onYearChange={handleYearChange} onMonthChange={handleMonthChange} />

@@ -154,7 +154,7 @@ function ProfilePageInner() {
 
   return (
     <>
-      <PageHeader title="내 프로필" showBack />
+      <PageHeader title="내 프로필" showBack showBell />
     <div className="p-4 md:p-6 max-w-xl mx-auto">
 
       <div className="flex flex-col gap-5">

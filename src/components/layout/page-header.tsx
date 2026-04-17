@@ -29,7 +29,7 @@ export default function PageHeader({
   showBack,
   subtitle,
   actions,
-  showBell = true,
+  showBell = false,
 }: Props) {
   const router = useRouter();
   const [notiOpen, setNotiOpen] = useState(false);
