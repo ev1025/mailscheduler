@@ -20,7 +20,7 @@ import {
 import TagInput from "@/components/ui/tag-input";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
 import NaverMap from "@/components/travel/naver-map";
-import { X, MapPin, Search as SearchIcon, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
+import { X, MapPin, Search as SearchIcon, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { useTravelCategories, BUILTIN_TRAVEL_CATEGORIES } from "@/hooks/use-travel-categories";
 import type { TravelItem, TravelCategory, TravelTag, EventTag, PlaceInfo } from "@/types";
@@ -59,8 +59,6 @@ export default function TravelForm({
   const [placeQuery, setPlaceQuery] = useState("");
   const [placeResults, setPlaceResults] = useState<PlaceInfo[]>([]);
   const [placeLoading, setPlaceLoading] = useState(false);
-  // 카드별 지도 토글 (index → open)
-  const [mapOpen, setMapOpen] = useState<Record<number, boolean>>({});
   // 미선택 상태(빈 문자열) — 사용자가 분류를 직접 골라야 저장 가능
   const [category, setCategory] = useState<TravelCategory | "">("");
   const [month, setMonth] = useState<number | null>(null);
@@ -107,7 +105,6 @@ export default function TravelForm({
     }
     setPlaceQuery("");
     setPlaceResults([]);
-    setMapOpen({});
   }, [item, open]);
 
   // 위치 검색 — 350ms 디바운스
@@ -297,60 +294,37 @@ export default function TravelForm({
               )}
             </div>
 
-            {/* 선택된 장소 카드 리스트 — 각각 접힘 상태. 토글하면 지도 표시 */}
+            {/* 선택된 장소 카드 리스트 — 각 카드에 지도 즉시 표시 (토글 없음) */}
             {places.length > 0 && (
               <div className="flex flex-col gap-2">
-                {places.map((p, idx) => {
-                  const isOpen = mapOpen[idx];
-                  return (
-                    <div key={`${p.lat}-${p.lng}-${idx}`} className="flex flex-col gap-2 rounded-md border p-2">
-                      <div className="flex items-start gap-2">
-                        <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{p.name}</div>
-                          <div className="text-xs text-muted-foreground truncate">{p.address}</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPlaces(places.filter((_, i) => i !== idx));
-                            setMapOpen((prev) => {
-                              const next = { ...prev };
-                              delete next[idx];
-                              return next;
-                            });
-                          }}
-                          className="text-muted-foreground hover:text-destructive shrink-0"
-                          aria-label="위치 제거"
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </button>
+                {places.map((p, idx) => (
+                  <div key={`${p.lat}-${p.lng}-${idx}`} className="flex flex-col gap-2 rounded-md border p-2">
+                    <div className="flex items-start gap-2">
+                      <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{p.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{p.address}</div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setMapOpen((prev) => ({ ...prev, [idx]: !prev[idx] }))}
-                          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-                        >
-                          {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                          지도 {isOpen ? "접기" : "보기"}
-                        </button>
-                        <a
-                          href={`https://map.naver.com/p/search/${encodeURIComponent(p.name)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1 ml-auto"
-                        >
-                          네이버지도 <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </div>
-                      {/* 접혀있으면 NaverMap 자체를 마운트하지 않음 (SDK 성능) */}
-                      {isOpen && (
-                        <NaverMap lat={p.lat} lng={p.lng} height={220} zoom={16} />
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => setPlaces(places.filter((_, i) => i !== idx))}
+                        className="text-muted-foreground hover:text-destructive shrink-0"
+                        aria-label="위치 제거"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                  );
-                })}
+                    <NaverMap lat={p.lat} lng={p.lng} height={200} zoom={16} />
+                    <a
+                      href={`https://map.naver.com/p/search/${encodeURIComponent(p.name)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1 self-end"
+                    >
+                      네이버지도에서 보기 <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                ))}
               </div>
             )}
           </div>

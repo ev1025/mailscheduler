@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 import Script from "next/script";
 
-// 네이버 Dynamic Map (JavaScript SDK) 임베드 컴포넌트.
-// 여행 상세·편집 팝업에서 인터랙티브 지도가 필요할 때 사용.
-// 문서: https://navermaps.github.io/maps.js.ncp/docs/tutorial-1-Getting-Started.html
+// 네이버 Dynamic Map (JavaScript SDK) 임베드.
+// Script 는 최초 1회만 로드되고, 두 번째 이후 mount 에서는 onReady 가
+// 호출되지 않을 수 있으므로 useEffect 에서 window.naver 를 폴링해 초기화.
 
 interface Props {
   lat: number;
@@ -32,20 +32,23 @@ export default function NaverMap({
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const markerRef = useRef<any>(null);
 
   useEffect(() => {
     if (!CLIENT_ID) return;
-    if (!containerRef.current) return;
-    const naver = window.naver;
-    if (!naver?.maps) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
-    const position = new naver.maps.LatLng(lat, lng);
-    if (!mapRef.current) {
-      mapRef.current = new naver.maps.Map(containerRef.current, {
+    const init = () => {
+      if (cancelled || !containerRef.current) return;
+      const naver = window.naver;
+      if (!naver?.maps) {
+        timer = setTimeout(init, 50); // SDK 로드 대기
+        return;
+      }
+      // 마운트 때마다 새로운 map 인스턴스. 기존 DOM 은 재사용 안 하므로
+      // 이전 인스턴스가 남아있어도 ref 교체로 GC 대상이 됨.
+      const position = new naver.maps.LatLng(lat, lng);
+      const map = new naver.maps.Map(containerRef.current, {
         center: position,
         zoom,
         zoomControl: true,
@@ -57,38 +60,16 @@ export default function NaverMap({
         mapDataControl: false,
         logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
       });
-      markerRef.current = new naver.maps.Marker({
-        position,
-        map: mapRef.current,
-      });
-    } else {
-      mapRef.current.setCenter(position);
-      markerRef.current?.setPosition(position);
-    }
-  }, [lat, lng, zoom]);
+      new naver.maps.Marker({ position, map });
+    };
 
-  const onReady = () => {
-    if (!containerRef.current) return;
-    const naver = window.naver;
-    if (!naver?.maps) return;
-    const position = new naver.maps.LatLng(lat, lng);
-    mapRef.current = new naver.maps.Map(containerRef.current, {
-      center: position,
-      zoom,
-      zoomControl: true,
-      zoomControlOptions: {
-        position: naver.maps.Position.TOP_RIGHT,
-        style: naver.maps.ZoomControlStyle.SMALL,
-      },
-      scaleControl: false,
-      mapDataControl: false,
-      logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
-    });
-    markerRef.current = new naver.maps.Marker({
-      position,
-      map: mapRef.current,
-    });
-  };
+    init();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [lat, lng, zoom]);
 
   if (!CLIENT_ID) {
     return (
@@ -106,7 +87,6 @@ export default function NaverMap({
       <Script
         src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${CLIENT_ID}`}
         strategy="afterInteractive"
-        onReady={onReady}
       />
       <div
         ref={containerRef}
