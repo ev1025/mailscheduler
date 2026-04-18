@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { Search, ArrowUp, ArrowDown, Filter } from "lucide-react";
+import { Search, ArrowUp, ArrowDown, Filter, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import FilterPanel from "@/components/ui/filter-panel";
@@ -166,17 +166,32 @@ export default function DatabaseView({
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="검색..." className="pl-8 h-9 text-sm" />
           </div>
           {allTags.length > 0 && (
-            <button
-              type="button"
-              data-filter-btn
-              onClick={() => setTagFilterOpen((o) => !o)}
-              className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-9 text-xs transition-colors ${
-                filterTags.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
+            <div
+              className={`flex items-center shrink-0 rounded-md border h-9 text-xs transition-colors ${
+                filterTags.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground"
               }`}
             >
-              <Filter className="h-3 w-3" />
-              태그{filterTags.length > 0 && ` (${filterTags.length})`}
-            </button>
+              <button
+                type="button"
+                data-filter-btn
+                onClick={() => setTagFilterOpen((o) => !o)}
+                className="flex items-center gap-1 px-2.5 h-full hover:bg-accent/50 rounded-md"
+              >
+                <Filter className="h-3 w-3" />
+                태그{filterTags.length > 0 && ` (${filterTags.length})`}
+              </button>
+              {filterTags.length > 0 && (
+                <button
+                  type="button"
+                  aria-label="태그 필터 초기화"
+                  title="태그 필터 초기화"
+                  onClick={() => setFilterTags([])}
+                  className="flex h-full w-7 items-center justify-center border-l border-primary/30 hover:bg-foreground/10 rounded-r-md"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           )}
         </div>
         {/* 태그 필터 패널 — 바깥 클릭 시 자동 닫힘 */}

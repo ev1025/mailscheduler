@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, ArrowUpDown, GripVertical, Filter } from "lucide-react";
+import { Plus, Search, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, ArrowUpDown, GripVertical, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -411,33 +411,63 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
           <Check className="h-3 w-3" />
           가본 곳 포함
         </button>
-        {/* 분류 필터 토글 — 클릭 시 같은 자리에 분류 패널, 태그가 열려있으면 교체 */}
+        {/* 분류 필터 토글 + X 초기화 — 클릭 시 같은 자리에 분류 패널, 태그가 열려있으면 교체 */}
         {allCategories.length > 0 && (
-          <button
-            type="button"
-            data-filter-btn
-            onClick={() => setOpenFilter((o) => (o === "category" ? null : "category"))}
-            className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-7 text-xs transition-colors ${
-              filterCategories.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
+          <div
+            className={`flex items-center shrink-0 rounded-md border h-7 text-xs transition-colors ${
+              filterCategories.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground"
             }`}
           >
-            <Filter className="h-3 w-3" />
-            분류{filterCategories.length > 0 && ` (${filterCategories.length})`}
-          </button>
+            <button
+              type="button"
+              data-filter-btn
+              onClick={() => setOpenFilter((o) => (o === "category" ? null : "category"))}
+              className="flex items-center gap-1 px-2.5 h-full hover:bg-accent/50 rounded-md"
+            >
+              <Filter className="h-3 w-3" />
+              분류{filterCategories.length > 0 && ` (${filterCategories.length})`}
+            </button>
+            {filterCategories.length > 0 && (
+              <button
+                type="button"
+                aria-label="분류 필터 초기화"
+                title="분류 필터 초기화"
+                onClick={() => setFilterCategories([])}
+                className="flex h-full w-6 items-center justify-center border-l border-primary/30 hover:bg-foreground/10 rounded-r-md"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
         )}
-        {/* 태그 필터 토글 */}
+        {/* 태그 필터 토글 + X 초기화 */}
         {allItemTags.length > 0 && (
-          <button
-            type="button"
-            data-filter-btn
-            onClick={() => setOpenFilter((o) => (o === "tag" ? null : "tag"))}
-            className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-7 text-xs transition-colors ${
-              filterTags.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
+          <div
+            className={`flex items-center shrink-0 rounded-md border h-7 text-xs transition-colors ${
+              filterTags.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground"
             }`}
           >
-            <Filter className="h-3 w-3" />
-            태그{filterTags.length > 0 && ` (${filterTags.length})`}
-          </button>
+            <button
+              type="button"
+              data-filter-btn
+              onClick={() => setOpenFilter((o) => (o === "tag" ? null : "tag"))}
+              className="flex items-center gap-1 px-2.5 h-full hover:bg-accent/50 rounded-md"
+            >
+              <Filter className="h-3 w-3" />
+              태그{filterTags.length > 0 && ` (${filterTags.length})`}
+            </button>
+            {filterTags.length > 0 && (
+              <button
+                type="button"
+                aria-label="태그 필터 초기화"
+                title="태그 필터 초기화"
+                onClick={() => setFilterTags([])}
+                className="flex h-full w-6 items-center justify-center border-l border-primary/30 hover:bg-foreground/10 rounded-r-md"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
         )}
       </div>
       {/* 필터 패널 — 분류/태그 모두 같은 자리에서 교체 (바깥 클릭 시 자동 닫힘) */}
