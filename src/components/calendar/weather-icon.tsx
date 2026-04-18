@@ -41,7 +41,9 @@ export default function WeatherIcon({
 
   if (compact) {
     // 공용 컴팩트 뷰 — 모바일/데스크톱 모두 아이콘을 "/" 위에 중앙 배치
-    // 기온은 중립 회색(muted-foreground) — 토/일 숫자 색(blue/red)과 충돌 방지
+    // 최저=파랑, 최고=빨강 — 다만 명도/채도를 낮춰(text-blue-400/text-red-400)
+    // 토(파랑)/일(빨강) 날짜 숫자(500 레벨)와 구분
+    // 크기는 80% 축소 (기존 text-[8px]/text-[10px] → text-[6.5px]/text-[8px])
     return (
       <div className="flex flex-col items-center gap-0 leading-[1] shrink-0 max-w-full">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -50,10 +52,10 @@ export default function WeatherIcon({
           alt={weather.weather_description}
           className="h-[14px] w-[14px] md:h-[18px] md:w-[18px] shrink-0 -mb-0.5"
         />
-        <div className="flex items-center leading-[1] whitespace-nowrap tabular-nums text-muted-foreground">
-          <span className="text-[8px] md:text-[10px]">{weather.temperature_min}°</span>
-          <span className="text-[8px] md:text-[10px]">/</span>
-          <span className="text-[8px] md:text-[10px]">{weather.temperature_max}°</span>
+        <div className="flex items-center leading-[1] whitespace-nowrap tabular-nums">
+          <span className="text-[6.5px] md:text-[8px] text-blue-400">{weather.temperature_min}°</span>
+          <span className="text-[6.5px] md:text-[8px] text-muted-foreground/60">/</span>
+          <span className="text-[6.5px] md:text-[8px] text-red-400">{weather.temperature_max}°</span>
         </div>
       </div>
     );

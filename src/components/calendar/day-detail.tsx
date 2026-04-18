@@ -120,7 +120,7 @@ function SortableItem({ ev, tagColorMap, isOwner, owner, onEdit, onDelete }: {
         </button>
       ) : owner ? (
         <div
-          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium"
+          className="shrink-0 flex items-center gap-1 rounded-full pl-0.5 pr-2 py-0.5 text-[11px] font-medium"
           style={{
             backgroundColor: owner.color + "20",
             color: owner.color,
@@ -129,12 +129,15 @@ function SortableItem({ ev, tagColorMap, isOwner, owner, onEdit, onDelete }: {
           title={`${owner.name} 등록`}
           aria-label={`${owner.name} 등록`}
         >
-          {owner.avatar_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={owner.avatar_url} alt={owner.name} className="h-full w-full rounded-full object-cover" />
-          ) : (
-            <span>{owner.emoji || owner.name[0]}</span>
-          )}
+          <div className="h-5 w-5 rounded-full overflow-hidden flex items-center justify-center shrink-0" style={{ backgroundColor: owner.color + "30" }}>
+            {owner.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={owner.avatar_url} alt={owner.name} className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-[10px]">{owner.emoji || owner.name[0]}</span>
+            )}
+          </div>
+          <span className="truncate max-w-[60px]">{owner.name}</span>
         </div>
       ) : null}
     </div>
