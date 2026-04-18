@@ -7,7 +7,13 @@ import {
   Sheet,
   SheetContent,
 } from "@/components/ui/sheet";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import ColorPickerPanel from "@/components/ui/color-picker";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { Plus, X, Search, MoreHorizontal, ArrowLeft, Trash2 } from "lucide-react";
 import {
   DndContext,
@@ -177,6 +183,8 @@ export default function TagInput({
   const [open, setOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  // 데스크탑(md 이상)에서는 바텀시트 대신 트리거 아래 Popover 로 렌더
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   // half (50dvh) ↔ full (95dvh) 스냅 포인트
   const [snap, setSnap] = useState<"half" | "full">("half");
@@ -362,63 +370,103 @@ export default function TagInput({
 
   // 시트 바깥에서 탭/스와이프로도 닫을 수 있게 — onOpenChange가 이를 처리함
 
+  // 트리거 내부에 들어갈 컨텐츠 (모바일 button / 데스크탑 PopoverTrigger 공통)
+  const triggerContent =
+    selectedTags.length === 0 ? (
+      <span className="flex items-center gap-2 text-muted-foreground px-1">
+        <Search className="h-3 w-3" />
+        {placeholder}
+      </span>
+    ) : (
+      <>
+        {selectedTags.map((name) => {
+          const t = allTags.find((x) => x.name === name);
+          const color = t?.color || "#6B7280";
+          return (
+            <Badge
+              key={name}
+              className="text-xs px-1.5 py-0"
+              style={{ backgroundColor: color + "20", color, borderColor: color + "40" }}
+            >
+              {name}
+            </Badge>
+          );
+        })}
+      </>
+    );
+
+  const triggerClass =
+    "flex items-center flex-wrap gap-1 min-h-8 w-full rounded-md border bg-transparent px-2 py-1 text-xs text-left hover:bg-accent/30 transition-colors";
+
   return (
     <div className="flex flex-col gap-1.5">
-      {/* 트리거 — 선택된 태그를 인라인으로 */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex items-center flex-wrap gap-1 min-h-8 w-full rounded-md border bg-transparent px-2 py-1 text-xs text-left hover:bg-accent/30 transition-colors"
-      >
-        {selectedTags.length === 0 ? (
-          <span className="flex items-center gap-2 text-muted-foreground px-1">
-            <Search className="h-3 w-3" />
-            {placeholder}
-          </span>
-        ) : (
-          selectedTags.map((name) => {
-            const t = allTags.find((x) => x.name === name);
-            const color = t?.color || "#6B7280";
-            return (
-              <Badge
-                key={name}
-                className="text-xs px-1.5 py-0"
-                style={{ backgroundColor: color + "20", color, borderColor: color + "40" }}
-              >
-                {name}
-              </Badge>
-            );
-          })
-        )}
-      </button>
+      {isDesktop ? (
+        /* ── 데스크탑: Popover 드롭다운 ── */
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger type="button" className={triggerClass}>
+            {triggerContent}
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            side="bottom"
+            className="w-[360px] p-0 max-h-[70dvh] overflow-hidden"
+          >
+            <div className="flex flex-col" style={{ maxHeight: "70dvh" }}>
+              {renderBody()}
+            </div>
+          </PopoverContent>
+        </Popover>
+      ) : (
+        /* ── 모바일: 바텀시트 ── */
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className={triggerClass}
+          >
+            {triggerContent}
+          </button>
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetContent
+              side="bottom"
+              className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[60] ${
+                snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
+              }`}
+              style={{ height: snap === "full" ? "95dvh" : "50dvh" }}
+              showBackButton={false}
+              showCloseButton={false}
+              initialFocus={false}
+              finalFocus={false}
+            >
+              {renderBody()}
+            </SheetContent>
+          </Sheet>
+        </>
+      )}
+    </div>
+  );
 
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent
-          side="bottom"
-          className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[60] ${
-            snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
-          }`}
-          style={{ height: snap === "full" ? "95dvh" : "50dvh" }}
-          showBackButton={false}
-          showCloseButton={false}
-          initialFocus={false}
-          finalFocus={false}
-        >
+  // 태그 목록 / 편집 UI — Sheet·Popover 공통 본문.
+  // 드래그 핸들·큰 제목은 모바일 바텀시트에서만 의미 있으므로 데스크탑에서는 생략.
+  function renderBody() {
+    return (
+      <>
           {view === "list" ? (
             <div
-              className="flex flex-col h-full"
-              onTouchStart={onDragStart}
-              onTouchMove={onDragMove}
-              onTouchEnd={onDragEnd}
+              className="flex flex-col h-full min-h-0"
+              onTouchStart={isDesktop ? undefined : onDragStart}
+              onTouchMove={isDesktop ? undefined : onDragMove}
+              onTouchEnd={isDesktop ? undefined : onDragEnd}
             >
-              {/* 드래그 영역 — 핸들 + 제목. 이제 시트 전체가 드래그 가능하지만
-                  핸들 영역은 여전히 시각적으로 명확하게 표시 */}
-              <div className="flex flex-col items-center pt-3 pb-2 touch-none shrink-0">
-                <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
-                <div className="text-base font-semibold text-center">
-                  {placeholder === "검색" ? "태그" : placeholder}
+              {/* 드래그 영역 — 모바일 바텀시트 전용(데스크탑 Popover 에선 생략) */}
+              {!isDesktop && (
+                <div className="flex flex-col items-center pt-3 pb-2 touch-none shrink-0">
+                  <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
+                  <div className="text-base font-semibold text-center">
+                    {placeholder === "검색" ? "태그" : placeholder}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0">
                 {/* 입력창 — 선택된 칩 인라인 + 텍스트 input.
@@ -538,15 +586,17 @@ export default function TagInput({
           ) : (
             /* ───────── 편집 뷰 (같은 시트에서 내용만 교체) ───────── */
             <div
-              className="flex flex-col h-full"
-              onTouchStart={onDragStart}
-              onTouchMove={onDragMove}
-              onTouchEnd={onDragEnd}
+              className="flex flex-col h-full min-h-0"
+              onTouchStart={isDesktop ? undefined : onDragStart}
+              onTouchMove={isDesktop ? undefined : onDragMove}
+              onTouchEnd={isDesktop ? undefined : onDragEnd}
             >
-              {/* 드래그 바 + 헤더(뒤로 · 미리보기 · 완료) */}
-              <div className="flex flex-col items-center pt-2 shrink-0">
-                <div className="h-1 w-10 rounded-full bg-muted-foreground/30 mb-2" />
-              </div>
+              {/* 드래그 바 — 모바일 바텀시트 전용 */}
+              {!isDesktop && (
+                <div className="flex flex-col items-center pt-2 shrink-0">
+                  <div className="h-1 w-10 rounded-full bg-muted-foreground/30 mb-2" />
+                </div>
+              )}
               <div className="flex items-center justify-between px-3 pb-2 shrink-0">
                 <button
                   type="button"
@@ -651,8 +701,7 @@ export default function TagInput({
               </div>
             </div>
           )}
-        </SheetContent>
-      </Sheet>
-    </div>
-  );
+      </>
+    );
+  }
 }
