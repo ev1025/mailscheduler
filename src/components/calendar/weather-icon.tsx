@@ -41,6 +41,7 @@ export default function WeatherIcon({
 
   if (compact) {
     // 공용 컴팩트 뷰 — 모바일/데스크톱 모두 아이콘을 "/" 위에 중앙 배치
+    // 기온은 중립 회색(muted-foreground) — 토/일 숫자 색(blue/red)과 충돌 방지
     return (
       <div className="flex flex-col items-center gap-0 leading-[1] shrink-0 max-w-full">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -49,14 +50,10 @@ export default function WeatherIcon({
           alt={weather.weather_description}
           className="h-[14px] w-[14px] md:h-[18px] md:w-[18px] shrink-0 -mb-0.5"
         />
-        <div className="flex items-center leading-[1] whitespace-nowrap tabular-nums">
-          <span className="text-[8px] md:text-[10px] text-blue-500">
-            {weather.temperature_min}°
-          </span>
-          <span className="text-[8px] md:text-[10px] text-muted-foreground">/</span>
-          <span className="text-[8px] md:text-[10px] text-red-500">
-            {weather.temperature_max}°
-          </span>
+        <div className="flex items-center leading-[1] whitespace-nowrap tabular-nums text-muted-foreground">
+          <span className="text-[8px] md:text-[10px]">{weather.temperature_min}°</span>
+          <span className="text-[8px] md:text-[10px]">/</span>
+          <span className="text-[8px] md:text-[10px]">{weather.temperature_max}°</span>
         </div>
       </div>
     );
