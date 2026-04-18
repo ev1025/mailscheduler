@@ -306,9 +306,15 @@ export default function CalendarView({
                     <DropCell key={ds} dateStr={ds} isOver={ov} onClick={() => onDateClick(ds)}>
                       {/* 날짜 + 날씨 */}
                       <div className={`flex shrink-0 items-start justify-between gap-1 overflow-hidden pl-1 pr-[26px] pt-1 md:pl-1.5 md:pr-2 ${!inM ? "opacity-30" : ""}`}>
-                        <span className={`inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[11px] font-semibold md:h-5 md:w-5 md:text-xs ${
-                          tod ? "bg-primary text-primary-foreground" : hol ? "text-red-500" : dow === 6 ? "text-blue-500" : ""
-                        }`}>
+                        <span
+                          // 서버(UTC)와 클라이언트(KST) 의 "오늘" 판정이 달라
+                          // className 이 mismatch 날 수 있어 경고 억제.
+                          // 최초 렌더 후엔 클라이언트 값으로 재조정되므로 UX 영향 없음.
+                          suppressHydrationWarning
+                          className={`inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[11px] font-semibold md:h-5 md:w-5 md:text-xs ${
+                            tod ? "bg-primary text-primary-foreground" : hol ? "text-red-500" : dow === 6 ? "text-blue-500" : ""
+                          }`}
+                        >
                           {format(day, "d")}
                         </span>
                         {w && inM && <WeatherIcon weather={w} compact />}
