@@ -1,22 +1,18 @@
 "use client";
 
-import Image from "next/image";
-
-// 네이버 Static Map API 이미지 컴포넌트.
-// 카드 썸네일용 — 가벼움. 인터랙티브 불필요한 곳에서 사용.
-// 문서: https://api.ncloud-docs.com/docs/ai-application-service-maps-staticmap
+// 네이버 Static Map 썸네일. 브라우저는 서버 프록시(/api/naver/static-map) 에
+// GET 하고, 서버가 헤더 인증으로 네이버에 호출해 이미지 바이트를 반환.
+// Client Secret 이 브라우저에 노출되지 않음.
 
 interface Props {
   lat: number;
   lng: number;
   width?: number;
   height?: number;
-  level?: number; // 1(가장 넓음) ~ 14(가장 좁음) — 네이버는 level, 13~16 근처가 동네 줌
+  level?: number;
   markerColor?: "red" | "blue" | "green";
   className?: string;
 }
-
-const CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
 
 export default function StaticMap({
   lat,
@@ -27,34 +23,24 @@ export default function StaticMap({
   markerColor = "red",
   className,
 }: Props) {
-  if (!CLIENT_ID) {
-    return (
-      <div
-        className={`flex items-center justify-center rounded-md bg-muted/40 text-[10px] text-muted-foreground ${className || ""}`}
-        style={{ width, height }}
-      >
-        NCP_MAP_CLIENT_ID 미설정
-      </div>
-    );
-  }
-
   const params = new URLSearchParams({
+    lat: String(lat),
+    lng: String(lng),
     w: String(width),
     h: String(height),
-    center: `${lng},${lat}`,
     level: String(level),
-    scale: "2",
-    markers: `type:d|size:mid|color:${markerColor}|pos:${lng} ${lat}`,
+    color: markerColor,
   });
-  const src = `https://naveropenapi.apigw.ntruss.com/map-static/v2/raster?${params.toString()}&X-NCP-APIGW-API-KEY-ID=${CLIENT_ID}`;
+  const src = `/api/naver/static-map?${params.toString()}`;
 
   return (
-    <Image
+    // next/image 는 서버 프록시 응답의 cache/stream 을 그대로 쓰는 게 나음
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
       src={src}
       alt="지도"
       width={width}
       height={height}
-      unoptimized
       className={`rounded-md object-cover ${className || ""}`}
     />
   );
