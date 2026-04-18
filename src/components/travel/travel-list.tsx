@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, ArrowUpDown, GripVertical, Filter, X } from "lucide-react";
+import { Plus, Search, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, GripVertical, Filter, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -234,7 +234,8 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
 
   const SortIcon = ({ field }: { field: SortField }) => {
     const idx = sortKeys.findIndex((k) => k.field === field);
-    if (idx === -1) return <ArrowUpDown className="h-3 w-3 ml-0.5 opacity-30" />;
+    // 정렬되지 않은 열에는 화살표 숨김
+    if (idx === -1) return null;
     const k = sortKeys[idx];
     return (
       <span className="inline-flex items-center ml-0.5">
@@ -529,12 +530,15 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
                   {columns.map((col) => (
                     <th
                       key={col.label || "grip"}
-                      className="text-left font-medium px-2 py-2 border-b border-r last:border-r-0 select-none whitespace-nowrap"
+                      className={`text-left font-medium px-2 py-2 border-b border-r last:border-r-0 select-none whitespace-nowrap ${
+                        col.field ? "cursor-pointer hover:bg-muted/60" : ""
+                      }`}
+                      onClick={col.field ? () => cycleSort(col.field!) : undefined}
                     >
                       {col.field ? (
-                        <button className="flex items-center font-medium" onClick={() => cycleSort(col.field!)}>
+                        <div className="flex items-center font-medium pr-2">
                           {col.label} <SortIcon field={col.field} />
-                        </button>
+                        </div>
                       ) : null}
                     </th>
                   ))}

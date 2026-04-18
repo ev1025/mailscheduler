@@ -241,18 +241,21 @@ export default function DatabaseView({
                 {columns.map((col, idx) => (
                   <th
                     key={col.label}
-                    className="relative text-left font-medium px-3 py-2.5 border-b border-r last:border-r-0 select-none whitespace-nowrap"
+                    className={`relative text-left font-medium px-3 py-2.5 border-b border-r last:border-r-0 select-none whitespace-nowrap ${
+                      col.field ? "cursor-pointer hover:bg-muted/60" : ""
+                    }`}
+                    onClick={col.field ? () => cycleSort(col.field!) : undefined}
                   >
                     {col.field ? (
-                      <button className="flex items-center font-medium" onClick={() => cycleSort(col.field!)}>
+                      <div className="flex items-center font-medium pr-3">
                         {col.label} <SortIcon field={col.field} />
-                      </button>
+                      </div>
                     ) : (
                       <span>{col.label}</span>
                     )}
                     <div
                       className="absolute right-0 top-0 bottom-0 w-[6px] -mr-[3px] z-20 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 touch-none"
-                      onMouseDown={(e) => onResizeStart(idx, e)}
+                      onMouseDown={(e) => { e.stopPropagation(); onResizeStart(idx, e); }}
                     />
                   </th>
                 ))}
