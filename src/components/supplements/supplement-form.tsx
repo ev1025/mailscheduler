@@ -91,8 +91,7 @@ export default function SupplementForm({
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="예: 솔가 비타민D3"
-              autoFocus
+              placeholder="이름 * (예: 솔가 비타민D3)"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">

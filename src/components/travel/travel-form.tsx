@@ -124,7 +124,7 @@ export default function TravelForm({
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목 (예: 진해 군항제)"
+            placeholder="제목 * (예: 진해 군항제)"
             className="h-9 text-sm"
           />
 

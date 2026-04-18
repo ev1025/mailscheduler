@@ -61,13 +61,12 @@ export default function MemoForm({
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="title">제목</Label>
+            <Label htmlFor="title">제목 *</Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="메모 제목"
-              autoFocus
+              placeholder="메모 제목 *"
             />
           </div>
           <div className="flex flex-col gap-2">

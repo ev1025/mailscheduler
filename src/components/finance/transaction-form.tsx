@@ -134,8 +134,7 @@ export default function TransactionForm({
                 min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                placeholder="10000"
-                autoFocus
+                placeholder="금액 * (예: 10000)"
                 className="h-9"
               />
             </div>

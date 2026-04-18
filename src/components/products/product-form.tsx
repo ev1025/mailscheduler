@@ -238,8 +238,7 @@ export default function ProductForm({
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="제품명 (예: 오메가3)"
-            autoFocus
+            placeholder="제품명 * (예: 오메가3)"
             className="h-9"
           />
 
@@ -400,7 +399,8 @@ export default function ProductForm({
               title="고정비 등록 시 매월 11일 결제로 등록됩니다"
             >
               <HelpCircle className="h-3.5 w-3.5" />
-              <span className="pointer-events-none absolute left-5 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 group-hover:opacity-100 transition-opacity z-10">
+              {/* 아래쪽 → 위쪽으로 팝업해서 다이얼로그 밖으로 잘리지 않게 */}
+              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg max-w-[200px] text-center">
                 고정비 등록 시 매월 11일 결제로 등록됩니다
               </span>
             </span>
