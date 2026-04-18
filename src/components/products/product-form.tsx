@@ -430,8 +430,10 @@ export default function ProductForm({
                 <HelpCircle className="h-3.5 w-3.5" />
               </button>
               {fixedHelpOpen && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-md bg-foreground px-2 py-1.5 text-xs text-background shadow-lg z-20 whitespace-normal text-center">
-                  고정비 등록 시 매월 11일 결제로 등록됩니다
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max rounded-md bg-foreground px-2 py-1.5 text-xs text-background shadow-lg z-20 text-center leading-tight">
+                  고정비 등록시<br />
+                  매월 11일 결제로<br />
+                  등록됩니다.
                 </div>
               )}
             </div>
