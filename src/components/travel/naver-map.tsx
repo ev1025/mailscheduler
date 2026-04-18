@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import Script from "next/script";
-import { useAppSetting } from "@/hooks/use-app-settings";
 
 // 네이버 Dynamic Map (JavaScript SDK) 임베드 컴포넌트.
 // 여행 상세·편집 팝업에서 인터랙티브 지도가 필요할 때 사용.
@@ -16,13 +15,14 @@ interface Props {
   className?: string;
 }
 
-// window.naver 타입 선언은 최소한만 — any 캐스트 허용.
 declare global {
   interface Window {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     naver?: any;
   }
 }
+
+const CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
 
 export default function NaverMap({
   lat,
@@ -31,7 +31,6 @@ export default function NaverMap({
   zoom = 15,
   className,
 }: Props) {
-  const { value: clientId } = useAppSetting("ncp_map_client_id", "");
   const containerRef = useRef<HTMLDivElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
@@ -39,10 +38,10 @@ export default function NaverMap({
   const markerRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!clientId) return;
+    if (!CLIENT_ID) return;
     if (!containerRef.current) return;
     const naver = window.naver;
-    if (!naver?.maps) return; // 스크립트 로드 전이면 onReady 가 다시 호출
+    if (!naver?.maps) return;
 
     const position = new naver.maps.LatLng(lat, lng);
     if (!mapRef.current) {
@@ -58,7 +57,7 @@ export default function NaverMap({
       mapRef.current.setCenter(position);
       markerRef.current?.setPosition(position);
     }
-  }, [clientId, lat, lng, zoom]);
+  }, [lat, lng, zoom]);
 
   const onReady = () => {
     if (!containerRef.current) return;
@@ -75,13 +74,13 @@ export default function NaverMap({
     });
   };
 
-  if (!clientId) {
+  if (!CLIENT_ID) {
     return (
       <div
         className={`flex items-center justify-center rounded-md bg-muted/40 text-xs text-muted-foreground ${className || ""}`}
         style={{ height }}
       >
-        지도 API 키가 설정되지 않았습니다 (설정 → API)
+        NEXT_PUBLIC_NCP_MAP_CLIENT_ID 미설정
       </div>
     );
   }
@@ -89,7 +88,7 @@ export default function NaverMap({
   return (
     <>
       <Script
-        src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`}
+        src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${CLIENT_ID}`}
         strategy="afterInteractive"
         onReady={onReady}
       />

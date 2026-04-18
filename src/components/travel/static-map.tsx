@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { useAppSetting } from "@/hooks/use-app-settings";
 
 // 네이버 Static Map API 이미지 컴포넌트.
 // 카드 썸네일용 — 가벼움. 인터랙티브 불필요한 곳에서 사용.
@@ -17,6 +16,8 @@ interface Props {
   className?: string;
 }
 
+const CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
+
 export default function StaticMap({
   lat,
   lng,
@@ -26,33 +27,26 @@ export default function StaticMap({
   markerColor = "red",
   className,
 }: Props) {
-  const { value: clientId } = useAppSetting("ncp_map_client_id", "");
-
-  if (!clientId) {
+  if (!CLIENT_ID) {
     return (
       <div
         className={`flex items-center justify-center rounded-md bg-muted/40 text-[10px] text-muted-foreground ${className || ""}`}
         style={{ width, height }}
       >
-        지도 API 키 미설정
+        NCP_MAP_CLIENT_ID 미설정
       </div>
     );
   }
 
-  // NCP Static Map API
-  // - center: "lng,lat" (경도, 위도 순서)
-  // - level: 줌 레벨
-  // - markers: "type:d|size:mid|color:red|pos:lng lat"
-  // - Query 에 X-NCP-APIGW-API-KEY-ID 를 붙이면 GET 이미지로 받을 수 있음
   const params = new URLSearchParams({
     w: String(width),
     h: String(height),
     center: `${lng},${lat}`,
     level: String(level),
-    scale: "2", // 레티나 2배
+    scale: "2",
     markers: `type:d|size:mid|color:${markerColor}|pos:${lng} ${lat}`,
   });
-  const src = `https://naveropenapi.apigw.ntruss.com/map-static/v2/raster?${params.toString()}&X-NCP-APIGW-API-KEY-ID=${clientId}`;
+  const src = `https://naveropenapi.apigw.ntruss.com/map-static/v2/raster?${params.toString()}&X-NCP-APIGW-API-KEY-ID=${CLIENT_ID}`;
 
   return (
     <Image

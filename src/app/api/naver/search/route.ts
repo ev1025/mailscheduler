@@ -1,25 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
 // 네이버 개발자센터 Local Search API 프록시.
 // 브라우저에서 CORS 걸리고 Client Secret 도 노출 불가하므로 서버 라우트로 우회.
-// 키는 설정 → API 탭에서 사용자가 입력한 값을 app_settings 테이블에서 읽어 사용.
+// 키는 .env.local 의 NAVER_SEARCH_CLIENT_ID/SECRET 로 주입.
 
 export const dynamic = "force-dynamic";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key"
-);
-
-async function getSetting(key: string): Promise<string | null> {
-  const { data } = await supabase
-    .from("app_settings")
-    .select("value")
-    .eq("key", key)
-    .maybeSingle();
-  return data?.value ? String(data.value) : null;
-}
 
 // 네이버 API 응답 title 의 <b>...</b> 하이라이트 태그 제거
 function stripTags(html: string): string {
@@ -49,11 +34,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "query required" }, { status: 400 });
   }
 
-  const clientId = await getSetting("naver_search_client_id");
-  const clientSecret = await getSetting("naver_search_client_secret");
+  const clientId = process.env.NAVER_SEARCH_CLIENT_ID;
+  const clientSecret = process.env.NAVER_SEARCH_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
     return NextResponse.json(
-      { error: "네이버 검색 API 키가 설정되지 않았습니다. 설정 → API 탭에서 입력하세요." },
+      { error: "NAVER_SEARCH_CLIENT_ID/SECRET 환경변수가 설정되지 않았습니다." },
       { status: 503 }
     );
   }
