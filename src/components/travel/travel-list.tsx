@@ -148,9 +148,9 @@ function TravelRow({
       <td className="px-2 py-2 border-r text-xs text-muted-foreground whitespace-nowrap">
         {item.month ? `${item.month}월` : "-"}
       </td>
-      {/* 지역 */}
+      {/* 위치 — place_name 있으면 우선, 없으면 region */}
       <td className="px-2 py-2 border-r text-xs text-muted-foreground whitespace-nowrap">
-        {item.region || "-"}
+        {item.place_name || item.region || "-"}
       </td>
       {/* 태그 */}
       <td className="px-2 py-2 whitespace-nowrap">
@@ -387,7 +387,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
     { label: "제목", field: "title" as SortField },
     { label: "분류", field: "category" as SortField },
     { label: "시기", field: "month" as SortField },
-    { label: "지역", field: "region" as SortField },
+    { label: "위치", field: "region" as SortField },
     { label: "태그", field: "tag" as SortField },
   ];
 

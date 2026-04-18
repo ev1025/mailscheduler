@@ -14,6 +14,8 @@ import {
   searchLocation,
   type GeoResult,
 } from "@/hooks/use-weather-location";
+import { useAppSetting } from "@/hooks/use-app-settings";
+import { toast } from "sonner";
 
 type Theme = "system" | "light" | "dark";
 
@@ -29,6 +31,105 @@ function ApiSection({ title, children, defaultOpen = false }: { title: string; c
         {open ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
       </button>
       {open && <div className="px-4 pb-4 pt-1 border-t">{children}</div>}
+    </div>
+  );
+}
+
+// 단일 키 입력 필드 — app_settings 에 key-value 로 저장.
+// secret 값은 저장 후엔 마스킹해서 보여주고, 수정하려면 "변경" 눌러 다시 입력.
+function SecretKeyField({
+  settingKey,
+  label,
+  placeholder,
+  masked = false,
+}: {
+  settingKey: string;
+  label: string;
+  placeholder?: string;
+  masked?: boolean;
+}) {
+  const { value, loading, saveValue } = useAppSetting(settingKey, "");
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  useEffect(() => {
+    if (!loading && !value) setEditing(true);
+  }, [loading, value]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <div className="h-9 rounded-md bg-muted/30 animate-pulse" />
+      </div>
+    );
+  }
+
+  if (!editing) {
+    const display = masked && value ? value.slice(0, 4) + "••••••••" : value;
+    return (
+      <div className="flex flex-col gap-1">
+        <span className="text-xs text-muted-foreground">{label}</span>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-9 rounded-md border bg-muted/30 px-3 text-xs flex items-center font-mono truncate">
+            {display || "(미설정)"}
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-9"
+            onClick={() => {
+              setDraft(value);
+              setEditing(true);
+            }}
+          >
+            변경
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-xs text-muted-foreground">{label}</span>
+      <div className="flex items-center gap-2">
+        <Input
+          type={masked ? "password" : "text"}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder={placeholder}
+          className="h-9 text-xs font-mono flex-1"
+        />
+        <Button
+          type="button"
+          size="sm"
+          className="h-9"
+          onClick={async () => {
+            await saveValue(draft.trim());
+            setEditing(false);
+            toast.success(`${label} 저장됨`);
+          }}
+          disabled={!draft.trim()}
+        >
+          저장
+        </Button>
+        {value && (
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-9"
+            onClick={() => {
+              setEditing(false);
+              setDraft("");
+            }}
+          >
+            취소
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -332,6 +433,63 @@ export default function SettingsPage() {
                 <span>갱신 사이트</span>
                 <a href="https://www.data.go.kr" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline flex items-center gap-1">
                   공공데이터포털 <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          </ApiSection>
+
+          {/* 네이버 지도 / 검색 API */}
+          <ApiSection title="네이버 지도 · 검색 API" defaultOpen>
+            <div className="flex flex-col gap-4 text-sm">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                여행 탭의 위치 검색·지도 표시에 사용됩니다. 두 개의 서비스에서 각각
+                키를 발급받아 입력하세요. 저장된 값은 서버에서만 사용되며 브라우저에는
+                Client ID 만 노출됩니다.
+              </p>
+
+              <div className="flex flex-col gap-3 pt-2 border-t">
+                <p className="font-medium text-xs">네이버 클라우드 플랫폼 — Maps</p>
+                <SecretKeyField
+                  settingKey="ncp_map_client_id"
+                  label="Client ID"
+                  placeholder="예: abcdefghij"
+                />
+                <SecretKeyField
+                  settingKey="ncp_map_client_secret"
+                  label="Client Secret"
+                  placeholder="예: AbCdEf...."
+                  masked
+                />
+                <a
+                  href="https://console.ncloud.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  NCP 콘솔에서 발급 <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-3 border-t">
+                <p className="font-medium text-xs">네이버 개발자센터 — 검색(Local Search)</p>
+                <SecretKeyField
+                  settingKey="naver_search_client_id"
+                  label="Client ID"
+                  placeholder="예: 9b9nZ6C1..."
+                />
+                <SecretKeyField
+                  settingKey="naver_search_client_secret"
+                  label="Client Secret"
+                  placeholder="예: kJ87...."
+                  masked
+                />
+                <a
+                  href="https://developers.naver.com/apps/#/list"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  네이버 개발자센터에서 발급 <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             </div>

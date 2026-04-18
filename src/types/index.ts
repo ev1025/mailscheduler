@@ -129,6 +129,11 @@ export interface TravelItem {
   rating: number | null;
   couple_notes: string | null;
   cover_image_url: string | null;
+  // 위치(장소) 정보 — 네이버 지도 연동으로 채워짐
+  place_name: string | null;
+  address: string | null;
+  lat: number | null;
+  lng: number | null;
   created_at: string;
   updated_at: string;
 }
