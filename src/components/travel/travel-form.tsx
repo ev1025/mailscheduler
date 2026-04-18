@@ -278,7 +278,7 @@ export default function TravelForm({
               onRenameTag={updateCategoryName}
               builtinIds={BUILTIN_TRAVEL_CATEGORIES}
               orderKey="tag-order:travel-categories"
-              placeholder="분류 선택"
+              placeholder="분류 선택 *"
             />
           </div>
 
