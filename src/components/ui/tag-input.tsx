@@ -297,15 +297,52 @@ export default function TagInput({
   const dragEnabled = !!orderKey && !newTagName.trim();
 
   // ── 드래그: half ↔ full, 아래로 크게 끌면 close ──────────────
+  //    이제는 시트 아무데서나 위/아래로 밀면 동작.
+  //    단, 스크롤 영역 안에서 스크롤이 맨 위가 아닌데 아래로 밀면 → 스크롤 우선
+  //    입력창(input/textarea) 위에서는 드래그 비활성화
   const dragStartY = useRef<number | null>(null);
   const dragStartSnap = useRef<"half" | "full">("half");
+  const dragScrollEl = useRef<HTMLElement | null>(null);
+  const dragCanceled = useRef(false);
+
   const onDragStart = (e: React.TouchEvent | React.PointerEvent) => {
+    const target = (e.target as HTMLElement) || null;
+    // 텍스트 입력 요소/버튼에선 드래그 시작 안 함
+    if (target?.closest("input, textarea, button")) {
+      dragStartY.current = null;
+      return;
+    }
     const y = "touches" in e ? e.touches[0].clientY : e.clientY;
     dragStartY.current = y;
     dragStartSnap.current = snap;
+    dragCanceled.current = false;
+    dragScrollEl.current = target?.closest("[data-sheet-scroll]") as HTMLElement | null;
   };
+
+  const onDragMove = (e: React.TouchEvent | React.PointerEvent) => {
+    if (dragStartY.current === null || dragCanceled.current) return;
+    const y = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const dy = y - dragStartY.current;
+    // 스크롤 영역에서 아래로 끌고 있는데 스크롤이 위가 아니면 → 스크롤 우선 (드래그 취소)
+    if (dragScrollEl.current && dy > 0 && dragScrollEl.current.scrollTop > 0) {
+      dragCanceled.current = true;
+      return;
+    }
+    // full 상태에서 위로는 더 이상 올라갈 공간 없음 → 스크롤 허용을 위해 취소
+    if (dragStartSnap.current === "full" && dy < 0 && dragScrollEl.current) {
+      dragCanceled.current = true;
+      return;
+    }
+  };
+
   const onDragEnd = (e: React.TouchEvent | React.PointerEvent) => {
-    if (dragStartY.current === null) return;
+    const canceled = dragCanceled.current;
+    dragCanceled.current = false;
+    dragScrollEl.current = null;
+    if (dragStartY.current === null || canceled) {
+      dragStartY.current = null;
+      return;
+    }
     const y =
       "changedTouches" in e
         ? e.changedTouches[0].clientY
@@ -368,21 +405,15 @@ export default function TagInput({
           finalFocus={false}
         >
           {view === "list" ? (
-            <div className="flex flex-col h-full">
-              {/* 드래그 영역 — 핸들 + 제목까지 모두 드래그 가능
-                  (반만 올라와있을 때 핸들 아닌데 눌러도 끌 수 있도록)
-                  핸들/제목 크기 키움 → 터치 면적↑ */}
-              <div
-                className="flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none shrink-0"
-                onTouchStart={onDragStart}
-                onTouchEnd={onDragEnd}
-                onPointerDown={(e) => {
-                  if (e.pointerType !== "touch") onDragStart(e);
-                }}
-                onPointerUp={(e) => {
-                  if (e.pointerType !== "touch") onDragEnd(e);
-                }}
-              >
+            <div
+              className="flex flex-col h-full"
+              onTouchStart={onDragStart}
+              onTouchMove={onDragMove}
+              onTouchEnd={onDragEnd}
+            >
+              {/* 드래그 영역 — 핸들 + 제목. 이제 시트 전체가 드래그 가능하지만
+                  핸들 영역은 여전히 시각적으로 명확하게 표시 */}
+              <div className="flex flex-col items-center pt-3 pb-2 touch-none shrink-0">
                 <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
                 <div className="text-base font-semibold text-center">
                   {placeholder === "검색" ? "태그" : placeholder}
@@ -445,7 +476,7 @@ export default function TagInput({
 
                 {/* 리스트 — 꾹누르고 드래그로 순서 변경 (400ms delay).
                     onMouseDown preventDefault로 input 포커스 유지 → 키보드 깜박임 방지 */}
-                <div className="flex flex-col overflow-y-auto flex-1 -mx-1 px-1">
+                <div className="flex flex-col overflow-y-auto flex-1 -mx-1 px-1" data-sheet-scroll>
                   {dragEnabled ? (
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                       <SortableContext items={filtered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -506,15 +537,14 @@ export default function TagInput({
             </div>
           ) : (
             /* ───────── 편집 뷰 (같은 시트에서 내용만 교체) ───────── */
-            <div className="flex flex-col h-full">
+            <div
+              className="flex flex-col h-full"
+              onTouchStart={onDragStart}
+              onTouchMove={onDragMove}
+              onTouchEnd={onDragEnd}
+            >
               {/* 드래그 바 + 헤더(뒤로 · 미리보기 · 완료) */}
-              <div
-                className="flex flex-col items-center pt-2 shrink-0"
-                onTouchStart={onDragStart}
-                onTouchEnd={onDragEnd}
-                onPointerDown={(e) => { if (e.pointerType !== "touch") onDragStart(e); }}
-                onPointerUp={(e) => { if (e.pointerType !== "touch") onDragEnd(e); }}
-              >
+              <div className="flex flex-col items-center pt-2 shrink-0">
                 <div className="h-1 w-10 rounded-full bg-muted-foreground/30 mb-2" />
               </div>
               <div className="flex items-center justify-between px-3 pb-2 shrink-0">
@@ -543,7 +573,7 @@ export default function TagInput({
                 </button>
               </div>
 
-              <div className="flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0 overflow-y-auto">
+              <div className="flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0 overflow-y-auto" data-sheet-scroll>
                 {/* 이름 변경 — 현재 API 한계로 UI만 노출하되 저장은 색상만.
                     후에 onRenameTag 콜백 추가 시 자연스럽게 확장 */}
                 <input
