@@ -208,45 +208,40 @@ export default function TravelForm({
             <ColorPickerRow color={color} onChange={setColor} />
           </div>
 
-          {/* 시기 / 가봄 */}
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">시기</Label>
-              <Select
-                value={month != null ? String(month) : "none"}
-                onValueChange={(v) => setMonth(!v || v === "none" ? null : parseInt(v))}
+          {/* 시기 | 드롭다운 | 가봄 토글 — 한 행 */}
+          <div className="flex items-center gap-3">
+            <Label className="text-xs text-muted-foreground shrink-0">시기</Label>
+            <Select
+              value={month != null ? String(month) : "none"}
+              onValueChange={(v) => setMonth(!v || v === "none" ? null : parseInt(v))}
+            >
+              <SelectTrigger className="h-8 w-20 text-xs">
+                {month != null ? `${month}월` : <span className="text-muted-foreground">-</span>}
+              </SelectTrigger>
+              <SelectContent className="min-w-0">
+                <SelectItem value="none">없음</SelectItem>
+                {MONTHS.map((m) => (
+                  <SelectItem key={m} value={String(m)}>{m}월</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="ml-auto flex items-center gap-2">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={visited}
+                onClick={() => setVisited((v) => !v)}
+                className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  visited ? "bg-primary" : "bg-muted-foreground/30"
+                }`}
               >
-                <SelectTrigger className="h-8 w-full text-xs">
-                  {month != null ? `${month}월` : <span className="text-muted-foreground">-</span>}
-                </SelectTrigger>
-                <SelectContent className="min-w-0">
-                  <SelectItem value="none">없음</SelectItem>
-                  {MONTHS.map((m) => (
-                    <SelectItem key={m} value={String(m)}>{m}월</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground invisible">.</Label>
-              <div className="h-8 flex items-center gap-2">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={visited}
-                  onClick={() => setVisited((v) => !v)}
-                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
-                    visited ? "bg-primary" : "bg-muted-foreground/30"
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    visited ? "translate-x-4" : "translate-x-0.5"
                   }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                      visited ? "translate-x-4" : "translate-x-0.5"
-                    }`}
-                  />
-                </button>
-                <span className="text-xs text-muted-foreground">{visited ? "가봄" : "안 가봄"}</span>
-              </div>
+                />
+              </button>
+              <span className="text-xs text-muted-foreground">{visited ? "가봄" : "안 가봄"}</span>
             </div>
           </div>
 
