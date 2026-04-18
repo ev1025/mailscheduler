@@ -42,7 +42,7 @@ function MoveTree({ folders, excludeIds, parentId, depth, onSelect }: {
           <button type="button" onClick={() => onSelect(f.id)}
             className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
             style={{ paddingLeft: (depth + 1) * 16 + 8 }}>
-            <Folder className="h-3.5 w-3.5 shrink-0" /> {f.icon || "📁"} {f.name}
+            <Folder className="h-3.5 w-3.5 shrink-0" /> {f.name}
           </button>
           <MoveTree folders={folders} excludeIds={excludeIds} parentId={f.id} depth={depth + 1} onSelect={onSelect} />
         </div>
