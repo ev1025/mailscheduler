@@ -27,9 +27,12 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { CalendarEvent, EventTag, WeatherData } from "@/types";
 import { useTravelTags } from "@/hooks/use-travel-tags";
+import { useAppUsers, useCurrentUserId } from "@/lib/current-user";
 import { format, parseISO, isSameDay, isWithinInterval } from "date-fns";
 import { ko } from "date-fns/locale";
 import WeatherIcon from "./weather-icon";
+
+type EventWithOwner = CalendarEvent & { user_id?: string | null };
 
 interface DayDetailProps {
   open: boolean;
@@ -45,9 +48,11 @@ interface DayDetailProps {
   onReorder?: (ids: string[]) => void;
 }
 
-function SortableItem({ ev, tagColorMap, onEdit, onDelete }: {
-  ev: CalendarEvent;
+function SortableItem({ ev, tagColorMap, isOwner, owner, onEdit, onDelete }: {
+  ev: EventWithOwner;
   tagColorMap: Record<string, string>;
+  isOwner: boolean;
+  owner?: { name: string; color: string; emoji?: string | null; avatar_url?: string | null };
   onEdit?: (event: CalendarEvent) => void;
   onDelete?: (id: string) => void;
 }) {
@@ -100,8 +105,8 @@ function SortableItem({ ev, tagColorMap, onEdit, onDelete }: {
         )}
       </div>
 
-      {/* 삭제 */}
-      {onDelete && (
+      {/* 오른쪽 영역: 내 일정 → 휴지통, 타인 일정 → 등록자 프로필 */}
+      {isOwner && onDelete ? (
         <button
           type="button"
           className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
@@ -109,10 +114,29 @@ function SortableItem({ ev, tagColorMap, onEdit, onDelete }: {
             e.stopPropagation();
             onDelete(ev.id);
           }}
+          aria-label="삭제"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
-      )}
+      ) : owner ? (
+        <div
+          className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-medium"
+          style={{
+            backgroundColor: owner.color + "20",
+            color: owner.color,
+            border: `1px solid ${owner.color}40`,
+          }}
+          title={`${owner.name} 등록`}
+          aria-label={`${owner.name} 등록`}
+        >
+          {owner.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={owner.avatar_url} alt={owner.name} className="h-full w-full rounded-full object-cover" />
+          ) : (
+            <span>{owner.emoji || owner.name[0]}</span>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -131,6 +155,9 @@ export default function DayDetail({
   onReorder,
 }: DayDetailProps) {
   const { tags: travelTags } = useTravelTags();
+  const currentUserId = useCurrentUserId();
+  const { users } = useAppUsers();
+  const usersById = new Map(users.map((u) => [u.id, u]));
   const tagColorMap: Record<string, string> = {};
   for (const t of tagList) tagColorMap[t.name] = t.color;
   for (const t of travelTags) {
@@ -190,15 +217,23 @@ export default function DayDetail({
             <div className="flex flex-col gap-1.5 max-h-[50vh] overflow-y-auto -mx-1 px-1">
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                 <SortableContext items={dayEvents.map((ev) => ev.id)} strategy={verticalListSortingStrategy}>
-                  {dayEvents.map((ev) => (
-                    <SortableItem
-                      key={ev.id}
-                      ev={ev}
-                      tagColorMap={tagColorMap}
-                      onEdit={(e) => { onOpenChange(false); onEditEvent?.(e); }}
-                      onDelete={onDeleteEvent}
-                    />
-                  ))}
+                  {dayEvents.map((ev) => {
+                    const evOwn = ev as EventWithOwner;
+                    const ownerId = evOwn.user_id ?? null;
+                    const isOwner = !ownerId || ownerId === currentUserId;
+                    const owner = ownerId ? usersById.get(ownerId) : undefined;
+                    return (
+                      <SortableItem
+                        key={ev.id}
+                        ev={evOwn}
+                        tagColorMap={tagColorMap}
+                        isOwner={isOwner}
+                        owner={owner}
+                        onEdit={(e) => { onOpenChange(false); onEditEvent?.(e); }}
+                        onDelete={onDeleteEvent}
+                      />
+                    );
+                  })}
                 </SortableContext>
               </DndContext>
             </div>
