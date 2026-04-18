@@ -591,6 +591,9 @@ function KnowledgePageInner() {
               for (const id of ids) await updateFolder(id, { parent_id: targetFolderId });
             }}
             onSelectModeChange={setFolderSelectMode}
+            onTogglePinItem={async (id, pinned) => {
+              await updateItem(id, { pinned: !pinned });
+            }}
           />
         ) : (
           /* ── 대시보드 홈 ── */
@@ -620,6 +623,9 @@ function KnowledgePageInner() {
             }}
             onMoveFolders={async (ids, targetFolderId) => {
               for (const id of ids) await updateFolder(id, { parent_id: targetFolderId });
+            }}
+            onTogglePinItem={async (id, pinned) => {
+              await updateItem(id, { pinned: !pinned });
             }}
           />
         )}

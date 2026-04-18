@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Pin, FileText, ChevronRight, Trash2, CheckSquare, Square, Pencil, Folder, FolderInput, ArrowLeft } from "lucide-react";
+import { Pin, FileText, ChevronRight, Trash2, CheckSquare, Square, Pencil, Folder, FolderInput, ArrowLeft, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
+import { useKnowledgeFavorites } from "@/lib/knowledge-favorites";
 
 interface Props {
   folder: KnowledgeFolder | null;
@@ -20,6 +22,7 @@ interface Props {
   onMoveItems?: (ids: string[], targetFolderId: string | null) => void;
   onMoveFolders?: (ids: string[], targetFolderId: string | null) => void;
   onSelectModeChange?: (active: boolean) => void;
+  onTogglePinItem?: (id: string, pinned: boolean) => Promise<void>;
 }
 
 function MoveTreeInner({ folders, excludeIds, parentId, depth, onSelect }: {
@@ -46,8 +49,9 @@ function MoveTreeInner({ folders, excludeIds, parentId, depth, onSelect }: {
 export default function FolderNoteList({
   folder, folders, items, onSelectItem, onSelectFolder, onBack, onNavigateToFolder,
   onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onMoveItems, onMoveFolders,
-  onSelectModeChange,
+  onSelectModeChange, onTogglePinItem,
 }: Props) {
+  const { toggleFolder: toggleFolderFav, isFolderFav } = useKnowledgeFavorites();
   const folderId = folder?.id ?? null;
   const subFolders = folders.filter((f) => f.parent_id === folderId);
   const folderItems = items
@@ -171,19 +175,28 @@ export default function FolderNoteList({
         )}
       </header>
 
-      {/* 폴더 이동 — 트리 구조 */}
-      {moveMode && (
-        <div className="border-b p-3 bg-muted/30 flex flex-col gap-2">
-          <p className="text-xs font-medium text-muted-foreground">이동할 폴더 선택</p>
-          <div className="flex flex-col gap-0.5 max-h-[250px] overflow-y-auto">
-            <button type="button" onClick={() => doMove(null)} className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent font-medium">
-              <Folder className="h-3.5 w-3.5" /> 루트 (최상위)
-            </button>
-            <MoveTreeInner folders={folders} excludeIds={selFolders} parentId={null} depth={0} onSelect={doMove} />
+      {/* 폴더 이동 — 바텀시트 */}
+      <Sheet open={moveMode} onOpenChange={setMoveMode}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] max-h-[60dvh] z-[65]" showBackButton={false} showCloseButton={false} initialFocus={false}>
+          <div className="flex flex-col h-full">
+            <div className="flex flex-col items-center pt-3 pb-2 shrink-0">
+              <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
+              <SheetHeader className="p-0">
+                <SheetTitle className="text-base text-center">이동할 폴더 선택</SheetTitle>
+              </SheetHeader>
+            </div>
+            <div className="flex flex-col gap-0.5 px-4 pb-2 overflow-y-auto flex-1">
+              <button type="button" onClick={() => doMove(null)} className="flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-accent font-medium">
+                <Folder className="h-4 w-4" /> 루트 (최상위)
+              </button>
+              <MoveTreeInner folders={folders} excludeIds={selFolders} parentId={null} depth={0} onSelect={doMove} />
+            </div>
+            <div className="px-4 pt-2 shrink-0">
+              <Button size="sm" variant="outline" className="w-full h-9" onClick={() => setMoveMode(false)}>취소</Button>
+            </div>
           </div>
-          <Button size="sm" variant="outline" className="h-7 text-xs self-end" onClick={() => setMoveMode(false)}>취소</Button>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
 
       {/* 콘텐츠 */}
       <div className="flex-1 overflow-y-auto p-3">
@@ -213,7 +226,17 @@ export default function FolderNoteList({
                 ) : (
                   <span className="flex-1 text-sm font-medium text-left truncate">{sf.name}</span>
                 )}
-                {!selectMode && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                {!selectMode && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); toggleFolderFav(sf.id); }}
+                    className="shrink-0 p-1 rounded hover:bg-accent"
+                    aria-label={isFolderFav(sf.id) ? "즐겨찾기 해제" : "즐겨찾기"}
+                  >
+                    <Star className={`h-3.5 w-3.5 ${isFolderFav(sf.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`} />
+                  </button>
+                )}
+                {!selectMode && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
               </div>
             ))}
             {folderItems.map((item) => (
@@ -234,6 +257,16 @@ export default function FolderNoteList({
                     className="flex-1 text-sm bg-transparent border-b border-primary outline-none px-0.5 min-w-0" />
                 ) : (
                   <span className="flex-1 text-sm text-left truncate">{item.title || "(제목 없음)"}</span>
+                )}
+                {!selectMode && onTogglePinItem && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); onTogglePinItem(item.id, item.pinned); }}
+                    className="shrink-0 p-1 rounded hover:bg-accent"
+                    aria-label={item.pinned ? "즐겨찾기 해제" : "즐겨찾기"}
+                  >
+                    <Star className={`h-3.5 w-3.5 ${item.pinned ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`} />
+                  </button>
                 )}
                 {!selectMode && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
               </div>

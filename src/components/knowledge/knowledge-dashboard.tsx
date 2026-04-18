@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Search, Pin, ChevronRight, FileText, Folder, Trash2, CheckSquare, Square, ArrowLeft, Pencil, FolderInput } from "lucide-react";
+import { Search, Star, ChevronRight, FileText, Folder, Trash2, CheckSquare, Square, ArrowLeft, Pencil, FolderInput } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,8 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
+import { useKnowledgeFavorites } from "@/lib/knowledge-favorites";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 interface DashboardProps {
   folders: KnowledgeFolder[];
@@ -27,6 +29,7 @@ interface DashboardProps {
   onSelectModeChange?: (active: boolean) => void;
   onMoveItems?: (ids: string[], targetFolderId: string | null) => void;
   onMoveFolders?: (ids: string[], targetFolderId: string | null) => void;
+  onTogglePinItem?: (id: string, pinned: boolean) => Promise<void>;
 }
 
 /* ── 이동 대상 트리 ── */
@@ -52,10 +55,11 @@ function MoveTree({ folders, excludeIds, parentId, depth, onSelect }: {
 }
 
 /* ── 노트 트리 행 ── */
-function NoteTreeRow({ item, depth, selectMode, selected, onToggle, onClick, onLongPress, renamingId, renameValue, onRenameChange, onRenameSubmit }: {
+function NoteTreeRow({ item, depth, selectMode, selected, onToggle, onClick, onLongPress, renamingId, renameValue, onRenameChange, onRenameSubmit, isFavorite, onToggleFavorite }: {
   item: KnowledgeItem; depth: number; selectMode: boolean; selected: boolean;
   onToggle: () => void; onClick: () => void; onLongPress: () => void;
   renamingId: string | null; renameValue: string; onRenameChange: (v: string) => void; onRenameSubmit: () => void;
+  isFavorite: boolean; onToggleFavorite?: () => void;
 }) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRenaming = renamingId === item.id;
@@ -82,6 +86,16 @@ function NoteTreeRow({ item, depth, selectMode, selected, onToggle, onClick, onL
         />
       ) : (
         <span className="flex-1 text-sm text-left truncate">{item.title || "(제목 없음)"}</span>
+      )}
+      {!selectMode && onToggleFavorite && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}
+          className="shrink-0 p-1 rounded hover:bg-accent"
+          aria-label={isFavorite ? "즐겨찾기 해제" : "즐겨찾기"}
+        >
+          <Star className={`h-3.5 w-3.5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`} />
+        </button>
       )}
     </div>
   );
@@ -117,6 +131,8 @@ function FolderTreeRow({
   renameValue,
   onRenameChange,
   onRenameSubmit,
+  isFolderFavorite,
+  onToggleFolderFavorite,
 }: {
   folder: KnowledgeFolder;
   allFolders: KnowledgeFolder[];
@@ -136,6 +152,8 @@ function FolderTreeRow({
   renameValue: string;
   onRenameChange: (v: string) => void;
   onRenameSubmit: () => void;
+  isFolderFavorite: (id: string) => boolean;
+  onToggleFolderFavorite: (id: string) => void;
 }) {
   const subFolders = allFolders.filter((f) => f.parent_id === folder.id);
   const hasChildren = subFolders.length > 0;
@@ -185,6 +203,16 @@ function FolderTreeRow({
         ) : (
           <span className="flex-1 text-sm font-medium text-left truncate">{folder.name}</span>
         )}
+        {!selectMode && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onToggleFolderFavorite(folder.id); }}
+            className="shrink-0 p-1 rounded hover:bg-accent"
+            aria-label={isFolderFavorite(folder.id) ? "즐겨찾기 해제" : "즐겨찾기"}
+          >
+            <Star className={`h-3.5 w-3.5 ${isFolderFavorite(folder.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`} />
+          </button>
+        )}
       </div>
 
       {/* 하위 콘텐츠 (토글 열림 시) */}
@@ -212,6 +240,8 @@ function FolderTreeRow({
               renameValue={renameValue}
               onRenameChange={onRenameChange}
               onRenameSubmit={onRenameSubmit}
+              isFolderFavorite={isFolderFavorite}
+              onToggleFolderFavorite={onToggleFolderFavorite}
             />
           ))}
         </div>
@@ -222,9 +252,12 @@ function FolderTreeRow({
 
 /* ── 메인 대시보드 ── */
 export default function KnowledgeDashboard({
-  folders, items, onSelectItem, onSelectFolder, onSearch, searchQuery, searchResults, onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onReorderFolders, onSelectModeChange, onMoveItems, onMoveFolders,
+  folders, items, onSelectItem, onSelectFolder, onSearch, searchQuery, searchResults, onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onReorderFolders, onSelectModeChange, onMoveItems, onMoveFolders, onTogglePinItem,
 }: DashboardProps) {
-  const pinnedItems = items.filter((i) => i.pinned);
+  const { toggleFolder: toggleFolderFav, isFolderFav, favoriteFolderIds } = useKnowledgeFavorites();
+  // 즐겨찾기 = DB pinned (items) + localStorage favorites (folders)
+  const favoriteItems = items.filter((i) => i.pinned);
+  const favoriteFolders = folders.filter((f) => favoriteFolderIds.includes(f.id));
   const rootFolders = folders.filter((f) => !f.parent_id);
 
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
@@ -327,18 +360,27 @@ export default function KnowledgeDashboard({
         </header>
       )}
 
-      {/* 폴더 이동 패널 — 트리 구조 */}
-      {moveMode && (
-        <div className="border-b p-3 bg-muted/30 flex flex-col gap-2 shrink-0">
-          <p className="text-xs font-medium text-muted-foreground">이동할 폴더 선택</p>
-          <div className="flex flex-col gap-0.5 max-h-[250px] overflow-y-auto">
-            <button type="button" onClick={() => { doMove(null); }}
-              className="flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent font-medium"><Folder className="h-3.5 w-3.5" /> 루트 (최상위)</button>
-            <MoveTree folders={folders} excludeIds={selFolders} parentId={null} depth={0} onSelect={(id) => doMove(id)} />
+      {/* 폴더 이동 — 바텀시트 */}
+      <Sheet open={moveMode} onOpenChange={setMoveMode}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] max-h-[60dvh] z-[65]" showBackButton={false} showCloseButton={false} initialFocus={false}>
+          <div className="flex flex-col h-full">
+            <div className="flex flex-col items-center pt-3 pb-2 shrink-0">
+              <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
+              <SheetHeader className="p-0">
+                <SheetTitle className="text-base text-center">이동할 폴더 선택</SheetTitle>
+              </SheetHeader>
+            </div>
+            <div className="flex flex-col gap-0.5 px-4 pb-2 overflow-y-auto flex-1">
+              <button type="button" onClick={() => { doMove(null); }}
+                className="flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-accent font-medium"><Folder className="h-4 w-4" /> 루트 (최상위)</button>
+              <MoveTree folders={folders} excludeIds={selFolders} parentId={null} depth={0} onSelect={(id) => doMove(id)} />
+            </div>
+            <div className="px-4 pt-2 shrink-0">
+              <Button size="sm" variant="outline" className="w-full h-9" onClick={() => setMoveMode(false)}>취소</Button>
+            </div>
           </div>
-          <Button size="sm" variant="outline" className="h-7 text-xs self-end" onClick={() => setMoveMode(false)}>취소</Button>
-        </div>
-      )}
+        </SheetContent>
+      </Sheet>
 
       <div className="flex flex-col gap-3 p-4 overflow-y-auto flex-1">
         {!selectMode && (
@@ -363,11 +405,35 @@ export default function KnowledgeDashboard({
           </div>
         ) : (
           <>
-            {/* 고정 노트 */}
-            {pinnedItems.length > 0 && (
+            {/* 즐겨찾기 — 폴더 + 파일 모두 */}
+            {(favoriteFolders.length > 0 || favoriteItems.length > 0) && (
               <section className="flex flex-col gap-1">
-                <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mb-0.5"><Pin className="h-3 w-3" /> 고정됨</h3>
-                {pinnedItems.map((item) => (
+                <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mb-0.5">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> 즐겨찾기
+                </h3>
+                {favoriteFolders.map((f) => (
+                  <div
+                    key={f.id} data-sel-id={f.id} data-sel-type="folder" role="button" tabIndex={0}
+                    onClick={() => selectMode ? toggleSelection(f.id, "folder") : onSelectFolder(f.id)}
+                    onContextMenu={(e) => { e.preventDefault(); handleLongPress(f.id, "folder"); }}
+                    className={`flex items-center gap-2 rounded-lg border p-2.5 text-left transition-colors select-none ${selFolders.has(f.id) ? "bg-primary/10 border-primary/30" : "hover:bg-accent/50"}`}
+                  >
+                    {selectMode && (selFolders.has(f.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
+                    <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium line-clamp-1 flex-1">{f.name}</span>
+                    {!selectMode && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); toggleFolderFav(f.id); }}
+                        className="shrink-0 p-1 rounded hover:bg-accent"
+                        aria-label="즐겨찾기 해제"
+                      >
+                        <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {favoriteItems.map((item) => (
                   <div
                     key={item.id} data-sel-id={item.id} data-sel-type="item" role="button" tabIndex={0}
                     onClick={() => selectMode ? toggleSelection(item.id, "item") : onSelectItem(item.id)}
@@ -377,6 +443,16 @@ export default function KnowledgeDashboard({
                     {selectMode && (selItems.has(item.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="text-sm font-medium line-clamp-1 flex-1">{item.title || "(제목 없음)"}</span>
+                    {!selectMode && onTogglePinItem && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onTogglePinItem(item.id, item.pinned); }}
+                        className="shrink-0 p-1 rounded hover:bg-accent"
+                        aria-label="즐겨찾기 해제"
+                      >
+                        <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </section>
@@ -408,6 +484,8 @@ export default function KnowledgeDashboard({
                     renameValue={renameValue}
                     onRenameChange={setRenameValue}
                     onRenameSubmit={submitRename}
+                    isFolderFavorite={isFolderFav}
+                    onToggleFolderFavorite={toggleFolderFav}
                       />
                     ))}
                   </section>
@@ -415,7 +493,7 @@ export default function KnowledgeDashboard({
               </DndContext>
             )}
 
-            {pinnedItems.length === 0 && rootFolders.length === 0 && !selectMode && (
+            {favoriteItems.length === 0 && favoriteFolders.length === 0 && rootFolders.length === 0 && !selectMode && (
               <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
                 <FileText className="h-12 w-12 opacity-20" />
                 <p className="text-sm text-muted-foreground">폴더를 만들어 노트를 정리해보세요</p>
