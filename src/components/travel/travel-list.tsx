@@ -255,7 +255,12 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
   const filteredBase = items.filter((item) => {
     if (!showVisited && item.visited) return false;
     if (filterCategories.length > 0 && !filterCategories.includes(item.category)) return false;
-    if (filterTags.length > 0 && (!item.tag || !filterTags.some((ft) => item.tag!.split(",").includes(ft)))) return false;
+    // 태그 AND: 선택한 태그를 모두 가진 항목만 통과
+    if (filterTags.length > 0) {
+      if (!item.tag) return false;
+      const itemTags = item.tag.split(",");
+      if (!filterTags.every((ft) => itemTags.includes(ft))) return false;
+    }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       if (!item.title.toLowerCase().includes(q) && !(item.region || "").toLowerCase().includes(q) && !(item.tag || "").toLowerCase().includes(q)) return false;

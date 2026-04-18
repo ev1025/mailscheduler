@@ -135,7 +135,12 @@ export default function DatabaseView({
 
   const filtered = events
     .filter((ev) => {
-      if (filterTags.length > 0 && (!ev.tag || !filterTags.some((ft) => ev.tag!.split(",").includes(ft)))) return false;
+      // 태그 AND: 선택한 태그를 모두 가진 일정만 통과
+      if (filterTags.length > 0) {
+        if (!ev.tag) return false;
+        const evTags = ev.tag.split(",");
+        if (!filterTags.every((ft) => evTags.includes(ft))) return false;
+      }
       if (!search.trim()) return true;
       const q = search.trim().toLowerCase();
       return ev.title.toLowerCase().includes(q) || (ev.description || "").toLowerCase().includes(q) || (ev.tag || "").toLowerCase().includes(q);
