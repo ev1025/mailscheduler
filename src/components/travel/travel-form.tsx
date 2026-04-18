@@ -203,8 +203,8 @@ export default function TravelForm({
           />
 
           {/* 색상 */}
-          <div className="flex items-center gap-2">
-            <Label className="w-12 shrink-0 text-xs text-muted-foreground">색상</Label>
+          <div className="flex items-center gap-3">
+            <Label className="text-xs text-muted-foreground shrink-0">색상</Label>
             <ColorPickerRow color={color} onChange={setColor} />
           </div>
 
@@ -225,7 +225,7 @@ export default function TravelForm({
                 ))}
               </SelectContent>
             </Select>
-            <div className="ml-auto flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 role="switch"
