@@ -401,7 +401,7 @@ export default function TagInput({
   return (
     <div className="flex flex-col gap-1.5">
       {isDesktop ? (
-        /* ── 데스크탑: Popover 드롭다운 ── */
+        /* ── 데스크탑: Popover 드롭다운 (트리거 바로 아래) ── */
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger type="button" className={triggerClass}>
             {triggerContent}
@@ -409,11 +409,13 @@ export default function TagInput({
           <PopoverContent
             align="start"
             side="bottom"
-            className="w-[360px] p-0 max-h-[70dvh] overflow-hidden"
+            sideOffset={2}
+            // Dialog 내부의 좁은 컨테이너에서도 트리거 아래로 고정.
+            // Base UI 기본 충돌 회피는 공간 부족 시 side 를 옆으로 뒤집어 UX 를 깨뜨림.
+            collisionAvoidance={{ side: "none", align: "none" }}
+            className="w-[320px] p-0 max-h-[60dvh] overflow-hidden"
           >
-            <div className="flex flex-col" style={{ maxHeight: "70dvh" }}>
-              {renderBody()}
-            </div>
+            {renderBody()}
           </PopoverContent>
         </Popover>
       ) : (
@@ -453,7 +455,8 @@ export default function TagInput({
       <>
           {view === "list" ? (
             <div
-              className="flex flex-col h-full min-h-0"
+              // 모바일: h-full 로 바텀시트 전체를 채움. 데스크탑: 내용 크기에 맞춤.
+              className={`flex flex-col min-h-0 ${isDesktop ? "" : "h-full"}`}
               onTouchStart={isDesktop ? undefined : onDragStart}
               onTouchMove={isDesktop ? undefined : onDragMove}
               onTouchEnd={isDesktop ? undefined : onDragEnd}
@@ -468,7 +471,7 @@ export default function TagInput({
                 </div>
               )}
 
-              <div className="flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0">
+              <div className={`flex flex-col gap-2 px-3 pb-3 flex-1 min-h-0 ${isDesktop ? "pt-3" : ""}`}>
                 {/* 입력창 — 선택된 칩 인라인 + 텍스트 input.
                     컨테이너에 onClick-focus 없음: input 요소 자체를 직접 탭해야만
                     포커스(키보드). 칩이나 주변 공간 탭은 어떤 포커스 변화도 안 일으킴 */}
@@ -508,7 +511,10 @@ export default function TagInput({
                     name="tag-search"
                     className="flex-1 min-w-[60px] bg-transparent outline-none text-sm h-6"
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") {
+                      // 한글 IME 조합 중 Enter 는 "조합 완료"용이라 추가 동작을 막음.
+                      // e.nativeEvent.isComposing 이 true 면 무시 → 조합 완료 후
+                      // 한 번 더 눌러야 실제 추가가 실행됨.
+                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                         e.preventDefault();
                         handleEnter();
                       }
