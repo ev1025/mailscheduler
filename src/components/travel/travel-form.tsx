@@ -52,7 +52,8 @@ export default function TravelForm({
   const [title, setTitle] = useState("");
   const [color, setColor] = useState("#3B82F6");
   const [region, setRegion] = useState("");
-  const [category, setCategory] = useState<TravelCategory>("놀거리");
+  // 미선택 상태(빈 문자열) — 사용자가 분류를 직접 골라야 저장 가능
+  const [category, setCategory] = useState<TravelCategory | "">("");
   const [month, setMonth] = useState<number | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
@@ -72,9 +73,9 @@ export default function TravelForm({
       setVisited(item.visited);
     } else {
       setTitle("");
-      setColor(categoryColors["놀거리"]);
+      setColor("#3B82F6");
       setRegion("");
-      setCategory("놀거리");
+      setCategory("");
       setMonth(null);
       setSelectedTags([]);
       setNotes("");
@@ -85,13 +86,13 @@ export default function TravelForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || !category) return;
     setSaving(true);
     const { error } = await onSave({
       title: title.trim(),
       in_season: false,
       region: region.trim() || null,
-      category,
+      category: category as TravelCategory,
       visited,
       tag: selectedTags.length > 0 ? selectedTags.join(",") : null,
       notes: notes.trim() || null,
@@ -185,21 +186,23 @@ export default function TravelForm({
             </div>
           </div>
 
-          {/* 분류 */}
+          {/* 분류 — 미선택 상태 허용, 저장 시 필수 */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">분류</Label>
+            <Label className="text-xs text-muted-foreground">분류 *</Label>
             <TagInput
-              selectedTags={[category]}
+              selectedTags={category ? [category] : []}
               allTags={midCategories.map((c) => ({ id: c, name: c, color: categoryColors[c] || "#6B7280" }))}
               onChange={(next) => {
+                // 기존 미선택 또는 현재 선택과 다른 값이 들어왔을 때만 교체
                 const picked = next.find((t) => t !== category);
                 if (picked) setCategory(picked as TravelCategory);
+                else if (next.length === 0) setCategory("");
               }}
               onAddTag={addCategory}
               onDeleteTag={deleteCategory}
               onUpdateTagColor={updateCategoryColor}
               onRenameTag={updateCategoryName}
-              placeholder="분류"
+              placeholder="분류 선택"
             />
           </div>
 
@@ -269,7 +272,7 @@ export default function TravelForm({
           {/* 버튼 */}
           <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
-            <Button type="submit" disabled={!title.trim() || saving}>
+            <Button type="submit" disabled={!title.trim() || !category || saving}>
               {saving ? "저장 중..." : "저장"}
             </Button>
           </div>

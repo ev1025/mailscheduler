@@ -8,7 +8,7 @@ import {
   SheetContent,
 } from "@/components/ui/sheet";
 import ColorPickerPanel from "@/components/ui/color-picker";
-import { Plus, X, Search, MoreHorizontal, ArrowLeft, Trash2, Palette } from "lucide-react";
+import { Plus, X, Search, MoreHorizontal, ArrowLeft, Trash2 } from "lucide-react";
 
 interface TagDef {
   id: string;
@@ -224,7 +224,7 @@ export default function TagInput({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="bottom"
-          className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden transition-[height] duration-200 ease-out z-[60]"
+          className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[60]"
           style={{ height: snap === "full" ? "95dvh" : "50dvh" }}
           showBackButton={false}
           showCloseButton={false}
@@ -432,8 +432,10 @@ export default function TagInput({
                     <button
                       type="button"
                       onClick={() => setShowColorPicker((s) => !s)}
-                      className={`h-7 w-7 rounded-full transition-all flex items-center justify-center relative ${
-                        showColorPicker ? "ring-2 ring-offset-2 ring-primary" : "hover:scale-110"
+                      className={`h-7 w-7 rounded-full transition-all ${
+                        showColorPicker || !PRESET_COLORS.includes(editColor)
+                          ? "ring-2 ring-offset-2 ring-primary scale-110"
+                          : "hover:scale-110"
                       }`}
                       style={{
                         background: PRESET_COLORS.includes(editColor)
@@ -442,9 +444,7 @@ export default function TagInput({
                       }}
                       aria-label="커스텀 색상"
                       title="컬러피커"
-                    >
-                      <Palette className="h-3.5 w-3.5 text-white drop-shadow" />
-                    </button>
+                    />
                   </div>
                   {showColorPicker && (
                     <div className="rounded-md border p-3 mt-1">

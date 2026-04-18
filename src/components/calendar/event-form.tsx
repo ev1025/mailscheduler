@@ -23,14 +23,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Save, Plus, X, ArrowLeft } from "lucide-react";
+import { X } from "lucide-react";
 import TimePicker from "@/components/ui/time-picker";
 import NumberWheel from "@/components/ui/number-wheel";
 import ColorPickerPanel from "@/components/ui/color-picker";
 import WeatherIcon from "./weather-icon";
 import DatePicker from "@/components/ui/date-picker";
 import TagInput from "@/components/ui/tag-input";
-import { useAppUsers, useCurrentUserId } from "@/lib/current-user";
 import type { CalendarEvent, EventTag, RepeatType } from "@/types";
 
 const COLORS = [
@@ -78,34 +77,6 @@ const REPEAT_OPTIONS: { value: RepeatType; label: string }[] = [
   { value: "yearly", label: "매년" },
 ];
 
-const DRAFTS_KEY = "event-drafts";
-
-interface DraftData {
-  id: string;
-  title: string;
-  description: string;
-  startDate: string;
-  endDate: string;
-  startTime: string;
-  endTime: string;
-  color: string;
-  tag: string;
-  repeat: RepeatType;
-  savedAt: string;
-}
-
-function loadDrafts(): DraftData[] {
-  try {
-    const raw = localStorage.getItem(DRAFTS_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw);
-  } catch { return []; }
-}
-
-function saveDrafts(drafts: DraftData[]) {
-  localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
-}
-
 interface EventFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -148,16 +119,10 @@ export default function EventForm({
   const [showEndDate, setShowEndDate] = useState(false);
   const [showEndTime, setShowEndTime] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [drafts, setDrafts] = useState<DraftData[]>([]);
-  const [showDrafts, setShowDrafts] = useState(false);
   const [sharedWith, setSharedWith] = useState<string[]>([]);
-  const currentUserId = useCurrentUserId();
-  const { users } = useAppUsers();
 
   useEffect(() => {
     if (!open) return;
-    setDrafts(loadDrafts());
-
     if (event) {
       setTitle(event.title);
       setDescription(event.description || "");
@@ -180,7 +145,6 @@ export default function EventForm({
       resetForm();
       setSharedWith([]);
     }
-    setShowDrafts(false);
   }, [event, defaultDate, open]);
 
   function resetForm() {
@@ -196,40 +160,6 @@ export default function EventForm({
     setRepeatCount(-1);
     setShowEndDate(false);
     setShowEndTime(false);
-  }
-
-  function handleSaveDraft() {
-    if (!title.trim()) return;
-    const draft: DraftData = {
-      id: Date.now().toString(),
-      title, description, startDate, endDate, startTime, endTime,
-      color, tag: selectedTags.join(","), repeat,
-      savedAt: new Date().toISOString(),
-    };
-    const updated = [draft, ...drafts].slice(0, 10); // 최대 10건
-    saveDrafts(updated);
-    setDrafts(updated);
-  }
-
-  function handleLoadDraft(draft: DraftData) {
-    setTitle(draft.title);
-    setDescription(draft.description);
-    setStartDate(draft.startDate || defaultDate || new Date().toISOString().split("T")[0]);
-    setEndDate(draft.endDate);
-    setStartTime(draft.startTime);
-    setEndTime(draft.endTime);
-    setColor(draft.color || COLORS[0]);
-    setSelectedTags(draft.tag ? draft.tag.split(",") : []);
-    setRepeat(draft.repeat || "none");
-    setShowEndDate(!!draft.endDate);
-    setShowEndTime(!!draft.endTime);
-    setShowDrafts(false);
-  }
-
-  function handleDeleteDraft(id: string) {
-    const updated = drafts.filter((d) => d.id !== id);
-    saveDrafts(updated);
-    setDrafts(updated);
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -416,57 +346,13 @@ export default function EventForm({
           </div>
 
           {/* 버튼 */}
-          <div className="flex items-center justify-between pt-1">
-            {/* 임시저장 목록 (건수 있을 때만) */}
-            {!event && drafts.length > 0 ? (
-              <div className="relative">
-                <button
-                  type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setShowDrafts(!showDrafts)}
-                >
-                  임시저장 {drafts.length}건
-                </button>
-                {showDrafts && (
-                  <div className="absolute bottom-full left-0 mb-1 w-56 rounded-md border bg-popover shadow-lg z-50 max-h-[200px] overflow-y-auto">
-                    <div className="flex items-center gap-2 px-3 py-1.5 border-b">
-                      <button type="button" onClick={() => setShowDrafts(false)} className="text-muted-foreground hover:text-foreground">
-                        <ArrowLeft className="h-3 w-3" />
-                      </button>
-                      <span className="text-xs text-muted-foreground font-medium">임시저장 목록</span>
-                    </div>
-                    {drafts.map((d) => (
-                      <div key={d.id} className="group flex items-center justify-between px-3 py-2 hover:bg-accent cursor-pointer" onClick={() => handleLoadDraft(d)}>
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">{d.title || "(제목 없음)"}</p>
-                          <p className="text-xs text-muted-foreground">{new Date(d.savedAt).toLocaleDateString("ko")}</p>
-                        </div>
-                        <button
-                          type="button"
-                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive p-0.5"
-                          onClick={(e) => { e.stopPropagation(); handleDeleteDraft(d.id); }}
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : <div />}
-            <div className="flex gap-2">
-              {!event && (
-                <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={!title.trim()}>
-                  임시저장
-                </Button>
-              )}
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                취소
-              </Button>
-              <Button type="submit" disabled={!title.trim() || !startDate || saving}>
-                {saving ? "저장 중..." : "저장"}
-              </Button>
-            </div>
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              취소
+            </Button>
+            <Button type="submit" disabled={!title.trim() || !startDate || saving}>
+              {saving ? "저장 중..." : "저장"}
+            </Button>
           </div>
         </form>
       </DialogContent>
