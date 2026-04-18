@@ -55,8 +55,8 @@ export function useTravelItems(visibleUserIds?: string[]) {
       .from("travel_items")
       .insert({ ...item, user_id: userId });
     if (error) {
-      const { month, color, visited_dates, place_name, address, lat, lng, ...rest } = item;
-      void month; void color; void visited_dates; void place_name; void address; void lat; void lng;
+      const { month, color, visited_dates, place_name, address, lat, lng, places, ...rest } = item;
+      void month; void color; void visited_dates; void place_name; void address; void lat; void lng; void places;
       const { error: retry } = await supabase.from("travel_items").insert(rest);
       if (!retry) await fetchItems();
       return { error: retry };

@@ -48,6 +48,14 @@ export default function NaverMap({
       mapRef.current = new naver.maps.Map(containerRef.current, {
         center: position,
         zoom,
+        zoomControl: true,
+        zoomControlOptions: {
+          position: naver.maps.Position.TOP_RIGHT,
+          style: naver.maps.ZoomControlStyle.SMALL,
+        },
+        scaleControl: false,
+        mapDataControl: false,
+        logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
       });
       markerRef.current = new naver.maps.Marker({
         position,
@@ -67,6 +75,14 @@ export default function NaverMap({
     mapRef.current = new naver.maps.Map(containerRef.current, {
       center: position,
       zoom,
+      zoomControl: true,
+      zoomControlOptions: {
+        position: naver.maps.Position.TOP_RIGHT,
+        style: naver.maps.ZoomControlStyle.SMALL,
+      },
+      scaleControl: false,
+      mapDataControl: false,
+      logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
     });
     markerRef.current = new naver.maps.Marker({
       position,

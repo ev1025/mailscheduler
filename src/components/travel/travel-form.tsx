@@ -19,12 +19,11 @@ import {
 } from "@/components/ui/select";
 import TagInput from "@/components/ui/tag-input";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
-import PlaceSearchDialog, { type PickedPlace } from "@/components/travel/place-search-dialog";
-import StaticMap from "@/components/travel/static-map";
-import { X, MapPin, Search as SearchIcon, ExternalLink } from "lucide-react";
+import NaverMap from "@/components/travel/naver-map";
+import { X, MapPin, Search as SearchIcon, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { useTravelCategories, BUILTIN_TRAVEL_CATEGORIES } from "@/hooks/use-travel-categories";
-import type { TravelItem, TravelCategory, TravelTag, EventTag } from "@/types";
+import type { TravelItem, TravelCategory, TravelTag, EventTag, PlaceInfo } from "@/types";
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
@@ -54,12 +53,14 @@ export default function TravelForm({
   const [title, setTitle] = useState("");
   const [color, setColor] = useState("#3B82F6");
   const [region, setRegion] = useState("");
-  // 위치(장소) 정보
-  const [placeName, setPlaceName] = useState<string | null>(null);
-  const [address, setAddress] = useState<string | null>(null);
-  const [lat, setLat] = useState<number | null>(null);
-  const [lng, setLng] = useState<number | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
+  // 여러 위치 태그
+  const [places, setPlaces] = useState<PlaceInfo[]>([]);
+  // 입력창 검색 상태
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [placeResults, setPlaceResults] = useState<PlaceInfo[]>([]);
+  const [placeLoading, setPlaceLoading] = useState(false);
+  // 카드별 지도 토글 (index → open)
+  const [mapOpen, setMapOpen] = useState<Record<number, boolean>>({});
   // 미선택 상태(빈 문자열) — 사용자가 분류를 직접 골라야 저장 가능
   const [category, setCategory] = useState<TravelCategory | "">("");
   const [month, setMonth] = useState<number | null>(null);
@@ -79,10 +80,20 @@ export default function TravelForm({
       setSelectedTags(item.tag ? item.tag.split(",") : []);
       setNotes(item.notes || "");
       setVisited(item.visited);
-      setPlaceName(item.place_name ?? null);
-      setAddress(item.address ?? null);
-      setLat(item.lat ?? null);
-      setLng(item.lng ?? null);
+      // places 우선 사용. 구버전 단일 place_name 만 있는 행은 마이그레이션된 상태를
+      // places[0] 으로 읽도록 DB SQL 에서 처리했지만, 안전하게 클라에서도 fallback.
+      if (item.places && item.places.length > 0) {
+        setPlaces(item.places);
+      } else if (item.place_name && item.lat != null && item.lng != null) {
+        setPlaces([{
+          name: item.place_name,
+          address: item.address ?? "",
+          lat: item.lat,
+          lng: item.lng,
+        }]);
+      } else {
+        setPlaces([]);
+      }
     } else {
       setTitle("");
       setColor("#3B82F6");
@@ -92,18 +103,60 @@ export default function TravelForm({
       setSelectedTags([]);
       setNotes("");
       setVisited(false);
-      setPlaceName(null);
-      setAddress(null);
-      setLat(null);
-      setLng(null);
+      setPlaces([]);
     }
+    setPlaceQuery("");
+    setPlaceResults([]);
+    setMapOpen({});
   }, [item, open]);
+
+  // 위치 검색 — 350ms 디바운스
+  useEffect(() => {
+    const q = placeQuery.trim();
+    if (!q) {
+      setPlaceResults([]);
+      setPlaceLoading(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setPlaceLoading(true);
+      try {
+        const res = await fetch(`/api/naver/search?q=${encodeURIComponent(q)}`);
+        const json = await res.json();
+        if (cancelled) return;
+        if (!res.ok) {
+          setPlaceResults([]);
+          return;
+        }
+        // 서버 응답을 PlaceInfo 형태로 정규화
+        const items = (json.items ?? []).map((it: { name: string; roadAddress: string; address: string; lat: number; lng: number }) => ({
+          name: it.name,
+          address: it.roadAddress || it.address,
+          lat: it.lat,
+          lng: it.lng,
+        }));
+        setPlaceResults(items);
+      } catch {
+        if (!cancelled) setPlaceResults([]);
+      } finally {
+        if (!cancelled) setPlaceLoading(false);
+      }
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [placeQuery]);
 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !category) return;
     setSaving(true);
+    // 호환 — 기존 단일 컬럼에도 places[0] 값을 같이 써둔다 (travel-list 등 아직
+    // 단일 값만 보는 뷰 대비).
+    const first = places[0] ?? null;
     const { error } = await onSave({
       title: title.trim(),
       in_season: false,
@@ -120,10 +173,11 @@ export default function TravelForm({
       rating: null,
       couple_notes: null,
       cover_image_url: null,
-      place_name: placeName,
-      address,
-      lat,
-      lng,
+      place_name: first?.name ?? null,
+      address: first?.address ?? null,
+      lat: first?.lat ?? null,
+      lng: first?.lng ?? null,
+      places,
     });
     setSaving(false);
     if (error) {
@@ -196,66 +250,107 @@ export default function TravelForm({
             </div>
           </div>
 
-          {/* 위치 — 네이버 지도 검색으로 정확한 장소·좌표 저장 */}
+          {/* 위치 — 네이버 지도 검색 인라인 드롭다운 · 다중 태그 */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">위치</Label>
-            {placeName && lat != null && lng != null ? (
-              <div className="flex flex-col gap-2 rounded-md border p-2">
-                <div className="flex items-start gap-2">
-                  <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{placeName}</div>
-                    {address && (
-                      <div className="text-xs text-muted-foreground truncate">{address}</div>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setPlaceName(null); setAddress(null); setLat(null); setLng(null); }}
-                    className="text-muted-foreground hover:text-destructive shrink-0"
-                    aria-label="위치 제거"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+
+            {/* 검색 입력창 — 타이핑하면 아래에 결과 드롭다운 */}
+            <div className="relative">
+              <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={placeQuery}
+                onChange={(e) => setPlaceQuery(e.target.value)}
+                placeholder="장소명·지역 (예: 대전역, 애월 카페)"
+                className="pl-8 h-8 text-xs"
+              />
+              {placeQuery.trim() && (placeLoading || placeResults.length > 0) && (
+                <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg">
+                  {placeLoading ? (
+                    <p className="p-3 text-xs text-muted-foreground text-center">검색 중…</p>
+                  ) : (
+                    <ul className="divide-y">
+                      {placeResults.map((p, i) => (
+                        <li key={i}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // 중복(같은 lat/lng) 방지
+                              if (!places.some((x) => x.lat === p.lat && x.lng === p.lng)) {
+                                setPlaces([...places, p]);
+                              }
+                              setPlaceQuery("");
+                              setPlaceResults([]);
+                            }}
+                            className="w-full flex items-start gap-2 px-3 py-2 text-left hover:bg-accent/50 transition-colors"
+                          >
+                            <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{p.name}</div>
+                              <div className="text-xs text-muted-foreground truncate">{p.address}</div>
+                            </div>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <StaticMap lat={lat} lng={lng} width={320} height={110} className="flex-1" />
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSearchOpen(true)}
-                    className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1"
-                  >
-                    <SearchIcon className="h-3 w-3" /> 다시 검색
-                  </button>
-                  <a
-                    href={`https://map.naver.com/p/search/${encodeURIComponent(placeName)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1 ml-auto"
-                  >
-                    네이버지도 <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Input
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  placeholder="장소명·지역 (예: 진해, 해운대)"
-                  className="h-8 flex-1 text-xs"
-                />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="h-8 text-xs shrink-0"
-                  onClick={() => setSearchOpen(true)}
-                >
-                  <SearchIcon className="h-3 w-3 mr-1" /> 지도에서
-                </Button>
+              )}
+            </div>
+
+            {/* 선택된 장소 카드 리스트 — 각각 접힘 상태. 토글하면 지도 표시 */}
+            {places.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {places.map((p, idx) => {
+                  const isOpen = mapOpen[idx];
+                  return (
+                    <div key={`${p.lat}-${p.lng}-${idx}`} className="flex flex-col gap-2 rounded-md border p-2">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{p.name}</div>
+                          <div className="text-xs text-muted-foreground truncate">{p.address}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlaces(places.filter((_, i) => i !== idx));
+                            setMapOpen((prev) => {
+                              const next = { ...prev };
+                              delete next[idx];
+                              return next;
+                            });
+                          }}
+                          className="text-muted-foreground hover:text-destructive shrink-0"
+                          aria-label="위치 제거"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setMapOpen((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                        >
+                          {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                          지도 {isOpen ? "접기" : "보기"}
+                        </button>
+                        <a
+                          href={`https://map.naver.com/p/search/${encodeURIComponent(p.name)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-blue-600 hover:underline inline-flex items-center gap-1 ml-auto"
+                        >
+                          네이버지도 <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
+                      {/* 접혀있으면 NaverMap 자체를 마운트하지 않음 (SDK 성능) */}
+                      {isOpen && (
+                        <NaverMap lat={p.lat} lng={p.lng} height={220} zoom={16} />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -356,23 +451,6 @@ export default function TravelForm({
         </form>
       </DialogContent>
 
-      {/* 네이버 지도 장소 검색 */}
-      <PlaceSearchDialog
-        open={searchOpen}
-        onOpenChange={setSearchOpen}
-        initialQuery={region || title}
-        onPick={(p: PickedPlace) => {
-          setPlaceName(p.name);
-          setAddress(p.address);
-          setLat(p.lat);
-          setLng(p.lng);
-          // region 이 비어있었으면 자동 채움 (첫 단어)
-          if (!region.trim()) {
-            const short = p.address.split(/\s+/).slice(0, 2).join(" ");
-            setRegion(short);
-          }
-        }}
-      />
     </Dialog>
   );
 }

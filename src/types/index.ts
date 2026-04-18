@@ -129,13 +129,22 @@ export interface TravelItem {
   rating: number | null;
   couple_notes: string | null;
   cover_image_url: string | null;
-  // 위치(장소) 정보 — 네이버 지도 연동으로 채워짐
+  // (구) 단일 위치 — 호환을 위해 유지, 새 코드에선 places 사용
   place_name: string | null;
   address: string | null;
   lat: number | null;
   lng: number | null;
+  // 여러 위치 태그 — 네이버 지도 검색으로 채움
+  places: PlaceInfo[];
   created_at: string;
   updated_at: string;
+}
+
+export interface PlaceInfo {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
 }
 
 export interface TravelTag {
