@@ -281,7 +281,7 @@ export default function EventForm({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="일정 제목 *"
-            className="h-9"
+            className="h-9 text-sm"
             autoFocus
           />
 
@@ -387,7 +387,7 @@ export default function EventForm({
 
           {/* 태그 */}
           <div className="flex flex-col gap-1.5">
-            <Label>태그</Label>
+            <Label className="text-xs text-muted-foreground">태그</Label>
             <TagInput
               selectedTags={selectedTags}
               allTags={tags}
@@ -401,13 +401,14 @@ export default function EventForm({
 
           {/* 설명 */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="event-desc">설명</Label>
+            <Label htmlFor="event-desc" className="text-xs text-muted-foreground">설명</Label>
             <Textarea
               id="event-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="일정 설명"
               rows={3}
+              className="text-xs"
             />
           </div>
 

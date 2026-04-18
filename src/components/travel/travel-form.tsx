@@ -123,7 +123,7 @@ export default function TravelForm({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="제목 (예: 진해 군항제)"
-            className="h-9"
+            className="h-9 text-sm"
             autoFocus
           />
 
@@ -141,7 +141,7 @@ export default function TravelForm({
                 value={month != null ? String(month) : "none"}
                 onValueChange={(v) => setMonth(!v || v === "none" ? null : parseInt(v))}
               >
-                <SelectTrigger className="h-8 w-full">
+                <SelectTrigger className="h-8 w-full text-xs">
                   {month != null ? `${month}월` : <span className="text-muted-foreground">-</span>}
                 </SelectTrigger>
                 <SelectContent className="min-w-0">
@@ -158,7 +158,7 @@ export default function TravelForm({
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
                 placeholder="지역"
-                className="h-8 w-full"
+                className="h-8 w-full text-xs"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -216,7 +216,7 @@ export default function TravelForm({
           {/* 여행 내용 */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">여행 내용</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="여행 관련 메모" rows={4} />
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="여행 관련 메모" rows={4} className="text-xs" />
           </div>
 
           {/* 가본 날 (캘린더 추가 이력) */}
