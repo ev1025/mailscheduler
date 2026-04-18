@@ -68,5 +68,26 @@ export function useTravelCategories() {
     return { error: null };
   }, []);
 
-  return { categories, colors, addCategory, deleteCategory, updateCategoryColor };
+  const updateCategoryName = useCallback(async (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return { error: "empty" };
+    if (trimmed === id) return { error: null };
+    if (BUILTIN.includes(id)) return { error: "builtin" };
+    setCustom((prev) => {
+      if (!prev.includes(id)) return prev;
+      const next = prev.map((c) => (c === id ? trimmed : c));
+      writeLocalJSON(CUSTOM_KEY, next);
+      return next;
+    });
+    setColors((prev) => {
+      if (!(id in prev)) return prev;
+      const { [id]: color, ...rest } = prev;
+      const next = { ...rest, [trimmed]: color };
+      writeLocalJSON(COLOR_KEY, next);
+      return next;
+    });
+    return { error: null };
+  }, []);
+
+  return { categories, colors, addCategory, deleteCategory, updateCategoryColor, updateCategoryName };
 }

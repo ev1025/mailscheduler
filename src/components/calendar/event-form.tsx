@@ -115,6 +115,7 @@ interface EventFormProps {
   onAddTag?: (name: string, color: string) => Promise<{ error: unknown }>;
   onDeleteTag?: (id: string) => Promise<{ error: unknown }>;
   onUpdateTagColor?: (id: string, color: string) => Promise<{ error: unknown }>;
+  onRenameTag?: (id: string, name: string) => Promise<{ error: unknown }>;
   weatherMap?: Record<string, import("@/types").WeatherData>;
   onSave: (data: Omit<CalendarEvent, "id" | "created_at">, repeatCount?: number) => Promise<{ error: unknown }>;
   onBack?: () => void;
@@ -129,6 +130,7 @@ export default function EventForm({
   onAddTag,
   onDeleteTag,
   onUpdateTagColor,
+  onRenameTag,
   weatherMap,
   onSave,
   onBack,
@@ -395,6 +397,7 @@ export default function EventForm({
               onAddTag={onAddTag}
               onDeleteTag={onDeleteTag}
               onUpdateTagColor={onUpdateTagColor}
+              onRenameTag={onRenameTag}
             />
           </div>
 

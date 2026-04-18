@@ -110,7 +110,7 @@ function CalendarPageInner() {
     | null
   >(null);
   const { weatherMap } = useWeather(year, month);
-  const { tags, addTag, deleteTag, updateTagColor } = useEventTags();
+  const { tags, addTag, deleteTag, updateTagColor, updateTagName } = useEventTags();
 
   const handleSave = async (data: Omit<CalendarEvent, "id" | "created_at">, repeatCount?: number) => {
     if (editing) {
@@ -447,6 +447,7 @@ function CalendarPageInner() {
         onAddTag={addTag}
         onDeleteTag={deleteTag}
         onUpdateTagColor={updateTagColor}
+        onRenameTag={updateTagName}
         weatherMap={weatherMap}
         onSave={handleSave}
         onBack={() => {

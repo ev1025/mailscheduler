@@ -52,5 +52,13 @@ export function useEventTags() {
     return { error };
   };
 
-  return { tags, addTag, deleteTag, updateTagColor, refetch: fetchTags };
+  const updateTagName = async (id: string, name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return { error: "empty" };
+    const { error } = await supabase.from("event_tags").update({ name: trimmed }).eq("id", id);
+    if (!error) await fetchTags();
+    return { error };
+  };
+
+  return { tags, addTag, deleteTag, updateTagColor, updateTagName, refetch: fetchTags };
 }

@@ -181,7 +181,7 @@ interface TravelListProps {
 export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTagToCalendar, onDeleteCalendarEventsByTitleDate, visibleUserIds }: TravelListProps = {}) {
   const { items, addItem, updateItem, deleteItem, toggleVisited } = useTravelItems(visibleUserIds);
   const { tags, addTag, deleteTag, updateTagColor } = useTravelTags();
-  const { tags: eventTags, addTag: addEventTag, deleteTag: deleteEventTag, updateTagColor: updateEventTagColor, refetch: refetchEventTags } = useEventTags();
+  const { tags: eventTags, addTag: addEventTag, deleteTag: deleteEventTag, updateTagColor: updateEventTagColor, updateTagName: updateEventTagName, refetch: refetchEventTags } = useEventTags();
 
   const [search, setSearch] = useState("");
   const [showVisited, setShowVisited] = useState(() => {
@@ -573,6 +573,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
         onAddEventTag={addEventTag}
         onDeleteEventTag={deleteEventTag}
         onUpdateEventTagColor={updateEventTagColor}
+        onRenameEventTag={updateEventTagName}
         onNavigateToMonth={onNavigateToMonth}
         onRemoveVisitedDate={handleRemoveVisitedDate}
         onSave={async (data) => {

@@ -8,7 +8,7 @@ import {
   SheetContent,
 } from "@/components/ui/sheet";
 import ColorPickerPanel from "@/components/ui/color-picker";
-import { Plus, X, Search, MoreHorizontal, ArrowLeft, Trash2 } from "lucide-react";
+import { Plus, X, Search, MoreHorizontal, ArrowLeft, Trash2, Palette } from "lucide-react";
 
 interface TagDef {
   id: string;
@@ -23,6 +23,7 @@ interface TagInputProps {
   onAddTag?: (name: string, color: string) => Promise<{ error: unknown }>;
   onDeleteTag?: (id: string) => Promise<{ error: unknown }>;
   onUpdateTagColor?: (id: string, color: string) => Promise<{ error: unknown }>;
+  onRenameTag?: (id: string, name: string) => Promise<{ error: unknown }>;
   placeholder?: string;
 }
 
@@ -52,6 +53,7 @@ export default function TagInput({
   onAddTag,
   onDeleteTag,
   onUpdateTagColor,
+  onRenameTag,
   placeholder = "검색",
 }: TagInputProps) {
   const [open, setOpen] = useState(false);
@@ -97,11 +99,27 @@ export default function TagInput({
 
   const saveEdit = async () => {
     if (!editingTag) { exitEdit(); return; }
+    // 색상 변경
     if (editColor && editColor !== editingTag.color && onUpdateTagColor) {
       await onUpdateTagColor(editingTag.id, editColor);
     }
-    // 이름 변경은 현재 onUpdateTagColor 외 API가 없어서 이름만 바꾸는 건 생략
-    // (색상만 변경 지원)
+    // 이름 변경 (공백/동일명은 스킵)
+    const trimmedName = editName.trim();
+    if (
+      trimmedName &&
+      trimmedName !== editingTag.name &&
+      onRenameTag
+    ) {
+      const { error } = await onRenameTag(editingTag.id, trimmedName);
+      if (!error) {
+        // 선택된 태그 목록에 구 이름이 있으면 새 이름으로 치환
+        if (selectedTags.includes(editingTag.name)) {
+          onChange(
+            selectedTags.map((n) => (n === editingTag.name ? trimmedName : n))
+          );
+        }
+      }
+    }
     exitEdit();
   };
 
@@ -206,17 +224,20 @@ export default function TagInput({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="bottom"
-          className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden transition-[height] duration-200 ease-out"
+          className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden transition-[height] duration-200 ease-out z-[60]"
           style={{ height: snap === "full" ? "95dvh" : "50dvh" }}
           showBackButton={false}
           showCloseButton={false}
+          initialFocus={false}
+          finalFocus={false}
         >
           {view === "list" ? (
             <div className="flex flex-col h-full">
               {/* 드래그 영역 — 핸들 + 제목까지 모두 드래그 가능
-                  (반만 올라와있을 때 핸들 아닌데 눌러도 끌 수 있도록) */}
+                  (반만 올라와있을 때 핸들 아닌데 눌러도 끌 수 있도록)
+                  핸들/제목 크기 키움 → 터치 면적↑ */}
               <div
-                className="flex flex-col items-center pt-2 pb-2 cursor-grab active:cursor-grabbing touch-none shrink-0"
+                className="flex flex-col items-center pt-3 pb-2 cursor-grab active:cursor-grabbing touch-none shrink-0"
                 onTouchStart={onDragStart}
                 onTouchEnd={onDragEnd}
                 onPointerDown={(e) => {
@@ -226,8 +247,8 @@ export default function TagInput({
                   if (e.pointerType !== "touch") onDragEnd(e);
                 }}
               >
-                <div className="h-1 w-10 rounded-full bg-muted-foreground/30 mb-2" />
-                <div className="text-sm font-medium text-center">
+                <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
+                <div className="text-base font-semibold text-center">
                   {placeholder === "검색" ? "태그" : placeholder}
                 </div>
               </div>
@@ -286,12 +307,14 @@ export default function TagInput({
 
                 <div className="text-xs text-muted-foreground">옵션 선택 또는 생성</div>
 
-                {/* 리스트 — 각 행에 '...' 버튼만 */}
+                {/* 리스트 — 각 행에 '...' 버튼만.
+                    onMouseDown preventDefault로 input 포커스 유지 → 키보드 깜박임 방지 */}
                 <div className="flex flex-col overflow-y-auto flex-1 -mx-1 px-1">
                   {filtered.map((t) => (
                     <div
                       key={t.id}
                       className="flex items-center justify-between px-2 py-2 hover:bg-accent rounded cursor-pointer"
+                      onMouseDown={(e) => { if (document.activeElement === inputRef.current) e.preventDefault(); }}
                       onClick={() => { toggleTag(t.name); setNewTagName(""); }}
                     >
                       <Badge
@@ -302,6 +325,7 @@ export default function TagInput({
                       </Badge>
                       <button
                         type="button"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={(e) => { e.stopPropagation(); enterEdit(t); }}
                         className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50"
                         aria-label={`${t.name} 편집`}
@@ -313,6 +337,7 @@ export default function TagInput({
                   {newTagName.trim() && !allTags.some((t) => t.name === newTagName.trim()) && onAddTag && (
                     <div
                       className="flex items-center gap-2 px-2 py-2 hover:bg-accent rounded cursor-pointer text-sm text-muted-foreground"
+                      onMouseDown={(e) => { if (document.activeElement === inputRef.current) e.preventDefault(); }}
                       onClick={handleAdd}
                     >
                       <Plus className="h-3.5 w-3.5" />
@@ -407,7 +432,7 @@ export default function TagInput({
                     <button
                       type="button"
                       onClick={() => setShowColorPicker((s) => !s)}
-                      className={`h-7 w-7 rounded-full transition-all ${
+                      className={`h-7 w-7 rounded-full transition-all flex items-center justify-center relative ${
                         showColorPicker ? "ring-2 ring-offset-2 ring-primary" : "hover:scale-110"
                       }`}
                       style={{
@@ -416,7 +441,10 @@ export default function TagInput({
                           : editColor,
                       }}
                       aria-label="커스텀 색상"
-                    />
+                      title="컬러피커"
+                    >
+                      <Palette className="h-3.5 w-3.5 text-white drop-shadow" />
+                    </button>
                   </div>
                   {showColorPicker && (
                     <div className="rounded-md border p-3 mt-1">

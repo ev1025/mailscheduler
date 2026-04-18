@@ -38,15 +38,16 @@ interface TravelFormProps {
   onAddEventTag?: (name: string, color: string) => Promise<{ error: unknown }>;
   onDeleteEventTag?: (id: string) => Promise<{ error: unknown }>;
   onUpdateEventTagColor?: (id: string, color: string) => Promise<{ error: unknown }>;
+  onRenameEventTag?: (id: string, name: string) => Promise<{ error: unknown }>;
   onNavigateToMonth?: (year: number, month: number) => void;
   onRemoveVisitedDate?: (itemId: string, date: string) => Promise<void>;
   onSave: (data: Omit<TravelItem, "id" | "created_at" | "updated_at">) => Promise<{ error: unknown }>;
 }
 
 export default function TravelForm({
-  open, onOpenChange, item, eventTags = [], onAddEventTag, onDeleteEventTag, onUpdateEventTagColor, onNavigateToMonth, onRemoveVisitedDate, onSave,
+  open, onOpenChange, item, eventTags = [], onAddEventTag, onDeleteEventTag, onUpdateEventTagColor, onRenameEventTag, onNavigateToMonth, onRemoveVisitedDate, onSave,
 }: TravelFormProps) {
-  const { categories: midCategories, colors: categoryColors, addCategory, deleteCategory, updateCategoryColor } = useTravelCategories();
+  const { categories: midCategories, colors: categoryColors, addCategory, deleteCategory, updateCategoryColor, updateCategoryName } = useTravelCategories();
 
   const [title, setTitle] = useState("");
   const [color, setColor] = useState("#3B82F6");
@@ -184,33 +185,37 @@ export default function TravelForm({
             </div>
           </div>
 
-          {/* 분류 / 태그 (2열) */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">분류</Label>
-              <TagInput
-                selectedTags={[category]}
-                allTags={midCategories.map((c) => ({ id: c, name: c, color: categoryColors[c] || "#6B7280" }))}
-                onChange={(next) => {
-                  const picked = next.find((t) => t !== category);
-                  if (picked) setCategory(picked as TravelCategory);
-                }}
-                onAddTag={addCategory}
-                onDeleteTag={deleteCategory}
-                onUpdateTagColor={updateCategoryColor}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">태그</Label>
-              <TagInput
-                selectedTags={selectedTags}
-                allTags={eventTags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
-                onChange={setSelectedTags}
-                onAddTag={onAddEventTag}
-                onDeleteTag={onDeleteEventTag}
-                onUpdateTagColor={onUpdateEventTagColor}
-              />
-            </div>
+          {/* 분류 */}
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">분류</Label>
+            <TagInput
+              selectedTags={[category]}
+              allTags={midCategories.map((c) => ({ id: c, name: c, color: categoryColors[c] || "#6B7280" }))}
+              onChange={(next) => {
+                const picked = next.find((t) => t !== category);
+                if (picked) setCategory(picked as TravelCategory);
+              }}
+              onAddTag={addCategory}
+              onDeleteTag={deleteCategory}
+              onUpdateTagColor={updateCategoryColor}
+              onRenameTag={updateCategoryName}
+              placeholder="분류"
+            />
+          </div>
+
+          {/* 태그 */}
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">태그</Label>
+            <TagInput
+              selectedTags={selectedTags}
+              allTags={eventTags.map((t) => ({ id: t.id, name: t.name, color: t.color }))}
+              onChange={setSelectedTags}
+              onAddTag={onAddEventTag}
+              onDeleteTag={onDeleteEventTag}
+              onUpdateTagColor={onUpdateEventTagColor}
+              onRenameTag={onRenameEventTag}
+              placeholder="태그"
+            />
           </div>
 
           {/* 여행 내용 */}
