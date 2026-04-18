@@ -36,7 +36,8 @@ export async function GET(req: NextRequest) {
     markers: `type:d|size:mid|color:${color}|pos:${lng} ${lat}`,
   });
 
-  const url = `https://naveropenapi.apigw.ntruss.com/map-static/v2/raster?${params.toString()}`;
+  // NCP Maps 신규 엔드포인트 (2024~ 리뉴얼). 구 naveropenapi.apigw.ntruss.com 은 권한 거부됨.
+  const url = `https://maps.apigw.ntruss.com/map-static/v2/raster?${params.toString()}`;
 
   const res = await fetch(url, {
     headers: {
