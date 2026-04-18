@@ -85,7 +85,9 @@ export default function NaverMap({
   return (
     <>
       <Script
-        src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${CLIENT_ID}`}
+        // NCP Maps 2024~ 개편 후 신규 키는 ncpKeyId 파라미터로 인증해야 함.
+        // 구 ncpClientId 는 신규 발급 키에 대해 "Open API 인증 실패" 반환.
+        src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`}
         strategy="afterInteractive"
       />
       <div
