@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +9,22 @@ import {
 } from "@/components/ui/sheet";
 import ColorPickerPanel from "@/components/ui/color-picker";
 import { Plus, X, Search, MoreHorizontal, ArrowLeft, Trash2 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface TagDef {
   id: string;
@@ -26,7 +42,71 @@ interface TagInputProps {
   onRenameTag?: (id: string, name: string) => Promise<{ error: unknown }>;
   /** 삭제·이름변경 불가 기본 태그 id 목록 (편집 패널에서 해당 버튼 숨김) */
   builtinIds?: string[];
+  /** 순서 저장 localStorage 키 (예: "tag-order:event-tags"). 지정 시 꾹눌러서 드래그로 재정렬 가능 */
+  orderKey?: string;
   placeholder?: string;
+}
+
+function SortableTagRow({
+  tag,
+  isInputFocused,
+  onSelect,
+  onEdit,
+}: {
+  tag: TagDef;
+  isInputFocused: () => boolean;
+  onSelect: () => void;
+  onEdit: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: tag.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="flex items-center justify-between px-2 py-2 hover:bg-accent rounded cursor-grab active:cursor-grabbing touch-none"
+      onMouseDown={(e) => { if (isInputFocused()) e.preventDefault(); }}
+      onClick={onSelect}
+    >
+      <Badge
+        className="text-xs px-1.5 py-0"
+        style={{ backgroundColor: tag.color + "20", color: tag.color, borderColor: tag.color + "40" }}
+      >
+        {tag.name}
+      </Badge>
+      <button
+        type="button"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={(e) => { e.stopPropagation(); onEdit(); }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50"
+        aria-label={`${tag.name} 편집`}
+      >
+        <MoreHorizontal className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+function loadTagOrder(key?: string): string[] {
+  if (!key || typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveTagOrder(key: string, ids: string[]) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(key, JSON.stringify(ids)); } catch {}
 }
 
 const TAG_COLORS = [
@@ -57,9 +137,43 @@ export default function TagInput({
   onUpdateTagColor,
   onRenameTag,
   builtinIds,
+  orderKey,
   placeholder = "검색",
 }: TagInputProps) {
   const isBuiltin = (id: string) => !!builtinIds?.includes(id);
+
+  // ── 꾹누르고 드래그해서 태그 순서 변경 ─────────────────────
+  const [orderVersion, setOrderVersion] = useState(0);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 400, tolerance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 400, tolerance: 5 } })
+  );
+  // 저장된 순서 + 새로 추가된 태그(순서에 없는 것)를 뒤에 붙여 표시
+  const sortedTags = useMemo(() => {
+    if (!orderKey) return allTags;
+    const savedIds = loadTagOrder(orderKey);
+    if (savedIds.length === 0) return allTags;
+    const byId = new Map(allTags.map((t) => [t.id, t]));
+    const sorted: TagDef[] = [];
+    for (const id of savedIds) {
+      const t = byId.get(id);
+      if (t) { sorted.push(t); byId.delete(id); }
+    }
+    sorted.push(...Array.from(byId.values()));
+    return sorted;
+    // orderVersion으로 순서 변경 시 재계산 유도
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTags, orderKey, orderVersion]);
+
+  const handleDragEnd = (e: DragEndEvent) => {
+    if (!orderKey || !e.over || e.active.id === e.over.id) return;
+    const oldIdx = sortedTags.findIndex((t) => t.id === e.active.id);
+    const newIdx = sortedTags.findIndex((t) => t.id === e.over!.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(sortedTags, oldIdx, newIdx);
+    saveTagOrder(orderKey, reordered.map((t) => t.id));
+    setOrderVersion((v) => v + 1);
+  };
   const [open, setOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -176,9 +290,11 @@ export default function TagInput({
     }
   };
 
-  const filtered = allTags.filter(
+  const filtered = sortedTags.filter(
     (t) => !newTagName.trim() || t.name.toLowerCase().includes(newTagName.trim().toLowerCase())
   );
+  // 검색 중일 때는 드래그 순서 변경 비활성화 (의미가 없고 혼란 방지)
+  const dragEnabled = !!orderKey && !newTagName.trim();
 
   // ── 드래그: half ↔ full, 아래로 크게 끌면 close ──────────────
   const dragStartY = useRef<number | null>(null);
@@ -275,10 +391,10 @@ export default function TagInput({
 
               <div className="flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0">
                 {/* 입력창 — 선택된 칩 인라인 + 텍스트 input.
-                    autoFocus 없음. 입력 영역 탭해야 키보드 뜸 */}
+                    컨테이너에 onClick-focus 없음: input 요소 자체를 직접 탭해야만
+                    포커스(키보드). 칩이나 주변 공간 탭은 어떤 포커스 변화도 안 일으킴 */}
                 <div
-                  className="rounded-md border px-2 py-1.5 flex flex-wrap items-center gap-1 min-h-[40px] cursor-text"
-                  onClick={() => inputRef.current?.focus()}
+                  className="rounded-md border px-2 py-1.5 flex flex-wrap items-center gap-1 min-h-[40px]"
                 >
                   {selectedTags.map((name) => {
                     const t = allTags.find((x) => x.name === name);
@@ -327,33 +443,49 @@ export default function TagInput({
 
                 <div className="text-xs text-muted-foreground">옵션 선택 또는 생성</div>
 
-                {/* 리스트 — 각 행에 '...' 버튼만.
+                {/* 리스트 — 꾹누르고 드래그로 순서 변경 (400ms delay).
                     onMouseDown preventDefault로 input 포커스 유지 → 키보드 깜박임 방지 */}
                 <div className="flex flex-col overflow-y-auto flex-1 -mx-1 px-1">
-                  {filtered.map((t) => (
-                    <div
-                      key={t.id}
-                      className="flex items-center justify-between px-2 py-2 hover:bg-accent rounded cursor-pointer"
-                      onMouseDown={(e) => { if (document.activeElement === inputRef.current) e.preventDefault(); }}
-                      onClick={() => { toggleTag(t.name); setNewTagName(""); }}
-                    >
-                      <Badge
-                        className="text-xs px-1.5 py-0"
-                        style={{ backgroundColor: t.color + "20", color: t.color, borderColor: t.color + "40" }}
+                  {dragEnabled ? (
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                      <SortableContext items={filtered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+                        {filtered.map((t) => (
+                          <SortableTagRow
+                            key={t.id}
+                            tag={t}
+                            isInputFocused={() => document.activeElement === inputRef.current}
+                            onSelect={() => { toggleTag(t.name); setNewTagName(""); }}
+                            onEdit={() => enterEdit(t)}
+                          />
+                        ))}
+                      </SortableContext>
+                    </DndContext>
+                  ) : (
+                    filtered.map((t) => (
+                      <div
+                        key={t.id}
+                        className="flex items-center justify-between px-2 py-2 hover:bg-accent rounded cursor-pointer"
+                        onMouseDown={(e) => { if (document.activeElement === inputRef.current) e.preventDefault(); }}
+                        onClick={() => { toggleTag(t.name); setNewTagName(""); }}
                       >
-                        {t.name}
-                      </Badge>
-                      <button
-                        type="button"
-                        onMouseDown={(e) => e.preventDefault()}
-                        onClick={(e) => { e.stopPropagation(); enterEdit(t); }}
-                        className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                        aria-label={`${t.name} 편집`}
-                      >
-                        <MoreHorizontal className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                        <Badge
+                          className="text-xs px-1.5 py-0"
+                          style={{ backgroundColor: t.color + "20", color: t.color, borderColor: t.color + "40" }}
+                        >
+                          {t.name}
+                        </Badge>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={(e) => { e.stopPropagation(); enterEdit(t); }}
+                          className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent/50"
+                          aria-label={`${t.name} 편집`}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
                   {newTagName.trim() && !allTags.some((t) => t.name === newTagName.trim()) && onAddTag && (
                     <div
                       className="flex items-center gap-2 px-2 py-2 hover:bg-accent rounded cursor-pointer text-sm text-muted-foreground"
@@ -459,10 +591,12 @@ export default function TagInput({
                           ? "ring-2 ring-offset-2 ring-primary scale-110"
                           : "hover:scale-110"
                       }`}
+                      // 컬러피커 버튼 — 현재 색이 무엇이든 항상 무지개(conic gradient)로
+                      // 표시하여 "색상 선택" 역할을 명확히 드러냄.
+                      // 커스텀 색이 선택되어 있으면 ring-2로 활성 상태만 표시.
                       style={{
-                        background: PRESET_COLORS.includes(editColor)
-                          ? "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)"
-                          : editColor,
+                        background:
+                          "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)",
                       }}
                       aria-label="커스텀 색상"
                       title="컬러피커"

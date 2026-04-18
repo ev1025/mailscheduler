@@ -328,6 +328,7 @@ export default function EventForm({
               onDeleteTag={onDeleteTag}
               onUpdateTagColor={onUpdateTagColor}
               onRenameTag={onRenameTag}
+              orderKey="tag-order:event-tags"
             />
           </div>
 
