@@ -63,7 +63,11 @@ function SelectContent({
   sideOffset = 4,
   align = "center",
   alignOffset = 0,
-  alignItemWithTrigger = true,
+  // alignItemWithTrigger=true는 "선택된 항목"이 트리거 위치와 겹치도록
+  // popup을 옮긴다. 그 결과 선택값을 바꾸면 popup 위치가 새 선택값 기준으로
+  // 재계산되면서 닫히는 애니메이션 도중 popup이 왼쪽 위로 튀는 현상이 생김.
+  // 일반 드롭다운 UX(트리거 바로 아래에 고정)로 바꿈.
+  alignItemWithTrigger = false,
   ...props
 }: SelectPrimitive.Popup.Props &
   Pick<

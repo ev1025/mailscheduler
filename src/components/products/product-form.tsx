@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,13 @@ import TagInput from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import type { Product, ProductCategory } from "@/types";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import {
+  FORM_LABEL,
+  FORM_HINT,
+  FORM_INPUT_PRIMARY,
+  FORM_INPUT_COMPACT,
+  FORM_BUTTON_INLINE,
+} from "@/lib/form-classes";
 
 interface PriceEntry {
   id?: string;
@@ -64,7 +71,25 @@ export default function ProductForm({
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [fixedHelpOpen, setFixedHelpOpen] = useState(false);
+  const fixedHelpRef = useRef<HTMLDivElement>(null);
   const userId = useCurrentUserId();
+
+  // 고정비 도움말 외부 클릭 시 닫기
+  useEffect(() => {
+    if (!fixedHelpOpen) return;
+    const handler = (e: MouseEvent | TouchEvent) => {
+      if (fixedHelpRef.current && !fixedHelpRef.current.contains(e.target as Node)) {
+        setFixedHelpOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    document.addEventListener("touchstart", handler);
+    return () => {
+      document.removeEventListener("mousedown", handler);
+      document.removeEventListener("touchstart", handler);
+    };
+  }, [fixedHelpOpen]);
 
   const { tags: subTags, addTag, deleteTag, updateTagColor } = useProductSubTags(category);
   const { upsertFixedFromProduct, deleteFixedByProduct } = useFixedExpenses();
@@ -239,13 +264,13 @@ export default function ProductForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="제품명 * (예: 오메가3)"
-            className="h-9"
+            className={FORM_INPUT_PRIMARY}
           />
 
           {/* 분류 · 세부분류 — 항상 같은 행 (2열) */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1.5 min-w-0">
-              <Label className="text-xs text-muted-foreground">분류</Label>
+              <Label className={FORM_LABEL}>분류</Label>
               <TagInput
                 selectedTags={category ? [category] : []}
                 allTags={categoryTags}
@@ -257,7 +282,7 @@ export default function ProductForm({
               />
             </div>
             <div className="flex flex-col gap-1.5 min-w-0">
-              <Label className="text-xs text-muted-foreground">세부분류</Label>
+              <Label className={FORM_LABEL}>세부분류</Label>
               <TagInput
                 selectedTags={subCategory ? [subCategory] : []}
                 allTags={subTags}
@@ -272,18 +297,18 @@ export default function ProductForm({
 
           {/* 브랜드 — 별도 행 */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">브랜드</Label>
+            <Label className={FORM_LABEL}>브랜드</Label>
             <Input
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
               placeholder="브랜드명"
-              className="h-9 text-xs placeholder:text-xs"
+              className={FORM_INPUT_COMPACT}
             />
           </div>
 
           {/* 가격 입력 + 추가된 목록 */}
           <div className="flex flex-col gap-2">
-            <Label className="text-xs text-muted-foreground">가격 / 사이트</Label>
+            <Label className={FORM_LABEL}>가격 / 사이트</Label>
             <div className="flex items-center gap-1.5 min-w-0">
               <Input
                 type="number"
@@ -296,7 +321,7 @@ export default function ProductForm({
                   }
                 }}
                 placeholder="35000"
-                className="h-9 text-xs w-24 shrink-0"
+                className={`${FORM_INPUT_COMPACT} w-24 shrink-0`}
               />
               <Input
                 value={siteDraft}
@@ -308,25 +333,23 @@ export default function ProductForm({
                   }
                 }}
                 placeholder="https://..."
-                className="h-9 text-xs flex-1 min-w-0"
+                className={`${FORM_INPUT_COMPACT} flex-1 min-w-0`}
               />
               <Button
                 type="button"
-                size="sm"
                 variant={editingIdx !== null ? "default" : "outline"}
                 onClick={commitPrice}
                 disabled={!priceDraft || !(parseInt(priceDraft) > 0)}
-                className="h-9 text-xs shrink-0"
+                className={`${FORM_BUTTON_INLINE} shrink-0`}
               >
                 {editingIdx !== null ? "수정" : "추가"}
               </Button>
               {editingIdx !== null && (
                 <Button
                   type="button"
-                  size="sm"
                   variant="ghost"
                   onClick={resetDraft}
-                  className="h-9 text-xs shrink-0"
+                  className={`${FORM_BUTTON_INLINE} shrink-0`}
                 >
                   취소
                 </Button>
@@ -347,13 +370,13 @@ export default function ProductForm({
                       <li
                         key={originalIdx}
                         onClick={() => startEditPrice(originalIdx)}
-                        className={`group flex items-center gap-3 px-3 py-2 text-sm cursor-pointer transition-colors ${
+                        className={`group flex items-center gap-3 px-3 py-2 text-xs cursor-pointer transition-colors ${
                           isEditing ? "bg-primary/10" : "hover:bg-accent/40"
                         }`}
                       >
                         <span className="w-4 text-center text-yellow-500 shrink-0">
                           {isMin ? (
-                            <Crown className="h-4 w-4 inline" />
+                            <Crown className="h-3.5 w-3.5 inline" />
                           ) : null}
                         </span>
                         <span
@@ -363,7 +386,7 @@ export default function ProductForm({
                         >
                           {parseInt(p.price).toLocaleString()}원
                         </span>
-                        <span className="flex-1 min-w-0 text-xs text-muted-foreground truncate">
+                        <span className="flex-1 min-w-0 text-muted-foreground truncate">
                           {p.site_url || "—"}
                         </span>
                         <button
@@ -386,35 +409,42 @@ export default function ProductForm({
           </div>
 
           {/* 고정비 등록 체크박스 */}
-          <label className="flex items-center gap-2 cursor-pointer group">
-            <input
-              type="checkbox"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="h-4 w-4 rounded"
-            />
-            <span className="text-sm">고정비에 추가</span>
-            <span
-              className="relative text-muted-foreground"
-              title="고정비 등록 시 매월 11일 결제로 등록됩니다"
-            >
-              <HelpCircle className="h-3.5 w-3.5" />
-              {/* 아래쪽 → 위쪽으로 팝업해서 다이얼로그 밖으로 잘리지 않게 */}
-              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 rounded-md bg-foreground px-2 py-1 text-xs text-background opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg max-w-[200px] text-center">
-                고정비 등록 시 매월 11일 결제로 등록됩니다
-              </span>
-            </span>
-          </label>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="h-4 w-4 rounded"
+              />
+              <span className={FORM_HINT}>고정비에 추가</span>
+            </label>
+            {/* 도움말 — label 바깥에 별도 버튼. 클릭해도 체크박스가 토글되지 않음 */}
+            <div className="relative" ref={fixedHelpRef}>
+              <button
+                type="button"
+                onClick={() => setFixedHelpOpen((o) => !o)}
+                aria-label="도움말"
+                className="flex items-center justify-center text-muted-foreground hover:text-foreground"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+              </button>
+              {fixedHelpOpen && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-56 rounded-md bg-foreground px-2 py-1.5 text-xs text-background shadow-lg z-20 whitespace-normal text-center">
+                  고정비 등록 시 매월 11일 결제로 등록됩니다
+                </div>
+              )}
+            </div>
+          </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">
-              성분/메모
-            </Label>
+            <Label className={FORM_LABEL}>성분/메모</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder="성분, 특이사항 등"
+              className="text-xs"
             />
           </div>
 

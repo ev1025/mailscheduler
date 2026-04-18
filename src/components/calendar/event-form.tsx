@@ -30,6 +30,12 @@ import ColorPickerPanel from "@/components/ui/color-picker";
 import WeatherIcon from "./weather-icon";
 import DatePicker from "@/components/ui/date-picker";
 import TagInput from "@/components/ui/tag-input";
+import {
+  FORM_LABEL,
+  FORM_INPUT_PRIMARY,
+  FORM_INPUT_COMPACT,
+  FORM_TEXTAREA,
+} from "@/lib/form-classes";
 import type { CalendarEvent, EventTag, RepeatType } from "@/types";
 
 const COLORS = [
@@ -214,12 +220,12 @@ export default function EventForm({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="일정 제목 *"
-            className="h-9 text-sm"
+            className={FORM_INPUT_PRIMARY}
           />
 
           {/* 색상 */}
           <div className="flex items-center gap-2">
-            <Label className="w-12 shrink-0 text-xs text-muted-foreground">색상</Label>
+            <Label className={`w-12 shrink-0 ${FORM_LABEL}`}>색상</Label>
             <div className="flex items-center gap-1.5">
               {COLORS.map((c) => (
                 <button
@@ -239,14 +245,14 @@ export default function EventForm({
 
           {/* 날짜 */}
           <div className="flex items-center gap-2">
-            <Label className="w-12 shrink-0 text-xs text-muted-foreground">날짜</Label>
+            <Label className={`w-12 shrink-0 ${FORM_LABEL}`}>날짜</Label>
             <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
-              <DatePicker value={startDate} onChange={setStartDate} className="h-8 min-w-0 text-xs" />
+              <DatePicker value={startDate} onChange={setStartDate} className={`${FORM_INPUT_COMPACT} min-w-0`} />
               <span className="text-xs text-muted-foreground">~</span>
               {showEndDate ? (
-                <DatePicker value={endDate} onChange={setEndDate} min={startDate} className="h-8 min-w-0 text-xs" />
+                <DatePicker value={endDate} onChange={setEndDate} min={startDate} className={`${FORM_INPUT_COMPACT} min-w-0`} />
               ) : (
-                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-xs text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndDate(true)}>
+                <button type="button" className={`${FORM_INPUT_COMPACT} min-w-0 rounded-md border border-dashed text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1`} onClick={() => setShowEndDate(true)}>
                   종료 설정
                 </button>
               )}
@@ -262,14 +268,14 @@ export default function EventForm({
 
           {/* 시간 */}
           <div className="flex items-center gap-2">
-            <Label className="w-12 shrink-0 text-xs text-muted-foreground">시간</Label>
+            <Label className={`w-12 shrink-0 ${FORM_LABEL}`}>시간</Label>
             <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
-              <TimePicker value={startTime} onChange={setStartTime} className="h-8 min-w-0 text-xs" />
+              <TimePicker value={startTime} onChange={setStartTime} className={`${FORM_INPUT_COMPACT} min-w-0`} />
               <span className="text-xs text-muted-foreground">~</span>
               {showEndTime ? (
-                <TimePicker value={endTime} onChange={setEndTime} className="h-8 min-w-0 text-xs" />
+                <TimePicker value={endTime} onChange={setEndTime} className={`${FORM_INPUT_COMPACT} min-w-0`} />
               ) : (
-                <button type="button" className="h-8 min-w-0 rounded-md border border-dashed text-xs text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1" onClick={() => setShowEndTime(true)}>
+                <button type="button" className={`${FORM_INPUT_COMPACT} min-w-0 rounded-md border border-dashed text-muted-foreground hover:border-foreground hover:text-foreground transition-colors px-1`} onClick={() => setShowEndTime(true)}>
                   종료 설정
                 </button>
               )}
@@ -285,12 +291,12 @@ export default function EventForm({
 
           {/* 반복 — 날짜 행과 동일한 grid로 정렬 */}
           <div className="flex items-center gap-2">
-            <Label className="w-12 shrink-0 text-xs text-muted-foreground">반복</Label>
+            <Label className={`w-12 shrink-0 ${FORM_LABEL}`}>반복</Label>
             <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
               <Select value={repeat} onValueChange={(v) => {
                 if (v) setRepeat(v as RepeatType);
               }}>
-                <SelectTrigger className="h-8 w-full min-w-0 text-xs">
+                <SelectTrigger className={`${FORM_INPUT_COMPACT} w-full min-w-0`}>
                   {REPEAT_OPTIONS.find((o) => o.value === repeat)?.label || "반복 안 함"}
                 </SelectTrigger>
                 <SelectContent>
@@ -319,7 +325,7 @@ export default function EventForm({
 
           {/* 태그 */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">태그</Label>
+            <Label className={FORM_LABEL}>태그</Label>
             <TagInput
               selectedTags={selectedTags}
               allTags={tags}
@@ -335,14 +341,14 @@ export default function EventForm({
 
           {/* 설명 */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="event-desc" className="text-xs text-muted-foreground">설명</Label>
+            <Label htmlFor="event-desc" className={FORM_LABEL}>설명</Label>
             <Textarea
               id="event-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="일정 설명"
               rows={3}
-              className="text-xs"
+              className={FORM_TEXTAREA}
             />
           </div>
 

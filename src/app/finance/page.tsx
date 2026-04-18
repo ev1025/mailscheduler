@@ -13,6 +13,7 @@ import TransactionList from "@/components/finance/transaction-list";
 import TransactionForm from "@/components/finance/transaction-form";
 import CategoryChart from "@/components/finance/category-chart";
 import FixedExpenseManager from "@/components/finance/fixed-expense-manager";
+import { PAGE_ACTION_BUTTON } from "@/lib/form-classes";
 import type { Expense } from "@/types";
 import { toast } from "sonner";
 
@@ -129,10 +130,10 @@ export default function FinancePage() {
 
       {/* 버튼 행 */}
       <div className="mb-4 flex items-center justify-end gap-2">
-        <Button size="sm" variant="outline" className="h-8" onClick={() => setFixedOpen(true)}>
+        <Button size="sm" variant="outline" className={PAGE_ACTION_BUTTON} onClick={() => setFixedOpen(true)}>
           고정비
         </Button>
-        <Button size="sm" className="h-8" onClick={() => { setEditing(null); setFormOpen(true); }}>
+        <Button size="sm" className={PAGE_ACTION_BUTTON} onClick={() => { setEditing(null); setFormOpen(true); }}>
           <Plus className="mr-1 h-4 w-4" />
           추가
         </Button>

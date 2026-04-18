@@ -11,6 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import {
+  FORM_LABEL,
+  FORM_INPUT_PRIMARY,
+  FORM_TEXTAREA,
+} from "@/lib/form-classes";
 import type { Supplement } from "@/types";
 
 interface SupplementFormProps {
@@ -85,27 +90,29 @@ export default function SupplementForm({
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="name">이름 *</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="name" className={FORM_LABEL}>이름</Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="이름 * (예: 솔가 비타민D3)"
+              className={FORM_INPUT_PRIMARY}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="type">종류</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <Label htmlFor="type" className={FORM_LABEL}>종류</Label>
               <Input
                 id="type"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
                 placeholder="예: 비타민D"
+                className={FORM_INPUT_PRIMARY}
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="ranking">순위</Label>
+            <div className="flex flex-col gap-1.5 min-w-0">
+              <Label htmlFor="ranking" className={FORM_LABEL}>순위</Label>
               <Input
                 id="ranking"
                 type="number"
@@ -113,11 +120,12 @@ export default function SupplementForm({
                 value={ranking}
                 onChange={(e) => setRanking(e.target.value)}
                 placeholder="1"
+                className={FORM_INPUT_PRIMARY}
               />
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="price">가격 (원)</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="price" className={FORM_LABEL}>가격 (원)</Label>
             <Input
               id="price"
               type="number"
@@ -125,28 +133,31 @@ export default function SupplementForm({
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               placeholder="15000"
+              className={FORM_INPUT_PRIMARY}
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="link">구매 링크</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="link" className={FORM_LABEL}>구매 링크</Label>
             <Input
               id="link"
               value={link}
               onChange={(e) => setLink(e.target.value)}
               placeholder="https://..."
+              className={FORM_INPUT_PRIMARY}
             />
           </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="notes">메모</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="notes" className={FORM_LABEL}>메모</Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="추가 메모"
               rows={3}
+              className={FORM_TEXTAREA}
             />
           </div>
-          <div className="flex justify-end gap-2">
+          <div className="flex justify-end gap-2 pt-1">
             <Button
               type="button"
               variant="outline"

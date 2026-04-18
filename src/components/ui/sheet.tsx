@@ -51,12 +51,16 @@ function SheetContent({
   side = "right",
   showCloseButton = false,
   showBackButton = true,
+  hideOverlay = false,
   style,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
   showBackButton?: boolean
+  // 배경 오버레이(검은 반투명 + blur)를 숨김.
+  // 지식창고의 "폴더 이동" 바텀시트처럼 배경을 계속 보여야 하는 경우 사용.
+  hideOverlay?: boolean
 }) {
   // side="bottom"일 때 키보드 높이만큼 위로 띄우기
   // (KeyboardOffset 컴포넌트가 --kb-offset에 키보드 높이를 세팅함)
@@ -66,7 +70,7 @@ function SheetContent({
       : style
   return (
     <SheetPortal>
-      <SheetOverlay />
+      {!hideOverlay && <SheetOverlay />}
       <SheetPrimitive.Popup
         data-slot="sheet-content"
         data-side={side}

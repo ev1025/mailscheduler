@@ -192,7 +192,7 @@ export default function FixedExpenseManager({
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs">금액 *</Label>
+                  <Label className="text-xs">금액</Label>
                   <Input
                     type="number"
                     min="0"
@@ -215,7 +215,7 @@ export default function FixedExpenseManager({
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label className="text-xs">카테고리 *</Label>
+                <Label className="text-xs">카테고리</Label>
                 <Select
                   value={categoryId}
                   onValueChange={(v) => setCategoryId(v ?? "")}

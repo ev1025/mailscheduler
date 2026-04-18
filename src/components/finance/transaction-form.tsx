@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TagInput from "@/components/ui/tag-input";
+import DatePicker from "@/components/ui/date-picker";
 import { usePaymentMethods } from "@/hooks/use-payment-methods";
+import { FORM_LABEL, FORM_INPUT_COMPACT } from "@/lib/form-classes";
 import type { Expense, ExpenseCategory } from "@/types";
 
 interface TransactionFormProps {
@@ -122,11 +124,8 @@ export default function TransactionForm({
           {/* 1행: 금액 | 날짜 */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1.5 min-w-0">
-              <Label
-                htmlFor="amount"
-                className="text-xs text-muted-foreground"
-              >
-                금액 (원) *
+              <Label htmlFor="amount" className={FORM_LABEL}>
+                금액 (원)
               </Label>
               <Input
                 id="amount"
@@ -135,22 +134,15 @@ export default function TransactionForm({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="금액 * (예: 10000)"
-                className="h-9"
+                className={FORM_INPUT_COMPACT}
               />
             </div>
             <div className="flex flex-col gap-1.5 min-w-0">
-              <Label
-                htmlFor="date"
-                className="text-xs text-muted-foreground"
-              >
-                날짜
-              </Label>
-              <Input
-                id="date"
-                type="date"
+              <Label className={FORM_LABEL}>날짜</Label>
+              <DatePicker
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-9 w-full"
+                onChange={setDate}
+                className={`${FORM_INPUT_COMPACT} w-full min-w-0`}
               />
             </div>
           </div>
@@ -158,9 +150,7 @@ export default function TransactionForm({
           {/* 2행: 카테고리 | 결제수단 (태그 형식) */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1.5 min-w-0">
-              <Label className="text-xs text-muted-foreground">
-                카테고리 *
-              </Label>
+              <Label className={FORM_LABEL}>카테고리</Label>
               <TagInput
                 selectedTags={
                   categoryId
@@ -188,9 +178,7 @@ export default function TransactionForm({
               />
             </div>
             <div className="flex flex-col gap-1.5 min-w-0">
-              <Label className="text-xs text-muted-foreground">
-                결제수단
-              </Label>
+              <Label className={FORM_LABEL}>결제수단</Label>
               <TagInput
                 selectedTags={paymentMethod ? [paymentMethod] : []}
                 allTags={paymentMethods}
@@ -204,8 +192,8 @@ export default function TransactionForm({
           </div>
 
           {/* 3행: 메모 */}
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="desc" className="text-xs text-muted-foreground">
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="desc" className={FORM_LABEL}>
               메모
             </Label>
             <Input
@@ -213,7 +201,7 @@ export default function TransactionForm({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="어디서 뭘 샀는지 등"
-              className="h-9"
+              className={FORM_INPUT_COMPACT}
             />
           </div>
 
@@ -221,16 +209,11 @@ export default function TransactionForm({
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => onOpenChange(false)}
             >
               취소
             </Button>
-            <Button
-              type="submit"
-              size="sm"
-              disabled={!amount || !categoryId || saving}
-            >
+            <Button type="submit" disabled={!amount || !categoryId || saving}>
               {saving ? "저장 중..." : "저장"}
             </Button>
           </div>

@@ -187,7 +187,7 @@ export default function TravelForm({
 
           {/* 분류 — 미선택 상태 허용, 저장 시 필수 */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">분류 *</Label>
+            <Label className="text-xs text-muted-foreground">분류</Label>
             <TagInput
               selectedTags={category ? [category] : []}
               allTags={midCategories.map((c) => ({ id: c, name: c, color: categoryColors[c] || "#6B7280" }))}

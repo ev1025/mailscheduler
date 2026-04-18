@@ -39,6 +39,7 @@ import type { Product } from "@/types";
 import PageHeader from "@/components/layout/page-header";
 import PromptDialog from "@/components/ui/prompt-dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import { PAGE_ACTION_BUTTON } from "@/lib/form-classes";
 
 const CATEGORY_COLORS: Record<string, string> = {
   영양제: "#22C55E",
@@ -352,7 +353,7 @@ function ProductsPageInner() {
           </div>
           <Button
             size="sm"
-            className="h-9 shrink-0"
+            className={`${PAGE_ACTION_BUTTON} shrink-0`}
             onClick={() => {
               setEditing(null);
               setFormOpen(true);

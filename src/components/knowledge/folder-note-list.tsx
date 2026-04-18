@@ -177,7 +177,7 @@ export default function FolderNoteList({
 
       {/* 폴더 이동 — 바텀시트 */}
       <Sheet open={moveMode} onOpenChange={setMoveMode}>
-        <SheetContent side="bottom" className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] max-h-[60dvh] z-[65]" showBackButton={false} showCloseButton={false} initialFocus={false}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] max-h-[60dvh] z-[65]" showBackButton={false} showCloseButton={false} initialFocus={false} hideOverlay>
           <div className="flex flex-col h-full">
             <div className="flex flex-col items-center pt-3 pb-2 shrink-0">
               <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
