@@ -6,7 +6,8 @@ import { randomTagColor, readLocalJSON, writeLocalJSON } from "@/lib/tag-store";
 const CUSTOM_KEY = "travel_categories_custom";
 const COLOR_KEY = "travel-category-colors";
 
-const BUILTIN = ["자연", "숙소", "식당", "놀거리", "데이트", "공연", "쇼핑", "기타"];
+export const BUILTIN_TRAVEL_CATEGORIES = ["자연", "숙소", "식당", "놀거리", "데이트", "공연", "쇼핑", "기타"];
+const BUILTIN = BUILTIN_TRAVEL_CATEGORIES;
 
 const DEFAULT_COLORS: Record<string, string> = {
   자연: "#22C55E",

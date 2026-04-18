@@ -193,6 +193,7 @@ export default function EventForm({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="sm:max-w-md max-h-[90vh] overflow-y-auto"
+        initialFocus={false}
         onBack={
           onBack && event
             ? () => { onOpenChange(false); onBack(); }
@@ -214,7 +215,6 @@ export default function EventForm({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="일정 제목 *"
             className="h-9 text-sm"
-            autoFocus
           />
 
           {/* 색상 */}

@@ -21,7 +21,7 @@ import TagInput from "@/components/ui/tag-input";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
 import { X } from "lucide-react";
 import { toast } from "sonner";
-import { useTravelCategories } from "@/hooks/use-travel-categories";
+import { useTravelCategories, BUILTIN_TRAVEL_CATEGORIES } from "@/hooks/use-travel-categories";
 import type { TravelItem, TravelCategory, TravelTag, EventTag } from "@/types";
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -115,7 +115,7 @@ export default function TravelForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto" initialFocus={false}>
         <DialogHeader>
           <DialogTitle>{item ? "여행 항목 수정" : "여행 항목 추가"}</DialogTitle>
         </DialogHeader>
@@ -126,7 +126,6 @@ export default function TravelForm({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="제목 (예: 진해 군항제)"
             className="h-9 text-sm"
-            autoFocus
           />
 
           {/* 색상 */}
@@ -202,6 +201,7 @@ export default function TravelForm({
               onDeleteTag={deleteCategory}
               onUpdateTagColor={updateCategoryColor}
               onRenameTag={updateCategoryName}
+              builtinIds={BUILTIN_TRAVEL_CATEGORIES}
               placeholder="분류 선택"
             />
           </div>

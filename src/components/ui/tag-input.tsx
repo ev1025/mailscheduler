@@ -24,6 +24,8 @@ interface TagInputProps {
   onDeleteTag?: (id: string) => Promise<{ error: unknown }>;
   onUpdateTagColor?: (id: string, color: string) => Promise<{ error: unknown }>;
   onRenameTag?: (id: string, name: string) => Promise<{ error: unknown }>;
+  /** 삭제·이름변경 불가 기본 태그 id 목록 (편집 패널에서 해당 버튼 숨김) */
+  builtinIds?: string[];
   placeholder?: string;
 }
 
@@ -54,14 +56,29 @@ export default function TagInput({
   onDeleteTag,
   onUpdateTagColor,
   onRenameTag,
+  builtinIds,
   placeholder = "검색",
 }: TagInputProps) {
+  const isBuiltin = (id: string) => !!builtinIds?.includes(id);
   const [open, setOpen] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   // half (50dvh) ↔ full (95dvh) 스냅 포인트
   const [snap, setSnap] = useState<"half" | "full">("half");
+  // 스냅 변경 시 250ms 동안만 transition-[height] 활성화
+  // → 사용자 조작(드래그)은 부드러운 모션, 키보드로 인한 dvh 재계산은 즉시 반영
+  const [snapAnimating, setSnapAnimating] = useState(false);
+  const isFirstSnap = useRef(true);
+  useEffect(() => {
+    if (isFirstSnap.current) {
+      isFirstSnap.current = false;
+      return;
+    }
+    setSnapAnimating(true);
+    const t = setTimeout(() => setSnapAnimating(false), 260);
+    return () => clearTimeout(t);
+  }, [snap]);
 
   // 뷰 전환: 목록 ↔ 개별 태그 편집
   const [view, setView] = useState<"list" | "edit">("list");
@@ -77,6 +94,7 @@ export default function TagInput({
       setSnap("half");
       setView("list");
       setShowColorPicker(false);
+      isFirstSnap.current = true; // 열 때마다 초기 스냅은 애니메이션 없이
     } else {
       setNewTagName("");
       setEditingTagId(null);
@@ -224,7 +242,9 @@ export default function TagInput({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="bottom"
-          className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[60]"
+          className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[60] ${
+            snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
+          }`}
           style={{ height: snap === "full" ? "95dvh" : "50dvh" }}
           showBackButton={false}
           showCloseButton={false}
@@ -401,15 +421,17 @@ export default function TagInput({
                   className="rounded-md border px-3 h-9 text-sm outline-none focus:border-primary"
                 />
 
-                {/* 삭제 */}
-                <button
-                  type="button"
-                  onClick={deleteCurrentTag}
-                  className="flex items-center gap-2 rounded-md border px-3 h-9 text-sm text-destructive hover:bg-destructive/10"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  <span>삭제</span>
-                </button>
+                {/* 삭제 — 기본(builtin) 태그는 삭제 불가이므로 버튼 자체 숨김 */}
+                {editingTag && !isBuiltin(editingTag.id) && (
+                  <button
+                    type="button"
+                    onClick={deleteCurrentTag}
+                    className="flex items-center gap-2 rounded-md border px-3 h-9 text-sm text-destructive hover:bg-destructive/10"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>삭제</span>
+                  </button>
+                )}
 
                 {/* 색상 — 프리셋 동그라미 + 커스텀 컬러피커 */}
                 <div className="flex flex-col gap-2">
