@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DatePicker from "@/components/ui/date-picker";
 import PlanTaskRow from "@/components/travel/plan-task-row";
+import PlanTaskSheet from "@/components/travel/plan-task-sheet";
 import PlanSegmentTabs, { type Segment } from "@/components/travel/plan-segment-tabs";
 import PlanLegCard from "@/components/travel/plan-leg-card";
 import PlanRouteMap from "@/components/travel/plan-route-map";
@@ -15,6 +16,22 @@ import { sortTasks } from "@/lib/travel/sort-tasks";
 import { tasksToLegs } from "@/lib/travel/legs";
 import { fetchRouteDuration } from "@/lib/travel/providers";
 import type { TravelPlanTask, TransportMode } from "@/types";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface Props {
   planId: string;
@@ -35,6 +52,34 @@ function daysBetween(startIso: string, endIso: string): number {
   return Math.max(0, Math.round((e.getTime() - s.getTime()) / 86400000));
 }
 
+// 개별 task 행 — DnD 연동용 래퍼
+function SortableTaskRow({
+  task,
+  onClick,
+}: {
+  task: TravelPlanTask;
+  onClick: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: task.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style}>
+      <PlanTaskRow
+        task={task}
+        onClick={onClick}
+        dragListeners={listeners as unknown as React.HTMLAttributes<HTMLButtonElement>}
+        dragAttributes={attributes as unknown as React.HTMLAttributes<HTMLButtonElement>}
+      />
+    </div>
+  );
+}
+
 export default function PlanDetail({ planId, onBack }: Props) {
   const { plans, updatePlan } = useTravelPlans();
   const plan = plans.find((p) => p.id === planId);
@@ -43,6 +88,11 @@ export default function PlanDetail({ planId, onBack }: Props) {
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [segment, setSegment] = useState<Segment>({ mode: "all" });
   const [legPaths, setLegPaths] = useState<Record<string, [number, number][]>>({});
+
+  // 시트 상태: 편집 중이면 task, 신규면 null + 대상 day_index
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetTask, setSheetTask] = useState<TravelPlanTask | null>(null);
+  const [sheetDayIndex, setSheetDayIndex] = useState(0);
 
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
   const legs = useMemo(() => tasksToLegs(sorted), [sorted]);
@@ -60,15 +110,14 @@ export default function PlanDetail({ planId, onBack }: Props) {
   const days = useMemo(() => {
     const set = new Set<number>();
     for (const t of sorted) set.add(t.day_index);
-    // 존재하지 않아도 start_date~end_date 범위의 day_index 도 포함
     if (plan?.start_date && plan?.end_date) {
       const total = daysBetween(plan.start_date, plan.end_date);
       for (let i = 0; i <= total; i++) set.add(i);
     }
+    if (set.size === 0) set.add(0);
     return Array.from(set).sort((a, b) => a - b);
   }, [sorted, plan?.start_date, plan?.end_date]);
 
-  // day_index → 표시 라벨 ("1일차" 또는 "5/10 (월)")
   const formatDayLabel = (dayIndex: number): string => {
     if (plan?.start_date) {
       const iso = addDaysISO(plan.start_date, dayIndex);
@@ -82,7 +131,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
     ? daysBetween(plan.start_date, plan.end_date) + 1
     : 0;
 
-  // 현재 세그먼트에 표시될 leg 목록
   const visibleLegs = useMemo(() => {
     if (segment.mode === "all") return legsWithCoords;
     if (segment.mode === "day") {
@@ -92,16 +140,16 @@ export default function PlanDetail({ planId, onBack }: Props) {
     return one ? [one] : [];
   }, [segment, legsWithCoords]);
 
-  // 보이는 leg 들 중 자가용/택시 구간은 NCP Directions path 자동 fetch
+  // 보이는 leg 자동 path fetch
   useEffect(() => {
     let cancelled = false;
     (async () => {
       for (const leg of visibleLegs) {
         if (cancelled) return;
         const key = `${leg.fromTaskId}-${leg.toTaskId}`;
-        if (legPaths[key]) continue; // 이미 캐시됨
+        if (legPaths[key]) continue;
         const mode: TransportMode = leg.toTask.transport_mode ?? "car";
-        if (mode !== "car" && mode !== "taxi") continue; // 대중교통 path 없음
+        if (mode !== "car" && mode !== "taxi") continue;
         const result = await fetchRouteDuration(
           { lat: leg.fromTask.place_lat!, lng: leg.fromTask.place_lng! },
           { lat: leg.toTask.place_lat!, lng: leg.toTask.place_lng! },
@@ -113,12 +161,9 @@ export default function PlanDetail({ planId, onBack }: Props) {
         }
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [visibleLegs, legPaths]);
 
-  // 지도 핀 + 경로 paths 배열
   const { pins, paths, connectPins } = useMemo(() => {
     const taskToPin = (t: TravelPlanTask) =>
       t.place_lat != null && t.place_lng != null
@@ -156,29 +201,21 @@ export default function PlanDetail({ planId, onBack }: Props) {
     );
   }
 
-  const handleAddRow = async (day_index = 0) => {
-    await addTask({
-      plan_id: planId,
-      day_index,
-      start_time: null,
-      place_name: "",
-      place_address: null,
-      place_lat: null,
-      place_lng: null,
-      tag: null,
-      content: null,
-      stay_minutes: 0,
-      manual_order: tasks.filter((t) => t.day_index === day_index).length,
-      transport_mode: null,
-      transport_duration_sec: null,
-      transport_manual: false,
-    });
-  };
-
-  // "새 일자" 선택 시 next day_index 반환
   const handleAddNewDay = (): number => {
     const max = Math.max(-1, ...days);
     return max + 1;
+  };
+
+  const openNewSheet = (dayIndex: number) => {
+    setSheetTask(null);
+    setSheetDayIndex(dayIndex);
+    setSheetOpen(true);
+  };
+
+  const openEditSheet = (task: TravelPlanTask) => {
+    setSheetTask(task);
+    setSheetDayIndex(task.day_index);
+    setSheetOpen(true);
   };
 
   const handleTitleCommit = async () => {
@@ -190,46 +227,39 @@ export default function PlanDetail({ planId, onBack }: Props) {
     setTitleDraft(null);
   };
 
-  // 테이블 — 정렬된 task 사이에 leg 카드 삽입
-  const rowsWithLegs: React.ReactNode[] = [];
-  for (let i = 0; i < sorted.length; i++) {
-    const t = sorted[i];
-    rowsWithLegs.push(
-      <PlanTaskRow
-        key={t.id}
-        task={t}
-        onChange={(updates) => updateTask(t.id, updates)}
-        onDelete={() => deleteTask(t.id)}
-        availableDays={days}
-        onAddNewDay={handleAddNewDay}
-        formatDayLabel={formatDayLabel}
-      />
-    );
-    const next = sorted[i + 1];
-    if (next && next.day_index === t.day_index) {
-      const hasCoords =
-        t.place_lat != null && t.place_lng != null &&
-        next.place_lat != null && next.place_lng != null;
-      if (hasCoords) {
-        const legForThisPair = legsWithCoords.find(
-          (l) => l.fromTaskId === t.id && l.toTaskId === next.id
-        );
-        if (legForThisPair) {
-          rowsWithLegs.push(
-            <PlanLegCard
-              key={`leg-${t.id}-${next.id}`}
-              leg={legForThisPair}
-              onUpdateTask={updateTask}
-            />
-          );
-        }
+  // 드래그 정렬 (같은 day_index 내만 이동)
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+  );
+
+  const handleDragEnd = async (e: DragEndEvent, daySorted: TravelPlanTask[]) => {
+    if (!e.over || e.active.id === e.over.id) return;
+    const oldIdx = daySorted.findIndex((t) => t.id === e.active.id);
+    const newIdx = daySorted.findIndex((t) => t.id === e.over!.id);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const reordered = arrayMove(daySorted, oldIdx, newIdx);
+    // 시간이 있는 행은 시간이 우선이라 순서 지켜지지 않음.
+    // manual_order 만 갱신. 시간 없는 행끼리는 의도대로 정렬됨.
+    for (let i = 0; i < reordered.length; i++) {
+      const t = reordered[i];
+      if (t.manual_order !== i) {
+        await updateTask(t.id, { manual_order: i });
       }
     }
+  };
+
+  // 일자별로 task 그룹핑
+  const tasksByDay: Record<number, TravelPlanTask[]> = {};
+  for (const d of days) tasksByDay[d] = [];
+  for (const t of sorted) {
+    if (!tasksByDay[t.day_index]) tasksByDay[t.day_index] = [];
+    tasksByDay[t.day_index].push(t);
   }
 
   return (
     <div className="flex flex-col h-full">
-      {/* 헤더 */}
+      {/* 헤더 — ← 뒤로 + 제목 */}
       <header className="flex items-center gap-2 border-b px-3 h-14 shrink-0">
         <button
           type="button"
@@ -263,7 +293,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        {/* 기간 행 — 캘린더 event-form 과 동일한 DatePicker */}
+        {/* 기간 */}
         <div className="flex items-center gap-2 px-3 py-2 border-b">
           <span className="text-xs text-muted-foreground shrink-0">기간</span>
           <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
@@ -307,28 +337,111 @@ export default function PlanDetail({ planId, onBack }: Props) {
             days={days}
             legs={legsWithCoords}
           />
-          <PlanRouteMap
-            pins={pins}
-            paths={paths}
-            connectPins={connectPins}
-            height={240}
-          />
+          <PlanRouteMap pins={pins} paths={paths} connectPins={connectPins} height={240} />
         </div>
 
-        {/* 테이블 + leg 카드 */}
-        <div className="flex flex-col gap-2 p-3">
-          {rowsWithLegs}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => handleAddRow(0)}
-            className="self-start h-8 text-xs"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" /> 새 일정
-          </Button>
+        {/* 일자별 섹션 */}
+        <div className="flex flex-col gap-3 p-3">
+          {days.map((day) => {
+            const dayTasks = tasksByDay[day] ?? [];
+            return (
+              <section key={day} className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold">{formatDayLabel(day)}</h3>
+                  <span className="text-[10px] text-muted-foreground">
+                    {dayTasks.length}개
+                  </span>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+
+                {dayTasks.length > 0 && (
+                  <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(e) => handleDragEnd(e, dayTasks)}
+                  >
+                    <SortableContext
+                      items={dayTasks.map((t) => t.id)}
+                      strategy={verticalListSortingStrategy}
+                    >
+                      <div className="flex flex-col gap-1.5">
+                        {dayTasks.map((t, i) => {
+                          const next = dayTasks[i + 1];
+                          const leg = next
+                            ? legsWithCoords.find(
+                                (l) => l.fromTaskId === t.id && l.toTaskId === next.id
+                              )
+                            : undefined;
+                          return (
+                            <div key={t.id} className="flex flex-col gap-1.5">
+                              <SortableTaskRow task={t} onClick={() => openEditSheet(t)} />
+                              {leg && (
+                                <PlanLegCard
+                                  leg={leg}
+                                  onUpdateTask={updateTask}
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                )}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openNewSheet(day)}
+                  className="self-start h-8 text-xs"
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" /> 일정 추가
+                </Button>
+              </section>
+            );
+          })}
         </div>
       </div>
+
+      <PlanTaskSheet
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        task={sheetTask}
+        defaultDayIndex={sheetDayIndex}
+        availableDays={days}
+        formatDayLabel={formatDayLabel}
+        onAddNewDay={handleAddNewDay}
+        onSave={async (updates) => {
+          if (sheetTask) {
+            await updateTask(sheetTask.id, updates);
+          } else {
+            await addTask({
+              plan_id: planId,
+              day_index: updates.day_index ?? sheetDayIndex,
+              start_time: updates.start_time ?? null,
+              place_name: updates.place_name ?? "",
+              place_address: updates.place_address ?? null,
+              place_lat: updates.place_lat ?? null,
+              place_lng: updates.place_lng ?? null,
+              tag: updates.tag ?? null,
+              content: updates.content ?? null,
+              stay_minutes: updates.stay_minutes ?? 0,
+              manual_order: (tasksByDay[updates.day_index ?? sheetDayIndex]?.length) ?? 0,
+              transport_mode: null,
+              transport_duration_sec: null,
+              transport_manual: false,
+            });
+          }
+        }}
+        onDelete={
+          sheetTask
+            ? async () => {
+                await deleteTask(sheetTask.id);
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

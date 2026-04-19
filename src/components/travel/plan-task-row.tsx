@@ -1,193 +1,81 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, MapPin } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import TimePicker from "@/components/ui/time-picker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
-import PlanPlacePicker from "@/components/travel/plan-place-picker";
-import type { TravelPlanTask, PlaceInfo } from "@/types";
+import { MapPin, GripVertical } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import type { TravelPlanTask } from "@/types";
 
-// 계획 일정 한 행 — 캘린더 event-form 의 DatePicker/TimePicker/Select 재사용.
-// 필드: [일차 Select] [시간 TimePicker] [체류 minutes] · 장소 · 태그/내용.
-// 모든 문자열 입력은 400ms debounce.
+// 일정 한 행 — 읽기 전용 콤팩트 뷰. 클릭 시 편집 시트가 열림.
+// 1행 = 1일정. 드래그 핸들은 @dnd-kit 에서 dragHandle props 로 주입.
 
 interface Props {
   task: TravelPlanTask;
-  onChange: (updates: Partial<TravelPlanTask>) => void;
-  onDelete: () => void;
-  availableDays: number[];                  // 현재 존재하는 day_index 목록
-  onAddNewDay: () => number;                // "새 일자" 선택 시 next day_index 반환
-  formatDayLabel: (dayIndex: number) => string; // "1일차" 또는 "5/10 (월)"
+  onClick: () => void;
+  dragListeners?: React.HTMLAttributes<HTMLButtonElement>;
+  dragAttributes?: React.HTMLAttributes<HTMLButtonElement>;
 }
 
-export default function PlanTaskRow({
-  task,
-  onChange,
-  onDelete,
-  availableDays,
-  onAddNewDay,
-  formatDayLabel,
-}: Props) {
-  const [placeQuery, setPlaceQuery] = useState("");
-  const [localTime, setLocalTime] = useState(task.start_time ?? "");
-  const [localContent, setLocalContent] = useState(task.content ?? "");
-  const [localStay, setLocalStay] = useState(String(task.stay_minutes || ""));
-  const [localTag, setLocalTag] = useState(task.tag ?? "");
+// HH:MM:SS → HH:MM
+function formatTime(t: string | null): string {
+  if (!t) return "";
+  return t.length >= 5 ? t.slice(0, 5) : t;
+}
 
-  useEffect(() => { setLocalTime(task.start_time ?? ""); }, [task.start_time]);
-  useEffect(() => { setLocalContent(task.content ?? ""); }, [task.content]);
-  useEffect(() => { setLocalStay(String(task.stay_minutes || "")); }, [task.stay_minutes]);
-  useEffect(() => { setLocalTag(task.tag ?? ""); }, [task.tag]);
-
-  const debouncedSave = (key: keyof TravelPlanTask, value: string | number | null) => {
-    const timer = setTimeout(() => onChange({ [key]: value } as Partial<TravelPlanTask>), 400);
-    return () => clearTimeout(timer);
-  };
-
-  useEffect(() => {
-    if (localTime === (task.start_time ?? "")) return;
-    return debouncedSave("start_time", localTime || null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localTime]);
-  useEffect(() => {
-    if (localContent === (task.content ?? "")) return;
-    return debouncedSave("content", localContent || null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localContent]);
-  useEffect(() => {
-    const n = parseInt(localStay, 10);
-    const nextVal = Number.isFinite(n) && n > 0 ? n : 0;
-    if (nextVal === task.stay_minutes) return;
-    return debouncedSave("stay_minutes", nextVal);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localStay]);
-  useEffect(() => {
-    if (localTag === (task.tag ?? "")) return;
-    return debouncedSave("tag", localTag || null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localTag]);
-
-  const handlePickPlace = (p: PlaceInfo) => {
-    onChange({
-      place_name: p.name,
-      place_address: p.address,
-      place_lat: p.lat,
-      place_lng: p.lng,
-    });
-  };
-
-  const handleDayChange = (v: string | null) => {
-    if (!v) return;
-    if (v === "__new__") {
-      onChange({ day_index: onAddNewDay() });
-    } else {
-      onChange({ day_index: parseInt(v) });
-    }
-  };
-
-  const placeChosen = !!task.place_name;
-  const dayOptions = availableDays;
+export default function PlanTaskRow({ task, onClick, dragListeners, dragAttributes }: Props) {
+  const time = formatTime(task.start_time);
+  const tags = task.tag ? task.tag.split(",").map((s) => s.trim()).filter(Boolean) : [];
 
   return (
-    <div className="flex flex-col gap-1.5 rounded-md border p-2.5">
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-          {/* 1행: 일차 · 시간 · 체류 · 삭제 */}
-          <div className="flex items-center gap-1.5">
-            <Select value={String(task.day_index)} onValueChange={handleDayChange}>
-              <SelectTrigger className="h-8 w-[96px] text-xs">
-                {formatDayLabel(task.day_index)}
-              </SelectTrigger>
-              <SelectContent>
-                {dayOptions.map((d) => (
-                  <SelectItem key={d} value={String(d)}>
-                    {formatDayLabel(d)}
-                  </SelectItem>
-                ))}
-                <SelectItem value="__new__">+ 새 일자</SelectItem>
-              </SelectContent>
-            </Select>
-            <TimePicker
-              value={localTime}
-              onChange={setLocalTime}
-              className="h-8 w-24 text-xs"
-            />
-            <Input
-              type="number"
-              min={0}
-              value={localStay}
-              onChange={(e) => setLocalStay(e.target.value)}
-              className="h-8 w-16 text-xs"
-              placeholder="분"
-            />
-            <span className="text-xs text-muted-foreground">체류</span>
-            <div className="flex-1" />
-            <button
-              type="button"
-              onClick={onDelete}
-              className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition"
-              aria-label="행 삭제"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      className="flex items-start gap-2 rounded-md border bg-card px-2.5 py-2 hover:bg-accent/40 transition-colors cursor-pointer select-none"
+    >
+      {dragListeners !== undefined && (
+        <button
+          type="button"
+          {...dragAttributes}
+          {...dragListeners}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="드래그로 순서 변경"
+          className="p-0.5 mt-0.5 text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing touch-none"
+        >
+          <GripVertical className="h-3.5 w-3.5" />
+        </button>
+      )}
 
-          {/* 2행: 장소 */}
-          {placeChosen ? (
-            <div className="flex items-start gap-2 rounded-md border bg-muted/30 px-2 py-1.5">
-              <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{task.place_name}</div>
-                {task.place_address && (
-                  <div className="text-xs text-muted-foreground truncate">{task.place_address}</div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() =>
-                  onChange({
-                    place_name: "",
-                    place_address: null,
-                    place_lat: null,
-                    place_lng: null,
-                  })
-                }
-                className="text-xs text-muted-foreground hover:text-destructive"
-              >
-                변경
-              </button>
-            </div>
-          ) : (
-            <PlanPlacePicker
-              value={placeQuery}
-              onChange={setPlaceQuery}
-              onPick={handlePickPlace}
-              placeholder="장소명·지역 (예: 성산일출봉)"
-            />
+      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+        <div className="flex items-center gap-2">
+          {time && (
+            <span className="text-xs font-semibold tabular-nums shrink-0">{time}</span>
           )}
-
-          {/* 3행: 태그 · 내용 */}
-          <div className="flex items-center gap-2">
-            <Input
-              value={localTag}
-              onChange={(e) => setLocalTag(e.target.value)}
-              placeholder="태그"
-              className="h-8 w-28 text-xs"
-            />
-            <Input
-              value={localContent}
-              onChange={(e) => setLocalContent(e.target.value)}
-              placeholder="내용 (예: 일출 보기)"
-              className="h-8 flex-1 text-xs"
-            />
-          </div>
+          <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+          <span className="text-sm font-medium truncate">
+            {task.place_name || "(장소 미입력)"}
+          </span>
+          {task.stay_minutes > 0 && (
+            <span className="shrink-0 text-[10px] text-muted-foreground">{task.stay_minutes}분</span>
+          )}
         </div>
+        {(task.content || tags.length > 0 || task.place_address) && (
+          <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
+            {tags.map((t) => (
+              <Badge key={t} variant="outline" className="h-4 text-[10px] px-1.5 py-0">
+                {t}
+              </Badge>
+            ))}
+            {task.content && <span className="truncate">{task.content}</span>}
+            {!task.content && task.place_address && (
+              <span className="truncate">{task.place_address}</span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
