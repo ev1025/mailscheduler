@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -82,52 +82,71 @@ export default function PlanDetail({ planId, onBack }: Props) {
     ? daysBetween(plan.start_date, plan.end_date) + 1
     : 0;
 
-  // 지도 핀 + 경로 필터
-  const { pins, path, connectPins } = useMemo(() => {
+  // 현재 세그먼트에 표시될 leg 목록
+  const visibleLegs = useMemo(() => {
+    if (segment.mode === "all") return legsWithCoords;
+    if (segment.mode === "day") {
+      return legsWithCoords.filter((l) => l.dayIndex === segment.dayIndex);
+    }
+    const one = legsWithCoords[segment.legIndex];
+    return one ? [one] : [];
+  }, [segment, legsWithCoords]);
+
+  // 보이는 leg 들 중 자가용/택시 구간은 NCP Directions path 자동 fetch
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      for (const leg of visibleLegs) {
+        if (cancelled) return;
+        const key = `${leg.fromTaskId}-${leg.toTaskId}`;
+        if (legPaths[key]) continue; // 이미 캐시됨
+        const mode: TransportMode = leg.toTask.transport_mode ?? "car";
+        if (mode !== "car" && mode !== "taxi") continue; // 대중교통 path 없음
+        const result = await fetchRouteDuration(
+          { lat: leg.fromTask.place_lat!, lng: leg.fromTask.place_lng! },
+          { lat: leg.toTask.place_lat!, lng: leg.toTask.place_lng! },
+          mode
+        );
+        if (cancelled) return;
+        if (result?.path && result.path.length > 1) {
+          setLegPaths((p) => ({ ...p, [key]: result.path! }));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visibleLegs, legPaths]);
+
+  // 지도 핀 + 경로 paths 배열
+  const { pins, paths, connectPins } = useMemo(() => {
     const taskToPin = (t: TravelPlanTask) =>
       t.place_lat != null && t.place_lng != null
         ? { lat: t.place_lat, lng: t.place_lng, label: t.place_name }
         : null;
 
-    if (segment.mode === "all") {
-      const all = sorted.map(taskToPin).filter(Boolean) as {
-        lat: number; lng: number; label: string;
-      }[];
-      return { pins: all, path: undefined, connectPins: all.length > 1 };
+    let shownTasks: TravelPlanTask[];
+    if (segment.mode === "all") shownTasks = sorted;
+    else if (segment.mode === "day")
+      shownTasks = sorted.filter((t) => t.day_index === segment.dayIndex);
+    else {
+      const leg = legsWithCoords[segment.legIndex];
+      shownTasks = leg ? [leg.fromTask, leg.toTask] : [];
     }
-    if (segment.mode === "day") {
-      const dayTasks = sorted.filter((t) => t.day_index === segment.dayIndex);
-      const dayPins = dayTasks.map(taskToPin).filter(Boolean) as {
-        lat: number; lng: number; label: string;
-      }[];
-      return { pins: dayPins, path: undefined, connectPins: dayPins.length > 1 };
-    }
-    // leg 모드
-    const leg = legsWithCoords[segment.legIndex];
-    if (!leg) return { pins: [], path: undefined, connectPins: false };
-    const legKey = `${leg.fromTaskId}-${leg.toTaskId}`;
-    const pts = [taskToPin(leg.fromTask), taskToPin(leg.toTask)].filter(Boolean) as {
+    const shownPins = shownTasks.map(taskToPin).filter(Boolean) as {
       lat: number; lng: number; label: string;
     }[];
-    return { pins: pts, path: legPaths[legKey], connectPins: !legPaths[legKey] };
-  }, [segment, sorted, legsWithCoords, legPaths]);
 
-  const ensureLegPath = async (legIndex: number) => {
-    const leg = legsWithCoords[legIndex];
-    if (!leg) return;
-    const key = `${leg.fromTaskId}-${leg.toTaskId}`;
-    if (legPaths[key]) return;
-    const mode: TransportMode = leg.toTask.transport_mode ?? "car";
-    if (mode !== "car" && mode !== "taxi") return;
-    const result = await fetchRouteDuration(
-      { lat: leg.fromTask.place_lat!, lng: leg.fromTask.place_lng! },
-      { lat: leg.toTask.place_lat!, lng: leg.toTask.place_lng! },
-      mode
-    );
-    if (result?.path && result.path.length > 1) {
-      setLegPaths((p) => ({ ...p, [key]: result.path! }));
-    }
-  };
+    const shownPaths = visibleLegs
+      .map((l) => legPaths[`${l.fromTaskId}-${l.toTaskId}`])
+      .filter((p): p is [number, number][] => !!p && p.length > 1);
+
+    return {
+      pins: shownPins,
+      paths: shownPaths,
+      connectPins: shownPins.length > 1,
+    };
+  }, [segment, sorted, legsWithCoords, visibleLegs, legPaths]);
 
   if (!plan) {
     return (
@@ -284,16 +303,13 @@ export default function PlanDetail({ planId, onBack }: Props) {
         <div className="flex flex-col gap-2 p-3 border-b">
           <PlanSegmentTabs
             segment={segment}
-            onChange={(s) => {
-              setSegment(s);
-              if (s.mode === "leg") ensureLegPath(s.legIndex);
-            }}
+            onChange={setSegment}
             days={days}
             legs={legsWithCoords}
           />
           <PlanRouteMap
             pins={pins}
-            path={path}
+            paths={paths}
             connectPins={connectPins}
             height={240}
           />

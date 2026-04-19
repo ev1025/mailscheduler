@@ -14,8 +14,10 @@ interface MapPin {
 
 interface Props {
   pins: MapPin[];
-  path?: [number, number][]; // [[lng, lat], ...] (자가용 실제 도로 경로)
-  connectPins?: boolean;     // 핀들을 순서대로 단순 직선으로 이어줄지
+  // 여러 구간의 실제 도로 경로. 각 배열은 [[lng, lat], ...] 형태.
+  // 구간별로 별도 Polyline 으로 그려 네이버 길찾기처럼 보이게 함.
+  paths?: [number, number][][];
+  connectPins?: boolean;     // paths 없이 핀 순서대로 점선으로만 이어줄지
   height?: number;
   className?: string;
 }
@@ -31,7 +33,7 @@ const CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
 
 export default function PlanRouteMap({
   pins,
-  path,
+  paths,
   connectPins = false,
   height = 240,
   className,
@@ -95,9 +97,10 @@ export default function PlanRouteMap({
         });
       }
 
-      if (path && path.length > 1) {
-        // 실제 도로 경로 (NCP Directions) — 실선
-        const latlngs = path.map((pt) => new naver.maps.LatLng(pt[1], pt[0]));
+      // 실제 도로 경로 (NCP Directions) — 구간별 파란 실선
+      const validPaths = (paths ?? []).filter((p) => p && p.length > 1);
+      for (const p of validPaths) {
+        const latlngs = p.map((pt) => new naver.maps.LatLng(pt[1], pt[0]));
         new naver.maps.Polyline({
           path: latlngs,
           strokeColor: "#3b82f6",
@@ -105,8 +108,9 @@ export default function PlanRouteMap({
           strokeWeight: 4,
           map,
         });
-      } else if (connectPins && pins.length > 1) {
-        // 핀 순서대로 단순 직선 연결 — 점선으로 표시해 "실제 경로 아님" 시각 구분
+      }
+      // 도로 경로가 하나도 없는 경우에만 단순 직선 점선으로 순서 표시
+      if (validPaths.length === 0 && connectPins && pins.length > 1) {
         const latlngs = pins.map((p) => new naver.maps.LatLng(p.lat, p.lng));
         new naver.maps.Polyline({
           path: latlngs,
@@ -125,7 +129,7 @@ export default function PlanRouteMap({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [pins, path]);
+  }, [pins, paths, connectPins]);
 
   if (!CLIENT_ID) {
     return (
