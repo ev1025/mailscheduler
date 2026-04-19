@@ -1,29 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Calendar, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { Calendar, Trash2 } from "lucide-react";
 import PromptDialog from "@/components/ui/prompt-dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useTravelPlans } from "@/hooks/use-travel-plans";
 
 interface Props {
   onSelectPlan: (id: string) => void;
+  // calendar/page.tsx 의 PageHeader 액션(햄버거 옆 +)에서 호출하는 신호
+  newSignal?: number;
 }
 
-export default function PlanList({ onSelectPlan }: Props) {
+export default function PlanList({ onSelectPlan, newSignal }: Props) {
   const { plans, loading, addPlan, deletePlan } = useTravelPlans();
   const [newOpen, setNewOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // 상위에서 newSignal 이 바뀌면 다이얼로그 열림
+  useEffect(() => {
+    if (newSignal && newSignal > 0) setNewOpen(true);
+  }, [newSignal]);
+
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-end p-3 border-b">
-        <Button size="sm" onClick={() => setNewOpen(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1" /> 새 계획
-        </Button>
-      </div>
-
       <div className="flex-1 overflow-y-auto p-4">
         {loading ? (
           <p className="text-xs text-muted-foreground text-center py-8">불러오는 중…</p>
@@ -31,7 +31,7 @@ export default function PlanList({ onSelectPlan }: Props) {
           <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
             <Calendar className="h-12 w-12 text-muted-foreground/40" strokeWidth={1.4} />
             <p className="text-sm text-muted-foreground">
-              아직 계획이 없습니다. &quot;새 계획&quot; 버튼을 눌러 시작하세요.
+              아직 계획이 없습니다. 우상단 + 버튼을 눌러 시작하세요.
             </p>
           </div>
         ) : (

@@ -8,6 +8,7 @@ import {
   Plane,
   Route,
   Menu,
+  Plus,
 } from "lucide-react";
 import MonthPicker from "@/components/layout/month-picker";
 import PageHeader from "@/components/layout/page-header";
@@ -236,6 +237,8 @@ function CalendarPageInner() {
   };
 
   const [menuOpen, setMenuOpen] = useState(false);
+  // travel-plans 뷰에서 "+ 새 계획" 아이콘 트리거용 신호
+  const [newPlanSignal, setNewPlanSignal] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menuOpen) return;
@@ -261,12 +264,27 @@ function CalendarPageInner() {
     { key: "travel-plans" as const, label: "여행 계획", icon: Route },
   ];
 
+  // 여행 계획 상세는 자체 헤더(← 제목)를 쓰므로 상위 PageHeader·메뉴 숨김
+  const hideTopHeader = view === "travel-plan";
+
   return (
     <>
-      <PageHeader
+      {!hideTopHeader && <PageHeader
         title={viewLabel}
         actions={
-          <div className="relative" ref={menuRef}>
+          <div className="flex items-center">
+            {view === "travel-plans" && (
+              <button
+                type="button"
+                onClick={() => setNewPlanSignal((n) => n + 1)}
+                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+                aria-label="새 계획"
+                title="새 계획"
+              >
+                <Plus className="h-[22px] w-[22px]" strokeWidth={1.6} />
+              </button>
+            )}
+            <div className="relative" ref={menuRef}>
             <button
               type="button"
               onClick={() => setMenuOpen((o) => !o)}
@@ -278,9 +296,9 @@ function CalendarPageInner() {
             {menuOpen && (
               <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
                 {viewMenuItems.map(({ key, label, icon: Icon }) => {
-                  const active =
-                    view === key ||
-                    (key === "travel-plans" && view === "travel-plan");
+                  // travel-plan 상세에서는 PageHeader 자체가 숨겨져 이 루프가 실행 안 됨.
+                  // TS narrowing 회피용 단순 비교.
+                  const active = view === key;
                   return (
                     <button
                       key={key}
@@ -297,10 +315,13 @@ function CalendarPageInner() {
                 })}
               </div>
             )}
+            </div>
           </div>
         }
-      />
-    <div className="flex flex-col h-[calc(100%-3.5rem)] min-h-0 px-2 py-2 md:p-6 overflow-hidden">
+      />}
+    <div className={`flex flex-col min-h-0 overflow-hidden ${
+      hideTopHeader ? "h-full" : "h-[calc(100%-3.5rem)] px-2 py-2 md:p-6"
+    }`}>
 
       {/* MonthPicker: 달력/일정목록에서만 (여행·여행계획은 월 개념 없음) */}
       {view !== "travel" && view !== "travel-plans" && view !== "travel-plan" && (
@@ -354,7 +375,10 @@ function CalendarPageInner() {
       )}
 
       {view === "travel-plans" ? (
-        <PlanList onSelectPlan={(id) => setView("travel-plan", { planId: id })} />
+        <PlanList
+          onSelectPlan={(id) => setView("travel-plan", { planId: id })}
+          newSignal={newPlanSignal}
+        />
       ) : view === "travel-plan" && planIdParam ? (
         <PlanDetail
           planId={planIdParam}

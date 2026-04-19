@@ -111,19 +111,19 @@ function TravelRow({
             <PopoverContent className="w-40 p-1" align="start" side="right">
               <button
                 type="button"
-                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
-                onClick={() => { setMenuOpen(false); onAddToCalendar(); }}
-              >
-                <CalendarPlus className="h-3.5 w-3.5 text-blue-600" />
-                달력에 추가
-              </button>
-              <button
-                type="button"
                 className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent ${item.visited ? "text-green-600" : ""}`}
                 onClick={() => { setMenuOpen(false); onToggleVisited(); }}
               >
                 <Check className="h-3.5 w-3.5 text-green-600" />
                 {item.visited ? "가본 곳 해제" : "가본 곳으로 표시"}
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
+                onClick={() => { setMenuOpen(false); onAddToCalendar(); }}
+              >
+                <CalendarPlus className="h-3.5 w-3.5 text-blue-600" />
+                달력에 추가
               </button>
               <button
                 type="button"

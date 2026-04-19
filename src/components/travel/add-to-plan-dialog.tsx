@@ -39,10 +39,6 @@ export default function AddToPlanDialog({ open, onOpenChange, travelItem, onDone
   const injectPlaces = async (planId: string) => {
     if (!travelItem) return;
     const places = travelItem.places ?? [];
-    if (places.length === 0) {
-      toast.error("이 여행 항목에 등록된 위치가 없습니다");
-      return;
-    }
 
     // 기존 tasks 에서 max day_index + 1 을 새 day 로
     const { data: existing } = await supabase
@@ -54,29 +50,54 @@ export default function AddToPlanDialog({ open, onOpenChange, travelItem, onDone
     const nextDay =
       existing && existing.length > 0 ? (existing[0].day_index as number) + 1 : 0;
 
-    const rows = places.map((p, i) => ({
-      plan_id: planId,
-      day_index: nextDay,
-      start_time: null,
-      place_name: p.name,
-      place_address: p.address,
-      place_lat: p.lat,
-      place_lng: p.lng,
-      tag: travelItem.category,
-      content: i === 0 ? travelItem.title : null, // 첫 행에 여행 제목 메모
-      stay_minutes: 0,
-      manual_order: i,
-      transport_mode: null,
-      transport_duration_sec: null,
-      transport_manual: false,
-    }));
+    // 장소 없으면 빈 일정 1개 생성 (사용자가 계획 안에서 장소 직접 입력)
+    const rows =
+      places.length === 0
+        ? [
+            {
+              plan_id: planId,
+              day_index: nextDay,
+              start_time: null,
+              place_name: travelItem.title,
+              place_address: null,
+              place_lat: null,
+              place_lng: null,
+              tag: travelItem.category,
+              content: null,
+              stay_minutes: 0,
+              manual_order: 0,
+              transport_mode: null,
+              transport_duration_sec: null,
+              transport_manual: false,
+            },
+          ]
+        : places.map((p, i) => ({
+            plan_id: planId,
+            day_index: nextDay,
+            start_time: null,
+            place_name: p.name,
+            place_address: p.address,
+            place_lat: p.lat,
+            place_lng: p.lng,
+            tag: travelItem.category,
+            content: i === 0 ? travelItem.title : null,
+            stay_minutes: 0,
+            manual_order: i,
+            transport_mode: null,
+            transport_duration_sec: null,
+            transport_manual: false,
+          }));
 
     const { error } = await supabase.from("travel_plan_tasks").insert(rows);
     if (error) {
       toast.error("일정 추가 실패");
       return;
     }
-    toast.success(`${places.length}개 장소를 계획에 추가했습니다`);
+    if (places.length === 0) {
+      toast.info("위치 없이 빈 일정을 추가했습니다. 계획에서 장소를 입력하세요.");
+    } else {
+      toast.success(`${places.length}개 장소를 계획에 추가했습니다`);
+    }
     onDone?.(planId);
     onOpenChange(false);
   };
@@ -113,8 +134,10 @@ export default function AddToPlanDialog({ open, onOpenChange, travelItem, onDone
         </DialogHeader>
 
         <p className="text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">{travelItem.title}</span> 의
-          위치 {travelItem.places?.length ?? 0}개가 선택한 계획에 새 일자로 추가됩니다.
+          <span className="font-medium text-foreground">{travelItem.title}</span>
+          {(travelItem.places?.length ?? 0) > 0
+            ? ` 에 저장된 장소 ${travelItem.places!.length}개가 선택한 계획에 새 일자로 추가됩니다.`
+            : " 에 저장된 장소가 없어 빈 일정만 추가됩니다. 계획에서 장소를 직접 입력할 수 있습니다."}
         </p>
 
         <div className="flex gap-2">
