@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, GripVertical, Filter, X } from "lucide-react";
+import { Plus, Search, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, GripVertical, Filter, X, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import FilterPanel from "@/components/ui/filter-panel";
 import TravelForm from "./travel-form";
 import TravelToCalendarDialog from "./travel-to-calendar-dialog";
+import AddToPlanDialog from "./add-to-plan-dialog";
 import { useTravelItems } from "@/hooks/use-travel-items";
 import { useTravelTags } from "@/hooks/use-travel-tags";
 import { useEventTags } from "@/hooks/use-event-tags";
@@ -66,6 +67,7 @@ interface TravelRowProps {
   onEdit: () => void;
   onToggleVisited: () => void;
   onAddToCalendar: () => void;
+  onAddToPlan: () => void;
   onDelete: () => void;
 }
 
@@ -76,6 +78,7 @@ function TravelRow({
   onEdit,
   onToggleVisited,
   onAddToCalendar,
+  onAddToPlan,
   onDelete,
 }: TravelRowProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -121,6 +124,14 @@ function TravelRow({
               >
                 <Check className="h-3.5 w-3.5 text-green-600" />
                 {item.visited ? "가본 곳 해제" : "가본 곳으로 표시"}
+              </button>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
+                onClick={() => { setMenuOpen(false); onAddToPlan(); }}
+              >
+                <Route className="h-3.5 w-3.5 text-purple-600" />
+                계획에 추가
               </button>
               <button
                 type="button"
@@ -209,6 +220,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TravelItem | null>(null);
   const [calendarItem, setCalendarItem] = useState<TravelItem | null>(null);
+  const [planItem, setPlanItem] = useState<TravelItem | null>(null);
 
   const tagColorMap: Record<string, string> = {};
   for (const t of tags) tagColorMap[t.name] = t.color;
@@ -555,6 +567,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
                       onEdit={() => { setEditing(item); setFormOpen(true); }}
                       onToggleVisited={() => toggleVisited(item.id, item.visited)}
                       onAddToCalendar={() => setCalendarItem(item)}
+                      onAddToPlan={() => setPlanItem(item)}
                       onDelete={() => deleteItem(item.id)}
                     />
                   ))}
@@ -593,6 +606,12 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
         travelTags={tags}
         eventTags={eventTags}
         onAddToCalendar={handleAddToCalendar}
+      />
+
+      <AddToPlanDialog
+        open={!!planItem}
+        onOpenChange={(o) => !o && setPlanItem(null)}
+        travelItem={planItem}
       />
     </div>
   );
