@@ -221,7 +221,9 @@ export default function PlanTaskSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    // modal={false} — Sheet focus-trap 해제. 내부에 TagInput(또 다른 Sheet/Popover)
+    // 을 중첩해 열 때 포커스 충돌로 클릭이 먹지 않는 문제 해결.
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent
         side="bottom"
         className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] max-h-[90dvh] overflow-y-auto"
