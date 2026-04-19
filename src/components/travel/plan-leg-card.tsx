@@ -49,15 +49,13 @@ export default function PlanLegCard({ leg, onUpdateTask }: Props) {
       mode
     );
     setLoading(false);
-    if (result) {
-      onUpdateTask(toTask.id, {
-        transport_mode: mode,
-        transport_duration_sec: result.durationSec,
-        transport_manual: false,
-      });
-    } else {
-      onUpdateTask(toTask.id, { transport_mode: mode });
-    }
+    // 실패 시에도 duration 을 null 로 리셋 — 이전 수단의 값이 새 수단 선택 후
+    // 잔존해 "같은 시간" 으로 보이는 현상 방지
+    onUpdateTask(toTask.id, {
+      transport_mode: mode,
+      transport_duration_sec: result?.durationSec ?? null,
+      transport_manual: false,
+    });
   };
 
   const onSelectMode = (mode: TransportMode) => {

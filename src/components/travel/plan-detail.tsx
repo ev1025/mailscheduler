@@ -15,6 +15,7 @@ import { useTravelPlanTasks } from "@/hooks/use-travel-plan-tasks";
 import { sortTasks } from "@/lib/travel/sort-tasks";
 import { tasksToLegs } from "@/lib/travel/legs";
 import { fetchRouteDuration } from "@/lib/travel/providers";
+import { computeExpectedTimes } from "@/lib/travel/expected-time";
 import type { TravelPlanTask, TransportMode } from "@/types";
 import {
   DndContext,
@@ -56,9 +57,11 @@ function daysBetween(startIso: string, endIso: string): number {
 function SortableTaskRow({
   task,
   onClick,
+  expectedTime,
 }: {
   task: TravelPlanTask;
   onClick: () => void;
+  expectedTime?: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: task.id });
@@ -73,6 +76,7 @@ function SortableTaskRow({
       <PlanTaskRow
         task={task}
         onClick={onClick}
+        expectedTime={expectedTime}
         dragListeners={listeners as unknown as React.HTMLAttributes<HTMLButtonElement>}
         dragAttributes={attributes as unknown as React.HTMLAttributes<HTMLButtonElement>}
       />
@@ -95,6 +99,8 @@ export default function PlanDetail({ planId, onBack }: Props) {
   const [sheetDayIndex, setSheetDayIndex] = useState(0);
 
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
+  // 출발지 시간 + 체류 + 이동시간 → 도착지 예상 시간 맵
+  const expectedTimes = useMemo(() => computeExpectedTimes(sorted), [sorted]);
   const legs = useMemo(() => tasksToLegs(sorted), [sorted]);
   const legsWithCoords = useMemo(
     () =>
@@ -376,7 +382,11 @@ export default function PlanDetail({ planId, onBack }: Props) {
                             : undefined;
                           return (
                             <div key={t.id} className="flex flex-col gap-1.5">
-                              <SortableTaskRow task={t} onClick={() => openEditSheet(t)} />
+                              <SortableTaskRow
+                                task={t}
+                                onClick={() => openEditSheet(t)}
+                                expectedTime={expectedTimes[t.id]?.predicted ? expectedTimes[t.id]?.time : null}
+                              />
                               {leg && (
                                 <PlanLegCard
                                   leg={leg}

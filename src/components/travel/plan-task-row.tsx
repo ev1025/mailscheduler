@@ -12,6 +12,8 @@ interface Props {
   onClick: () => void;
   dragListeners?: React.HTMLAttributes<HTMLButtonElement>;
   dragAttributes?: React.HTMLAttributes<HTMLButtonElement>;
+  // 사용자가 시간을 입력하지 않은 경우 계산된 예상 도착 시각 (HH:MM)
+  expectedTime?: string | null;
 }
 
 // HH:MM:SS → HH:MM
@@ -20,8 +22,15 @@ function formatTime(t: string | null): string {
   return t.length >= 5 ? t.slice(0, 5) : t;
 }
 
-export default function PlanTaskRow({ task, onClick, dragListeners, dragAttributes }: Props) {
+export default function PlanTaskRow({
+  task,
+  onClick,
+  dragListeners,
+  dragAttributes,
+  expectedTime,
+}: Props) {
   const time = formatTime(task.start_time);
+  const showExpected = !time && !!expectedTime;
   const tags = task.tag ? task.tag.split(",").map((s) => s.trim()).filter(Boolean) : [];
 
   return (
@@ -52,9 +61,16 @@ export default function PlanTaskRow({ task, onClick, dragListeners, dragAttribut
 
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
-          {time && (
+          {time ? (
             <span className="text-xs font-semibold tabular-nums shrink-0">{time}</span>
-          )}
+          ) : showExpected ? (
+            <span
+              className="text-xs tabular-nums shrink-0 text-muted-foreground italic"
+              title="이전 일정의 시간 + 체류 + 이동시간으로 계산된 예상 도착"
+            >
+              ~{expectedTime}
+            </span>
+          ) : null}
           <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
           <span className="text-sm font-medium truncate">
             {task.place_name || "(장소 미입력)"}
