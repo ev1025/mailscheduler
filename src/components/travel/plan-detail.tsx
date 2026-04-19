@@ -193,6 +193,13 @@ export default function PlanDetail({ planId, onBack }: Props) {
     };
   }, [segment, sorted, legsWithCoords, visibleLegs, legPaths]);
 
+  // 드래그 정렬 (같은 day_index 내만 이동) — early return 이전에 선언 필수.
+  // 훅은 조건부 return 뒤에 호출하면 "Rules of Hooks" 위반.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
+  );
+
   if (!plan) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -226,12 +233,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
     }
     setTitleDraft(null);
   };
-
-  // 드래그 정렬 (같은 day_index 내만 이동)
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
-  );
 
   const handleDragEnd = async (e: DragEndEvent, daySorted: TravelPlanTask[]) => {
     if (!e.over || e.active.id === e.over.id) return;
