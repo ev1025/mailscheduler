@@ -230,6 +230,8 @@ export default function PlanTaskSheet({
         showCloseButton={false}
         initialFocus={false}
       >
+        {/* 데스크톱: 중앙 정렬 + 최대 폭 제한 / 모바일: 전폭 */}
+        <div className="mx-auto w-full max-w-xl flex flex-col">
         <SheetHeader className="pt-2 shrink-0">
           <div className="flex flex-col items-center">
             <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
@@ -374,6 +376,7 @@ export default function PlanTaskSheet({
               {saving ? "저장 중..." : "저장"}
             </Button>
           </div>
+        </div>
         </div>
       </SheetContent>
     </Sheet>

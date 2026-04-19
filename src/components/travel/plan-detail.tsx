@@ -294,6 +294,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
       </header>
 
       <div className="flex-1 overflow-y-auto">
+        <div className="mx-auto w-full max-w-3xl">
         {/* 기간 */}
         <div className="flex items-center gap-2 px-3 py-2 border-b">
           <span className="text-xs text-muted-foreground shrink-0">기간</span>
@@ -402,6 +403,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
               </section>
             );
           })}
+        </div>
         </div>
       </div>
 
