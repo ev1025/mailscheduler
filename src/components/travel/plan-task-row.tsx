@@ -3,33 +3,48 @@
 import { useState, useEffect } from "react";
 import { X, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import TimePicker from "@/components/ui/time-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import PlanPlacePicker from "@/components/travel/plan-place-picker";
 import type { TravelPlanTask, PlaceInfo } from "@/types";
 
-// 계획 일정 한 행 — 시간 / 장소 / 태그 / 내용 / 체류시간(분)
-// 장소가 비어있으면 PlanPlacePicker 로 검색 → 선택 시 place_* 4필드 자동 채움.
-// 나머지 필드는 인라인 편집(400ms debounce 로 상위에서 저장).
+// 계획 일정 한 행 — 캘린더 event-form 의 DatePicker/TimePicker/Select 재사용.
+// 필드: [일차 Select] [시간 TimePicker] [체류 minutes] · 장소 · 태그/내용.
+// 모든 문자열 입력은 400ms debounce.
 
 interface Props {
   task: TravelPlanTask;
   onChange: (updates: Partial<TravelPlanTask>) => void;
   onDelete: () => void;
+  availableDays: number[];                  // 현재 존재하는 day_index 목록
+  onAddNewDay: () => number;                // "새 일자" 선택 시 next day_index 반환
+  formatDayLabel: (dayIndex: number) => string; // "1일차" 또는 "5/10 (월)"
 }
 
-export default function PlanTaskRow({ task, onChange, onDelete }: Props) {
+export default function PlanTaskRow({
+  task,
+  onChange,
+  onDelete,
+  availableDays,
+  onAddNewDay,
+  formatDayLabel,
+}: Props) {
   const [placeQuery, setPlaceQuery] = useState("");
   const [localTime, setLocalTime] = useState(task.start_time ?? "");
   const [localContent, setLocalContent] = useState(task.content ?? "");
   const [localStay, setLocalStay] = useState(String(task.stay_minutes || ""));
   const [localTag, setLocalTag] = useState(task.tag ?? "");
 
-  // 서버 값 변경 시 로컬 동기화 (다른 클라이언트 편집 대비)
   useEffect(() => { setLocalTime(task.start_time ?? ""); }, [task.start_time]);
   useEffect(() => { setLocalContent(task.content ?? ""); }, [task.content]);
   useEffect(() => { setLocalStay(String(task.stay_minutes || "")); }, [task.stay_minutes]);
   useEffect(() => { setLocalTag(task.tag ?? ""); }, [task.tag]);
 
-  // 400ms debounce 저장 helper
   const debouncedSave = (key: keyof TravelPlanTask, value: string | number | null) => {
     const timer = setTimeout(() => onChange({ [key]: value } as Partial<TravelPlanTask>), 400);
     return () => clearTimeout(timer);
@@ -67,27 +82,48 @@ export default function PlanTaskRow({ task, onChange, onDelete }: Props) {
     });
   };
 
+  const handleDayChange = (v: string | null) => {
+    if (!v) return;
+    if (v === "__new__") {
+      onChange({ day_index: onAddNewDay() });
+    } else {
+      onChange({ day_index: parseInt(v) });
+    }
+  };
+
   const placeChosen = !!task.place_name;
+  const dayOptions = availableDays;
 
   return (
     <div className="flex flex-col gap-1.5 rounded-md border p-2.5">
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-          {/* 1행: 시간 · 체류 · 삭제 */}
-          <div className="flex items-center gap-2">
-            <Input
-              type="time"
+          {/* 1행: 일차 · 시간 · 체류 · 삭제 */}
+          <div className="flex items-center gap-1.5">
+            <Select value={String(task.day_index)} onValueChange={handleDayChange}>
+              <SelectTrigger className="h-8 w-[96px] text-xs">
+                {formatDayLabel(task.day_index)}
+              </SelectTrigger>
+              <SelectContent>
+                {dayOptions.map((d) => (
+                  <SelectItem key={d} value={String(d)}>
+                    {formatDayLabel(d)}
+                  </SelectItem>
+                ))}
+                <SelectItem value="__new__">+ 새 일자</SelectItem>
+              </SelectContent>
+            </Select>
+            <TimePicker
               value={localTime}
-              onChange={(e) => setLocalTime(e.target.value)}
+              onChange={setLocalTime}
               className="h-8 w-24 text-xs"
-              placeholder="시간"
             />
             <Input
               type="number"
               min={0}
               value={localStay}
               onChange={(e) => setLocalStay(e.target.value)}
-              className="h-8 w-20 text-xs"
+              className="h-8 w-16 text-xs"
               placeholder="분"
             />
             <span className="text-xs text-muted-foreground">체류</span>
@@ -102,7 +138,7 @@ export default function PlanTaskRow({ task, onChange, onDelete }: Props) {
             </button>
           </div>
 
-          {/* 2행: 장소 (검색 or 선택됨 표시) */}
+          {/* 2행: 장소 */}
           {placeChosen ? (
             <div className="flex items-start gap-2 rounded-md border bg-muted/30 px-2 py-1.5">
               <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />

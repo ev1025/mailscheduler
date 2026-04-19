@@ -14,7 +14,8 @@ interface MapPin {
 
 interface Props {
   pins: MapPin[];
-  path?: [number, number][]; // [[lng, lat], ...] (자가용 경로)
+  path?: [number, number][]; // [[lng, lat], ...] (자가용 실제 도로 경로)
+  connectPins?: boolean;     // 핀들을 순서대로 단순 직선으로 이어줄지
   height?: number;
   className?: string;
 }
@@ -31,6 +32,7 @@ const CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
 export default function PlanRouteMap({
   pins,
   path,
+  connectPins = false,
   height = 240,
   className,
 }: Props) {
@@ -94,12 +96,24 @@ export default function PlanRouteMap({
       }
 
       if (path && path.length > 1) {
+        // 실제 도로 경로 (NCP Directions) — 실선
         const latlngs = path.map((pt) => new naver.maps.LatLng(pt[1], pt[0]));
         new naver.maps.Polyline({
           path: latlngs,
           strokeColor: "#3b82f6",
           strokeOpacity: 0.9,
           strokeWeight: 4,
+          map,
+        });
+      } else if (connectPins && pins.length > 1) {
+        // 핀 순서대로 단순 직선 연결 — 점선으로 표시해 "실제 경로 아님" 시각 구분
+        const latlngs = pins.map((p) => new naver.maps.LatLng(p.lat, p.lng));
+        new naver.maps.Polyline({
+          path: latlngs,
+          strokeColor: "#f97316",
+          strokeOpacity: 0.85,
+          strokeWeight: 3,
+          strokeStyle: "shortdash",
           map,
         });
       }

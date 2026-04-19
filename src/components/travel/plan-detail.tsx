@@ -1,9 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import DatePicker from "@/components/ui/date-picker";
 import PlanTaskRow from "@/components/travel/plan-task-row";
 import PlanSegmentTabs, { type Segment } from "@/components/travel/plan-segment-tabs";
 import PlanLegCard from "@/components/travel/plan-leg-card";
@@ -20,6 +21,20 @@ interface Props {
   onBack: () => void;
 }
 
+const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
+
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function daysBetween(startIso: string, endIso: string): number {
+  const s = new Date(startIso + "T00:00:00");
+  const e = new Date(endIso + "T00:00:00");
+  return Math.max(0, Math.round((e.getTime() - s.getTime()) / 86400000));
+}
+
 export default function PlanDetail({ planId, onBack }: Props) {
   const { plans, updatePlan } = useTravelPlans();
   const plan = plans.find((p) => p.id === planId);
@@ -27,7 +42,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
 
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [segment, setSegment] = useState<Segment>({ mode: "all" });
-  // 경로별 뷰에서 자가용 path 캐시 (leg index 기준)
   const [legPaths, setLegPaths] = useState<Record<string, [number, number][]>>({});
 
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
@@ -46,11 +60,30 @@ export default function PlanDetail({ planId, onBack }: Props) {
   const days = useMemo(() => {
     const set = new Set<number>();
     for (const t of sorted) set.add(t.day_index);
+    // 존재하지 않아도 start_date~end_date 범위의 day_index 도 포함
+    if (plan?.start_date && plan?.end_date) {
+      const total = daysBetween(plan.start_date, plan.end_date);
+      for (let i = 0; i <= total; i++) set.add(i);
+    }
     return Array.from(set).sort((a, b) => a - b);
-  }, [sorted]);
+  }, [sorted, plan?.start_date, plan?.end_date]);
 
-  // 지도에 표시할 핀 필터
-  const { pins, path } = useMemo(() => {
+  // day_index → 표시 라벨 ("1일차" 또는 "5/10 (월)")
+  const formatDayLabel = (dayIndex: number): string => {
+    if (plan?.start_date) {
+      const iso = addDaysISO(plan.start_date, dayIndex);
+      const d = new Date(iso + "T00:00:00");
+      return `${d.getMonth() + 1}/${d.getDate()} (${WEEKDAYS[d.getDay()]})`;
+    }
+    return `${dayIndex + 1}일차`;
+  };
+
+  const totalDays = plan?.start_date && plan?.end_date
+    ? daysBetween(plan.start_date, plan.end_date) + 1
+    : 0;
+
+  // 지도 핀 + 경로 필터
+  const { pins, path, connectPins } = useMemo(() => {
     const taskToPin = (t: TravelPlanTask) =>
       t.place_lat != null && t.place_lng != null
         ? { lat: t.place_lat, lng: t.place_lng, label: t.place_name }
@@ -60,33 +93,32 @@ export default function PlanDetail({ planId, onBack }: Props) {
       const all = sorted.map(taskToPin).filter(Boolean) as {
         lat: number; lng: number; label: string;
       }[];
-      return { pins: all, path: undefined };
+      return { pins: all, path: undefined, connectPins: all.length > 1 };
     }
     if (segment.mode === "day") {
       const dayTasks = sorted.filter((t) => t.day_index === segment.dayIndex);
       const dayPins = dayTasks.map(taskToPin).filter(Boolean) as {
         lat: number; lng: number; label: string;
       }[];
-      return { pins: dayPins, path: undefined };
+      return { pins: dayPins, path: undefined, connectPins: dayPins.length > 1 };
     }
     // leg 모드
     const leg = legsWithCoords[segment.legIndex];
-    if (!leg) return { pins: [], path: undefined };
+    if (!leg) return { pins: [], path: undefined, connectPins: false };
     const legKey = `${leg.fromTaskId}-${leg.toTaskId}`;
     const pts = [taskToPin(leg.fromTask), taskToPin(leg.toTask)].filter(Boolean) as {
       lat: number; lng: number; label: string;
     }[];
-    return { pins: pts, path: legPaths[legKey] };
+    return { pins: pts, path: legPaths[legKey], connectPins: !legPaths[legKey] };
   }, [segment, sorted, legsWithCoords, legPaths]);
 
-  // 경로별 뷰로 진입하면 자가용 경로 path 요청 (캐시 없을 때)
   const ensureLegPath = async (legIndex: number) => {
     const leg = legsWithCoords[legIndex];
     if (!leg) return;
     const key = `${leg.fromTaskId}-${leg.toTaskId}`;
     if (legPaths[key]) return;
     const mode: TransportMode = leg.toTask.transport_mode ?? "car";
-    if (mode !== "car" && mode !== "taxi") return; // 대중교통 path 는 MVP 에서 미사용
+    if (mode !== "car" && mode !== "taxi") return;
     const result = await fetchRouteDuration(
       { lat: leg.fromTask.place_lat!, lng: leg.fromTask.place_lng! },
       { lat: leg.toTask.place_lat!, lng: leg.toTask.place_lng! },
@@ -124,6 +156,12 @@ export default function PlanDetail({ planId, onBack }: Props) {
     });
   };
 
+  // "새 일자" 선택 시 next day_index 반환
+  const handleAddNewDay = (): number => {
+    const max = Math.max(-1, ...days);
+    return max + 1;
+  };
+
   const handleTitleCommit = async () => {
     if (titleDraft == null) return;
     const trimmed = titleDraft.trim();
@@ -133,7 +171,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
     setTitleDraft(null);
   };
 
-  // 테이블 행 단위 렌더링: 정렬된 task 사이에 leg 카드 끼워넣기
+  // 테이블 — 정렬된 task 사이에 leg 카드 삽입
   const rowsWithLegs: React.ReactNode[] = [];
   for (let i = 0; i < sorted.length; i++) {
     const t = sorted[i];
@@ -143,9 +181,11 @@ export default function PlanDetail({ planId, onBack }: Props) {
         task={t}
         onChange={(updates) => updateTask(t.id, updates)}
         onDelete={() => deleteTask(t.id)}
+        availableDays={days}
+        onAddNewDay={handleAddNewDay}
+        formatDayLabel={formatDayLabel}
       />
     );
-    // 다음 task 가 같은 day 이고 좌표 모두 있으면 leg 카드 삽입
     const next = sorted[i + 1];
     if (next && next.day_index === t.day_index) {
       const hasCoords =
@@ -204,7 +244,43 @@ export default function PlanDetail({ planId, onBack }: Props) {
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        {/* 경로맵 섹션 */}
+        {/* 기간 행 — 캘린더 event-form 과 동일한 DatePicker */}
+        <div className="flex items-center gap-2 px-3 py-2 border-b">
+          <span className="text-xs text-muted-foreground shrink-0">기간</span>
+          <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
+            <DatePicker
+              value={plan.start_date ?? ""}
+              onChange={(v) => updatePlan(plan.id, { start_date: v || null })}
+              className="h-8 min-w-0 text-xs"
+            />
+            <span className="text-xs text-muted-foreground">~</span>
+            <DatePicker
+              value={plan.end_date ?? ""}
+              onChange={(v) => updatePlan(plan.id, { end_date: v || null })}
+              min={plan.start_date ?? undefined}
+              className="h-8 min-w-0 text-xs"
+            />
+            {plan.end_date ? (
+              <button
+                type="button"
+                onClick={() => updatePlan(plan.id, { end_date: null })}
+                className="text-muted-foreground hover:text-foreground shrink-0 p-0.5"
+                aria-label="종료일 제거"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <span className="w-4" />
+            )}
+          </div>
+          {totalDays > 0 && (
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {totalDays - 1}박 {totalDays}일
+            </span>
+          )}
+        </div>
+
+        {/* 경로맵 */}
         <div className="flex flex-col gap-2 p-3 border-b">
           <PlanSegmentTabs
             segment={segment}
@@ -215,10 +291,15 @@ export default function PlanDetail({ planId, onBack }: Props) {
             days={days}
             legs={legsWithCoords}
           />
-          <PlanRouteMap pins={pins} path={path} height={240} />
+          <PlanRouteMap
+            pins={pins}
+            path={path}
+            connectPins={connectPins}
+            height={240}
+          />
         </div>
 
-        {/* 일정 테이블 + leg 카드 */}
+        {/* 테이블 + leg 카드 */}
         <div className="flex flex-col gap-2 p-3">
           {rowsWithLegs}
           <Button
