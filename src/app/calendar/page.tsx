@@ -6,6 +6,7 @@ import {
   CalendarDays,
   TableProperties,
   Plane,
+  Route,
   Menu,
 } from "lucide-react";
 import MonthPicker from "@/components/layout/month-picker";
@@ -19,6 +20,8 @@ import DatabaseView from "@/components/calendar/database-view";
 import EventForm from "@/components/calendar/event-form";
 import DayDetail from "@/components/calendar/day-detail";
 import TravelList from "@/components/travel/travel-list";
+import PlanList from "@/components/travel/plan-list";
+import PlanDetail from "@/components/travel/plan-detail";
 import RepeatScopeDialog, { type RepeatScope } from "@/components/calendar/repeat-scope-dialog";
 import { useCurrentUserId, useAppUsers } from "@/lib/current-user";
 import { getHolidayMap } from "@/lib/holidays";
@@ -36,12 +39,19 @@ function CalendarPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const viewParam = searchParams.get("view");
-  const view: "calendar" | "database" | "travel" =
-    viewParam === "database" || viewParam === "travel" ? viewParam : "calendar";
-  const setView = (v: "calendar" | "database" | "travel") => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (v === "calendar") params.delete("view");
-    else params.set("view", v);
+  type View = "calendar" | "database" | "travel" | "travel-plans" | "travel-plan";
+  const view: View =
+    viewParam === "database" ||
+    viewParam === "travel" ||
+    viewParam === "travel-plans" ||
+    viewParam === "travel-plan"
+      ? (viewParam as View)
+      : "calendar";
+  const planIdParam = searchParams.get("planId");
+  const setView = (v: View, extra?: Record<string, string>) => {
+    const params = new URLSearchParams();
+    if (v !== "calendar") params.set("view", v);
+    if (extra) for (const [k, val] of Object.entries(extra)) params.set(k, val);
     const qs = params.toString();
     router.replace(qs ? `/calendar?${qs}` : "/calendar", { scroll: false });
   };
@@ -236,11 +246,19 @@ function CalendarPageInner() {
     document.addEventListener("touchstart", handler);
     return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("touchstart", handler); };
   }, [menuOpen]);
-  const viewLabel = view === "calendar" ? "달력" : view === "database" ? "일정목록" : "여행";
+  const viewLabel =
+    view === "calendar"
+      ? "달력"
+      : view === "database"
+        ? "일정목록"
+        : view === "travel"
+          ? "여행"
+          : "여행 계획";
   const viewMenuItems = [
     { key: "calendar" as const, label: "달력", icon: CalendarDays },
     { key: "database" as const, label: "일정목록", icon: TableProperties },
     { key: "travel" as const, label: "여행", icon: Plane },
+    { key: "travel-plans" as const, label: "여행 계획", icon: Route },
   ];
 
   return (
@@ -259,19 +277,24 @@ function CalendarPageInner() {
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
-                {viewMenuItems.map(({ key, label, icon: Icon }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => { setView(key); setMenuOpen(false); }}
-                    className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                      view === key ? "bg-accent font-medium" : "hover:bg-accent/50"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </button>
-                ))}
+                {viewMenuItems.map(({ key, label, icon: Icon }) => {
+                  const active =
+                    view === key ||
+                    (key === "travel-plans" && view === "travel-plan");
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => { setView(key); setMenuOpen(false); }}
+                      className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                        active ? "bg-accent font-medium" : "hover:bg-accent/50"
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -279,8 +302,8 @@ function CalendarPageInner() {
       />
     <div className="flex flex-col h-[calc(100%-3.5rem)] min-h-0 px-2 py-2 md:p-6 overflow-hidden">
 
-      {/* MonthPicker: 달력/일정목록에서만 (여행은 월 개념 없음) */}
-      {view !== "travel" && (
+      {/* MonthPicker: 달력/일정목록에서만 (여행·여행계획은 월 개념 없음) */}
+      {view !== "travel" && view !== "travel-plans" && view !== "travel-plan" && (
         <div className="mb-2 flex justify-center items-center shrink-0">
           <MonthPicker
             year={year}
@@ -330,7 +353,14 @@ function CalendarPageInner() {
         </div>
       )}
 
-      {view === "travel" ? (
+      {view === "travel-plans" ? (
+        <PlanList onSelectPlan={(id) => setView("travel-plan", { planId: id })} />
+      ) : view === "travel-plan" && planIdParam ? (
+        <PlanDetail
+          planId={planIdParam}
+          onBack={() => setView("travel-plans")}
+        />
+      ) : view === "travel" ? (
         <TravelList
           visibleUserIds={visibleUserIds}
           onNavigateToMonth={(y, m) => {

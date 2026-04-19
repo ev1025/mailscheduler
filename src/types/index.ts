@@ -147,6 +147,39 @@ export interface PlaceInfo {
   lng: number;
 }
 
+// 여행 계획 (travel_plans + travel_plan_tasks)
+export type TransportMode = "car" | "bus" | "taxi" | "train";
+
+export interface TravelPlan {
+  id: string;
+  title: string;
+  start_date: string | null;
+  end_date: string | null;
+  notes: string | null;
+  user_id?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TravelPlanTask {
+  id: string;
+  plan_id: string;
+  day_index: number;
+  start_time: string | null;    // "HH:MM" 또는 null
+  place_name: string;
+  place_address: string | null;
+  place_lat: number | null;
+  place_lng: number | null;
+  tag: string | null;
+  content: string | null;
+  stay_minutes: number;
+  manual_order: number;
+  transport_mode: TransportMode | null;
+  transport_duration_sec: number | null;
+  transport_manual: boolean;
+  created_at: string;
+}
+
 export interface TravelTag {
   id: string;
   name: string;
