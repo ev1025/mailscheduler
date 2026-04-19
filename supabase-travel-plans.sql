@@ -37,8 +37,10 @@ CREATE INDEX IF NOT EXISTS idx_tpt_plan_day_time
 ALTER TABLE travel_plans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE travel_plan_tasks ENABLE ROW LEVEL SECURITY;
 
--- 개인용 RLS 패턴 (기존 테이블들과 동일)
+-- RLS 정책 — anon + authenticated 둘 다 허용 (public)
+-- 기존 앱이 Supabase Auth 세션으로 요청하면 authenticated 역할이므로
+-- TO anon 만으로는 403. public 으로 걸어야 anon / authenticated 모두 통과.
 DROP POLICY IF EXISTS "Allow all" ON travel_plans;
 DROP POLICY IF EXISTS "Allow all" ON travel_plan_tasks;
-CREATE POLICY "Allow all" ON travel_plans FOR ALL TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON travel_plan_tasks FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON travel_plans FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON travel_plan_tasks FOR ALL TO public USING (true) WITH CHECK (true);
