@@ -13,6 +13,7 @@ import type { KnowledgeFolder, KnowledgeItem } from "@/types";
 import { useKnowledgeFavorites } from "@/lib/knowledge-favorites";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import MoveTargetTree from "@/components/knowledge/move-target-tree";
+import KnowledgeEmptyState from "@/components/knowledge/empty-state";
 
 interface DashboardProps {
   folders: KnowledgeFolder[];
@@ -373,7 +374,7 @@ export default function KnowledgeDashboard({
           <div className="flex flex-col gap-1">
             <p className="text-xs text-muted-foreground">{searchResults.length}개 결과</p>
             {searchResults.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">결과 없음</p>
+              <KnowledgeEmptyState variant="no-search-results" query={searchQuery.trim()} />
             ) : searchResults.map((item) => (
               <button key={item.id} type="button" onClick={() => onSelectItem(item.id)}
                 className="flex items-center gap-2 rounded-lg border p-2.5 text-left hover:bg-accent/50 transition-colors w-full">
@@ -473,10 +474,7 @@ export default function KnowledgeDashboard({
             )}
 
             {favoriteItems.length === 0 && favoriteFolders.length === 0 && rootFolders.length === 0 && !selectMode && (
-              <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-                <FileText className="h-12 w-12 opacity-20" />
-                <p className="text-sm text-muted-foreground">폴더를 만들어 노트를 정리해보세요</p>
-              </div>
+              <KnowledgeEmptyState variant="no-folders" />
             )}
           </>
         )}

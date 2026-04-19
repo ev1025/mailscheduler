@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Pin, FileText, ChevronRight, Trash2, CheckSquare, Square, Pencil, Folder, FolderInput, ArrowLeft, Star } from "lucide-react";
+import { Pin, FileText, Trash2, CheckSquare, Square, Pencil, Folder, FolderInput, ArrowLeft, Star, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
 import { useKnowledgeFavorites } from "@/lib/knowledge-favorites";
 import MoveTargetTree from "@/components/knowledge/move-target-tree";
+import KnowledgeBreadcrumb from "@/components/knowledge/breadcrumb";
+import KnowledgeEmptyState from "@/components/knowledge/empty-state";
 
 interface Props {
   folder: KnowledgeFolder | null;
@@ -112,14 +114,6 @@ export default function FolderNoteList({
     exitSelect();
   };
 
-  // 브레드크럼
-  const breadcrumbs: { id: string | null; name: string }[] = [];
-  if (folder) {
-    let cur: KnowledgeFolder | undefined = folder;
-    while (cur) { breadcrumbs.unshift({ id: cur.id, name: cur.name }); cur = folders.find((f) => f.id === cur!.parent_id); }
-  }
-  breadcrumbs.unshift({ id: null, name: "지식창고" });
-
   return (
     <div className="flex flex-col h-full" onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       {/* 헤더 — PageHeader와 동일 규격(h-14, h-10 w-10 버튼, h-[20px] 아이콘) */}
@@ -141,16 +135,12 @@ export default function FolderNoteList({
             </div>
           </>
         ) : (
-          <div className="flex items-center gap-0.5 flex-1 min-w-0 overflow-x-auto scrollbar-none">
-            {breadcrumbs.map((bc, i) => (
-              <div key={bc.id ?? "root"} className="flex items-center gap-0.5 shrink-0">
-                {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />}
-                <button type="button" onClick={() => onNavigateToFolder(bc.id)}
-                  className={`text-xs truncate max-w-[80px] ${i === breadcrumbs.length - 1 ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-                  {bc.name}
-                </button>
-              </div>
-            ))}
+          <div className="flex items-center flex-1 min-w-0">
+            <KnowledgeBreadcrumb
+              folder={folder}
+              folders={folders}
+              onNavigate={onNavigateToFolder}
+            />
           </div>
         )}
       </header>
@@ -181,10 +171,7 @@ export default function FolderNoteList({
       {/* 콘텐츠 */}
       <div className="flex-1 overflow-y-auto p-3">
         {subFolders.length === 0 && folderItems.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 py-16 text-center">
-            <FileText className="h-10 w-10 opacity-20" />
-            <p className="text-xs text-muted-foreground">비어있습니다</p>
-          </div>
+          <KnowledgeEmptyState variant="no-notes-in-folder" />
         ) : (
           <div className="flex flex-col gap-0.5">
             {subFolders.map((sf) => (
