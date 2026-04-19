@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,6 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
-import TimePicker from "@/components/ui/time-picker";
 import TagInput from "@/components/ui/tag-input";
 import PlanPlacePicker from "@/components/travel/plan-place-picker";
 import { useTravelTags } from "@/hooks/use-travel-tags";
@@ -242,9 +241,8 @@ export default function PlanTaskSheet({
         </SheetHeader>
 
         <div className="flex flex-col gap-3 px-4 pb-3">
-          {/* 일차 · 시간 */}
-          <div className="flex items-center gap-2">
-            <Label className="w-14 shrink-0 text-xs text-muted-foreground">일차</Label>
+          {/* 일차 · 시간 · 체류 — 1행 */}
+          <div className="flex items-center gap-2 flex-wrap">
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
               <SelectTrigger className="h-8 w-28 text-xs">
                 {formatDayLabel(dayIndex)}
@@ -258,28 +256,28 @@ export default function PlanTaskSheet({
                 <SelectItem value="__new__">+ 새 일자</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex-1" />
-            <Label className="shrink-0 text-xs text-muted-foreground">시간</Label>
-            <TimePicker
-              value={startTime}
-              onChange={setStartTime}
-              className="h-8 w-24 text-xs"
-            />
-          </div>
 
-          {/* 체류 시간 — 분 단위 명시 */}
-          <div className="flex items-center gap-2">
-            <Label className="w-14 shrink-0 text-xs text-muted-foreground">체류</Label>
-            <Input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              value={stayMinutes}
-              onChange={(e) => handleStayChange(e.target.value)}
-              placeholder="0"
-              className="h-8 w-24 text-xs"
+            {/* 시간 — Popover 를 Sheet 와 중첩해 열 때 막히는 케이스 대비해
+                네이티브 <input type="time"> 로 대체(포커스 trap 영향 없음) */}
+            <input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             />
-            <span className="text-xs text-muted-foreground">분</span>
+
+            <div className="flex items-center gap-1">
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={stayMinutes}
+                onChange={(e) => handleStayChange(e.target.value)}
+                placeholder="체류"
+                className="h-8 w-20 text-xs"
+              />
+              <span className="text-xs text-muted-foreground">분</span>
+            </div>
           </div>
 
           {/* 장소 */}
@@ -343,24 +341,8 @@ export default function PlanTaskSheet({
             />
           </div>
 
-          {/* 버튼 */}
-          <div className="flex items-center gap-2 pt-1">
-            {task && onDelete && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={async () => {
-                  await onDelete();
-                  clearDraft(draftKey);
-                  onOpenChange(false);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-            <div className="flex-1" />
+          {/* 버튼 — 삭제는 메인 목록 행의 휴지통에서 */}
+          <div className="flex items-center justify-end gap-2 pt-1">
             <Button
               type="button"
               variant="outline"

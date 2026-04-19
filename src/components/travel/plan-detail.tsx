@@ -57,10 +57,12 @@ function daysBetween(startIso: string, endIso: string): number {
 function SortableTaskRow({
   task,
   onClick,
+  onDelete,
   expectedTime,
 }: {
   task: TravelPlanTask;
   onClick: () => void;
+  onDelete: () => void;
   expectedTime?: string | null;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -76,6 +78,7 @@ function SortableTaskRow({
       <PlanTaskRow
         task={task}
         onClick={onClick}
+        onDelete={onDelete}
         expectedTime={expectedTime}
         dragListeners={listeners as unknown as React.HTMLAttributes<HTMLButtonElement>}
         dragAttributes={attributes as unknown as React.HTMLAttributes<HTMLButtonElement>}
@@ -385,6 +388,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
                               <SortableTaskRow
                                 task={t}
                                 onClick={() => openEditSheet(t)}
+                                onDelete={() => deleteTask(t.id)}
                                 expectedTime={expectedTimes[t.id]?.predicted ? expectedTimes[t.id]?.time : null}
                               />
                               {leg && (

@@ -63,7 +63,17 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const data = (await res.json()) as DirectionsResponse;
+  // 네이버가 200 이어도 body 가 비어있는 경우(짧은 거리·경로 불가)
+  const bodyText = await res.text();
+  if (!bodyText) {
+    return NextResponse.json({ error: "경로를 찾을 수 없습니다." }, { status: 404 });
+  }
+  let data: DirectionsResponse;
+  try {
+    data = JSON.parse(bodyText) as DirectionsResponse;
+  } catch {
+    return NextResponse.json({ error: "경로 응답 파싱 실패" }, { status: 502 });
+  }
   const best = data.route?.traoptimal?.[0];
   if (!best?.summary?.duration) {
     return NextResponse.json({ error: "경로를 계산할 수 없습니다." }, { status: 404 });

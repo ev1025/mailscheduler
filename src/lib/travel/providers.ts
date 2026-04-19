@@ -47,7 +47,7 @@ async function getTransitDuration(
     if (!res.ok) return null;
     const j = await res.json();
     if (typeof j.durationSec !== "number") return null;
-    return { durationSec: j.durationSec };
+    return { durationSec: j.durationSec, path: j.path };
   } catch {
     return null;
   }

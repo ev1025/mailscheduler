@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, GripVertical } from "lucide-react";
+import { MapPin, GripVertical, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { TravelPlanTask } from "@/types";
 
@@ -10,9 +10,9 @@ import type { TravelPlanTask } from "@/types";
 interface Props {
   task: TravelPlanTask;
   onClick: () => void;
+  onDelete?: () => void;
   dragListeners?: React.HTMLAttributes<HTMLButtonElement>;
   dragAttributes?: React.HTMLAttributes<HTMLButtonElement>;
-  // 사용자가 시간을 입력하지 않은 경우 계산된 예상 도착 시각 (HH:MM)
   expectedTime?: string | null;
 }
 
@@ -25,6 +25,7 @@ function formatTime(t: string | null): string {
 export default function PlanTaskRow({
   task,
   onClick,
+  onDelete,
   dragListeners,
   dragAttributes,
   expectedTime,
@@ -44,7 +45,7 @@ export default function PlanTaskRow({
           onClick();
         }
       }}
-      className="flex items-start gap-2 rounded-md border bg-card px-2.5 py-2 hover:bg-accent/40 transition-colors cursor-pointer select-none"
+      className="group flex items-start gap-2 rounded-md border bg-card px-2.5 py-2 hover:bg-accent/40 transition-colors cursor-pointer select-none"
     >
       {dragListeners !== undefined && (
         <button
@@ -93,6 +94,21 @@ export default function PlanTaskRow({
           </div>
         )}
       </div>
+
+      {onDelete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+          aria-label="일정 삭제"
+          // 모바일에서는 항상 보임, 데스크톱(md+) 에서는 호버 시만
+          className="shrink-0 p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-opacity md:opacity-0 md:group-hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 }

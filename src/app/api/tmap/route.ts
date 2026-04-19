@@ -9,9 +9,17 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+interface TmapStep {
+  // 도보 구간 상세에는 linestring 이 들어 있음
+  linestring?: string;
+}
+
 interface TmapLeg {
   sectionTime?: number;
   mode?: string;
+  steps?: TmapStep[];
+  // 버스·지하철·기차 구간에는 legs[i].passShape.linestring ("lng,lat lng,lat ...")
+  passShape?: { linestring?: string };
 }
 
 interface TmapItinerary {
@@ -86,5 +94,27 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ durationSec: best.totalTime });
+  // 전체 경로 폴리라인: 각 leg 의 passShape(대중교통) 또는 steps[].linestring(도보)
+  // 을 이어붙여 [[lng, lat], ...] 배열로 반환. 네이버 지도에서 실선으로 표시 가능.
+  const path: [number, number][] = [];
+  for (const leg of best.legs ?? []) {
+    const ls = leg.passShape?.linestring;
+    if (ls) {
+      for (const pair of ls.split(" ")) {
+        const [lng, lat] = pair.split(",").map((s) => parseFloat(s));
+        if (Number.isFinite(lng) && Number.isFinite(lat)) path.push([lng, lat]);
+      }
+      continue;
+    }
+    // 도보 구간 — steps 에 linestring 이 분산됨
+    for (const step of leg.steps ?? []) {
+      if (!step.linestring) continue;
+      for (const pair of step.linestring.split(" ")) {
+        const [lng, lat] = pair.split(",").map((s) => parseFloat(s));
+        if (Number.isFinite(lng) && Number.isFinite(lat)) path.push([lng, lat]);
+      }
+    }
+  }
+
+  return NextResponse.json({ durationSec: best.totalTime, path });
 }
