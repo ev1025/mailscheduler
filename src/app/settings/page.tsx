@@ -399,6 +399,35 @@ export default function SettingsPage() {
             </div>
           </ApiSection>
 
+          {/* ODsay — 대중교통 경로 */}
+          <ApiSection title="ODsay — 대중교통 경로">
+            <div className="flex flex-col gap-2 text-sm">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                여행 계획의 버스/지하철/기차 구간 소요시간 자동 계산에 사용.
+                <br />키는 <code>.env.local</code> 의 <code>ODSAY_API_KEY</code> 로 설정.
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">용도</span>
+                <span className="text-xs">대중교통 길찾기</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">요금제</span>
+                <Badge variant="secondary" className="text-xs">무료 티어</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                <span>관리 사이트</span>
+                <a
+                  href="https://lab.odsay.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  lab.odsay.com <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          </ApiSection>
+
           {/* 호스팅 */}
           <ApiSection title="호스팅 — Vercel">
             <div className="flex flex-col gap-2 text-sm">
