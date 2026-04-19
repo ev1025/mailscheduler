@@ -30,25 +30,24 @@ async function getDrivingDuration(
   }
 }
 
-// 대중교통/기차: ODsay 서버 프록시 (Phase D)
+// 대중교통/기차: TMAP 대중교통 API 서버 프록시.
+// SK오픈API 의 무료 티어 기반 — 결제 없이 상시 사용.
 async function getTransitDuration(
   from: { lat: number; lng: number },
-  to: { lat: number; lng: number },
-  mode: "bus" | "train"
+  to: { lat: number; lng: number }
 ): Promise<RouteResult | null> {
   const params = new URLSearchParams({
     fromLat: String(from.lat),
     fromLng: String(from.lng),
     toLat: String(to.lat),
     toLng: String(to.lng),
-    mode,
   });
   try {
-    const res = await fetch(`/api/odsay?${params.toString()}`);
+    const res = await fetch(`/api/tmap?${params.toString()}`);
     if (!res.ok) return null;
     const j = await res.json();
     if (typeof j.durationSec !== "number") return null;
-    return { durationSec: j.durationSec, path: j.path };
+    return { durationSec: j.durationSec };
   } catch {
     return null;
   }
@@ -64,9 +63,9 @@ export async function fetchRouteDuration(
     case "taxi":
       return getDrivingDuration(from, to);
     case "bus":
-      return getTransitDuration(from, to, "bus");
     case "train":
-      return getTransitDuration(from, to, "train");
+      // TMAP 대중교통은 내부 최적 경로를 반환 (버스/지하철/기차 혼합). mode 세분화 없음.
+      return getTransitDuration(from, to);
     default:
       return null;
   }
