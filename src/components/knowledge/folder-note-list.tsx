@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
 import { useKnowledgeFavorites } from "@/lib/knowledge-favorites";
+import MoveTargetTree from "@/components/knowledge/move-target-tree";
 
 interface Props {
   folder: KnowledgeFolder | null;
@@ -23,27 +24,6 @@ interface Props {
   onMoveFolders?: (ids: string[], targetFolderId: string | null) => void;
   onSelectModeChange?: (active: boolean) => void;
   onTogglePinItem?: (id: string, pinned: boolean) => Promise<void>;
-}
-
-function MoveTreeInner({ folders, excludeIds, parentId, depth, onSelect }: {
-  folders: KnowledgeFolder[]; excludeIds: Set<string>; parentId: string | null; depth: number; onSelect: (id: string) => void;
-}) {
-  const children = folders.filter((f) => f.parent_id === parentId && !excludeIds.has(f.id));
-  if (children.length === 0) return null;
-  return (
-    <>
-      {children.map((f) => (
-        <div key={f.id}>
-          <button type="button" onClick={() => onSelect(f.id)}
-            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
-            style={{ paddingLeft: (depth + 1) * 16 + 8 }}>
-            <Folder className="h-3.5 w-3.5 shrink-0" /> {f.name}
-          </button>
-          <MoveTreeInner folders={folders} excludeIds={excludeIds} parentId={f.id} depth={depth + 1} onSelect={onSelect} />
-        </div>
-      ))}
-    </>
-  );
 }
 
 export default function FolderNoteList({
@@ -189,7 +169,7 @@ export default function FolderNoteList({
               <button type="button" onClick={() => doMove(null)} className="flex items-center gap-2 rounded px-2 py-2 text-sm hover:bg-accent font-medium">
                 <Folder className="h-4 w-4" /> 루트 (최상위)
               </button>
-              <MoveTreeInner folders={folders} excludeIds={selFolders} parentId={null} depth={0} onSelect={doMove} />
+              <MoveTargetTree folders={folders} excludeIds={selFolders} parentId={null} onSelect={doMove} />
             </div>
             <div className="px-4 pt-2 shrink-0">
               <Button size="sm" variant="outline" className="w-full h-9" onClick={() => setMoveMode(false)}>취소</Button>
