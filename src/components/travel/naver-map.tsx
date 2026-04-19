@@ -51,11 +51,8 @@ export default function NaverMap({
       const map = new naver.maps.Map(containerRef.current, {
         center: position,
         zoom,
-        zoomControl: true,
-        zoomControlOptions: {
-          position: naver.maps.Position.TOP_RIGHT,
-          style: naver.maps.ZoomControlStyle.SMALL,
-        },
+        // +/- 버튼 숨김. 마우스 휠·터치 핀치·더블클릭으로만 줌.
+        zoomControl: false,
         scaleControl: false,
         mapDataControl: false,
         logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },

@@ -7,7 +7,7 @@ import type { KnowledgeItem } from "@/types";
 interface Props {
   item: KnowledgeItem;
   onEdit: () => void;
-  onExit: () => void;
+  onExit: () => void | Promise<void>;
 }
 
 export default function NoteReaderView({ item, onEdit, onExit }: Props) {

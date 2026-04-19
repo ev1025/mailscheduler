@@ -15,7 +15,7 @@ interface Props {
   onContentChange: (html: string) => void;
   onSave: () => void;
   onSaveDraft: () => void;
-  onExit: () => void;
+  onExit: () => void | Promise<void>;
   dirty: boolean;
   autoSavedAt: string | null;
   drafts: KnowledgeDraft[];

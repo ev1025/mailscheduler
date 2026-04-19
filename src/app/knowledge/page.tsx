@@ -60,6 +60,8 @@ function KnowledgePageInner() {
   const [folderPromptOpen, setFolderPromptOpen] = useState(false);
   const [folderPromptParentId, setFolderPromptParentId] = useState<string | null>(null);
   const [pendingDraft, setPendingDraft] = useState<KnowledgeDraft | null>(null);
+  // "새 노트" 버튼으로 방금 insert 한 노트 id. 저장 없이 이탈하면 자동 삭제 대상.
+  const [justCreatedId, setJustCreatedId] = useState<string | null>(null);
 
   // ── 검색 ────────────────────────────────────────────
   const [search, setSearch] = useState("");
@@ -128,9 +130,38 @@ function KnowledgePageInner() {
       url: null,
     });
     if (data) {
+      setJustCreatedId(data.id);
       setSelectedItemId(data.id);
       setEditing(true);
     }
+  };
+
+  // 빈 채로 이탈하는 "새 노트" 를 자동 삭제. true 반환 = 삭제됨.
+  const discardIfJustCreatedEmpty = async (): Promise<boolean> => {
+    if (!justCreatedId) return false;
+    const textOnly = editContent.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+    if (editTitle.trim() || textOnly) return false;
+    await deleteItem(justCreatedId);
+    setJustCreatedId(null);
+    return true;
+  };
+
+  // 편집 → 읽기 모드 전환 시 빈 새 노트면 함께 홈으로 돌아감
+  const handleExitEditor = async () => {
+    const discarded = await discardIfJustCreatedEmpty();
+    if (discarded) {
+      setSelectedItemId(null);
+      setViewFolderId(null);
+    } else {
+      setEditing(false);
+    }
+  };
+
+  // 읽기 모드에서 홈(뒤로) 이동 시 빈 새 노트면 삭제
+  const handleExitReader = async () => {
+    await discardIfJustCreatedEmpty();
+    setSelectedItemId(null);
+    setViewFolderId(null);
   };
 
   const handleSave = async () => {
@@ -141,6 +172,8 @@ function KnowledgePageInner() {
     });
     setDirty(false);
     setEditing(false);
+    // 저장이 되면 더이상 "빈 새 노트" 가 아님 → 자동 삭제 대상에서 제외
+    setJustCreatedId(null);
   };
 
   const handleSaveDraft = () => {
@@ -251,7 +284,7 @@ function KnowledgePageInner() {
                 }}
                 onSave={handleSave}
                 onSaveDraft={handleSaveDraft}
-                onExit={() => setEditing(false)}
+                onExit={handleExitEditor}
                 dirty={dirty}
                 autoSavedAt={autoSavedAt}
                 drafts={drafts}
@@ -264,10 +297,7 @@ function KnowledgePageInner() {
               <NoteReaderView
                 item={selectedItem}
                 onEdit={() => setEditing(true)}
-                onExit={() => {
-                  setSelectedItemId(null);
-                  setViewFolderId(null);
-                }}
+                onExit={handleExitReader}
               />
             )
           ) : viewFolderId ? (
