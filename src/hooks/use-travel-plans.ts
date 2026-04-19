@@ -39,14 +39,25 @@ export function useTravelPlans() {
   const addPlan = async (
     input: Pick<TravelPlan, "title"> & Partial<Pick<TravelPlan, "start_date" | "end_date" | "notes">>
   ) => {
+    // 1차 시도: user_id 포함
     const payload = { ...input, user_id: userId };
-    const { data, error } = await supabase
+    const first = await supabase
       .from("travel_plans")
       .insert(payload)
       .select("*")
       .single();
-    if (!error) await fetchPlans();
-    return { data, error };
+    if (!first.error) {
+      await fetchPlans();
+      return { data: first.data, error: null };
+    }
+    // 2차 fallback: user_id 없이 (FK / 컬럼 미존재 케이스 대비)
+    const retry = await supabase
+      .from("travel_plans")
+      .insert(input)
+      .select("*")
+      .single();
+    if (!retry.error) await fetchPlans();
+    return { data: retry.data, error: retry.error };
   };
 
   const updatePlan = async (id: string, updates: Partial<TravelPlan>) => {
