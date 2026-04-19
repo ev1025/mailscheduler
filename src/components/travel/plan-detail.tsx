@@ -408,6 +408,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         task={sheetTask}
+        planId={planId}
         defaultDayIndex={sheetDayIndex}
         availableDays={days}
         formatDayLabel={formatDayLabel}

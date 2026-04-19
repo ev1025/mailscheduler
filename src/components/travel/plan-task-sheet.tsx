@@ -35,6 +35,54 @@ interface Props {
     updates: Partial<Omit<TravelPlanTask, "id" | "plan_id" | "created_at">>
   ) => Promise<void>;
   onDelete?: () => Promise<void>;
+  // 작성 세션 draft 를 구분할 키 (보통 planId). 같은 task/신규 슬롯에 대해
+  // 시트 닫았다 다시 열어도 로컬에 저장된 입력 값을 복원.
+  planId: string;
+}
+
+interface SheetDraft {
+  dayIndex: number;
+  startTime: string;
+  stayMinutes: string;
+  placeName: string;
+  placeAddress: string | null;
+  placeLat: number | null;
+  placeLng: number | null;
+  selectedTags: string[];
+  content: string;
+}
+
+const DRAFT_PREFIX = "plan_task_draft:";
+
+function draftKeyFor(planId: string, task: TravelPlanTask | null, defaultDayIndex: number) {
+  return task
+    ? `${DRAFT_PREFIX}${planId}:task:${task.id}`
+    : `${DRAFT_PREFIX}${planId}:new:${defaultDayIndex}`;
+}
+
+function readDraft(key: string): SheetDraft | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as SheetDraft;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(key: string, draft: SheetDraft) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify(draft));
+  } catch {}
+}
+
+function clearDraft(key: string) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(key);
+  } catch {}
 }
 
 export default function PlanTaskSheet({
@@ -47,7 +95,9 @@ export default function PlanTaskSheet({
   onAddNewDay,
   onSave,
   onDelete,
+  planId,
 }: Props) {
+  const draftKey = draftKeyFor(planId, task, defaultDayIndex);
   const { tags, addTag, deleteTag, updateTagColor } = useTravelTags();
 
   const [dayIndex, setDayIndex] = useState(defaultDayIndex);
@@ -62,12 +112,11 @@ export default function PlanTaskSheet({
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // open 될 때마다 state 초기화
+  // open 될 때마다 state 초기화 — DB 값이 기준, 단 localStorage draft 가 있으면 덮어씀
   useEffect(() => {
     if (!open) return;
     if (task) {
       setDayIndex(task.day_index);
-      // DB TIME 타입은 "HH:MM:SS" 로 내려옴 → HH:MM 로 정규화해 TimePicker 에 전달
       setStartTime(task.start_time ? task.start_time.slice(0, 5) : "");
       setStayMinutes(String(task.stay_minutes || ""));
       setPlaceName(task.place_name);
@@ -88,7 +137,51 @@ export default function PlanTaskSheet({
       setContent("");
     }
     setPlaceQuery("");
-  }, [open, task, defaultDayIndex]);
+    // 작성 세션 draft 복원 (있으면)
+    const d = readDraft(draftKey);
+    if (d) {
+      setDayIndex(d.dayIndex);
+      setStartTime(d.startTime);
+      setStayMinutes(d.stayMinutes);
+      setPlaceName(d.placeName);
+      setPlaceAddress(d.placeAddress);
+      setPlaceLat(d.placeLat);
+      setPlaceLng(d.placeLng);
+      setSelectedTags(d.selectedTags);
+      setContent(d.content);
+    }
+  }, [open, task, defaultDayIndex, draftKey]);
+
+  // 시트 열려있는 동안 편집 내용을 500ms debounce 로 localStorage 에 저장
+  useEffect(() => {
+    if (!open) return;
+    const timer = setTimeout(() => {
+      writeDraft(draftKey, {
+        dayIndex,
+        startTime,
+        stayMinutes,
+        placeName,
+        placeAddress,
+        placeLat,
+        placeLng,
+        selectedTags,
+        content,
+      });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [
+    open,
+    draftKey,
+    dayIndex,
+    startTime,
+    stayMinutes,
+    placeName,
+    placeAddress,
+    placeLat,
+    placeLng,
+    selectedTags,
+    content,
+  ]);
 
   const handlePickPlace = (p: PlaceInfo) => {
     setPlaceName(p.name);
@@ -124,6 +217,7 @@ export default function PlanTaskSheet({
       stay_minutes: Number.isFinite(n) && n > 0 ? n : 0,
     });
     setSaving(false);
+    clearDraft(draftKey); // 저장 완료 → draft 폐기
     onOpenChange(false);
   };
 
@@ -257,6 +351,7 @@ export default function PlanTaskSheet({
                 className="text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={async () => {
                   await onDelete();
+                  clearDraft(draftKey);
                   onOpenChange(false);
                 }}
               >
