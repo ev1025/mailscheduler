@@ -337,83 +337,133 @@ export default function SettingsPage() {
             </div>
           </ApiSection>
 
-          {/* 네이버 지도 / 검색 API — 다른 API 섹션과 동일한 메타정보 표시
-              (실제 Client ID/Secret 값은 .env.local 에 저장됨) */}
-          <ApiSection title="네이버 지도 · 검색 API">
-            <div className="flex flex-col gap-4 text-sm">
-              {/* NCP Maps */}
-              <div className="flex flex-col gap-2">
-                <p className="font-medium text-xs text-muted-foreground">네이버 클라우드 플랫폼 — Maps</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">용도</span>
-                  <span className="text-xs">Dynamic Map · Static Map</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">요금제</span>
-                  <Badge variant="secondary" className="text-xs">무료 티어</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">만료</span>
-                  <Badge variant="secondary" className="text-xs">만료 없음</Badge>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                  <span>관리 사이트</span>
-                  <a
-                    href="https://console.ncloud.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline flex items-center gap-1"
-                  >
-                    console.ncloud.com <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              </div>
-
-              {/* 네이버 검색 */}
-              <div className="flex flex-col gap-2 pt-3 border-t">
-                <p className="font-medium text-xs text-muted-foreground">네이버 개발자센터 — 검색(Local Search)</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">용도</span>
-                  <span className="text-xs">여행 위치 검색</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">요금제</span>
-                  <Badge variant="secondary" className="text-xs">무료</Badge>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">만료</span>
-                  <Badge variant="secondary" className="text-xs">만료 없음</Badge>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                  <span>관리 사이트</span>
-                  <a
-                    href="https://developers.naver.com/apps/#/list"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline flex items-center gap-1"
-                  >
-                    developers.naver.com <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
+          {/* 여행 계획 — 수단별 라우팅 아키텍처 한눈에 */}
+          <ApiSection title="여행 계획 경로 — 수단별 API 매핑">
+            <div className="flex flex-col gap-2 text-xs">
+              <p className="text-muted-foreground leading-relaxed">
+                여행 계획의 구간별 소요시간은 수단에 따라 다른 API 를 호출합니다.
+              </p>
+              <div className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+                <span>🚗 <b>승용차</b></span>
+                <span className="text-muted-foreground">NCP Directions 5 (네이버)</span>
+                <span>🚶 <b>도보</b></span>
+                <span className="text-muted-foreground">Google Directions (walking)</span>
+                <span>🚌 <b>버스</b></span>
+                <span className="text-muted-foreground">Google Directions (transit, bus)</span>
+                <span>🚆 <b>기차</b></span>
+                <span className="text-muted-foreground">공공데이터 KORAIL → 실패 시 Google rail 폴백</span>
               </div>
             </div>
           </ApiSection>
 
-          {/* Google Maps — 대중교통 */}
-          <ApiSection title="Google Maps — 대중교통 경로">
+          {/* NCP Maps — 여러 상품이 하나의 키 아래에서 각자 신청 필요 */}
+          <ApiSection title="네이버 클라우드 플랫폼 — Maps">
+            <div className="flex flex-col gap-4 text-sm">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                NCP Maps 는 여러 하위 상품이 있고, 각각 <b>개별 신청</b>이 필요합니다.
+                키는 하나이지만 상품별로 권한이 부여됩니다.
+                <br />환경변수:{" "}
+                <code>NEXT_PUBLIC_NCP_MAP_CLIENT_ID</code> /{" "}
+                <code>NCP_MAP_CLIENT_SECRET</code>
+              </p>
+
+              {/* Dynamic / Static Map */}
+              <div className="flex flex-col gap-1.5">
+                <p className="font-medium text-xs">Web Dynamic Map · Static Map</p>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">용도</span>
+                  <span>여행 계획 지도 렌더링</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">요금</span>
+                  <Badge variant="secondary" className="text-xs">월 6만건 무료</Badge>
+                </div>
+              </div>
+
+              {/* Directions 5 */}
+              <div className="flex flex-col gap-1.5 pt-3 border-t">
+                <p className="font-medium text-xs">Directions 5 <span className="text-muted-foreground">(승용차 경로)</span></p>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">용도</span>
+                  <span>자가용·택시 소요시간 + 실제 도로 path</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">요금</span>
+                  <Badge variant="secondary" className="text-xs">월 6만건 무료</Badge>
+                </div>
+                <p className="text-[11px] text-amber-600 leading-relaxed">
+                  ⚠️ 별도 신청 필수 — 콘솔에서 Maps 상품 목록의
+                  &quot;Directions 5 이용 신청&quot; 필요. 미신청 시 HTTP 200 이지만
+                  빈 body 를 반환하여 경로가 안 뜸.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                <span>관리 사이트</span>
+                <a
+                  href="https://console.ncloud.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  console.ncloud.com <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          </ApiSection>
+
+          {/* 네이버 검색 (Developers) — NCP 아닌 별도 Developers 사이트 */}
+          <ApiSection title="네이버 개발자센터 — 검색(Local Search)">
             <div className="flex flex-col gap-2 text-sm">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                여행 계획의 버스 · 기차 구간 소요시간·실제 경로 계산.
-                <br />키는 <code>.env.local</code> 의 <code>GOOGLE_MAPS_API_KEY</code>.
+                여행 계획 장소 검색에 사용. NCP 와 별개인 <b>네이버 개발자센터</b> 발급 키.
+                <br />환경변수:{" "}
+                <code>NAVER_SEARCH_CLIENT_ID</code> /{" "}
+                <code>NAVER_SEARCH_CLIENT_SECRET</code>
               </p>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">용도</span>
-                <span className="text-xs">Directions(transit) · 한국 KTX/SRT 포함</span>
+                <span className="text-muted-foreground">요금</span>
+                <Badge variant="secondary" className="text-xs">무료 (일 25,000건)</Badge>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">요금제</span>
+                <span className="text-muted-foreground">만료</span>
+                <Badge variant="secondary" className="text-xs">만료 없음</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                <span>관리 사이트</span>
+                <a
+                  href="https://developers.naver.com/apps/#/list"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  developers.naver.com <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          </ApiSection>
+
+          {/* Google Maps Directions — 도보 · 버스 · 기차폴백 */}
+          <ApiSection title="Google Maps — Directions API">
+            <div className="flex flex-col gap-2 text-sm">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                여행 계획에서 NCP 가 제공하지 않는 수단(도보·버스·지하철·기차폴백)을 담당.
+                Google 의 다양한 mode 를 하나의 키로 사용.
+                <br />환경변수: <code>GOOGLE_MAPS_API_KEY</code>
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">사용 mode</span>
+                <span className="text-xs">walking · transit(bus, rail, subway)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">요금</span>
                 <Badge variant="secondary" className="text-xs">월 $200 크레딧 무료</Badge>
               </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">
+                Directions API 단가 $0.005/건 → 월 40,000건까지 실결제 0원.
+                개인 여행 계획 용도는 사실상 영구 무료.
+                &quot;Requests per day&quot; 한도 100 정도로 제한 걸어두면 과금 방지 확실.
+              </p>
               <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
                 <span>관리 사이트</span>
                 <a
@@ -428,27 +478,36 @@ export default function SettingsPage() {
             </div>
           </ApiSection>
 
-          {/* 공공데이터 - 기차 우선순위 */}
-          <ApiSection title="공공데이터포털 — KTX·SRT 열차시간표 (선택)">
+          {/* 공공데이터 — KORAIL 열차운행정보 */}
+          <ApiSection title="공공데이터포털 — 한국철도공사 열차운행정보">
             <div className="flex flex-col gap-2 text-sm">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                기차(train) 구간을 공공데이터로 우선 조회. 미설정이면
-                Google rail 로 자동 폴백.
-                <br />키는 <code>.env.local</code> 의 <code>PUBLIC_TRAIN_API_KEY</code>.
+                KTX · SRT · ITX · 새마을 등 기차 구간 소요시간을 실제 운행계획으로 조회.
+                미설정·실패 시 Google rail 로 자동 폴백.
+                <br />환경변수: <code>PUBLIC_TRAIN_API_KEY</code> (디코딩 인증키)
+                <br />엔드포인트: <code>apis.data.go.kr/B551457/run/v2/plans</code>
               </p>
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">요금제</span>
+                <span className="text-muted-foreground">제공사</span>
+                <span className="text-xs">한국철도공사 (KORAIL)</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">요금</span>
                 <Badge variant="secondary" className="text-xs">무료</Badge>
               </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">매칭 방식</span>
+                <span className="text-xs">좌표 ↔ 25개 주요 역 (15km 이내)</span>
+              </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
-                <span>관리 사이트</span>
+                <span>데이터셋</span>
                 <a
-                  href="https://www.data.go.kr"
+                  href="https://www.data.go.kr/data/15125762/openapi.do"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline flex items-center gap-1"
                 >
-                  data.go.kr <ExternalLink className="h-3 w-3" />
+                  15125762 <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             </div>

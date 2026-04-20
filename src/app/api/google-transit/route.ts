@@ -91,17 +91,33 @@ export async function GET(req: NextRequest) {
   url.searchParams.set("region", "kr");
   url.searchParams.set("key", apiKey);
 
+  console.log(`[google-transit] mode=${mode} (${fromLat},${fromLng})→(${toLat},${toLng})`);
   const res = await fetch(url.toString(), { cache: "no-store" });
   if (!res.ok) {
+    const body = await res.text();
+    console.warn(`[google-transit] HTTP ${res.status}:`, body.slice(0, 300));
     return NextResponse.json(
-      { error: `Google ${res.status}` },
+      { error: `Google ${res.status}`, googleBody: body.slice(0, 400) },
       { status: res.status }
     );
   }
   const data = (await res.json()) as GoogleResponse;
+  console.log(`[google-transit] status=${data.status} routes=${data.routes?.length ?? 0}`);
+
   if (data.status && data.status !== "OK") {
+    console.warn(`[google-transit] ${data.status}: ${data.error_message}`);
     return NextResponse.json(
-      { error: `Google: ${data.status} ${data.error_message ?? ""}` },
+      {
+        error: `Google ${data.status}`,
+        googleStatus: data.status,
+        googleMessage: data.error_message,
+        hint:
+          data.status === "ZERO_RESULTS"
+            ? `mode=${mode} 에서 경로 없음. 도보면 좌표가 인도 접근 불가 지점일 수 있음. 버스/지하철은 해당 좌표에 정류장이 없을 때 발생.`
+            : data.status === "REQUEST_DENIED"
+              ? "API 키에 Directions API 권한이 없거나 해당 mode 가 키에 제한되어 있음."
+              : undefined,
+      },
       { status: data.status === "NOT_FOUND" || data.status === "ZERO_RESULTS" ? 404 : 502 }
     );
   }

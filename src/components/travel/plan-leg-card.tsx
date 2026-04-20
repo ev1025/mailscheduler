@@ -54,12 +54,16 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
     toTask.place_lat != null &&
     toTask.place_lng != null;
 
+  // 캐시된 값이 유효한 숫자일 때만 재사용. null(이전 실패)이면 재시도 기회 제공
+  // → 네이버 Directions 5 구독 늦게 활성화, Google 일시 실패 등에 대응.
   const cached = toTask.transport_durations ?? {};
+  const useCached = (v: number | null | undefined): ModeState =>
+    typeof v === "number" && v > 0 ? v : hasCoords ? "loading" : null;
   const [modeDurations, setModeDurations] = useState<Record<TransportMode, ModeState>>(() => ({
-    car: cached.car ?? (hasCoords ? "loading" : null),
-    walk: cached.walk ?? (hasCoords ? "loading" : null),
-    bus: cached.bus ?? (hasCoords ? "loading" : null),
-    train: cached.train ?? (hasCoords ? "loading" : null),
+    car: useCached(cached.car),
+    walk: useCached(cached.walk),
+    bus: useCached(cached.bus),
+    train: useCached(cached.train),
     taxi: null, // UI 비노출 — 하위호환만
   }));
   const [manualInput, setManualInput] = useState<string>(
