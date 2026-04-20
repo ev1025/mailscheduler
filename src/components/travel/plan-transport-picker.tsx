@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Zap, Edit3 } from "lucide-react";
+import { Check, Zap, Edit3, RefreshCw } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -71,6 +71,32 @@ export default function PlanTransportPicker({
     taxi: null,
   }));
 
+  // 특정 수단들만 다시 계산 (force=true 면 캐시 무시)
+  const refetch = (modesToRefetch: TransportMode[] = MODES.map((m) => m.value)) => {
+    setDurations((prev) => {
+      const next = { ...prev };
+      for (const m of modesToRefetch) next[m] = "loading";
+      return next;
+    });
+    let cancelled = false;
+    (async () => {
+      const results = await Promise.all(
+        modesToRefetch.map((m) =>
+          fetchRouteDuration(from, to, m)
+            .then((r) => [m, r?.durationSec ?? null] as const)
+            .catch(() => [m, null] as const)
+        )
+      );
+      if (cancelled) return;
+      setDurations((prev) => {
+        const n = { ...prev };
+        for (const [m, sec] of results) n[m] = sec;
+        return n;
+      });
+    })();
+    return () => { cancelled = true; };
+  };
+
   // 열릴 때마다 캐시 반영하여 초기화, 그리고 loading 인 항목 fetch
   useEffect(() => {
     if (!open) return;
@@ -137,11 +163,24 @@ export default function PlanTransportPicker({
 
   const body = (
     <div className="flex flex-col gap-1 px-1 py-2">
-      {legDeparture && (
-        <p className="text-xs text-muted-foreground px-3 pb-2">
-          출발 <span className="font-semibold text-foreground tabular-nums">{legDeparture}</span> 기준
+      <div className="flex items-center justify-between px-3 pb-2">
+        <p className="text-xs text-muted-foreground">
+          {legDeparture ? (
+            <>출발 <span className="font-semibold text-foreground tabular-nums">{legDeparture}</span> 기준</>
+          ) : (
+            "수단별 소요시간"
+          )}
         </p>
-      )}
+        <button
+          type="button"
+          onClick={() => refetch()}
+          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-accent"
+          title="모든 수단 다시 계산"
+        >
+          <RefreshCw className="h-3 w-3" />
+          <span>재계산</span>
+        </button>
+      </div>
       {MODES.map((m) => {
         const d = durations[m.value];
         const selected = selectedMode === m.value;
