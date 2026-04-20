@@ -14,7 +14,7 @@ import { useTravelPlans } from "@/hooks/use-travel-plans";
 import { useTravelPlanTasks } from "@/hooks/use-travel-plan-tasks";
 import { sortTasks } from "@/lib/travel/sort-tasks";
 import { tasksToLegs } from "@/lib/travel/legs";
-import { fetchRouteDuration } from "@/lib/travel/providers";
+import { getRouteData, invalidateRouteData } from "@/hooks/use-route-data";
 import { computeExpectedTimes } from "@/lib/travel/expected-time";
 import type { TravelPlanTask, TransportMode } from "@/types";
 import {
@@ -188,7 +188,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
         if (legPaths[key] || pendingPathRequests.current.has(key)) continue;
         pendingPathRequests.current.add(key);
         try {
-          const result = await fetchRouteDuration(
+          const result = await getRouteData(
             { lat: leg.fromTask.place_lat!, lng: leg.fromTask.place_lng! },
             { lat: leg.toTask.place_lat!, lng: leg.toTask.place_lng! },
             mode
@@ -427,23 +427,23 @@ export default function PlanDetail({ planId, onBack }: Props) {
 
       <div className="flex-1 min-h-0 overflow-y-auto">
         <div className="mx-auto w-full max-w-3xl">
-        {/* 기간 */}
+        {/* 기간 — 데스크탑은 DatePicker 폭 제한 (w-40), 모바일은 flex-1 로 가득 */}
         <div className="flex items-center gap-2 px-3 py-2 border-b">
           <span className="text-xs text-muted-foreground shrink-0">기간</span>
-          <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
+          <div className="flex items-center gap-1 flex-1 min-w-0">
             <DatePicker
               value={plan.start_date ?? ""}
               onChange={(v) => updatePlan(plan.id, { start_date: v || null })}
-              className="h-8 min-w-0 text-xs"
+              className="h-8 min-w-0 text-xs flex-1 md:flex-none md:w-36"
             />
-            <span className="text-xs text-muted-foreground">~</span>
+            <span className="text-xs text-muted-foreground shrink-0">~</span>
             <DatePicker
               value={plan.end_date ?? ""}
               onChange={(v) => updatePlan(plan.id, { end_date: v || null })}
               min={plan.start_date ?? undefined}
-              className="h-8 min-w-0 text-xs"
+              className="h-8 min-w-0 text-xs flex-1 md:flex-none md:w-36"
             />
-            {plan.end_date ? (
+            {plan.end_date && (
               <button
                 type="button"
                 onClick={() => updatePlan(plan.id, { end_date: null })}
@@ -452,8 +452,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
               >
                 <X className="h-3.5 w-3.5" />
               </button>
-            ) : (
-              <span className="w-4" />
             )}
           </div>
           {totalDays > 0 && (
@@ -583,11 +581,27 @@ export default function PlanDetail({ planId, onBack }: Props) {
                 transport_manual: false,
                 transport_durations: null,
               };
-              // 다음 task 찾기 — 같은 일자 내 순서상 바로 다음
+              // 관련 leg 의 route 캐시도 무효화 (메모리 cache 엔트리 제거)
               const targetDay = updates.day_index ?? sheetTask.day_index;
               const dayTasks = sorted.filter((t) => t.day_index === targetDay);
               const myIdx = dayTasks.findIndex((t) => t.id === sheetTask.id);
+              const prev = myIdx > 0 ? dayTasks[myIdx - 1] : undefined;
               const next = myIdx >= 0 ? dayTasks[myIdx + 1] : undefined;
+              // 이전 이동수단 path 캐시 무효화 (from/to 중 하나가 바뀌었으므로)
+              if (prev?.place_lat != null && prev?.place_lng != null &&
+                  sheetTask.place_lat != null && sheetTask.place_lng != null) {
+                invalidateRouteData(
+                  { lat: prev.place_lat, lng: prev.place_lng },
+                  { lat: sheetTask.place_lat, lng: sheetTask.place_lng }
+                );
+              }
+              if (next?.place_lat != null && next?.place_lng != null &&
+                  sheetTask.place_lat != null && sheetTask.place_lng != null) {
+                invalidateRouteData(
+                  { lat: sheetTask.place_lat, lng: sheetTask.place_lng },
+                  { lat: next.place_lat, lng: next.place_lng }
+                );
+              }
               if (next) {
                 await updateTask(next.id, {
                   transport_mode: null,

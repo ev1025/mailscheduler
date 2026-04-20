@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import DeviceDialog from "@/components/ui/device-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,12 +18,9 @@ import TagInput from "@/components/ui/tag-input";
 import PlanPlacePicker from "@/components/travel/plan-place-picker";
 import { useTravelCategories, BUILTIN_TRAVEL_CATEGORIES } from "@/hooks/use-travel-categories";
 import { useEventTags } from "@/hooks/use-event-tags";
-import { useMediaQuery } from "@/lib/use-media-query";
 import type { TravelPlanTask, PlaceInfo } from "@/types";
 
-// 일정 편집 UI.
-// - 모바일(<768px): 하단 바텀시트(90dvh)
-// - 데스크톱(>=768px): 중앙 모달 다이얼로그(max-w-lg)
+// 일정 편집 UI — DeviceDialog 로 모바일/데스크탑 분기 자동 처리
 
 interface Props {
   open: boolean;
@@ -108,7 +104,6 @@ export default function PlanTaskSheet({
     useTravelCategories();
   const { tags: allEventTags, addTag: addEventTag, deleteTag: deleteEventTag, updateTagColor: updateEventTagColor } =
     useEventTags();
-  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [dayIndex, setDayIndex] = useState(defaultDayIndex);
   const [startTime, setStartTime] = useState("");
@@ -437,96 +432,9 @@ export default function PlanTaskSheet({
 
   const title = task ? "일정 수정" : "새 일정";
 
-  // 데스크탑: 중앙 모달
-  if (isDesktop) {
-    return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-base">{title}</DialogTitle>
-          </DialogHeader>
-          {renderForm()}
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  // 모바일: 하단 바텀시트 — 드래그 바로 아래로 밀어 닫기
   return (
-    <MobileSheet open={open} onOpenChange={onOpenChange} title={title}>
+    <DeviceDialog open={open} onOpenChange={onOpenChange} title={title} desktopMaxWidth="max-w-lg">
       {renderForm()}
-    </MobileSheet>
-  );
-}
-
-// 드래그 바 동작 + 시트 구조. 바를 잡고 아래로 120px 이상 당기면 닫힘.
-function MobileSheet({
-  open,
-  onOpenChange,
-  title,
-  children,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  children: React.ReactNode;
-}) {
-  const [dragY, setDragY] = useState(0);
-  const dragStartY = useRef<number | null>(null);
-
-  const onHandlePointerDown = (e: React.PointerEvent) => {
-    dragStartY.current = e.clientY;
-    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-  };
-  const onHandlePointerMove = (e: React.PointerEvent) => {
-    if (dragStartY.current == null) return;
-    const delta = e.clientY - dragStartY.current;
-    setDragY(Math.max(0, delta)); // 아래로만 translate
-  };
-  const onHandlePointerUp = (e: React.PointerEvent) => {
-    const delta = dragStartY.current != null ? e.clientY - dragStartY.current : 0;
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    dragStartY.current = null;
-    if (delta > 120) {
-      onOpenChange(false);
-    }
-    setDragY(0); // 복귀 애니메이션 (transition CSS 가 처리)
-  };
-
-  useEffect(() => {
-    if (!open) setDragY(0);
-  }, [open]);
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-y-auto overscroll-contain"
-        style={{
-          height: "90dvh",
-          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
-          transition: dragStartY.current == null ? "transform 150ms ease-out" : "none",
-        }}
-        showBackButton={false}
-        showCloseButton={false}
-        initialFocus={false}
-      >
-        <div className="mx-auto w-full max-w-xl flex flex-col">
-          <SheetHeader className="px-4 py-1.5 gap-1 shrink-0">
-            <div
-              className="flex justify-center py-1 -my-1 touch-none cursor-grab active:cursor-grabbing"
-              onPointerDown={onHandlePointerDown}
-              onPointerMove={onHandlePointerMove}
-              onPointerUp={onHandlePointerUp}
-              onPointerCancel={onHandlePointerUp}
-            >
-              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/40" />
-            </div>
-            <SheetTitle className="text-sm">{title}</SheetTitle>
-          </SheetHeader>
-          {children}
-        </div>
-      </SheetContent>
-    </Sheet>
+    </DeviceDialog>
   );
 }

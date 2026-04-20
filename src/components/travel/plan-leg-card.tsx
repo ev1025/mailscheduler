@@ -55,15 +55,12 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
 
   const handleSelect = (
     selectedMode: TransportMode,
-    selectedDurationSec: number | null,
-    allDurations: Partial<Record<TransportMode, number | null>>
+    selectedDurationSec: number | null
   ) => {
-    const existingCache = toTask.transport_durations ?? {};
     onUpdateTask(toTask.id, {
       transport_mode: selectedMode,
       transport_duration_sec: selectedDurationSec,
       transport_manual: false,
-      transport_durations: { ...existingCache, ...allDurations },
     });
     setPickerOpen(false);
   };
