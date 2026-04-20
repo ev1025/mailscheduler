@@ -280,10 +280,11 @@ export default function PlanTaskSheet({
           {/* 일자 · 시간 · 체류 — h-8·text-xs 로 통일 (높이·폰트 일치) */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
-              <SelectTrigger className="h-8 text-xs w-auto px-2">
+              {/* 트리거·드롭다운 폭 동일(w-[7rem])로 시각적 일치 */}
+              <SelectTrigger className="h-8 text-xs w-[7rem] px-2">
                 {formatDayLabel(dayIndex)}
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="min-w-[7rem] w-[7rem]">
                 {availableDays.map((d) => (
                   <SelectItem key={d} value={String(d)} className="text-xs">
                     {formatDayLabel(d)}
@@ -309,7 +310,7 @@ export default function PlanTaskSheet({
                 value={stayMinutes}
                 onChange={(e) => handleStayChange(e.target.value)}
                 placeholder={stayUnit === "hour" ? "체류(시간)" : "체류(분)"}
-                className="h-full text-xs w-[72px] border-0 rounded-none focus-visible:ring-0 px-2"
+                className="h-full text-xs w-[72px] border-0 rounded-none focus-visible:ring-0 px-2 placeholder:text-[10px]"
               />
               <button
                 type="button"
@@ -361,40 +362,51 @@ export default function PlanTaskSheet({
             )}
           </div>
 
-          {/* 분류 — 여행 폼과 동일한 풀. 단일 선택. */}
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-[11px] text-muted-foreground">분류</Label>
-            <TagInput
-              selectedTags={category ? [category] : []}
-              allTags={categories.map((c) => ({ id: c, name: c, color: colors[c] || "#6B7280" }))}
-              onChange={(next) => {
-                // TagInput 을 단일 선택으로 쓰기 — 가장 최근 선택값만 유지
-                const picked = next.find((t) => t !== category);
-                if (picked) setCategory(picked);
-                else if (next.length === 0) setCategory("");
-              }}
-              onAddTag={addCategory}
-              onDeleteTag={deleteCategory}
-              onUpdateTagColor={updateCategoryColor}
-              onRenameTag={updateCategoryName}
-              builtinIds={BUILTIN_TRAVEL_CATEGORIES}
-              orderKey="tag-order:travel-categories"
-              placeholder="분류 선택"
-            />
-          </div>
+          {/* 분류 · 태그 영역에 mousedown 시 장소 검색 자동 닫기
+              → 드롭다운이 동시에 두 개 뜨는 산만함 방지 */}
+          <div
+            className="flex flex-col gap-3"
+            onMouseDownCapture={() => {
+              if (editingPlace) {
+                setEditingPlace(false);
+                setPlaceQuery("");
+              }
+            }}
+          >
+            {/* 분류 — 여행 폼과 동일한 풀. 단일 선택. */}
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] text-muted-foreground">분류</Label>
+              <TagInput
+                selectedTags={category ? [category] : []}
+                allTags={categories.map((c) => ({ id: c, name: c, color: colors[c] || "#6B7280" }))}
+                onChange={(next) => {
+                  const picked = next.find((t) => t !== category);
+                  if (picked) setCategory(picked);
+                  else if (next.length === 0) setCategory("");
+                }}
+                onAddTag={addCategory}
+                onDeleteTag={deleteCategory}
+                onUpdateTagColor={updateCategoryColor}
+                onRenameTag={updateCategoryName}
+                builtinIds={BUILTIN_TRAVEL_CATEGORIES}
+                orderKey="tag-order:travel-categories"
+                placeholder="분류 선택"
+              />
+            </div>
 
-          {/* 태그 — 캘린더·여행 폼과 공용 이벤트 태그 풀 */}
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-[11px] text-muted-foreground">태그</Label>
-            <TagInput
-              selectedTags={selectedTags}
-              allTags={allEventTags}
-              onChange={setSelectedTags}
-              onAddTag={addEventTag}
-              onDeleteTag={deleteEventTag}
-              onUpdateTagColor={updateEventTagColor}
-              orderKey="tag-order:event-tags"
-            />
+            {/* 태그 — 캘린더·여행 폼과 공용 이벤트 태그 풀 */}
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-[11px] text-muted-foreground">태그</Label>
+              <TagInput
+                selectedTags={selectedTags}
+                allTags={allEventTags}
+                onChange={setSelectedTags}
+                onAddTag={addEventTag}
+                onDeleteTag={deleteEventTag}
+                onUpdateTagColor={updateEventTagColor}
+                orderKey="tag-order:event-tags"
+              />
+            </div>
           </div>
 
           {/* 내용 */}
@@ -405,7 +417,7 @@ export default function PlanTaskSheet({
               onChange={(e) => setContent(e.target.value)}
               placeholder="어디에 갈지, 무엇을 할지 (예: 일출 보기)"
               rows={2}
-              className="text-[10px] min-h-16 leading-snug"
+              className="text-[11px] min-h-16 leading-snug placeholder:text-[10px]"
             />
           </div>
 
