@@ -49,12 +49,16 @@ function CalendarPageInner() {
       ? (viewParam as View)
       : "calendar";
   const planIdParam = searchParams.get("planId");
-  const setView = (v: View, extra?: Record<string, string>) => {
+  const setView = (v: View, extra?: Record<string, string>, opts?: { replace?: boolean }) => {
     const params = new URLSearchParams();
     if (v !== "calendar") params.set("view", v);
     if (extra) for (const [k, val] of Object.entries(extra)) params.set(k, val);
     const qs = params.toString();
-    router.replace(qs ? `/calendar?${qs}` : "/calendar", { scroll: false });
+    const url = qs ? `/calendar?${qs}` : "/calendar";
+    // 기본은 push — 브라우저 뒤로가기가 view 전환 이력을 따라가도록.
+    // 여행계획 상세 → 목록 뒤로가기 지원. replace 는 명시적 opts 로만.
+    if (opts?.replace) router.replace(url, { scroll: false });
+    else router.push(url, { scroll: false });
   };
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -382,7 +386,12 @@ function CalendarPageInner() {
       ) : view === "travel-plan" && planIdParam ? (
         <PlanDetail
           planId={planIdParam}
-          onBack={() => setView("travel-plans")}
+          onBack={() => {
+            // history 엔트리가 있으면 pop (브라우저 뒤로가기와 동일 동작),
+            // 없으면(직접 URL 진입 등) 목록 뷰로 명시 이동.
+            if (window.history.length > 1) router.back();
+            else setView("travel-plans", undefined, { replace: true });
+          }}
         />
       ) : view === "travel" ? (
         <TravelList
