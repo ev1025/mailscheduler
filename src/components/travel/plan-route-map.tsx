@@ -45,18 +45,30 @@ export default function PlanRouteMap({
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // 네이버 SDK 가 wheel 을 capture 단계에서 가로채 preventDefault.
-  // React onWheel 핸들러에서 직접 부모 스크롤 컨테이너를 찾아 deltaY 만큼
-  // scrollTop 을 증가시켜 우회. 지도는 줌 못 해도 페이지 스크롤은 정상.
-  const handleWheelForward = (e: React.WheelEvent) => {
-    const scrollContainer =
-      (e.currentTarget as HTMLElement).closest<HTMLElement>(".overflow-y-auto");
-    if (scrollContainer) {
-      scrollContainer.scrollTop += e.deltaY;
-    } else if (document.scrollingElement) {
-      document.scrollingElement.scrollTop += e.deltaY;
-    }
-  };
+  // 네이버 SDK 가 wheel 을 document/window 레벨 capture 에서 가로채
+  // stopPropagation · preventDefault 로 전부 막음. React onWheel 은 bubble
+  // phase 라 전달 안 됨. → window 레벨 capture 로 최우선 선점하여 직접 처리.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.target instanceof Node) || !el.contains(e.target)) return;
+      // ctrl+휠 = 브라우저 줌 — 기본 동작 허용, Naver 만 차단
+      if (e.ctrlKey) {
+        e.stopImmediatePropagation();
+        return;
+      }
+      // 일반 스크롤 — 부모 스크롤 컨테이너에 직접 반영
+      const scrollable =
+        el.closest<HTMLElement>(".overflow-y-auto") ??
+        (document.scrollingElement as HTMLElement | null);
+      if (scrollable) scrollable.scrollTop += e.deltaY;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    };
+    window.addEventListener("wheel", onWheel, { capture: true, passive: false });
+    return () => window.removeEventListener("wheel", onWheel, { capture: true });
+  }, []);
 
   useEffect(() => {
     if (!CLIENT_ID) return;
@@ -186,10 +198,7 @@ export default function PlanRouteMap({
         src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`}
         strategy="afterInteractive"
       />
-      <div
-        className={`naver-map-host relative ${className || ""}`}
-        onWheel={handleWheelForward}
-      >
+      <div className={`naver-map-host relative ${className || ""}`}>
         <div
           ref={containerRef}
           className="rounded-md overflow-hidden"

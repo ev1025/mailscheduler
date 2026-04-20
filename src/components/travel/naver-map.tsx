@@ -33,18 +33,25 @@ export default function NaverMap({
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // document 레벨 wheel capture — 네이버 SDK 가 페이지 스크롤 막는 것 차단
+  // window 레벨 wheel capture — 네이버 SDK 차단 + 부모 스크롤 직접 처리
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const onDocWheel = (e: WheelEvent) => {
-      const t = e.target;
-      if (t instanceof Node && el.contains(t)) {
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.target instanceof Node) || !el.contains(e.target)) return;
+      if (e.ctrlKey) {
         e.stopImmediatePropagation();
+        return;
       }
+      const scrollable =
+        el.closest<HTMLElement>(".overflow-y-auto") ??
+        (document.scrollingElement as HTMLElement | null);
+      if (scrollable) scrollable.scrollTop += e.deltaY;
+      e.stopImmediatePropagation();
+      e.preventDefault();
     };
-    document.addEventListener("wheel", onDocWheel, { capture: true, passive: true });
-    return () => document.removeEventListener("wheel", onDocWheel, { capture: true });
+    window.addEventListener("wheel", onWheel, { capture: true, passive: false });
+    return () => window.removeEventListener("wheel", onWheel, { capture: true });
   }, []);
 
   useEffect(() => {
