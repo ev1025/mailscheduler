@@ -315,7 +315,7 @@ export default function PlanTaskSheet({
                 value={stayMinutes}
                 onChange={(e) => handleStayChange(e.target.value)}
                 placeholder={stayUnit === "hour" ? "체류(시간)" : "체류(분)"}
-                className="h-full text-[11px] w-[72px] border-0 rounded-none focus-visible:ring-0 px-2"
+                className="h-full text-[10px] w-[72px] border-0 rounded-none focus-visible:ring-0 px-2"
               />
               <button
                 type="button"
@@ -411,7 +411,7 @@ export default function PlanTaskSheet({
               onChange={(e) => setContent(e.target.value)}
               placeholder="어디에 갈지, 무엇을 할지 (예: 일출 보기)"
               rows={2}
-              className="text-[11px] min-h-16"
+              className="text-[10px] min-h-16 leading-snug"
             />
           </div>
 
