@@ -111,6 +111,9 @@ export default function PlanDetail({ planId, onBack }: Props) {
 
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [segment, setSegment] = useState<Segment>({ mode: "all" });
+  // legPaths: "{fromId}-{toId}-{mode}" 를 key 로 사용 — mode 가 바뀌면 자동으로
+  // 새 key 가 되어 이전 path 재사용 금지. 이전엔 (fromId-toId) 만 써서 수단을
+  // 바꿔도 예전 경로가 그대로 남았음.
   const [legPaths, setLegPaths] = useState<Record<string, [number, number][]>>({});
 
   // 시트 상태: 편집 중이면 task, 신규면 null + 대상 day_index
@@ -176,11 +179,10 @@ export default function PlanDetail({ planId, onBack }: Props) {
     (async () => {
       for (const leg of visibleLegs) {
         if (cancelled) return;
-        const key = `${leg.fromTaskId}-${leg.toTaskId}`;
-        if (legPaths[key]) continue;
-        // 선택된 수단 없으면 skip (아직 경로 의미 없음)
         const mode: TransportMode | null = leg.toTask.transport_mode ?? null;
-        if (!mode) continue;
+        if (!mode) continue; // 수단 미선택 → path 의미 없음
+        const key = `${leg.fromTaskId}-${leg.toTaskId}-${mode}`; // mode 포함
+        if (legPaths[key]) continue;
         const result = await fetchRouteDuration(
           { lat: leg.fromTask.place_lat!, lng: leg.fromTask.place_lng! },
           { lat: leg.toTask.place_lat!, lng: leg.toTask.place_lng! },
@@ -224,7 +226,10 @@ export default function PlanDetail({ planId, onBack }: Props) {
       legsForMap.push({
         fromIdx,
         toIdx,
-        path: legPaths[`${l.fromTaskId}-${l.toTaskId}`],
+        // 선택된 수단에 따른 path 조회 — mode 포함 key
+        path: l.toTask.transport_mode
+          ? legPaths[`${l.fromTaskId}-${l.toTaskId}-${l.toTask.transport_mode}`]
+          : undefined,
       });
     }
 
@@ -275,6 +280,21 @@ export default function PlanDetail({ planId, onBack }: Props) {
     setTitleDraft(null);
   };
 
+  // 순서 변경 시 인접 leg 들 무효화 — transport 필드 리셋 대상 task id 세트.
+  //  - moved task 본인 (arriving leg 변경)
+  //  - moved task 의 새 next (this → newNext leg 변경)
+  //  - moved task 의 기존 next (원래 위치에서의 다음 task — 그 departing leg 변경)
+  const resetTransport = async (taskIds: string[]) => {
+    for (const id of taskIds) {
+      await updateTask(id, {
+        transport_mode: null,
+        transport_duration_sec: null,
+        transport_manual: false,
+        transport_durations: null,
+      });
+    }
+  };
+
   // Drag end:
   //  - task → task (다른 일자): 해당 위치에 끼워넣음 + day_index 변경
   //  - task → task (같은 일자): 순서 재정렬
@@ -285,6 +305,15 @@ export default function PlanDetail({ planId, onBack }: Props) {
     if (!activeTask) return;
     const overId = String(e.over.id);
 
+    // 원래 위치에서의 기존 next (옛 departing leg 무효)
+    const oldDayTasks = sorted.filter((t) => t.day_index === activeTask.day_index);
+    const oldIdx = oldDayTasks.findIndex((t) => t.id === activeTask.id);
+    const oldNext = oldIdx >= 0 ? oldDayTasks[oldIdx + 1] : undefined;
+
+    // 리셋 대상: 옮겨진 task 본인 + 기존 next (원래 그 사이의 leg 옮겨짐)
+    const affected = new Set<string>([activeTask.id]);
+    if (oldNext) affected.add(oldNext.id);
+
     // 빈 일자 droppable 로 드롭한 경우
     if (overId.startsWith("day-")) {
       const targetDay = parseInt(overId.slice(4), 10);
@@ -292,7 +321,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
       const targetDayTasks = sorted.filter(
         (t) => t.day_index === targetDay && t.id !== activeTask.id
       );
-      targetDayTasks.push(activeTask); // 맨 뒤
+      targetDayTasks.push(activeTask); // 맨 뒤 — 따라서 새 next 없음 (end 에 위치)
       await updateTask(activeTask.id, { day_index: targetDay });
       for (let i = 0; i < targetDayTasks.length; i++) {
         const t = targetDayTasks[i];
@@ -300,6 +329,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
           await updateTask(t.id, { manual_order: i });
         }
       }
+      await resetTransport([...affected]);
       return;
     }
 
@@ -320,6 +350,9 @@ export default function PlanDetail({ planId, onBack }: Props) {
           await updateTask(t.id, { manual_order: i });
         }
       }
+      // 새 next (overTask 가 active 뒤로 밀려난 경우 overTask 가 새 next)
+      affected.add(overTask.id);
+      await resetTransport([...affected]);
     } else {
       const dayTasks = sorted.filter((t) => t.day_index === activeTask.day_index);
       const oldIdx = dayTasks.findIndex((t) => t.id === activeTask.id);
@@ -331,6 +364,11 @@ export default function PlanDetail({ planId, onBack }: Props) {
           await updateTask(reordered[i].id, { manual_order: i });
         }
       }
+      // 재정렬된 배열에서 activeTask 의 새 next
+      const newActiveIdx = reordered.findIndex((t) => t.id === activeTask.id);
+      const newNext = newActiveIdx >= 0 ? reordered[newActiveIdx + 1] : undefined;
+      if (newNext) affected.add(newNext.id);
+      await resetTransport([...affected]);
     }
   };
 
