@@ -323,8 +323,14 @@ function CalendarPageInner() {
           </div>
         }
       />}
-    <div className={`flex flex-col min-h-0 overflow-hidden ${
-      hideTopHeader ? "h-full" : "h-[calc(100%-3.5rem)] px-2 py-2 md:p-6"
+    {/* 여행계획 상세(hideTopHeader=true) 는 자체 스크롤 없이 main 에 위임.
+        wrapper 가 overflow-hidden+h-full 이면 content 가 잘려 main 이 overflow
+        감지 못 함 → 스크롤 불가. hideTopHeader 때는 height/overflow 모두 해제해
+        콘텐츠가 자연스럽게 main 에 흘러가고 main.overflow-y-auto 가 스크롤. */}
+    <div className={`flex flex-col min-h-0 ${
+      hideTopHeader
+        ? ""
+        : "h-[calc(100%-3.5rem)] overflow-hidden px-2 py-2 md:p-6"
     }`}>
 
       {/* MonthPicker: 달력/일정목록에서만 (여행·여행계획은 월 개념 없음) */}
