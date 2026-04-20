@@ -89,7 +89,10 @@ export default function PlanTaskRow({
           )}
         </div>
         <div className="flex items-center gap-1.5 min-w-0">
-          <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
+          <MapPin
+            className="h-3.5 w-3.5 shrink-0 fill-red-500/90 stroke-red-600"
+            strokeWidth={2}
+          />
           <span className="text-xs md:text-sm font-medium truncate">
             {task.place_name || "(장소 미입력)"}
           </span>
@@ -116,9 +119,11 @@ export default function PlanTaskRow({
             onDelete();
           }}
           aria-label="일정 삭제"
-          className="shrink-0 p-1.5 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-opacity md:opacity-0 md:group-hover:opacity-100"
+          // 모바일: 아이콘 작게(h-3) + 우측 margin 축소(-mr-1) 로 끝에 바짝
+          // 데스크탑: 평소대로 + hover 시만 노출
+          className="shrink-0 p-1 -mr-1 md:p-1.5 md:mr-0 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-opacity md:opacity-0 md:group-hover:opacity-100"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
         </button>
       )}
     </div>
