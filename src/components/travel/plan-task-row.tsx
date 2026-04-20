@@ -90,7 +90,7 @@ export default function PlanTaskRow({
         </div>
         <div className="flex items-center gap-1.5 min-w-0">
           <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-          <span className="text-sm font-medium truncate">
+          <span className="text-xs md:text-sm font-medium truncate">
             {task.place_name || "(장소 미입력)"}
           </span>
         </div>

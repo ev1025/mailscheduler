@@ -280,11 +280,13 @@ export default function PlanTaskSheet({
           {/* 일자 · 시간 · 체류 — h-8·text-xs 로 통일 (높이·폰트 일치) */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
-              {/* 트리거·드롭다운 폭 동일(w-[7rem])로 시각적 일치 */}
-              <SelectTrigger className="h-8 text-xs w-[7rem] px-2">
+              {/* 트리거 w-auto — 내부 텍스트("4/20(월)") 딱 맞는 폭.
+                  드롭다운은 min-w-0 로 default min-w-36 오버라이드 → 트리거와
+                  같은 폭으로 정렬. 약간의 여유(min-w-[5.5rem])는 "+ 새 일자" 옵션 표시용. */}
+              <SelectTrigger className="h-8 text-xs w-auto px-2">
                 {formatDayLabel(dayIndex)}
               </SelectTrigger>
-              <SelectContent className="min-w-[7rem] w-[7rem]">
+              <SelectContent className="min-w-[5.5rem]">
                 {availableDays.map((d) => (
                   <SelectItem key={d} value={String(d)} className="text-xs">
                     {formatDayLabel(d)}
@@ -310,7 +312,7 @@ export default function PlanTaskSheet({
                 value={stayMinutes}
                 onChange={(e) => handleStayChange(e.target.value)}
                 placeholder={stayUnit === "hour" ? "체류(시간)" : "체류(분)"}
-                className="h-full text-xs w-[72px] border-0 rounded-none focus-visible:ring-0 px-2 placeholder:text-[10px]"
+                className="h-full text-xs w-14 border-0 rounded-none focus-visible:ring-0 px-2 placeholder:text-[10px]"
               />
               <button
                 type="button"
