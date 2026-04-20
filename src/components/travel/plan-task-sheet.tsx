@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -286,7 +286,7 @@ export default function PlanTaskSheet({
           {/* 일자 · 시간 · 체류 — 명시적 폭으로 안정적 클릭 영역 확보 */}
           <div className="flex items-center gap-2 flex-wrap">
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
-              <SelectTrigger className="h-8 text-xs min-w-[92px]">
+              <SelectTrigger className="h-8 text-xs w-auto">
                 {formatDayLabel(dayIndex)}
               </SelectTrigger>
               <SelectContent>
@@ -305,7 +305,7 @@ export default function PlanTaskSheet({
               className="h-8 text-xs min-w-[88px]"
             />
 
-            {/* 체류시간: 분/시간 토글 + 입력 */}
+            {/* 체류시간: 분/시간 토글 + 입력 — content-fit 폭 */}
             <div className="flex items-center h-8 rounded-md border bg-transparent overflow-hidden">
               <Input
                 type="number"
@@ -315,12 +315,12 @@ export default function PlanTaskSheet({
                 value={stayMinutes}
                 onChange={(e) => handleStayChange(e.target.value)}
                 placeholder={stayUnit === "hour" ? "체류(시간)" : "체류(분)"}
-                className="h-full text-[11px] w-20 border-0 rounded-none focus-visible:ring-0"
+                className="h-full text-[11px] w-[72px] border-0 rounded-none focus-visible:ring-0 px-2"
               />
               <button
                 type="button"
                 onClick={toggleStayUnit}
-                className="h-full px-2 text-[10px] font-medium border-l bg-muted/50 hover:bg-muted text-muted-foreground min-w-[32px]"
+                className="h-full px-1.5 text-[10px] font-medium border-l bg-muted/50 hover:bg-muted text-muted-foreground"
                 title="분/시간 단위 전환"
               >
                 {stayUnit === "hour" ? "시간" : "분"}
@@ -452,25 +452,80 @@ export default function PlanTaskSheet({
     );
   }
 
-  // 모바일: 하단 바텀시트 90dvh
+  // 모바일: 하단 바텀시트 — 드래그 바로 아래로 밀어 닫기
+  return (
+    <MobileSheet open={open} onOpenChange={onOpenChange} title={title}>
+      {renderForm()}
+    </MobileSheet>
+  );
+}
+
+// 드래그 바 동작 + 시트 구조. 바를 잡고 아래로 120px 이상 당기면 닫힘.
+function MobileSheet({
+  open,
+  onOpenChange,
+  title,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const [dragY, setDragY] = useState(0);
+  const dragStartY = useRef<number | null>(null);
+
+  const onHandlePointerDown = (e: React.PointerEvent) => {
+    dragStartY.current = e.clientY;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onHandlePointerMove = (e: React.PointerEvent) => {
+    if (dragStartY.current == null) return;
+    const delta = e.clientY - dragStartY.current;
+    setDragY(Math.max(0, delta)); // 아래로만 translate
+  };
+  const onHandlePointerUp = (e: React.PointerEvent) => {
+    const delta = dragStartY.current != null ? e.clientY - dragStartY.current : 0;
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    dragStartY.current = null;
+    if (delta > 120) {
+      onOpenChange(false);
+    }
+    setDragY(0); // 복귀 애니메이션 (transition CSS 가 처리)
+  };
+
+  useEffect(() => {
+    if (!open) setDragY(0);
+  }, [open]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-y-auto overscroll-contain"
-        style={{ height: "90dvh" }}
+        style={{
+          height: "90dvh",
+          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transition: dragStartY.current == null ? "transform 150ms ease-out" : "none",
+        }}
         showBackButton={false}
         showCloseButton={false}
         initialFocus={false}
       >
         <div className="mx-auto w-full max-w-xl flex flex-col">
-          <SheetHeader className="pt-2 shrink-0">
-            <div className="flex flex-col items-center">
-              <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
+          <SheetHeader className="px-4 py-1.5 gap-1 shrink-0">
+            <div
+              className="flex justify-center py-1 -my-1 touch-none cursor-grab active:cursor-grabbing"
+              onPointerDown={onHandlePointerDown}
+              onPointerMove={onHandlePointerMove}
+              onPointerUp={onHandlePointerUp}
+              onPointerCancel={onHandlePointerUp}
+            >
+              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/40" />
             </div>
-            <SheetTitle className="text-base">{title}</SheetTitle>
+            <SheetTitle className="text-sm">{title}</SheetTitle>
           </SheetHeader>
-          {renderForm()}
+          {children}
         </div>
       </SheetContent>
     </Sheet>

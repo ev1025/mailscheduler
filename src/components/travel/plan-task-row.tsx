@@ -103,8 +103,8 @@ export default function PlanTaskRow({
           </span>
         </div>
 
-        {/* Row 2: 체류시간 | 분류 · 주소 — 주소는 wrap 허용 */}
-        <div className="text-[10px] text-muted-foreground shrink-0">
+        {/* Row 2: 체류시간(시간범위 ~ 아래 중앙) | 분류 · 주소 */}
+        <div className="text-[10px] text-muted-foreground shrink-0 text-center">
           {task.stay_minutes > 0 ? `(${formatMinutes(task.stay_minutes)})` : ""}
         </div>
         <div className="flex items-start gap-1.5 flex-wrap text-xs text-muted-foreground min-w-0">

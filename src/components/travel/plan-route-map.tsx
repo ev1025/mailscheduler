@@ -44,6 +44,11 @@ export default function PlanRouteMap({
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // 지도 인스턴스·오버레이 레퍼런스를 보관해 재생성 없이 증분 업데이트.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const overlaysRef = useRef<any[]>([]);
 
   // 네이버 SDK 가 wheel 을 document/window 레벨 capture 에서 가로채
   // stopPropagation · preventDefault 로 전부 막음. React onWheel 은 bubble
@@ -70,6 +75,7 @@ export default function PlanRouteMap({
     return () => window.removeEventListener("wheel", onWheel, { capture: true });
   }, []);
 
+  // 지도 1회만 생성. pins/legs 변경 시 오버레이만 교체 → 지도 깜빡임 제거.
   useEffect(() => {
     if (!CLIENT_ID) return;
     let cancelled = false;
@@ -82,91 +88,22 @@ export default function PlanRouteMap({
         timer = setTimeout(init, 50);
         return;
       }
-
-      // 맵 생성 또는 재사용 — 간단히 매번 새로 생성(phases 적으면 성능 OK)
-      const firstPin = pins[0];
-      const center = firstPin
-        ? new naver.maps.LatLng(firstPin.lat, firstPin.lng)
-        : new naver.maps.LatLng(37.5665, 126.978);
-
-      const map = new naver.maps.Map(containerRef.current, {
-        center,
-        zoom: pins.length > 1 ? 10 : 13,
+      if (mapRef.current) return; // 이미 생성됨
+      mapRef.current = new naver.maps.Map(containerRef.current, {
+        center: new naver.maps.LatLng(37.5665, 126.978),
+        zoom: 13,
         zoomControl: false,
         scaleControl: false,
         mapDataControl: false,
         logoControl: false,
-        // 마우스 휠은 페이지 스크롤에 양보. 지도 확대/축소는 +/- 터치 핀치로.
         scrollWheel: false,
       });
-
-      // 모든 핀을 감싸는 bounds 로 자동 맞춤
-      if (pins.length > 1) {
-        const bounds = new naver.maps.LatLngBounds(
-          new naver.maps.LatLng(pins[0].lat, pins[0].lng),
-          new naver.maps.LatLng(pins[0].lat, pins[0].lng)
-        );
-        for (const p of pins) {
-          bounds.extend(new naver.maps.LatLng(p.lat, p.lng));
-        }
-        map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
-      }
-
-      for (let i = 0; i < pins.length; i++) {
-        const p = pins[i];
-        new naver.maps.Marker({
-          position: new naver.maps.LatLng(p.lat, p.lng),
-          map,
-          title: p.label,
-          // 순서 번호 아이콘
-          icon: {
-            content:
-              `<div style="background:#3b82f6;color:#fff;border-radius:50%;width:24px;height:24px;` +
-              `display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;` +
-              `box-shadow:0 1px 3px rgba(0,0,0,0.3);">${i + 1}</div>`,
-            anchor: new naver.maps.Point(12, 12),
-          },
-        });
-      }
-
-      // 구간별로 실제 path 있으면 실선, 없으면 from→to 점선 — 끊김 없이 연결.
-      for (const leg of legs ?? []) {
-        const from = pins[leg.fromIdx];
-        const to = pins[leg.toIdx];
-        if (!from || !to) continue;
-        const hasPath = leg.path && leg.path.length > 1;
-        if (hasPath) {
-          const latlngs = leg.path!.map((pt) => new naver.maps.LatLng(pt[1], pt[0]));
-          new naver.maps.Polyline({
-            path: latlngs,
-            strokeColor: "#3b82f6",
-            strokeOpacity: 0.9,
-            strokeWeight: 4,
-            map,
-          });
-        } else {
-          // Fallback — 핀 2점 직선 점선
-          new naver.maps.Polyline({
-            path: [
-              new naver.maps.LatLng(from.lat, from.lng),
-              new naver.maps.LatLng(to.lat, to.lng),
-            ],
-            strokeColor: "#94a3b8",
-            strokeOpacity: 0.8,
-            strokeWeight: 2,
-            strokeStyle: "shortdash",
-            map,
-          });
-        }
-      }
-
-      // NAVER 로고/저작권 DOM 을 직접 찾아 숨김. logoControl:false +
-      // globals.css 전역 규칙에 더한 3중 보험. SDK 가 render 를 내부 타이머
-      // 로 늦춰서 그릴 수 있어 200ms 뒤에 한 번 더 실행.
+      // NAVER 로고 DOM 제거 (지도 생성 직후·200ms·800ms 3중 보험)
       const killLogos = () => {
         if (!containerRef.current) return;
-        const anchors = containerRef.current.querySelectorAll("a[target=\"_blank\"]");
-        anchors.forEach((a) => ((a as HTMLElement).style.display = "none"));
+        containerRef.current
+          .querySelectorAll("a[target=\"_blank\"]")
+          .forEach((a) => ((a as HTMLElement).style.display = "none"));
       };
       killLogos();
       setTimeout(killLogos, 200);
@@ -179,6 +116,78 @@ export default function PlanRouteMap({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
+  }, []); // 지도는 1회만 생성
+
+  // pins · legs 변경 시 기존 오버레이 제거 후 새로 그리기 — 지도 자체는 유지
+  useEffect(() => {
+    const map = mapRef.current;
+    const naver = window.naver;
+    if (!map || !naver?.maps) return;
+
+    // 이전 오버레이(마커·폴리라인) 제거
+    for (const o of overlaysRef.current) {
+      try { o.setMap(null); } catch { /* ignore */ }
+    }
+    overlaysRef.current = [];
+
+    // bounds 로 화면 맞춤
+    if (pins.length > 1) {
+      const bounds = new naver.maps.LatLngBounds(
+        new naver.maps.LatLng(pins[0].lat, pins[0].lng),
+        new naver.maps.LatLng(pins[0].lat, pins[0].lng)
+      );
+      for (const p of pins) bounds.extend(new naver.maps.LatLng(p.lat, p.lng));
+      map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+    } else if (pins.length === 1) {
+      map.setCenter(new naver.maps.LatLng(pins[0].lat, pins[0].lng));
+      map.setZoom(13);
+    }
+
+    // 번호 마커
+    for (let i = 0; i < pins.length; i++) {
+      const p = pins[i];
+      const marker = new naver.maps.Marker({
+        position: new naver.maps.LatLng(p.lat, p.lng),
+        map,
+        title: p.label,
+        icon: {
+          content:
+            `<div style="background:#3b82f6;color:#fff;border-radius:50%;width:24px;height:24px;` +
+            `display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;` +
+            `box-shadow:0 1px 3px rgba(0,0,0,0.3);">${i + 1}</div>`,
+          anchor: new naver.maps.Point(12, 12),
+        },
+      });
+      overlaysRef.current.push(marker);
+    }
+
+    // 구간 선
+    for (const leg of legs ?? []) {
+      const from = pins[leg.fromIdx];
+      const to = pins[leg.toIdx];
+      if (!from || !to) continue;
+      const hasPath = leg.path && leg.path.length > 1;
+      const line = hasPath
+        ? new naver.maps.Polyline({
+            path: leg.path!.map((pt) => new naver.maps.LatLng(pt[1], pt[0])),
+            strokeColor: "#3b82f6",
+            strokeOpacity: 0.9,
+            strokeWeight: 4,
+            map,
+          })
+        : new naver.maps.Polyline({
+            path: [
+              new naver.maps.LatLng(from.lat, from.lng),
+              new naver.maps.LatLng(to.lat, to.lng),
+            ],
+            strokeColor: "#94a3b8",
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            strokeStyle: "shortdash",
+            map,
+          });
+      overlaysRef.current.push(line);
+    }
   }, [pins, legs]);
 
   if (!CLIENT_ID) {
