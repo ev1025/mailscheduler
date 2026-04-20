@@ -65,7 +65,9 @@ export default function PlanRouteMap({
         zoomControl: false,
         scaleControl: false,
         mapDataControl: false,
-        logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
+        logoControl: false,
+        // 마우스 휠은 페이지 스크롤에 양보. 지도 확대/축소는 +/- 터치 핀치로.
+        scrollWheel: false,
       });
 
       // 모든 핀을 감싸는 bounds 로 자동 맞춤
@@ -121,6 +123,18 @@ export default function PlanRouteMap({
           map,
         });
       }
+
+      // NAVER 로고/저작권 DOM 을 직접 찾아 숨김. logoControl:false +
+      // globals.css 전역 규칙에 더한 3중 보험. SDK 가 render 를 내부 타이머
+      // 로 늦춰서 그릴 수 있어 200ms 뒤에 한 번 더 실행.
+      const killLogos = () => {
+        if (!containerRef.current) return;
+        const anchors = containerRef.current.querySelectorAll("a[target=\"_blank\"]");
+        anchors.forEach((a) => ((a as HTMLElement).style.display = "none"));
+      };
+      killLogos();
+      setTimeout(killLogos, 200);
+      setTimeout(killLogos, 800);
     };
 
     init();
@@ -148,11 +162,13 @@ export default function PlanRouteMap({
         src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`}
         strategy="afterInteractive"
       />
-      <div
-        ref={containerRef}
-        className={`rounded-md overflow-hidden ${className || ""}`}
-        style={{ height }}
-      />
+      <div className={`naver-map-host relative ${className || ""}`}>
+        <div
+          ref={containerRef}
+          className="rounded-md overflow-hidden"
+          style={{ height }}
+        />
+      </div>
     </>
   );
 }

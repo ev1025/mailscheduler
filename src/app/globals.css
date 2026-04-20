@@ -371,3 +371,18 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* Naver Maps v3 SDK — logoControl:false 가 모든 버전에서 먹히지 않아
+   로고/저작권 요소를 전역 CSS 로 강제 숨김. 네이버 TOS 상 권장되지는
+   않으나 개인 사용 앱이므로 사용자 요구에 맞춰 숨김 처리. */
+.naver-map-host a[target="_blank"],
+.naver-map-host [class*="map_logo"],
+.naver-map-host [class*="nmap_logo"],
+.naver-map-host [class*="naver-logo"],
+.naver-map-host [class*="map_copyright"],
+.naver-map-host [class*="copyright"],
+.naver-map-host a[title*="NAVER" i],
+.naver-map-host a[title*="네이버" i] {
+  display: none !important;
+  visibility: hidden !important;
+}

@@ -51,13 +51,25 @@ export default function NaverMap({
       const map = new naver.maps.Map(containerRef.current, {
         center: position,
         zoom,
-        // +/- 버튼 숨김. 마우스 휠·터치 핀치·더블클릭으로만 줌.
         zoomControl: false,
         scaleControl: false,
         mapDataControl: false,
-        logoControlOptions: { position: naver.maps.Position.BOTTOM_LEFT },
+        logoControl: false,
+        // 마우스 휠은 페이지 스크롤에 양보 — 지도 위 휠이 지도를 줌하느라
+        // 페이지가 안 움직이는 문제 방지.
+        scrollWheel: false,
       });
       new naver.maps.Marker({ position, map });
+
+      // NAVER 로고 DOM 직접 숨김 (3중 보험)
+      const killLogos = () => {
+        if (!containerRef.current) return;
+        const anchors = containerRef.current.querySelectorAll("a[target=\"_blank\"]");
+        anchors.forEach((a) => ((a as HTMLElement).style.display = "none"));
+      };
+      killLogos();
+      setTimeout(killLogos, 200);
+      setTimeout(killLogos, 800);
     };
 
     init();
@@ -87,11 +99,13 @@ export default function NaverMap({
         src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`}
         strategy="afterInteractive"
       />
-      <div
-        ref={containerRef}
-        className={`rounded-md overflow-hidden ${className || ""}`}
-        style={{ height }}
-      />
+      <div className={`naver-map-host relative ${className || ""}`}>
+        <div
+          ref={containerRef}
+          className="rounded-md overflow-hidden"
+          style={{ height }}
+        />
+      </div>
     </>
   );
 }

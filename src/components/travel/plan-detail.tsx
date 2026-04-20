@@ -127,13 +127,15 @@ export default function PlanDetail({ planId, onBack }: Props) {
     return Array.from(set).sort((a, b) => a - b);
   }, [sorted, plan?.start_date, plan?.end_date]);
 
+  // 날짜는 start_date 가 있든 없든 항상 "M/D(요일)" 로 표시.
+  // start_date 미설정 시 오늘을 기준으로 dayIndex 만큼 더해 반환.
   const formatDayLabel = (dayIndex: number): string => {
-    if (plan?.start_date) {
-      const iso = addDaysISO(plan.start_date, dayIndex);
-      const d = new Date(iso + "T00:00:00");
-      return `${d.getMonth() + 1}/${d.getDate()} (${WEEKDAYS[d.getDay()]})`;
-    }
-    return `${dayIndex + 1}일차`;
+    const today = new Date();
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const baseIso = plan?.start_date ?? todayIso;
+    const iso = addDaysISO(baseIso, dayIndex);
+    const d = new Date(iso + "T00:00:00");
+    return `${d.getMonth() + 1}/${d.getDate()}(${WEEKDAYS[d.getDay()]})`;
   };
 
   const totalDays = plan?.start_date && plan?.end_date
@@ -404,6 +406,18 @@ export default function PlanDetail({ planId, onBack }: Props) {
                                 (l) => l.fromTaskId === t.id && l.toTaskId === next.id
                               )
                             : undefined;
+                          // 이 구간의 출발 시각 = 현재 task 의 [도착시간 + 체류분]
+                          let legDeparture: string | null = null;
+                          if (leg) {
+                            const arr = expectedTimes[t.id]?.time ?? null;
+                            if (arr) {
+                              const [hh, mm] = arr.split(":").map((s) => parseInt(s, 10));
+                              const stay = t.stay_minutes ?? 0;
+                              const total = hh * 60 + mm + stay;
+                              const w = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+                              legDeparture = `${String(Math.floor(w / 60)).padStart(2, "0")}:${String(w % 60).padStart(2, "0")}`;
+                            }
+                          }
                           return (
                             <div key={t.id} className="flex flex-col gap-1.5">
                               <SortableTaskRow
@@ -415,6 +429,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
                               {leg && (
                                 <PlanLegCard
                                   leg={leg}
+                                  legDeparture={legDeparture}
                                   onUpdateTask={updateTask}
                                 />
                               )}
@@ -470,6 +485,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
               transport_mode: null,
               transport_duration_sec: null,
               transport_manual: false,
+              // transport_durations 는 SQL 마이그레이션 후 자동 채워지므로 insert 에서 제외
             });
           }
         }}

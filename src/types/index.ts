@@ -177,6 +177,10 @@ export interface TravelPlanTask {
   transport_mode: TransportMode | null;
   transport_duration_sec: number | null;
   transport_manual: boolean;
+  // 수단별 소요시간 캐시 (초). SQL 마이그레이션(supabase-travel-leg-durations.sql)
+  // 실행 후부터 채워짐. 옵셔널 유지하여 컬럼 없는 구 DB 에서도 동작.
+  // 예: { car: 3900, bus: 7200, taxi: 3900, train: null }
+  transport_durations?: Partial<Record<TransportMode, number | null>> | null;
   created_at: string;
 }
 

@@ -54,7 +54,9 @@ export default function PlanList({ onSelectPlan, newSignal }: Props) {
                     e.stopPropagation();
                     setDeletingId(p.id);
                   }}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition"
+                  // 모바일: 항상 노출 (호버 없음)
+                  // 데스크탑(md+): hover 시에만 노출
+                  className="absolute top-2 right-2 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition md:opacity-0 md:group-hover:opacity-100"
                   aria-label="계획 삭제"
                 >
                   <Trash2 className="h-3.5 w-3.5" />

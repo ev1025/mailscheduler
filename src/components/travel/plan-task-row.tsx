@@ -77,7 +77,9 @@ export default function PlanTaskRow({
             {task.place_name || "(장소 미입력)"}
           </span>
           {task.stay_minutes > 0 && (
-            <span className="shrink-0 text-[10px] text-muted-foreground">{task.stay_minutes}분</span>
+            <span className="shrink-0 text-[10px] text-muted-foreground">
+              체류 {task.stay_minutes}분
+            </span>
           )}
         </div>
         {(task.content || tags.length > 0 || task.place_address) && (

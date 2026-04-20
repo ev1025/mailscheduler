@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ArrowRight } from "lucide-react";
 import type { TaskLeg } from "@/lib/travel/legs";
 import type { TransportMode } from "@/types";
 import { fetchRouteDuration, formatDuration } from "@/lib/travel/providers";
@@ -18,6 +18,9 @@ const MODE_OPTIONS: { value: TransportMode; label: string; emoji: string }[] = [
 
 interface Props {
   leg: TaskLeg;
+  // 이 구간의 "출발 시각" (HH:MM) — fromTask 의 [실제/예상 도착 시간] + 체류(분).
+  // null 이면 계산 불가 → 출발/도착 시간 표시 생략.
+  legDeparture: string | null;
   onUpdateTask: (taskId: string, updates: Partial<{
     transport_mode: TransportMode | null;
     transport_duration_sec: number | null;
@@ -25,7 +28,17 @@ interface Props {
   }>) => void;
 }
 
-export default function PlanLegCard({ leg, onUpdateTask }: Props) {
+// "HH:MM" + N분 → "HH:MM" (초 단위 입력은 반올림해서 분으로)
+function addMinutes(hhmm: string, addMin: number): string {
+  const [h, m] = hhmm.split(":").map((s) => parseInt(s, 10));
+  const total = h * 60 + m + addMin;
+  const wrapped = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
+  const hh = Math.floor(wrapped / 60);
+  const mm = wrapped % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
+
+export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) {
   const { toTask } = leg;
   const [loading, setLoading] = useState(false);
   const [manualInput, setManualInput] = useState<string>(
@@ -88,8 +101,51 @@ export default function PlanLegCard({ leg, onUpdateTask }: Props) {
     });
   };
 
+  // 출발·소요·도착 시간 계산 — 소요(초) 있으면 도착 = 출발 + 소요(분 반올림)
+  const durationSec = toTask.transport_duration_sec ?? null;
+  const durationMin = durationSec != null ? Math.max(1, Math.round(durationSec / 60)) : null;
+  const legArrival =
+    legDeparture != null && durationMin != null
+      ? addMinutes(legDeparture, durationMin)
+      : null;
+
+  const durationLabel = loading
+    ? "계산 중…"
+    : durationSec != null
+      ? formatDuration(durationSec)
+      : !hasCoords
+        ? "좌표 없음"
+        : toTask.transport_mode
+          ? "계산 실패"
+          : "수단 선택";
+
   return (
     <div className="flex flex-col gap-1.5 rounded-md bg-muted/30 px-2.5 py-2 ml-6">
+      {/* 상단: 출발 · 소요 · 도착 — 수단·시간 선택되면 시각적으로 강조 */}
+      {(legDeparture || durationSec != null) && (
+        <div className="flex items-center gap-1.5 text-xs flex-wrap">
+          {legDeparture ? (
+            <span className="font-semibold tabular-nums">{legDeparture}</span>
+          ) : (
+            <span className="text-muted-foreground">--:--</span>
+          )}
+          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+          <span className={`font-medium ${durationSec != null ? "text-primary" : "text-muted-foreground"}`}>
+            {durationLabel}
+          </span>
+          <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+          {legArrival ? (
+            <span className="font-semibold tabular-nums">{legArrival}</span>
+          ) : (
+            <span className="text-muted-foreground">--:--</span>
+          )}
+          {toTask.transport_manual && (
+            <span className="text-[10px] text-muted-foreground ml-1">(수동 입력)</span>
+          )}
+        </div>
+      )}
+
+      {/* 하단: 수단 선택 + 수동/재계산 컨트롤 */}
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-0.5">
           {MODE_OPTIONS.map((o) => (
@@ -113,7 +169,7 @@ export default function PlanLegCard({ leg, onUpdateTask }: Props) {
 
         <div className="flex-1" />
 
-        {toTask.transport_manual ? (
+        {toTask.transport_manual && (
           <div className="flex items-center gap-1">
             <input
               type="number"
@@ -129,16 +185,6 @@ export default function PlanLegCard({ leg, onUpdateTask }: Props) {
             />
             <span className="text-xs text-muted-foreground">분</span>
           </div>
-        ) : (
-          <span className="text-xs font-medium">
-            {loading
-              ? "계산 중…"
-              : toTask.transport_duration_sec != null
-                ? formatDuration(toTask.transport_duration_sec)
-                : hasCoords
-                  ? "수단 선택"
-                  : "좌표 없음"}
-          </span>
         )}
 
         {toTask.transport_mode && !toTask.transport_manual && hasCoords && (

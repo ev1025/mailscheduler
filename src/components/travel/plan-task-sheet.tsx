@@ -108,6 +108,7 @@ export default function PlanTaskSheet({
   const [placeLat, setPlaceLat] = useState<number | null>(null);
   const [placeLng, setPlaceLng] = useState<number | null>(null);
   const [placeQuery, setPlaceQuery] = useState("");
+  const [editingPlace, setEditingPlace] = useState(false);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -137,6 +138,7 @@ export default function PlanTaskSheet({
       setContent("");
     }
     setPlaceQuery("");
+    setEditingPlace(false);
     // 작성 세션 draft 복원 (있으면)
     const d = readDraft(draftKey);
     if (d) {
@@ -188,6 +190,8 @@ export default function PlanTaskSheet({
     setPlaceAddress(p.address);
     setPlaceLat(p.lat);
     setPlaceLng(p.lng);
+    setPlaceQuery("");
+    setEditingPlace(false);
   };
 
   const handleDayChange = (v: string | null) => {
@@ -222,9 +226,10 @@ export default function PlanTaskSheet({
   };
 
   return (
-    // modal={false} — Sheet focus-trap 해제. 내부에 TagInput(또 다른 Sheet/Popover)
-    // 을 중첩해 열 때 포커스 충돌로 클릭이 먹지 않는 문제 해결.
-    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+    // modal=true (기본) — Base UI Dialog 가 중첩 Dialog(TagInput) 열릴 때
+    // inert 를 자동으로 윗 레이어에 적용해줌. modal={false} 로 두면 inert 가
+    // 안 적용되어 오히려 이벤트가 충돌.
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         // height 고정(90dvh) — "중간 고정" 느낌 해소, pull-to-refresh 방지(overscroll-contain)
@@ -269,26 +274,31 @@ export default function PlanTaskSheet({
               className="h-8 w-24 text-xs"
             />
 
-            <div className="flex items-center gap-1">
-              <Input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                maxLength={3}
-                value={stayMinutes}
-                onChange={(e) => handleStayChange(e.target.value)}
-                placeholder="체류"
-                className="h-8 w-14 text-xs"
-              />
-              <span className="text-xs text-muted-foreground">분</span>
-            </div>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              maxLength={3}
+              value={stayMinutes}
+              onChange={(e) => handleStayChange(e.target.value)}
+              placeholder="체류시간(60분)"
+              className="h-8 w-32 text-xs"
+            />
           </div>
 
-          {/* 장소 */}
+          {/* 장소 — 선택된 값이 있으면 카드(탭 시 검색창으로 전환, 기존 이름을
+              쿼리로 주입). 검색창 포커스 잃으면 기존 값 유지하며 카드 복귀. */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">장소</Label>
-            {placeName && placeLat != null ? (
-              <div className="flex items-start gap-2 rounded-md border bg-muted/30 px-2 py-1.5">
+            {placeName && placeLat != null && !editingPlace ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setPlaceQuery(placeName);
+                  setEditingPlace(true);
+                }}
+                className="flex items-start gap-2 rounded-md border bg-muted/30 px-2 py-1.5 text-left hover:bg-muted/50 transition-colors"
+              >
                 <MapPin className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{placeName}</div>
@@ -296,30 +306,26 @@ export default function PlanTaskSheet({
                     <div className="text-xs text-muted-foreground truncate">{placeAddress}</div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPlaceName("");
-                    setPlaceAddress(null);
-                    setPlaceLat(null);
-                    setPlaceLng(null);
-                  }}
-                  className="text-xs text-muted-foreground hover:text-destructive"
-                >
-                  변경
-                </button>
-              </div>
+              </button>
             ) : (
               <PlanPlacePicker
                 value={placeQuery}
                 onChange={setPlaceQuery}
                 onPick={handlePickPlace}
+                onBlur={() => {
+                  // 결과 선택 없이 외부로 포커스 이동 → 기존 값 유지한 채 카드 복귀
+                  if (editingPlace) {
+                    setEditingPlace(false);
+                    setPlaceQuery("");
+                  }
+                }}
+                autoFocus={editingPlace}
                 placeholder="장소명·지역 (예: 성산일출봉)"
               />
             )}
           </div>
 
-          {/* 태그 — 기존 TagInput 컴포넌트 재사용 (이벤트 폼과 동일) */}
+          {/* 태그 — 기존 TagInput 재사용 (이벤트 폼과 동일) */}
           <div className="flex flex-col gap-1.5">
             <Label className="text-xs text-muted-foreground">태그</Label>
             <TagInput

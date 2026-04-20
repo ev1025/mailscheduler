@@ -431,7 +431,7 @@ export default function TagInput({
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetContent
               side="bottom"
-              className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[60] ${
+              className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[70] ${
                 snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
               }`}
               style={{ height: snap === "full" ? "95dvh" : "50dvh" }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Search as SearchIcon, MapPin } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import type { PlaceInfo } from "@/types";
@@ -22,6 +22,11 @@ interface Props {
   onPick: (place: PlaceInfo) => void;
   placeholder?: string;
   className?: string;
+  autoFocus?: boolean;
+  // 사용자가 결과를 선택하지 않고 포커스를 잃었을 때 (탭 외부 등).
+  // 결과 버튼의 onMouseDown preventDefault 로 블러는 차단되어 있어,
+  // 이 콜백은 "진짜로 포커스를 다른 곳으로 이동한 경우"에만 호출됨.
+  onBlur?: () => void;
 }
 
 export default function PlanPlacePicker({
@@ -30,10 +35,18 @@ export default function PlanPlacePicker({
   onPick,
   placeholder = "장소 검색",
   className,
+  autoFocus = false,
+  onBlur,
 }: Props) {
   const [results, setResults] = useState<NaverResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // autoFocus — mount 시 + 동적으로 true 가 되는 순간에도 포커스
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
 
   useEffect(() => {
     const q = value.trim();
@@ -81,10 +94,18 @@ export default function PlanPlacePicker({
     <div className={`relative ${className || ""}`}>
       <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
       <Input
+        ref={inputRef}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setFocused(true)}
-        onBlur={() => setTimeout(() => setFocused(false), 150)}
+        onBlur={() => {
+          // 결과 클릭은 onMouseDown preventDefault 로 블러를 막고 있으므로
+          // 여기서 호출되는 onBlur 는 "진짜 외부 클릭/탭" 이라는 의미.
+          setTimeout(() => {
+            setFocused(false);
+            onBlur?.();
+          }, 150);
+        }}
         placeholder={placeholder}
         className="pl-8 h-8 text-xs"
       />
