@@ -401,17 +401,70 @@ export default function TagInput({
   return (
     <div className="flex flex-col gap-1.5">
       {isDesktop ? (
-        /* ── 데스크탑: Popover 드롭다운 (트리거 바로 아래) ── */
+        /* ── 데스크탑: 트리거 자체가 실제 input (콤보박스) — 드롭다운 내부는 리스트만 ── */
         <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger type="button" className={triggerClass}>
-            {triggerContent}
+          <PopoverTrigger
+            render={<div />}
+            className={`${triggerClass} cursor-text`}
+            onClick={() => {
+              setOpen(true);
+              inputRef.current?.focus();
+            }}
+          >
+            {selectedTags.length === 0 && (
+              <Search className="h-3 w-3 text-muted-foreground shrink-0" />
+            )}
+            {selectedTags.map((name) => {
+              const t = allTags.find((x) => x.name === name);
+              const color = t?.color || "#6B7280";
+              return (
+                <Badge
+                  key={name}
+                  className="text-xs pl-1.5 pr-1 py-0 gap-0"
+                  style={{ backgroundColor: color + "20", color, borderColor: color + "40" }}
+                >
+                  {name}
+                  <span
+                    role="button"
+                    tabIndex={-1}
+                    onClick={(e) => { e.stopPropagation(); toggleTag(name); }}
+                    className="ml-0.5 opacity-60 hover:opacity-100 cursor-pointer"
+                    aria-label={`${name} 제거`}
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                </Badge>
+              );
+            })}
+            <input
+              ref={inputRef}
+              value={newTagName}
+              onChange={(e) => { setNewTagName(e.target.value); if (!open) setOpen(true); }}
+              onFocus={() => setOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleEnter();
+                }
+                if (e.key === "Backspace" && !newTagName && selectedTags.length > 0) {
+                  e.preventDefault();
+                  onChange(selectedTags.slice(0, -1));
+                }
+                if (e.key === "Escape") setOpen(false);
+              }}
+              placeholder={selectedTags.length === 0 ? placeholder : ""}
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              name="tag-search"
+              className="flex-1 min-w-[60px] bg-transparent outline-none text-xs h-5"
+              onClick={(e) => e.stopPropagation()}
+            />
           </PopoverTrigger>
           <PopoverContent
             align="start"
             side="bottom"
             sideOffset={2}
-            // Dialog 내부의 좁은 컨테이너에서도 트리거 아래로 고정.
-            // Base UI 기본 충돌 회피는 공간 부족 시 side 를 옆으로 뒤집어 UX 를 깨뜨림.
             collisionAvoidance={{ side: "none", align: "none" }}
             className="w-[320px] p-0 max-h-[60dvh] overflow-hidden"
           >
@@ -472,61 +525,60 @@ export default function TagInput({
               )}
 
               <div className={`flex flex-col gap-2 px-3 pb-3 flex-1 min-h-0 ${isDesktop ? "pt-3" : ""}`}>
-                {/* 입력창 — 선택된 칩 인라인 + 텍스트 input.
-                    컨테이너에 onClick-focus 없음: input 요소 자체를 직접 탭해야만
-                    포커스(키보드). 칩이나 주변 공간 탭은 어떤 포커스 변화도 안 일으킴 */}
-                <div
-                  className="rounded-md border px-2 py-1.5 flex flex-wrap items-center gap-1 min-h-[40px]"
-                >
-                  {selectedTags.map((name) => {
-                    const t = allTags.find((x) => x.name === name);
-                    const color = t?.color || "#6B7280";
-                    return (
-                      <Badge
-                        key={name}
-                        className="text-xs pl-1.5 pr-1 py-0 gap-0"
-                        style={{ backgroundColor: color + "20", color, borderColor: color + "40" }}
-                      >
-                        {name}
-                        <span
-                          role="button"
-                          tabIndex={-1}
-                          onClick={(e) => { e.stopPropagation(); toggleTag(name); }}
-                          className="ml-0.5 opacity-60 hover:opacity-100 cursor-pointer"
-                          aria-label={`${name} 제거`}
+                {/* 입력창 — 모바일 전용. 데스크탑은 트리거가 input 이므로 여기선 생략 */}
+                {!isDesktop && (
+                  <div
+                    className="rounded-md border px-2 py-1.5 flex flex-wrap items-center gap-1 min-h-[40px]"
+                  >
+                    {selectedTags.map((name) => {
+                      const t = allTags.find((x) => x.name === name);
+                      const color = t?.color || "#6B7280";
+                      return (
+                        <Badge
+                          key={name}
+                          className="text-xs pl-1.5 pr-1 py-0 gap-0"
+                          style={{ backgroundColor: color + "20", color, borderColor: color + "40" }}
                         >
-                          <X className="h-3 w-3" />
-                        </span>
-                      </Badge>
-                    );
-                  })}
-                  <input
-                    ref={inputRef}
-                    value={newTagName}
-                    onChange={(e) => setNewTagName(e.target.value)}
-                    placeholder={selectedTags.length === 0 ? placeholder : ""}
-                    autoComplete="off"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    name="tag-search"
-                    className="flex-1 min-w-[60px] bg-transparent outline-none text-sm h-6"
-                    onKeyDown={(e) => {
-                      // 한글 IME 조합 중 Enter 는 "조합 완료"용이라 추가 동작을 막음.
-                      // e.nativeEvent.isComposing 이 true 면 무시 → 조합 완료 후
-                      // 한 번 더 눌러야 실제 추가가 실행됨.
-                      if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                        e.preventDefault();
-                        handleEnter();
-                      }
-                      if (e.key === "Backspace" && !newTagName && selectedTags.length > 0) {
-                        e.preventDefault();
-                        onChange(selectedTags.slice(0, -1));
-                      }
-                    }}
-                  />
-                </div>
+                          {name}
+                          <span
+                            role="button"
+                            tabIndex={-1}
+                            onClick={(e) => { e.stopPropagation(); toggleTag(name); }}
+                            className="ml-0.5 opacity-60 hover:opacity-100 cursor-pointer"
+                            aria-label={`${name} 제거`}
+                          >
+                            <X className="h-3 w-3" />
+                          </span>
+                        </Badge>
+                      );
+                    })}
+                    <input
+                      ref={inputRef}
+                      value={newTagName}
+                      onChange={(e) => setNewTagName(e.target.value)}
+                      placeholder={selectedTags.length === 0 ? placeholder : ""}
+                      autoComplete="off"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      name="tag-search"
+                      className="flex-1 min-w-[60px] bg-transparent outline-none text-sm h-6"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                          e.preventDefault();
+                          handleEnter();
+                        }
+                        if (e.key === "Backspace" && !newTagName && selectedTags.length > 0) {
+                          e.preventDefault();
+                          onChange(selectedTags.slice(0, -1));
+                        }
+                      }}
+                    />
+                  </div>
+                )}
 
-                <div className="text-xs text-muted-foreground">옵션 선택 또는 생성</div>
+                {!isDesktop && (
+                  <div className="text-xs text-muted-foreground">옵션 선택 또는 생성</div>
+                )}
 
                 {/* 리스트 — 꾹누르고 드래그로 순서 변경 (400ms delay).
                     onMouseDown preventDefault로 input 포커스 유지 → 키보드 깜박임 방지 */}

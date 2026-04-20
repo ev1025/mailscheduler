@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Zap, Edit3 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -226,22 +226,75 @@ export default function PlanTransportPicker({
   }
 
   return (
+    <DraggableSheet open={open} onOpenChange={onOpenChange} title={title}>
+      {body}
+    </DraggableSheet>
+  );
+}
+
+// 공용 드래그 바텀시트 — 핸들 밀어 닫기 + 리스트 스크롤 가능.
+// 리스트 영역에 overflow-y-auto + overscroll-contain 로 내부 스크롤 허용.
+function DraggableSheet({
+  open,
+  onOpenChange,
+  title,
+  children,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const [dragY, setDragY] = useState(0);
+  const dragStartY = useRef<number | null>(null);
+
+  const onDown = (e: React.PointerEvent) => {
+    dragStartY.current = e.clientY;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const onMove = (e: React.PointerEvent) => {
+    if (dragStartY.current == null) return;
+    const delta = e.clientY - dragStartY.current;
+    setDragY(Math.max(0, delta));
+  };
+  const onUp = (e: React.PointerEvent) => {
+    const delta = dragStartY.current != null ? e.clientY - dragStartY.current : 0;
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    dragStartY.current = null;
+    if (delta > 120) onOpenChange(false);
+    setDragY(0);
+  };
+
+  useEffect(() => { if (!open) setDragY(0); }, [open]);
+
+  return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
         className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)]"
+        style={{
+          transform: dragY > 0 ? `translateY(${dragY}px)` : undefined,
+          transition: dragStartY.current == null ? "transform 150ms ease-out" : "none",
+        }}
         showBackButton={false}
         showCloseButton={false}
       >
-        <div className="mx-auto w-full max-w-md flex flex-col">
-          <SheetHeader className="pt-2 shrink-0">
-            <div className="flex flex-col items-center">
-              <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-2" />
+        <div className="mx-auto w-full max-w-md flex flex-col max-h-[80dvh]">
+          <SheetHeader className="px-4 py-1.5 gap-1 shrink-0">
+            <div
+              className="flex justify-center py-1 -my-1 touch-none cursor-grab active:cursor-grabbing"
+              onPointerDown={onDown}
+              onPointerMove={onMove}
+              onPointerUp={onUp}
+              onPointerCancel={onUp}
+            >
+              <div className="h-1.5 w-12 rounded-full bg-muted-foreground/40" />
             </div>
             <SheetTitle className="text-sm text-center">{title}</SheetTitle>
           </SheetHeader>
-          {body}
-          {/* 수동 입력만 단독 텍스트로 보이도록. 취소는 backdrop 터치로 닫기 */}
+          <div className="overflow-y-auto overscroll-contain flex-1 min-h-0">
+            {children}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
