@@ -86,10 +86,10 @@ async function getWalkingDuration(
   return { durationSec: estimatedSec };
 }
 
-// 기차: Google rail 우선 (지하철·일반철도·KTX 까지 모두 포함) → 실패 시 KORAIL.
-// 이전엔 KORAIL 우선이었으나 도심 구간에선 가장 가까운 KTX역에 매핑되어
-// 엉뚱한 결과(0분·1분)가 나옴. Google rail 이 subway/rail 구분 없이
-// 정확한 시간표 기반 소요시간 제공하므로 primary 로 사용.
+// 기차: Google train (KTX·SRT·ITX 같은 인터시티 철도) → rail 폴백 → KORAIL.
+// transit_mode=rail 은 tram·subway 도 포함해 "대전→서울 29분" 같은 엉뚱한
+// 경로를 반환할 때가 있음. transit_mode=train 이 고속/일반철도 쪽으로
+// 특화되어 더 신뢰 가능.
 async function getTrainDuration(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number }
@@ -100,7 +100,20 @@ async function getTrainDuration(
     toLat: String(to.lat),
     toLng: String(to.lng),
   });
-  // 1차: Google Maps rail (transit_mode=rail — 전철·지하철·KTX 포함)
+  // 1차: Google train (인터시티 철도 전용)
+  params.set("mode", "train");
+  try {
+    const res = await fetch(`/api/google-transit?${params.toString()}`);
+    if (res.ok) {
+      const j = await res.json();
+      if (typeof j.durationSec === "number") {
+        return { durationSec: j.durationSec, path: j.path };
+      }
+    }
+  } catch {
+    // fallthrough
+  }
+  // 2차: Google rail (tram·subway 포함 — train 이 결과 없을 때)
   params.set("mode", "rail");
   try {
     const res = await fetch(`/api/google-transit?${params.toString()}`);
@@ -113,7 +126,7 @@ async function getTrainDuration(
   } catch {
     // fallthrough to KORAIL
   }
-  // 2차 폴백: KORAIL 공공데이터 (KTX·SRT·ITX 도시간 열차)
+  // 3차: KORAIL 공공데이터 (KTX·SRT·ITX 도시간 열차 추정)
   params.delete("mode");
   try {
     const res = await fetch(`/api/public-train?${params.toString()}`);

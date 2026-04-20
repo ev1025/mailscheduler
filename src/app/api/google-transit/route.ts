@@ -102,7 +102,10 @@ export async function GET(req: NextRequest) {
     );
   }
   const data = (await res.json()) as GoogleResponse;
-  console.log(`[google-transit] status=${data.status} routes=${data.routes?.length ?? 0}`);
+  const topDuration = data.routes?.[0]?.legs?.[0]?.duration?.value;
+  console.log(
+    `[google-transit] status=${data.status} routes=${data.routes?.length ?? 0} duration=${topDuration}s`
+  );
 
   if (data.status && data.status !== "OK") {
     console.warn(`[google-transit] ${data.status}: ${data.error_message}`);
