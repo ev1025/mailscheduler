@@ -305,10 +305,9 @@ export default function PlanTaskSheet({
             {/* 체류시간: 분/시간 토글 + 입력 — 다른 두 개와 같은 h-8·text-xs */}
             <div className="flex items-center h-8 rounded-md border bg-transparent overflow-hidden">
               <Input
-                type="number"
+                // type="text" + inputMode 로 브라우저 기본 up/down spinner 아이콘 제거
+                type="text"
                 inputMode={stayUnit === "hour" ? "decimal" : "numeric"}
-                min={0}
-                step={stayUnit === "hour" ? 0.5 : 1}
                 value={stayMinutes}
                 onChange={(e) => handleStayChange(e.target.value)}
                 placeholder={stayUnit === "hour" ? "체류(시간)" : "체류(분)"}

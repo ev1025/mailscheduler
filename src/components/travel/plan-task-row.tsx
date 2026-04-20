@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
 import { formatMinutes } from "@/lib/travel/providers";
 import type { TravelPlanTask } from "@/types";
 
@@ -89,10 +89,24 @@ export default function PlanTaskRow({
           )}
         </div>
         <div className="flex items-center gap-1.5 min-w-0">
-          <MapPin
-            className="h-3.5 w-3.5 shrink-0 fill-red-500/90 stroke-red-600"
-            strokeWidth={2}
-          />
+          {/* 빨간 마커 핀 — lucide MapPin 은 안쪽에 원형 구멍이 기본 포함.
+              fill-current 과 stroke-current 양쪽 빨강 + className 으로 구멍이
+              배경색(흰색) 유지되도록. (lucide 의 MapPin 은 두 path 로 구성: 외곽
+              물방울 + 안쪽 원. 안쪽 원은 fill 적용 시 같이 채워져 안 보이니
+              fill-red-500 이고 안쪽 원이 stroke-white 로 남도록 처리하기 위해
+              별도 SVG 사용) */}
+          <svg
+            viewBox="0 0 24 24"
+            className="h-3.5 w-3.5 shrink-0"
+            aria-hidden="true"
+          >
+            <path
+              d="M12 22s7-7.5 7-13a7 7 0 10-14 0c0 5.5 7 13 7 13z"
+              className="fill-red-500 stroke-red-600"
+              strokeWidth={1.5}
+            />
+            <circle cx="12" cy="9" r="2.5" className="fill-white" />
+          </svg>
           <span className="text-xs md:text-sm font-medium truncate">
             {task.place_name || "(장소 미입력)"}
           </span>

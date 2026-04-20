@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 
 // 여러 마커 + 선택적 폴리라인(자가용 경로 path 있을 때)을 표시하는 지도.
@@ -44,11 +44,11 @@ export default function PlanRouteMap({
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  // 지도 인스턴스·오버레이 레퍼런스를 보관해 재생성 없이 증분 업데이트.
+  // 지도 인스턴스 레퍼런스 — 1회만 생성해 증분 업데이트.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const overlaysRef = useRef<any[]>([]);
+  // map 생성 완료를 state 로 노출해 pins/legs 이펙트 재실행 보장.
+  const [mapReady, setMapReady] = useState(false);
 
   // 네이버 SDK 가 wheel 을 document/window 레벨 capture 에서 가로채
   // stopPropagation · preventDefault 로 전부 막음. React onWheel 은 bubble
@@ -88,7 +88,10 @@ export default function PlanRouteMap({
         timer = setTimeout(init, 50);
         return;
       }
-      if (mapRef.current) return; // 이미 생성됨
+      if (mapRef.current) {
+        setMapReady(true);
+        return;
+      }
       mapRef.current = new naver.maps.Map(containerRef.current, {
         center: new naver.maps.LatLng(37.5665, 126.978),
         zoom: 13,
@@ -98,6 +101,7 @@ export default function PlanRouteMap({
         logoControl: false,
         scrollWheel: false,
       });
+      setMapReady(true);
       // NAVER 로고 DOM 제거 (지도 생성 직후·200ms·800ms 3중 보험)
       const killLogos = () => {
         if (!containerRef.current) return;
@@ -118,17 +122,15 @@ export default function PlanRouteMap({
     };
   }, []); // 지도는 1회만 생성
 
-  // pins · legs 변경 시 기존 오버레이 제거 후 새로 그리기 — 지도 자체는 유지
+  // pins · legs 변경 시 기존 오버레이 제거 후 새로 그리기 — 지도 자체는 유지.
+  // cleanup 함수에서 이 렌더에서 만든 overlays 를 확실히 정리해 stale path 잔존 방지.
   useEffect(() => {
     const map = mapRef.current;
     const naver = window.naver;
-    if (!map || !naver?.maps) return;
+    if (!mapReady || !map || !naver?.maps) return;
 
-    // 이전 오버레이(마커·폴리라인) 제거
-    for (const o of overlaysRef.current) {
-      try { o.setMap(null); } catch { /* ignore */ }
-    }
-    overlaysRef.current = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const overlays: any[] = [];
 
     // bounds 로 화면 맞춤
     if (pins.length > 1) {
@@ -158,7 +160,7 @@ export default function PlanRouteMap({
           anchor: new naver.maps.Point(12, 12),
         },
       });
-      overlaysRef.current.push(marker);
+      overlays.push(marker);
     }
 
     // 구간 선
@@ -186,9 +188,16 @@ export default function PlanRouteMap({
             strokeStyle: "shortdash",
             map,
           });
-      overlaysRef.current.push(line);
+      overlays.push(line);
     }
-  }, [pins, legs]);
+
+    // cleanup — 이 렌더에서 만든 overlay 만 제거. 다음 렌더에서 새 overlay 셋 생성.
+    return () => {
+      for (const o of overlays) {
+        try { o.setMap(null); } catch { /* ignore */ }
+      }
+    };
+  }, [mapReady, pins, legs]);
 
   if (!CLIENT_ID) {
     return (
