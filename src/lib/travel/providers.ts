@@ -30,9 +30,31 @@ async function getDrivingDuration(
   }
 }
 
-// 대중교통/기차: TMAP 대중교통 API 서버 프록시.
-// SK오픈API 의 무료 티어 기반 — 결제 없이 상시 사용.
-async function getTransitDuration(
+// 버스: Google Maps Directions (transit, transit_mode=bus)
+async function getBusDuration(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): Promise<RouteResult | null> {
+  const params = new URLSearchParams({
+    fromLat: String(from.lat),
+    fromLng: String(from.lng),
+    toLat: String(to.lat),
+    toLng: String(to.lng),
+    mode: "bus",
+  });
+  try {
+    const res = await fetch(`/api/google-transit?${params.toString()}`);
+    if (!res.ok) return null;
+    const j = await res.json();
+    if (typeof j.durationSec !== "number") return null;
+    return { durationSec: j.durationSec, path: j.path };
+  } catch {
+    return null;
+  }
+}
+
+// 기차: 공공데이터 우선 → 실패 시 Google Maps rail 폴백
+async function getTrainDuration(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number }
 ): Promise<RouteResult | null> {
@@ -42,8 +64,22 @@ async function getTransitDuration(
     toLat: String(to.lat),
     toLng: String(to.lng),
   });
+  // 1차: 공공데이터 열차시간표
   try {
-    const res = await fetch(`/api/tmap?${params.toString()}`);
+    const res = await fetch(`/api/public-train?${params.toString()}`);
+    if (res.ok) {
+      const j = await res.json();
+      if (typeof j.durationSec === "number") {
+        return { durationSec: j.durationSec, path: j.path };
+      }
+    }
+  } catch {
+    // fallback 으로
+  }
+  // 2차 폴백: Google rail
+  params.set("mode", "rail");
+  try {
+    const res = await fetch(`/api/google-transit?${params.toString()}`);
     if (!res.ok) return null;
     const j = await res.json();
     if (typeof j.durationSec !== "number") return null;
@@ -63,9 +99,9 @@ export async function fetchRouteDuration(
     case "taxi":
       return getDrivingDuration(from, to);
     case "bus":
+      return getBusDuration(from, to);
     case "train":
-      // TMAP 대중교통은 내부 최적 경로를 반환 (버스/지하철/기차 혼합). mode 세분화 없음.
-      return getTransitDuration(from, to);
+      return getTrainDuration(from, to);
     default:
       return null;
   }

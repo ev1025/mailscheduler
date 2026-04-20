@@ -399,30 +399,56 @@ export default function SettingsPage() {
             </div>
           </ApiSection>
 
-          {/* TMAP — 대중교통 경로 (SK오픈API) */}
-          <ApiSection title="TMAP — 대중교통 경로">
+          {/* Google Maps — 대중교통 */}
+          <ApiSection title="Google Maps — 대중교통 경로">
             <div className="flex flex-col gap-2 text-sm">
               <p className="text-xs text-muted-foreground leading-relaxed">
-                여행 계획의 버스·지하철·기차 구간 소요시간 자동 계산.
-                <br />키는 <code>.env.local</code> 의 <code>TMAP_APP_KEY</code> 로 설정.
+                여행 계획의 버스 · 기차 구간 소요시간·실제 경로 계산.
+                <br />키는 <code>.env.local</code> 의 <code>GOOGLE_MAPS_API_KEY</code>.
               </p>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">용도</span>
-                <span className="text-xs">대중교통 길찾기</span>
+                <span className="text-xs">Directions(transit) · 한국 KTX/SRT 포함</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">요금제</span>
-                <Badge variant="secondary" className="text-xs">상시 무료 티어</Badge>
+                <Badge variant="secondary" className="text-xs">월 $200 크레딧 무료</Badge>
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
                 <span>관리 사이트</span>
                 <a
-                  href="https://openapi.sk.com"
+                  href="https://console.cloud.google.com"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 hover:underline flex items-center gap-1"
                 >
-                  openapi.sk.com <ExternalLink className="h-3 w-3" />
+                  console.cloud.google.com <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </div>
+          </ApiSection>
+
+          {/* 공공데이터 - 기차 우선순위 */}
+          <ApiSection title="공공데이터포털 — KTX·SRT 열차시간표 (선택)">
+            <div className="flex flex-col gap-2 text-sm">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                기차(train) 구간을 공공데이터로 우선 조회. 미설정이면
+                Google rail 로 자동 폴백.
+                <br />키는 <code>.env.local</code> 의 <code>PUBLIC_TRAIN_API_KEY</code>.
+              </p>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">요금제</span>
+                <Badge variant="secondary" className="text-xs">무료</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+                <span>관리 사이트</span>
+                <a
+                  href="https://www.data.go.kr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  data.go.kr <ExternalLink className="h-3 w-3" />
                 </a>
               </div>
             </div>
