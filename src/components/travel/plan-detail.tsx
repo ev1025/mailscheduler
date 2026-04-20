@@ -519,7 +519,37 @@ export default function PlanDetail({ planId, onBack }: Props) {
         onAddNewDay={handleAddNewDay}
         onSave={async (updates) => {
           if (sheetTask) {
-            await updateTask(sheetTask.id, updates);
+            // 위치가 변경됐으면 이동수단 정보 전부 무효 — 두 leg 영향.
+            // (1) 이 task 의 arriving leg (prev→this) → this.transport_* 리셋
+            // (2) 이 task 의 departing leg (this→next) → next.transport_* 리셋
+            const placeChanged =
+              updates.place_lat !== sheetTask.place_lat ||
+              updates.place_lng !== sheetTask.place_lng;
+
+            let finalUpdates = updates;
+            if (placeChanged) {
+              finalUpdates = {
+                ...updates,
+                transport_mode: null,
+                transport_duration_sec: null,
+                transport_manual: false,
+                transport_durations: null,
+              };
+              // 다음 task 찾기 — 같은 일자 내 순서상 바로 다음
+              const targetDay = updates.day_index ?? sheetTask.day_index;
+              const dayTasks = sorted.filter((t) => t.day_index === targetDay);
+              const myIdx = dayTasks.findIndex((t) => t.id === sheetTask.id);
+              const next = myIdx >= 0 ? dayTasks[myIdx + 1] : undefined;
+              if (next) {
+                await updateTask(next.id, {
+                  transport_mode: null,
+                  transport_duration_sec: null,
+                  transport_manual: false,
+                  transport_durations: null,
+                });
+              }
+            }
+            await updateTask(sheetTask.id, finalUpdates);
           } else {
             await addTask({
               plan_id: planId,
