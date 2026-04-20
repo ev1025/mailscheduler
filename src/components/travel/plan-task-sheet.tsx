@@ -113,6 +113,8 @@ export default function PlanTaskSheet({
   const [dayIndex, setDayIndex] = useState(defaultDayIndex);
   const [startTime, setStartTime] = useState("");
   const [stayMinutes, setStayMinutes] = useState("");
+  // 체류 입력 단위 — "min" 이면 그대로 분, "hour" 면 stayMinutes 는 시간값(0.5 step)
+  const [stayUnit, setStayUnit] = useState<"min" | "hour">("min");
   const [placeName, setPlaceName] = useState("");
   const [placeAddress, setPlaceAddress] = useState<string | null>(null);
   const [placeLat, setPlaceLat] = useState<number | null>(null);
@@ -221,14 +223,44 @@ export default function PlanTaskSheet({
   };
 
   const handleStayChange = (v: string) => {
-    // 숫자만 허용 — 분 단위 강제
-    const cleaned = v.replace(/[^0-9]/g, "");
-    setStayMinutes(cleaned);
+    // 시간 모드는 소수점 허용(0.5 step 자유 입력), 분 모드는 정수만
+    if (stayUnit === "hour") {
+      const cleaned = v.replace(/[^0-9.]/g, "").replace(/(\..*)\./g, "$1");
+      setStayMinutes(cleaned);
+    } else {
+      const cleaned = v.replace(/[^0-9]/g, "");
+      setStayMinutes(cleaned);
+    }
+  };
+
+  // 단위 토글 — 값 자동 변환 (표시값 기준)
+  const toggleStayUnit = () => {
+    const n = parseFloat(stayMinutes);
+    if (stayUnit === "min") {
+      // 분 → 시간
+      setStayUnit("hour");
+      if (Number.isFinite(n) && n > 0) {
+        const hours = n / 60;
+        setStayMinutes(hours % 1 === 0 ? String(hours) : hours.toFixed(1));
+      }
+    } else {
+      // 시간 → 분
+      setStayUnit("min");
+      if (Number.isFinite(n) && n > 0) {
+        setStayMinutes(String(Math.round(n * 60)));
+      }
+    }
+  };
+
+  // DB 저장용 분 단위 환산
+  const stayMinutesForSave = (): number => {
+    const n = parseFloat(stayMinutes);
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return stayUnit === "hour" ? Math.round(n * 60) : Math.floor(n);
   };
 
   const handleSubmit = async () => {
     setSaving(true);
-    const n = parseInt(stayMinutes, 10);
     await onSave({
       day_index: dayIndex,
       start_time: startTime || null,
@@ -239,7 +271,7 @@ export default function PlanTaskSheet({
       tag: selectedTags.length > 0 ? selectedTags.join(",") : null,
       category: category.trim() || null,
       content: content.trim() || null,
-      stay_minutes: Number.isFinite(n) && n > 0 ? n : 0,
+      stay_minutes: stayMinutesForSave(),
     });
     setSaving(false);
     clearDraft(draftKey); // 저장 완료 → draft 폐기
@@ -273,16 +305,27 @@ export default function PlanTaskSheet({
               className="h-8 text-xs min-w-[88px]"
             />
 
-            <Input
-              type="number"
-              inputMode="numeric"
-              min={0}
-              maxLength={3}
-              value={stayMinutes}
-              onChange={(e) => handleStayChange(e.target.value)}
-              placeholder="체류(분)"
-              className="h-8 text-xs w-20"
-            />
+            {/* 체류시간: 분/시간 토글 + 입력 */}
+            <div className="flex items-center h-8 rounded-md border bg-transparent overflow-hidden">
+              <Input
+                type="number"
+                inputMode={stayUnit === "hour" ? "decimal" : "numeric"}
+                min={0}
+                step={stayUnit === "hour" ? 0.5 : 1}
+                value={stayMinutes}
+                onChange={(e) => handleStayChange(e.target.value)}
+                placeholder={stayUnit === "hour" ? "체류(시간)" : "체류(분)"}
+                className="h-full text-xs w-20 border-0 rounded-none focus-visible:ring-0"
+              />
+              <button
+                type="button"
+                onClick={toggleStayUnit}
+                className="h-full px-2 text-[10px] font-medium border-l bg-muted/50 hover:bg-muted text-muted-foreground min-w-[32px]"
+                title="분/시간 단위 전환"
+              >
+                {stayUnit === "hour" ? "시간" : "분"}
+              </button>
+            </div>
           </div>
 
           {/* 장소 — 선택된 값이 있으면 카드(탭 시 검색창으로 전환, 기존 이름을

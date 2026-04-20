@@ -33,6 +33,20 @@ export default function NaverMap({
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // document 레벨 wheel capture — 네이버 SDK 가 페이지 스크롤 막는 것 차단
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onDocWheel = (e: WheelEvent) => {
+      const t = e.target;
+      if (t instanceof Node && el.contains(t)) {
+        e.stopImmediatePropagation();
+      }
+    };
+    document.addEventListener("wheel", onDocWheel, { capture: true, passive: true });
+    return () => document.removeEventListener("wheel", onDocWheel, { capture: true });
+  }, []);
+
   useEffect(() => {
     if (!CLIENT_ID) return;
     let cancelled = false;

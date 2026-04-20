@@ -46,16 +46,20 @@ export default function PlanRouteMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   // 네이버 SDK 가 wheel 이벤트 preventDefault 로 페이지 스크롤/ctrl+줌 을 막음.
-  // capture phase 에서 선점해 SDK 리스너 실행 전에 stopImmediatePropagation.
-  // 결과: 지도 위에서도 휠 = 페이지 스크롤, ctrl+휠 = 브라우저 줌 동작.
+  // 컨테이너 레벨 capture 로는 SDK 가 document 나 window 에 리스너 걸었을 때 놓침.
+  // → document 레벨 capture 로 끌어올려 지도 영역 내 wheel 이벤트에 대해
+  // stopImmediatePropagation, 브라우저 기본 스크롤/줌 은 그대로 수행.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      e.stopImmediatePropagation();
+    const onDocWheel = (e: WheelEvent) => {
+      const t = e.target;
+      if (t instanceof Node && el.contains(t)) {
+        e.stopImmediatePropagation();
+      }
     };
-    el.addEventListener("wheel", onWheel, { capture: true, passive: true });
-    return () => el.removeEventListener("wheel", onWheel, { capture: true });
+    document.addEventListener("wheel", onDocWheel, { capture: true, passive: true });
+    return () => document.removeEventListener("wheel", onDocWheel, { capture: true });
   }, []);
 
   useEffect(() => {
