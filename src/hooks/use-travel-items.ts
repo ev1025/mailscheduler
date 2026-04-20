@@ -71,13 +71,26 @@ export function useTravelItems(visibleUserIds?: string[]) {
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq("id", id);
     if (error) {
-      const { month, color, visited_dates, place_name, address, lat, lng, ...rest } = updates;
+      console.warn("[travel_items update] 1차 실패:", error.message, error.code);
+      // DB 에 아직 없을 수 있는 컬럼 모두 제거 후 재시도.
+      // (마이그레이션이 빠진 환경 대응)
+      const {
+        month, color, visited_dates, place_name, address, lat, lng,
+        mood, price_tier, rating, couple_notes, cover_image_url,
+        places,
+        ...rest
+      } = updates;
       void month; void color; void visited_dates; void place_name; void address; void lat; void lng;
+      void mood; void price_tier; void rating; void couple_notes; void cover_image_url; void places;
       const { error: retry } = await supabase
         .from("travel_items")
         .update({ ...rest, updated_at: new Date().toISOString() })
         .eq("id", id);
-      if (!retry) await fetchItems();
+      if (retry) {
+        console.warn("[travel_items update] 2차 실패:", retry.message, retry.code);
+      } else {
+        await fetchItems();
+      }
       return { error: retry };
     }
     await fetchItems();

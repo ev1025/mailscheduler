@@ -181,7 +181,11 @@ export default function TravelForm({
     });
     setSaving(false);
     if (error) {
-      toast.error("저장 실패 — travel_items 테이블을 확인하세요.");
+      // 실제 Supabase 에러를 토스트에 노출해 원인 파악 용이 (컬럼 미존재·제약 위반 등)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const msg = (error as any)?.message ?? String(error);
+      toast.error(`저장 실패: ${msg}`);
+      console.error("[travel-form save]", error);
       return;
     }
     onOpenChange(false);
