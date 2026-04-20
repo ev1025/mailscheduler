@@ -243,18 +243,39 @@ export default function PlanDetail({ planId, onBack }: Props) {
     setTitleDraft(null);
   };
 
-  const handleDragEnd = async (e: DragEndEvent, daySorted: TravelPlanTask[]) => {
+  // 전체 sorted 에 대한 단일 drag-end 핸들러.
+  // active → over 의 day_index 가 다르면 day 이동 + manual_order 삽입.
+  // 같은 day 내면 순서만 재정렬.
+  const handleDragEnd = async (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
-    const oldIdx = daySorted.findIndex((t) => t.id === e.active.id);
-    const newIdx = daySorted.findIndex((t) => t.id === e.over!.id);
-    if (oldIdx < 0 || newIdx < 0) return;
-    const reordered = arrayMove(daySorted, oldIdx, newIdx);
-    // 시간이 있는 행은 시간이 우선이라 순서 지켜지지 않음.
-    // manual_order 만 갱신. 시간 없는 행끼리는 의도대로 정렬됨.
-    for (let i = 0; i < reordered.length; i++) {
-      const t = reordered[i];
-      if (t.manual_order !== i) {
-        await updateTask(t.id, { manual_order: i });
+    const activeTask = sorted.find((t) => t.id === e.active.id);
+    const overTask = sorted.find((t) => t.id === e.over!.id);
+    if (!activeTask || !overTask) return;
+
+    if (activeTask.day_index !== overTask.day_index) {
+      // 다른 일자로 이동 — overTask 앞에 끼워넣음
+      const targetDayTasks = sorted.filter(
+        (t) => t.day_index === overTask.day_index && t.id !== activeTask.id
+      );
+      const overIdx = targetDayTasks.findIndex((t) => t.id === overTask.id);
+      targetDayTasks.splice(overIdx, 0, activeTask);
+      await updateTask(activeTask.id, { day_index: overTask.day_index });
+      for (let i = 0; i < targetDayTasks.length; i++) {
+        const t = targetDayTasks[i];
+        if (t.id === activeTask.id || t.manual_order !== i) {
+          await updateTask(t.id, { manual_order: i });
+        }
+      }
+    } else {
+      const dayTasks = sorted.filter((t) => t.day_index === activeTask.day_index);
+      const oldIdx = dayTasks.findIndex((t) => t.id === activeTask.id);
+      const newIdx = dayTasks.findIndex((t) => t.id === overTask.id);
+      if (oldIdx < 0 || newIdx < 0) return;
+      const reordered = arrayMove(dayTasks, oldIdx, newIdx);
+      for (let i = 0; i < reordered.length; i++) {
+        if (reordered[i].manual_order !== i) {
+          await updateTask(reordered[i].id, { manual_order: i });
+        }
       }
     }
   };
@@ -351,7 +372,16 @@ export default function PlanDetail({ planId, onBack }: Props) {
           <PlanRouteMap pins={pins} paths={paths} connectPins={connectPins} height={240} />
         </div>
 
-        {/* 일자별 섹션 */}
+        {/* 일자별 섹션 — 전체를 하나의 DndContext 로 감싸서 날짜 간 이동도 지원 */}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={sorted.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
         <div className="flex flex-col gap-3 p-3">
           {days.map((day) => {
             const dayTasks = tasksByDay[day] ?? [];
@@ -366,15 +396,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
                 </div>
 
                 {dayTasks.length > 0 && (
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={(e) => handleDragEnd(e, dayTasks)}
-                  >
-                    <SortableContext
-                      items={dayTasks.map((t) => t.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
                       <div className="flex flex-col gap-1.5">
                         {dayTasks.map((t, i) => {
                           const next = dayTasks[i + 1];
@@ -401,8 +422,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
                           );
                         })}
                       </div>
-                    </SortableContext>
-                  </DndContext>
                 )}
 
                 <Button
@@ -418,6 +437,8 @@ export default function PlanDetail({ planId, onBack }: Props) {
             );
           })}
         </div>
+          </SortableContext>
+        </DndContext>
         </div>
       </div>
 

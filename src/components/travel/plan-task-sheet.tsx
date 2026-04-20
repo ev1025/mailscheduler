@@ -13,6 +13,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import TimePicker from "@/components/ui/time-picker";
 import TagInput from "@/components/ui/tag-input";
 import PlanPlacePicker from "@/components/travel/plan-place-picker";
 import { useTravelTags } from "@/hooks/use-travel-tags";
@@ -226,7 +227,9 @@ export default function PlanTaskSheet({
     <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent
         side="bottom"
-        className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] max-h-[90dvh] overflow-y-auto"
+        // height 고정(90dvh) — "중간 고정" 느낌 해소, pull-to-refresh 방지(overscroll-contain)
+        className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-y-auto overscroll-contain"
+        style={{ height: "90dvh" }}
         showBackButton={false}
         showCloseButton={false}
         initialFocus={false}
@@ -259,13 +262,11 @@ export default function PlanTaskSheet({
               </SelectContent>
             </Select>
 
-            {/* 시간 — Popover 를 Sheet 와 중첩해 열 때 막히는 케이스 대비해
-                네이티브 <input type="time"> 로 대체(포커스 trap 영향 없음) */}
-            <input
-              type="time"
+            {/* 시간 — 기존 TimePicker (캘린더와 동일) */}
+            <TimePicker
               value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              onChange={setStartTime}
+              className="h-8 w-24 text-xs"
             />
 
             <div className="flex items-center gap-1">
@@ -273,10 +274,11 @@ export default function PlanTaskSheet({
                 type="number"
                 inputMode="numeric"
                 min={0}
+                maxLength={3}
                 value={stayMinutes}
                 onChange={(e) => handleStayChange(e.target.value)}
                 placeholder="체류"
-                className="h-8 w-20 text-xs"
+                className="h-8 w-14 text-xs"
               />
               <span className="text-xs text-muted-foreground">분</span>
             </div>
