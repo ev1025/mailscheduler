@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,10 +18,12 @@ import TimePicker from "@/components/ui/time-picker";
 import TagInput from "@/components/ui/tag-input";
 import PlanPlacePicker from "@/components/travel/plan-place-picker";
 import { useTravelTags } from "@/hooks/use-travel-tags";
+import { useMediaQuery } from "@/lib/use-media-query";
 import type { TravelPlanTask, PlaceInfo } from "@/types";
 
-// 바텀시트에서 일정을 편집. 모바일 키보드가 시트만 올리고 지도를 가리지 않도록
-// Sheet 자체의 --kb-offset 자동 보정 사용. 저장 버튼으로 DB 반영.
+// 일정 편집 UI.
+// - 모바일(<768px): 하단 바텀시트(90dvh)
+// - 데스크톱(>=768px): 중앙 모달 다이얼로그(max-w-lg)
 
 interface Props {
   open: boolean;
@@ -99,6 +102,7 @@ export default function PlanTaskSheet({
 }: Props) {
   const draftKey = draftKeyFor(planId, task, defaultDayIndex);
   const { tags, addTag, deleteTag, updateTagColor } = useTravelTags();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [dayIndex, setDayIndex] = useState(defaultDayIndex);
   const [startTime, setStartTime] = useState("");
@@ -225,31 +229,9 @@ export default function PlanTaskSheet({
     onOpenChange(false);
   };
 
-  return (
-    // modal=true (기본) — Base UI Dialog 가 중첩 Dialog(TagInput) 열릴 때
-    // inert 를 자동으로 윗 레이어에 적용해줌. modal={false} 로 두면 inert 가
-    // 안 적용되어 오히려 이벤트가 충돌.
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side="bottom"
-        // height 고정(90dvh) — "중간 고정" 느낌 해소, pull-to-refresh 방지(overscroll-contain)
-        className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-y-auto overscroll-contain"
-        style={{ height: "90dvh" }}
-        showBackButton={false}
-        showCloseButton={false}
-        initialFocus={false}
-      >
-        {/* 데스크톱: 중앙 정렬 + 최대 폭 제한 / 모바일: 전폭 */}
-        <div className="mx-auto w-full max-w-xl flex flex-col">
-        <SheetHeader className="pt-2 shrink-0">
-          <div className="flex flex-col items-center">
-            <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
-          </div>
-          <SheetTitle className="text-base">
-            {task ? "일정 수정" : "새 일정"}
-          </SheetTitle>
-        </SheetHeader>
-
+  // 폼 본문 — Sheet(모바일)·Dialog(데스크탑) 공통. 드래그 핸들은 모바일만.
+  const renderForm = () => (
+    <>
         <div className="flex flex-col gap-3 px-4 pb-3">
           {/* 일차 · 시간 · 체류 — 1행 */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -369,6 +351,44 @@ export default function PlanTaskSheet({
             </Button>
           </div>
         </div>
+    </>
+  );
+
+  const title = task ? "일정 수정" : "새 일정";
+
+  // 데스크탑: 중앙 모달
+  if (isDesktop) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-base">{title}</DialogTitle>
+          </DialogHeader>
+          {renderForm()}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // 모바일: 하단 바텀시트 90dvh
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        side="bottom"
+        className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-y-auto overscroll-contain"
+        style={{ height: "90dvh" }}
+        showBackButton={false}
+        showCloseButton={false}
+        initialFocus={false}
+      >
+        <div className="mx-auto w-full max-w-xl flex flex-col">
+          <SheetHeader className="pt-2 shrink-0">
+            <div className="flex flex-col items-center">
+              <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
+            </div>
+            <SheetTitle className="text-base">{title}</SheetTitle>
+          </SheetHeader>
+          {renderForm()}
         </div>
       </SheetContent>
     </Sheet>
