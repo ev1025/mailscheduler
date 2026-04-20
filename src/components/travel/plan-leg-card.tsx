@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import type { TaskLeg } from "@/lib/travel/legs";
 import type { TransportMode } from "@/types";
 import { formatDuration } from "@/lib/travel/providers";
@@ -37,13 +37,6 @@ interface Props {
   }>) => void;
 }
 
-function addMinutes(hhmm: string, addMin: number): string {
-  const [h, m] = hhmm.split(":").map((s) => parseInt(s, 10));
-  const total = h * 60 + m + addMin;
-  const w = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
-  return `${String(Math.floor(w / 60)).padStart(2, "0")}:${String(w % 60).padStart(2, "0")}`;
-}
-
 export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) {
   const { fromTask, toTask } = leg;
   const hasCoords =
@@ -59,11 +52,6 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
   const durationSec = toTask.transport_duration_sec;
   const isManual = toTask.transport_manual;
   const icon = mode ? MODE_ICON[mode] : null;
-
-  const arrival =
-    legDeparture && typeof durationSec === "number"
-      ? addMinutes(legDeparture, Math.max(1, Math.round(durationSec / 60)))
-      : null;
 
   const handleSelect = (
     selectedMode: TransportMode,
@@ -89,14 +77,11 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
     });
   };
 
-  // Unselected 상태: 선택 버튼만
+  // Unselected 상태: 선택 버튼만 (시간은 task row 에서 표시하므로 생략)
   if (!mode || durationSec == null) {
     return (
       <>
-        <div className="flex items-center gap-2 ml-6 pl-2 border-l-2 border-dashed border-muted-foreground/30 py-1">
-          <span className="text-xs text-muted-foreground tabular-nums shrink-0">
-            {legDeparture ?? "--:--"}
-          </span>
+        <div className="flex items-center ml-6 pl-2 border-l-2 border-dashed border-muted-foreground/30 py-1">
           <button
             type="button"
             onClick={() => setPickerOpen(true)}
@@ -107,7 +92,7 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
             <ChevronDown className="h-3 w-3" />
           </button>
           {!hasCoords && (
-            <span className="text-[10px] text-muted-foreground">좌표 없음</span>
+            <span className="text-[10px] text-muted-foreground ml-2">좌표 없음</span>
           )}
         </div>
         {hasCoords && (
@@ -136,14 +121,10 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
     );
   }
 
-  // Selected 상태: 1-line compact
+  // Selected 상태: 수단 · 소요시간만 (시간은 task row 에서 표시)
   return (
     <>
-      <div className="flex items-center gap-2 ml-6 pl-2 border-l-2 border-primary/30 py-1 flex-wrap">
-        <span className="text-xs font-semibold tabular-nums shrink-0">
-          {legDeparture ?? "--:--"}
-        </span>
-        <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+      <div className="flex items-center ml-6 pl-2 border-l-2 border-primary/30 py-1">
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
@@ -156,10 +137,6 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
           {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
           <ChevronDown className="h-3 w-3 text-muted-foreground" />
         </button>
-        <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-        <span className="text-xs font-semibold tabular-nums shrink-0">
-          {arrival ?? "--:--"}
-        </span>
       </div>
       {hasCoords && (
         <PlanTransportPicker

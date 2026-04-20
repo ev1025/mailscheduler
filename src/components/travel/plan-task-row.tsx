@@ -81,7 +81,7 @@ export default function PlanTaskRow({
 
       <div className="flex-1 min-w-0 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
         {/* Row 1: 시간범위 | 장소 */}
-        <div className="flex items-center gap-1 shrink-0 tabular-nums text-xs font-semibold min-w-[92px]">
+        <div className="flex items-center justify-center gap-1 shrink-0 tabular-nums text-xs font-semibold min-w-[96px]">
           {arrivalTime ? (
             <>
               <span>{arrivalTime}</span>
@@ -103,8 +103,8 @@ export default function PlanTaskRow({
           </span>
         </div>
 
-        {/* Row 2: 체류시간 | 분류 · 주소 */}
-        <div className="text-[10px] text-muted-foreground shrink-0 min-w-[92px]">
+        {/* Row 2: 체류시간(시간범위 ~ 아래 중앙 정렬) | 분류 · 주소 */}
+        <div className="text-[10px] text-muted-foreground shrink-0 min-w-[96px] text-center">
           {task.stay_minutes > 0 ? `(${formatMinutes(task.stay_minutes)})` : ""}
         </div>
         <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground min-w-0">

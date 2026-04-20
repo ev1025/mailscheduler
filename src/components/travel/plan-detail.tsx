@@ -22,6 +22,7 @@ import {
   closestCenter,
   PointerSensor,
   TouchSensor,
+  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -51,6 +52,22 @@ function daysBetween(startIso: string, endIso: string): number {
   const s = new Date(startIso + "T00:00:00");
   const e = new Date(endIso + "T00:00:00");
   return Math.max(0, Math.round((e.getTime() - s.getTime()) / 86400000));
+}
+
+// 빈 일자에도 드롭 가능하도록 일자 섹션 전체를 droppable zone 으로 감쌈.
+// 드롭 시 id "day-{n}" 로 식별 → handleDragEnd 에서 day_index 이동 처리.
+function DayDropZone({ day, children }: { day: number; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `day-${day}` });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex flex-col gap-2 rounded-md transition-colors ${
+        isOver ? "bg-primary/5 ring-2 ring-primary/30" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
 }
 
 // 개별 task 행 — DnD 연동용 래퍼
@@ -258,14 +275,36 @@ export default function PlanDetail({ planId, onBack }: Props) {
     setTitleDraft(null);
   };
 
-  // 전체 sorted 에 대한 단일 drag-end 핸들러.
-  // active → over 의 day_index 가 다르면 day 이동 + manual_order 삽입.
-  // 같은 day 내면 순서만 재정렬.
+  // Drag end:
+  //  - task → task (다른 일자): 해당 위치에 끼워넣음 + day_index 변경
+  //  - task → task (같은 일자): 순서 재정렬
+  //  - task → day zone (빈 일자 등): 해당 일자 맨 뒤로 이동
   const handleDragEnd = async (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
     const activeTask = sorted.find((t) => t.id === e.active.id);
-    const overTask = sorted.find((t) => t.id === e.over!.id);
-    if (!activeTask || !overTask) return;
+    if (!activeTask) return;
+    const overId = String(e.over.id);
+
+    // 빈 일자 droppable 로 드롭한 경우
+    if (overId.startsWith("day-")) {
+      const targetDay = parseInt(overId.slice(4), 10);
+      if (!Number.isFinite(targetDay) || targetDay === activeTask.day_index) return;
+      const targetDayTasks = sorted.filter(
+        (t) => t.day_index === targetDay && t.id !== activeTask.id
+      );
+      targetDayTasks.push(activeTask); // 맨 뒤
+      await updateTask(activeTask.id, { day_index: targetDay });
+      for (let i = 0; i < targetDayTasks.length; i++) {
+        const t = targetDayTasks[i];
+        if (t.id === activeTask.id || t.manual_order !== i) {
+          await updateTask(t.id, { manual_order: i });
+        }
+      }
+      return;
+    }
+
+    const overTask = sorted.find((t) => t.id === overId);
+    if (!overTask) return;
 
     if (activeTask.day_index !== overTask.day_index) {
       // 다른 일자로 이동 — overTask 앞에 끼워넣음
@@ -406,6 +445,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
                   <h3 className="text-sm font-semibold">{formatDayLabel(day)}</h3>
                   <div className="flex-1 h-px bg-border" />
                 </div>
+                <DayDropZone day={day}>
 
                 {dayTasks.length > 0 && (
                       <div className="flex flex-col gap-1.5">
@@ -458,6 +498,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
                 >
                   <Plus className="h-3.5 w-3.5 mr-1" /> 일정 추가
                 </Button>
+                </DayDropZone>
               </section>
             );
           })}
