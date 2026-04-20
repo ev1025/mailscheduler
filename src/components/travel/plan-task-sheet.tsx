@@ -17,7 +17,7 @@ import {
 import TimePicker from "@/components/ui/time-picker";
 import TagInput from "@/components/ui/tag-input";
 import PlanPlacePicker from "@/components/travel/plan-place-picker";
-import { useTravelTags } from "@/hooks/use-travel-tags";
+import { useEventTags } from "@/hooks/use-event-tags";
 import { useMediaQuery } from "@/lib/use-media-query";
 import type { TravelPlanTask, PlaceInfo } from "@/types";
 
@@ -101,7 +101,8 @@ export default function PlanTaskSheet({
   planId,
 }: Props) {
   const draftKey = draftKeyFor(planId, task, defaultDayIndex);
-  const { tags, addTag, deleteTag, updateTagColor } = useTravelTags();
+  // 여행 폼·캘린더와 공유되는 이벤트 태그 풀 사용 (travel_tags 별도 사용 X)
+  const { tags, addTag, deleteTag, updateTagColor } = useEventTags();
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [dayIndex, setDayIndex] = useState(defaultDayIndex);
@@ -317,7 +318,7 @@ export default function PlanTaskSheet({
               onAddTag={addTag}
               onDeleteTag={deleteTag}
               onUpdateTagColor={updateTagColor}
-              orderKey="tag-order:travel-plan-tags"
+              orderKey="tag-order:event-tags"
             />
           </div>
 
