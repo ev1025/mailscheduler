@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
   url.searchParams.set("origin", `${fromLat},${fromLng}`);
   url.searchParams.set("destination", `${toLat},${toLng}`);
   // walking · driving 은 Google 의 최상위 mode 로 직접 전달.
-  // bus · rail · subway 는 transit 하위 transit_mode 로 전달.
+  // bus · rail · subway · train 및 파이프(|) 결합은 transit 하위 transit_mode.
   if (mode === "walking" || mode === "driving" || mode === "bicycling") {
     url.searchParams.set("mode", mode);
   } else {

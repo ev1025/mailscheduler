@@ -191,9 +191,16 @@ export default function PlanRouteMap({
         strategy="afterInteractive"
       />
       <div className={`naver-map-host relative ${className || ""}`}>
+        {/*
+          pointer-events: none — 지도는 시각 표시만, 모든 마우스/터치 이벤트
+          차단하여 페이지 스크롤 · 브라우저 줌이 항상 정상 작동.
+          Naver SDK 가 document / window 레벨에서도 wheel 을 가로채는
+          경우가 있어 capture-phase 리스너로도 잡히지 않아 CSS 로 차단.
+          마커 클릭은 불가능해지나 경로 정보는 아래 목록에 모두 표시됨.
+        */}
         <div
           ref={containerRef}
-          className="rounded-md overflow-hidden"
+          className="rounded-md overflow-hidden pointer-events-none"
           style={{ height }}
         />
       </div>
