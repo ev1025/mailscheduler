@@ -9,8 +9,23 @@ import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
+// 다음 평일 오전 9시 (Unix epoch sec). transit 에서 일관된 스케줄 기준.
+// 양방향 비대칭(현재 시각이 막차 전후라 A→B 와 B→A 가 다르게 나오는 문제) 완화.
+function nextWeekdayMorning9(): number {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  // 토/일이면 월요일까지 이동
+  while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+  return Math.floor(d.getTime() / 1000);
+}
+
 interface GoogleLeg {
   duration?: { value?: number };
+  // transit 모드에서 실제 출발·도착 시각 (Unix epoch seconds). 이 차이가
+  // 도보+대기+승차 모두 반영한 체감 소요시간 — duration.value 보다 정확.
+  arrival_time?: { value?: number };
+  departure_time?: { value?: number };
 }
 interface GoogleRoute {
   legs?: GoogleLeg[];
@@ -60,6 +75,9 @@ export async function GET(req: NextRequest) {
   const toLng = req.nextUrl.searchParams.get("toLng");
   // mode: bus | rail | subway (→ transit_mode) | walking | driving
   const mode = req.nextUrl.searchParams.get("mode") ?? "bus";
+  // 선택적 출발시각 Unix epoch sec. 미지정 시 "다음 평일 오전 9시" —
+  // 현재 시각으로 보내면 심야·주말 스케줄에 잡혀 양방향 결과 편차 큼.
+  const departureTimeParam = req.nextUrl.searchParams.get("departure_time");
 
   if (!fromLat || !fromLng || !toLat || !toLng) {
     return NextResponse.json(
@@ -90,6 +108,12 @@ export async function GET(req: NextRequest) {
   url.searchParams.set("language", "ko");
   url.searchParams.set("region", "kr");
   url.searchParams.set("key", apiKey);
+
+  // transit 모드에서만 departure_time 필요 (driving/walking 은 무관).
+  if (url.searchParams.get("mode") === "transit") {
+    const depTime = departureTimeParam ?? String(nextWeekdayMorning9());
+    url.searchParams.set("departure_time", depTime);
+  }
 
   console.log(`[google-transit] mode=${mode} (${fromLat},${fromLng})→(${toLat},${toLng})`);
   const res = await fetch(url.toString(), { cache: "no-store" });
@@ -126,11 +150,17 @@ export async function GET(req: NextRequest) {
   }
 
   const best = data.routes?.[0];
-  const durationSec = best?.legs?.[0]?.duration?.value;
-  if (!durationSec) {
+  const leg = best?.legs?.[0];
+  // transit 은 arrival_time - departure_time 이 실제 체감 시간(도보+환승+대기 포함).
+  // driving/walking 은 departure_time/arrival_time 없으므로 duration.value 사용.
+  const realDurationSec =
+    leg?.arrival_time?.value != null && leg?.departure_time?.value != null
+      ? leg.arrival_time.value - leg.departure_time.value
+      : leg?.duration?.value;
+  if (!realDurationSec || realDurationSec <= 0) {
     return NextResponse.json({ error: "경로 없음" }, { status: 404 });
   }
   const poly = best?.overview_polyline?.points;
   const path = poly ? decodePolyline(poly) : [];
-  return NextResponse.json({ durationSec, path });
+  return NextResponse.json({ durationSec: realDurationSec, path });
 }

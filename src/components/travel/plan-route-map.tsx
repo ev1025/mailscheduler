@@ -45,22 +45,18 @@ export default function PlanRouteMap({
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // 네이버 SDK 가 wheel 이벤트 preventDefault 로 페이지 스크롤/ctrl+줌 을 막음.
-  // 컨테이너 레벨 capture 로는 SDK 가 document 나 window 에 리스너 걸었을 때 놓침.
-  // → document 레벨 capture 로 끌어올려 지도 영역 내 wheel 이벤트에 대해
-  // stopImmediatePropagation, 브라우저 기본 스크롤/줌 은 그대로 수행.
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const onDocWheel = (e: WheelEvent) => {
-      const t = e.target;
-      if (t instanceof Node && el.contains(t)) {
-        e.stopImmediatePropagation();
-      }
-    };
-    document.addEventListener("wheel", onDocWheel, { capture: true, passive: true });
-    return () => document.removeEventListener("wheel", onDocWheel, { capture: true });
-  }, []);
+  // 네이버 SDK 가 wheel 을 capture 단계에서 가로채 preventDefault.
+  // React onWheel 핸들러에서 직접 부모 스크롤 컨테이너를 찾아 deltaY 만큼
+  // scrollTop 을 증가시켜 우회. 지도는 줌 못 해도 페이지 스크롤은 정상.
+  const handleWheelForward = (e: React.WheelEvent) => {
+    const scrollContainer =
+      (e.currentTarget as HTMLElement).closest<HTMLElement>(".overflow-y-auto");
+    if (scrollContainer) {
+      scrollContainer.scrollTop += e.deltaY;
+    } else if (document.scrollingElement) {
+      document.scrollingElement.scrollTop += e.deltaY;
+    }
+  };
 
   useEffect(() => {
     if (!CLIENT_ID) return;
@@ -190,7 +186,10 @@ export default function PlanRouteMap({
         src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`}
         strategy="afterInteractive"
       />
-      <div className={`naver-map-host relative ${className || ""}`}>
+      <div
+        className={`naver-map-host relative ${className || ""}`}
+        onWheel={handleWheelForward}
+      >
         <div
           ref={containerRef}
           className="rounded-md overflow-hidden"

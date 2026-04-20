@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -174,28 +174,38 @@ export default function PlanDetail({ planId, onBack }: Props) {
   // 보이는 leg 자동 path fetch — 선택된 수단 기준으로 실제 경로 폴리라인.
   // 자가용(NCP)·대중교통·도보(Google) 모두 path 를 주므로 전체 수단 지원.
   // 기차는 Google rail 폴백의 polyline (레일 노선 근사) 표시.
+  // 진행 중인 요청 추적 — legPaths 를 deps 에 넣으면 매 setLegPaths 마다
+  // 이펙트가 재실행되어 race condition · 중복 호출 발생. useRef 로 분리.
+  const pendingPathRequests = useRef<Set<string>>(new Set());
   useEffect(() => {
     let cancelled = false;
     (async () => {
       for (const leg of visibleLegs) {
         if (cancelled) return;
         const mode: TransportMode | null = leg.toTask.transport_mode ?? null;
-        if (!mode) continue; // 수단 미선택 → path 의미 없음
-        const key = `${leg.fromTaskId}-${leg.toTaskId}-${mode}`; // mode 포함
-        if (legPaths[key]) continue;
-        const result = await fetchRouteDuration(
-          { lat: leg.fromTask.place_lat!, lng: leg.fromTask.place_lng! },
-          { lat: leg.toTask.place_lat!, lng: leg.toTask.place_lng! },
-          mode
-        );
-        if (cancelled) return;
-        if (result?.path && result.path.length > 1) {
-          setLegPaths((p) => ({ ...p, [key]: result.path! }));
+        if (!mode) continue;
+        const key = `${leg.fromTaskId}-${leg.toTaskId}-${mode}`;
+        if (legPaths[key] || pendingPathRequests.current.has(key)) continue;
+        pendingPathRequests.current.add(key);
+        try {
+          const result = await fetchRouteDuration(
+            { lat: leg.fromTask.place_lat!, lng: leg.fromTask.place_lng! },
+            { lat: leg.toTask.place_lat!, lng: leg.toTask.place_lng! },
+            mode
+          );
+          if (cancelled) return;
+          if (result?.path && result.path.length > 1) {
+            setLegPaths((p) => ({ ...p, [key]: result.path! }));
+          }
+        } finally {
+          pendingPathRequests.current.delete(key);
         }
       }
     })();
     return () => { cancelled = true; };
-  }, [visibleLegs, legPaths]);
+    // legPaths 는 일부러 deps 에서 제외 — pendingPathRequests.current 로 중복 방지
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleLegs]);
 
   const { pins, legs: mapLegs } = useMemo(() => {
     const taskToPin = (t: TravelPlanTask) =>
