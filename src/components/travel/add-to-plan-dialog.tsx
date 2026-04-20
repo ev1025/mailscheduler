@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Route } from "lucide-react";
 import {
   Dialog,
@@ -10,8 +10,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import { useTravelPlans } from "@/hooks/use-travel-plans";
-import { useTravelPlanTasks } from "@/hooks/use-travel-plan-tasks";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import type { TravelItem } from "@/types";
@@ -33,24 +38,79 @@ export default function AddToPlanDialog({ open, onOpenChange, travelItem, onDone
   const [newTitle, setNewTitle] = useState("");
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // 선택된 계획의 기존 day_index 목록 (day 선택 UI 용)
+  const [existingDays, setExistingDays] = useState<number[]>([]);
+  // -1 = "+ 새 일자" (max+1). 그 외는 해당 day_index 뒤에 append.
+  const [targetDay, setTargetDay] = useState<number>(-1);
+
+  // 계획 선택이 바뀌면 해당 계획의 day 목록 로드
+  useEffect(() => {
+    if (!selectedPlanId || !open) {
+      setExistingDays([]);
+      setTargetDay(-1);
+      return;
+    }
+    (async () => {
+      const { data } = await supabase
+        .from("travel_plan_tasks")
+        .select("day_index")
+        .eq("plan_id", selectedPlanId);
+      const unique = Array.from(new Set((data ?? []).map((r) => r.day_index as number))).sort(
+        (a, b) => a - b
+      );
+      setExistingDays(unique);
+      setTargetDay(-1); // 기본값 — 새 일자
+    })();
+  }, [selectedPlanId, open]);
 
   // 선택된 plan 을 useTravelPlanTasks 로 다시 hook 걸기보다,
   // 한 번만 조회해서 max day_index 파악 후 bulk insert.
   const injectPlaces = async (planId: string) => {
     if (!travelItem) return;
-    const places = travelItem.places ?? [];
+    // places[] 우선, 비어있으면 구버전 단일 장소(place_name/lat/lng) 로 폴백
+    let places = travelItem.places ?? [];
+    if (
+      places.length === 0 &&
+      travelItem.place_name &&
+      travelItem.lat != null &&
+      travelItem.lng != null
+    ) {
+      places = [
+        {
+          name: travelItem.place_name,
+          address: travelItem.address ?? "",
+          lat: travelItem.lat,
+          lng: travelItem.lng,
+        },
+      ];
+    }
 
-    // 기존 tasks 에서 max day_index + 1 을 새 day 로
-    const { data: existing } = await supabase
+    // 대상 day_index 결정 — targetDay 가 -1 이면 새 일자(max+1), 아니면 지정 day 에 append
+    let nextDay: number;
+    if (targetDay === -1) {
+      const { data: existing } = await supabase
+        .from("travel_plan_tasks")
+        .select("day_index")
+        .eq("plan_id", planId)
+        .order("day_index", { ascending: false })
+        .limit(1);
+      nextDay = existing && existing.length > 0 ? (existing[0].day_index as number) + 1 : 0;
+    } else {
+      nextDay = targetDay;
+    }
+    // 지정 day 의 기존 max manual_order 뒤에 붙이기
+    const { data: dayTasks } = await supabase
       .from("travel_plan_tasks")
-      .select("day_index")
+      .select("manual_order")
       .eq("plan_id", planId)
-      .order("day_index", { ascending: false })
+      .eq("day_index", nextDay)
+      .order("manual_order", { ascending: false })
       .limit(1);
-    const nextDay =
-      existing && existing.length > 0 ? (existing[0].day_index as number) + 1 : 0;
+    const baseOrder =
+      dayTasks && dayTasks.length > 0 ? (dayTasks[0].manual_order as number) + 1 : 0;
 
-    // 장소 없으면 빈 일정 1개 생성 (사용자가 계획 안에서 장소 직접 입력)
+    // 장소 없으면 빈 일정 1개 생성 (사용자가 계획 안에서 장소 직접 입력).
+    // travelItem 의 태그(tag, comma-separated) + 분류(category) 모두 전달.
     const rows =
       places.length === 0
         ? [
@@ -62,10 +122,11 @@ export default function AddToPlanDialog({ open, onOpenChange, travelItem, onDone
               place_address: null,
               place_lat: null,
               place_lng: null,
-              tag: travelItem.category,
+              tag: travelItem.tag,
+              category: travelItem.category,
               content: null,
               stay_minutes: 0,
-              manual_order: 0,
+              manual_order: baseOrder,
               transport_mode: null,
               transport_duration_sec: null,
               transport_manual: false,
@@ -79,10 +140,11 @@ export default function AddToPlanDialog({ open, onOpenChange, travelItem, onDone
             place_address: p.address,
             place_lat: p.lat,
             place_lng: p.lng,
-            tag: travelItem.category,
+            tag: travelItem.tag,
+            category: travelItem.category,
             content: i === 0 ? travelItem.title : null,
             stay_minutes: 0,
-            manual_order: i,
+            manual_order: baseOrder + i,
             transport_mode: null,
             transport_duration_sec: null,
             transport_manual: false,
@@ -135,9 +197,17 @@ export default function AddToPlanDialog({ open, onOpenChange, travelItem, onDone
 
         <p className="text-xs text-muted-foreground">
           <span className="font-medium text-foreground">{travelItem.title}</span>
-          {(travelItem.places?.length ?? 0) > 0
-            ? ` 에 저장된 장소 ${travelItem.places!.length}개가 선택한 계획에 새 일자로 추가됩니다.`
-            : " 에 저장된 장소가 없어 빈 일정만 추가됩니다. 계획에서 장소를 직접 입력할 수 있습니다."}
+          {(() => {
+            const count =
+              (travelItem.places?.length ?? 0) > 0
+                ? travelItem.places!.length
+                : travelItem.lat != null && travelItem.lng != null
+                  ? 1
+                  : 0;
+            return count > 0
+              ? ` 에 저장된 장소 ${count}개가 선택한 계획에 새 일자로 추가됩니다.`
+              : " 에 저장된 장소가 없어 빈 일정만 추가됩니다. 계획에서 장소를 직접 입력할 수 있습니다.";
+          })()}
         </p>
 
         <div className="flex gap-2">
@@ -196,6 +266,30 @@ export default function AddToPlanDialog({ open, onOpenChange, travelItem, onDone
             placeholder={`예: ${travelItem.title} 일정`}
             className="h-9 text-sm"
           />
+        )}
+
+        {/* 일자 선택 — 기존 계획 선택 후, 기존 day 가 1개 이상 있을 때만 노출.
+            기본: "+ 새 일자"(-1). */}
+        {mode === "pick" && selectedPlanId && existingDays.length > 0 && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground shrink-0">추가할 일자</span>
+            <Select
+              value={String(targetDay)}
+              onValueChange={(v) => v && setTargetDay(parseInt(v))}
+            >
+              <SelectTrigger className="h-8 text-xs flex-1">
+                {targetDay === -1 ? "+ 새 일자" : `${targetDay + 1}일차`}
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="-1" className="text-xs">+ 새 일자</SelectItem>
+                {existingDays.map((d) => (
+                  <SelectItem key={d} value={String(d)} className="text-xs">
+                    {d + 1}일차
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
 
         <div className="flex justify-end gap-2 pt-1">

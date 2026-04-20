@@ -41,6 +41,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
           toast: "cn-toast",
         },
       }}
+      // 좌·우 스와이프로 dismiss. 기본 top 도 유지 → 위로 밀어도 닫힘.
+      swipeDirections={["left", "right", "top"]}
       {...props}
     />
   )

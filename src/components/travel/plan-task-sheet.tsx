@@ -280,19 +280,28 @@ export default function PlanTaskSheet({
           {/* 일자 · 시간 · 체류 — h-8·text-xs 로 통일 (높이·폰트 일치) */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
-              {/* 트리거 w-auto — 내부 텍스트("4/20(월)") 딱 맞는 폭.
-                  드롭다운은 min-w-0 로 default min-w-36 오버라이드 → 트리거와
-                  같은 폭으로 정렬. 약간의 여유(min-w-[5.5rem])는 "+ 새 일자" 옵션 표시용. */}
-              <SelectTrigger className="h-8 text-xs w-auto px-2">
+              {/* 트리거·드롭다운 동일 폭(w-[5.5rem]) — 체크 아이콘 없어 텍스트만. */}
+              <SelectTrigger className="h-8 text-xs w-[5.5rem] px-2">
                 {formatDayLabel(dayIndex)}
               </SelectTrigger>
-              <SelectContent className="min-w-[5.5rem]">
+              <SelectContent className="w-[5.5rem] min-w-[5.5rem]">
                 {availableDays.map((d) => (
-                  <SelectItem key={d} value={String(d)} className="text-xs">
+                  <SelectItem
+                    key={d}
+                    value={String(d)}
+                    hideIndicator
+                    className="text-xs"
+                  >
                     {formatDayLabel(d)}
                   </SelectItem>
                 ))}
-                <SelectItem value="__new__" className="text-xs">+ 새 일자</SelectItem>
+                <SelectItem
+                  value="__new__"
+                  hideIndicator
+                  className="text-xs text-neutral-600"
+                >
+                  + 새 일자
+                </SelectItem>
               </SelectContent>
             </Select>
 
