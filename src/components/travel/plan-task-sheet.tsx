@@ -17,7 +17,7 @@ import {
 import TimePicker from "@/components/ui/time-picker";
 import TagInput from "@/components/ui/tag-input";
 import PlanPlacePicker from "@/components/travel/plan-place-picker";
-import { useEventTags } from "@/hooks/use-event-tags";
+import { useTravelCategories, BUILTIN_TRAVEL_CATEGORIES } from "@/hooks/use-travel-categories";
 import { useMediaQuery } from "@/lib/use-media-query";
 import type { TravelPlanTask, PlaceInfo } from "@/types";
 
@@ -51,7 +51,8 @@ interface SheetDraft {
   placeAddress: string | null;
   placeLat: number | null;
   placeLng: number | null;
-  selectedTags: string[];
+  // 단일 분류값. tag 컬럼을 그대로 사용 (복수 태그 대신 분류 1개).
+  category: string;
   content: string;
 }
 
@@ -101,8 +102,10 @@ export default function PlanTaskSheet({
   planId,
 }: Props) {
   const draftKey = draftKeyFor(planId, task, defaultDayIndex);
-  // 여행 폼·캘린더와 공유되는 이벤트 태그 풀 사용 (travel_tags 별도 사용 X)
-  const { tags, addTag, deleteTag, updateTagColor } = useEventTags();
+  // 여행 폼의 "분류" 와 동일한 풀 사용 (localStorage 기반 useTravelCategories).
+  // 단일 선택. tag 컬럼에 값 1개로 저장.
+  const { categories, colors, addCategory, deleteCategory, updateCategoryColor, updateCategoryName } =
+    useTravelCategories();
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [dayIndex, setDayIndex] = useState(defaultDayIndex);
@@ -114,7 +117,8 @@ export default function PlanTaskSheet({
   const [placeLng, setPlaceLng] = useState<number | null>(null);
   const [placeQuery, setPlaceQuery] = useState("");
   const [editingPlace, setEditingPlace] = useState(false);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  // 분류 1개 (빈 문자열이면 미선택)
+  const [category, setCategory] = useState<string>("");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -129,7 +133,8 @@ export default function PlanTaskSheet({
       setPlaceAddress(task.place_address);
       setPlaceLat(task.place_lat);
       setPlaceLng(task.place_lng);
-      setSelectedTags(task.tag ? task.tag.split(",").map((s) => s.trim()).filter(Boolean) : []);
+      // tag 컬럼을 분류 단일값으로 재해석. 기존 콤마형 값도 첫 토큰만 사용.
+      setCategory(task.tag ? task.tag.split(",")[0].trim() : "");
       setContent(task.content ?? "");
     } else {
       setDayIndex(defaultDayIndex);
@@ -139,7 +144,7 @@ export default function PlanTaskSheet({
       setPlaceAddress(null);
       setPlaceLat(null);
       setPlaceLng(null);
-      setSelectedTags([]);
+      setCategory("");
       setContent("");
     }
     setPlaceQuery("");
@@ -154,7 +159,7 @@ export default function PlanTaskSheet({
       setPlaceAddress(d.placeAddress);
       setPlaceLat(d.placeLat);
       setPlaceLng(d.placeLng);
-      setSelectedTags(d.selectedTags);
+      setCategory(d.category ?? "");
       setContent(d.content);
     }
   }, [open, task, defaultDayIndex, draftKey]);
@@ -171,7 +176,7 @@ export default function PlanTaskSheet({
         placeAddress,
         placeLat,
         placeLng,
-        selectedTags,
+        category,
         content,
       });
     }, 500);
@@ -186,7 +191,7 @@ export default function PlanTaskSheet({
     placeAddress,
     placeLat,
     placeLng,
-    selectedTags,
+    category,
     content,
   ]);
 
@@ -221,7 +226,7 @@ export default function PlanTaskSheet({
       place_address: placeAddress,
       place_lat: placeLat,
       place_lng: placeLng,
-      tag: selectedTags.length > 0 ? selectedTags.join(",") : null,
+      tag: category.trim() || null,
       content: content.trim() || null,
       stay_minutes: Number.isFinite(n) && n > 0 ? n : 0,
     });
@@ -235,9 +240,9 @@ export default function PlanTaskSheet({
     <>
         <div className="flex flex-col gap-3 px-4 pb-3">
           {/* 일차 · 시간 · 체류 — 1행 */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-nowrap">
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
-              <SelectTrigger className="h-8 w-28 text-xs">
+              <SelectTrigger className="h-8 text-xs w-auto">
                 {formatDayLabel(dayIndex)}
               </SelectTrigger>
               <SelectContent>
@@ -254,7 +259,7 @@ export default function PlanTaskSheet({
             <TimePicker
               value={startTime}
               onChange={setStartTime}
-              className="h-8 w-24 text-xs"
+              className="h-8 text-xs w-auto"
             />
 
             <Input
@@ -265,7 +270,7 @@ export default function PlanTaskSheet({
               value={stayMinutes}
               onChange={(e) => handleStayChange(e.target.value)}
               placeholder="체류시간(60분)"
-              className="h-8 w-32 text-xs"
+              className="h-8 text-xs flex-1 min-w-0"
             />
           </div>
 
@@ -308,17 +313,25 @@ export default function PlanTaskSheet({
             )}
           </div>
 
-          {/* 태그 — 기존 TagInput 재사용 (이벤트 폼과 동일) */}
+          {/* 분류 — 여행 폼과 동일한 풀. 단일 선택. */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">태그</Label>
+            <Label className="text-xs text-muted-foreground">분류</Label>
             <TagInput
-              selectedTags={selectedTags}
-              allTags={tags}
-              onChange={setSelectedTags}
-              onAddTag={addTag}
-              onDeleteTag={deleteTag}
-              onUpdateTagColor={updateTagColor}
-              orderKey="tag-order:event-tags"
+              selectedTags={category ? [category] : []}
+              allTags={categories.map((c) => ({ id: c, name: c, color: colors[c] || "#6B7280" }))}
+              onChange={(next) => {
+                // TagInput 을 단일 선택으로 쓰기 — 가장 최근 선택값만 유지
+                const picked = next.find((t) => t !== category);
+                if (picked) setCategory(picked);
+                else if (next.length === 0) setCategory("");
+              }}
+              onAddTag={addCategory}
+              onDeleteTag={deleteCategory}
+              onUpdateTagColor={updateCategoryColor}
+              onRenameTag={updateCategoryName}
+              builtinIds={BUILTIN_TRAVEL_CATEGORIES}
+              orderKey="tag-order:travel-categories"
+              placeholder="분류 선택"
             />
           </div>
 

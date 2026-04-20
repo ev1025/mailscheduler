@@ -2,6 +2,7 @@
 
 import { MapPin, GripVertical, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useTravelCategories } from "@/hooks/use-travel-categories";
 import type { TravelPlanTask } from "@/types";
 
 // 일정 한 행 — 읽기 전용 콤팩트 뷰. 클릭 시 편집 시트가 열림.
@@ -31,8 +32,12 @@ export default function PlanTaskRow({
   expectedTime,
 }: Props) {
   const time = formatTime(task.start_time);
-  const showExpected = !time && !!expectedTime;
-  const tags = task.tag ? task.tag.split(",").map((s) => s.trim()).filter(Boolean) : [];
+  // 사용자가 직접 입력한 시간과 계산된 예상 시간을 스타일 통일 (도착=다음 출발이므로 같은 형식)
+  const displayTime = time || expectedTime || null;
+  const { colors } = useTravelCategories();
+  // tag 컬럼을 분류 단일값으로 사용. 콤마 포함 구버전 값은 첫 토큰만 취함.
+  const category = task.tag ? task.tag.split(",")[0].trim() : "";
+  const categoryColor = category ? colors[category] || "#6B7280" : null;
 
   return (
     <div
@@ -62,33 +67,29 @@ export default function PlanTaskRow({
 
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <div className="flex items-center gap-2">
-          {time ? (
-            <span className="text-xs font-semibold tabular-nums shrink-0">{time}</span>
-          ) : showExpected ? (
-            <span
-              className="text-xs tabular-nums shrink-0 text-muted-foreground italic"
-              title="이전 일정의 시간 + 체류 + 이동시간으로 계산된 예상 도착"
-            >
-              ~{expectedTime}
-            </span>
-          ) : null}
+          {displayTime && (
+            <span className="text-xs font-semibold tabular-nums shrink-0">{displayTime}</span>
+          )}
           <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
           <span className="text-sm font-medium truncate">
             {task.place_name || "(장소 미입력)"}
           </span>
+          {category && categoryColor && (
+            <Badge
+              className="shrink-0 text-[10px] px-1.5 py-0 h-4"
+              style={{ backgroundColor: categoryColor + "20", color: categoryColor, borderColor: categoryColor + "40" }}
+            >
+              {category}
+            </Badge>
+          )}
           {task.stay_minutes > 0 && (
             <span className="shrink-0 text-[10px] text-muted-foreground">
               체류 {task.stay_minutes}분
             </span>
           )}
         </div>
-        {(task.content || tags.length > 0 || task.place_address) && (
+        {(task.content || task.place_address) && (
           <div className="flex items-center gap-1.5 flex-wrap text-xs text-muted-foreground">
-            {tags.map((t) => (
-              <Badge key={t} variant="outline" className="h-4 text-[10px] px-1.5 py-0">
-                {t}
-              </Badge>
-            ))}
             {task.content && <span className="truncate">{task.content}</span>}
             {!task.content && task.place_address && (
               <span className="truncate">{task.place_address}</span>

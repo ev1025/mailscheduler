@@ -53,6 +53,29 @@ async function getBusDuration(
   }
 }
 
+// 도보: Google Maps Directions (walking)
+async function getWalkingDuration(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): Promise<RouteResult | null> {
+  const params = new URLSearchParams({
+    fromLat: String(from.lat),
+    fromLng: String(from.lng),
+    toLat: String(to.lat),
+    toLng: String(to.lng),
+    mode: "walking",
+  });
+  try {
+    const res = await fetch(`/api/google-transit?${params.toString()}`);
+    if (!res.ok) return null;
+    const j = await res.json();
+    if (typeof j.durationSec !== "number") return null;
+    return { durationSec: j.durationSec, path: j.path };
+  } catch {
+    return null;
+  }
+}
+
 // 기차: 공공데이터 우선 → 실패 시 Google Maps rail 폴백
 async function getTrainDuration(
   from: { lat: number; lng: number },
@@ -98,6 +121,8 @@ export async function fetchRouteDuration(
     case "car":
     case "taxi":
       return getDrivingDuration(from, to);
+    case "walk":
+      return getWalkingDuration(from, to);
     case "bus":
       return getBusDuration(from, to);
     case "train":

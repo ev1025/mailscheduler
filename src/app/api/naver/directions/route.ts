@@ -100,11 +100,22 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // 200 인데 body 비었음 (짧은 거리·경로 불가 시 네이버가 빈 body 주는 사례)
+  // 200 인데 body 비었음 — NCP 가 자주 쓰는 미스테리 응답. 경험상 원인은
+  // (1) Directions 5 서비스가 NCP 콘솔에서 "신청·활성화" 되지 않음  ← 가장 흔함
+  // (2) API 키가 Maps(렌더링) 권한만 있고 Directions(경로) 권한 없음
+  // (3) 특정 좌표 쌍이 도로망 밖에 있거나 내부 제약
+  // (1)·(2) 는 네이버클라우드 콘솔 → Services → Maps → Directions 5 활성화로 해결.
   if (!bodyText) {
-    console.warn("[naver directions] empty body (200 OK)");
+    console.warn("[naver directions] empty body (200 OK) — 구독·권한 의심");
     return NextResponse.json(
-      { error: "네이버가 빈 응답을 반환 (경로 불가 가능성)", naverStatus: 200 },
+      {
+        error: "네이버가 빈 응답을 반환",
+        naverStatus: 200,
+        hint:
+          "가장 흔한 원인: NCP 콘솔에서 'Directions 5' 서비스가 신청·활성화 되지 않음. " +
+          "또는 API 키가 Maps 렌더링 전용이고 Directions 권한이 없음. " +
+          "https://console.ncloud.com → Services → AI·NAVER API → Maps → 'Directions 5' 신청 확인 필요.",
+      },
       { status: 404 }
     );
   }

@@ -391,9 +391,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
               <section key={day} className="flex flex-col gap-2">
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold">{formatDayLabel(day)}</h3>
-                  <span className="text-[10px] text-muted-foreground">
-                    {dayTasks.length}개
-                  </span>
                   <div className="flex-1 h-px bg-border" />
                 </div>
 

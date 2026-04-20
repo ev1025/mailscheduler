@@ -58,7 +58,8 @@ export async function GET(req: NextRequest) {
   const fromLng = req.nextUrl.searchParams.get("fromLng");
   const toLat = req.nextUrl.searchParams.get("toLat");
   const toLng = req.nextUrl.searchParams.get("toLng");
-  const mode = req.nextUrl.searchParams.get("mode") ?? "bus"; // bus | rail | subway
+  // mode: bus | rail | subway (→ transit_mode) | walking | driving
+  const mode = req.nextUrl.searchParams.get("mode") ?? "bus";
 
   if (!fromLat || !fromLng || !toLat || !toLng) {
     return NextResponse.json(
@@ -78,8 +79,14 @@ export async function GET(req: NextRequest) {
   const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
   url.searchParams.set("origin", `${fromLat},${fromLng}`);
   url.searchParams.set("destination", `${toLat},${toLng}`);
-  url.searchParams.set("mode", "transit");
-  url.searchParams.set("transit_mode", mode);
+  // walking · driving 은 Google 의 최상위 mode 로 직접 전달.
+  // bus · rail · subway 는 transit 하위 transit_mode 로 전달.
+  if (mode === "walking" || mode === "driving" || mode === "bicycling") {
+    url.searchParams.set("mode", mode);
+  } else {
+    url.searchParams.set("mode", "transit");
+    url.searchParams.set("transit_mode", mode);
+  }
   url.searchParams.set("language", "ko");
   url.searchParams.set("region", "kr");
   url.searchParams.set("key", apiKey);

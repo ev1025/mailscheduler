@@ -148,7 +148,8 @@ export interface PlaceInfo {
 }
 
 // 여행 계획 (travel_plans + travel_plan_tasks)
-export type TransportMode = "car" | "bus" | "taxi" | "train";
+// taxi 는 UI 에선 '승용차' 로 car 와 통합 표시되나 하위호환 위해 타입 유지.
+export type TransportMode = "car" | "walk" | "bus" | "taxi" | "train";
 
 export interface TravelPlan {
   id: string;
