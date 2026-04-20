@@ -1,4 +1,5 @@
 import type { PlaceInfo, TransportMode } from "@/types";
+import { haversineKm } from "@/lib/travel/stations";
 
 // 구간 소요시간·경로 조회 provider.
 // 자가용 = NCP Directions, 대중교통·기차 = ODsay(추후), 택시 = 자가용 재사용.
@@ -53,7 +54,8 @@ async function getBusDuration(
   }
 }
 
-// 도보: Google Maps Directions (walking)
+// 도보: Google Maps Directions (walking) → 실패 시 거리 기반 추정 폴백.
+// 한국은 Google 의 보행자 데이터가 불완전해 도심에서도 ZERO_RESULTS 자주 발생.
 async function getWalkingDuration(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number }
@@ -67,13 +69,21 @@ async function getWalkingDuration(
   });
   try {
     const res = await fetch(`/api/google-transit?${params.toString()}`);
-    if (!res.ok) return null;
-    const j = await res.json();
-    if (typeof j.durationSec !== "number") return null;
-    return { durationSec: j.durationSec, path: j.path };
+    if (res.ok) {
+      const j = await res.json();
+      if (typeof j.durationSec === "number") {
+        return { durationSec: j.durationSec, path: j.path };
+      }
+    }
   } catch {
-    return null;
+    // fallthrough to estimate
   }
+
+  // 폴백 추정: 직선거리 × 1.3 (보행 우회 계수) / 4.5km·h = 초
+  const km = haversineKm(from, to);
+  if (km > 15) return null; // 15km 초과는 도보 의미 없음
+  const estimatedSec = Math.round((km * 1.3 / 4.5) * 3600);
+  return { durationSec: estimatedSec };
 }
 
 // 기차: 공공데이터 우선 → 실패 시 Google Maps rail 폴백
@@ -134,6 +144,16 @@ export async function fetchRouteDuration(
 
 export function formatDuration(sec: number): string {
   const m = Math.max(0, Math.round(sec / 60));
+  if (m < 60) return `${m}분`;
+  const h = Math.floor(m / 60);
+  const rem = m % 60;
+  return rem === 0 ? `${h}시간` : `${h}시간 ${rem}분`;
+}
+
+// 분 단위 그대로 받아 "1시간 30분" 형식으로. 체류시간 표시용.
+export function formatMinutes(min: number): string {
+  const m = Math.max(0, Math.floor(min));
+  if (m === 0) return "0분";
   if (m < 60) return `${m}분`;
   const h = Math.floor(m / 60);
   const rem = m % 60;

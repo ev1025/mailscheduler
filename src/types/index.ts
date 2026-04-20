@@ -171,7 +171,8 @@ export interface TravelPlanTask {
   place_address: string | null;
   place_lat: number | null;
   place_lng: number | null;
-  tag: string | null;
+  tag: string | null;       // 태그(복수, 콤마 구분)
+  category?: string | null; // 분류(단일) — SQL 마이그(supabase-travel-plan-category) 후 활성
   content: string | null;
   stay_minutes: number;
   manual_order: number;

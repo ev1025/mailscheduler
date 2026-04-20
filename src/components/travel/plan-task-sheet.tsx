@@ -18,6 +18,7 @@ import TimePicker from "@/components/ui/time-picker";
 import TagInput from "@/components/ui/tag-input";
 import PlanPlacePicker from "@/components/travel/plan-place-picker";
 import { useTravelCategories, BUILTIN_TRAVEL_CATEGORIES } from "@/hooks/use-travel-categories";
+import { useEventTags } from "@/hooks/use-event-tags";
 import { useMediaQuery } from "@/lib/use-media-query";
 import type { TravelPlanTask, PlaceInfo } from "@/types";
 
@@ -51,8 +52,8 @@ interface SheetDraft {
   placeAddress: string | null;
   placeLat: number | null;
   placeLng: number | null;
-  // 단일 분류값. tag 컬럼을 그대로 사용 (복수 태그 대신 분류 1개).
-  category: string;
+  category: string;     // 분류 (단일)
+  tags: string[];       // 태그 (복수) — event_tags 공용 풀
   content: string;
 }
 
@@ -102,10 +103,11 @@ export default function PlanTaskSheet({
   planId,
 }: Props) {
   const draftKey = draftKeyFor(planId, task, defaultDayIndex);
-  // 여행 폼의 "분류" 와 동일한 풀 사용 (localStorage 기반 useTravelCategories).
-  // 단일 선택. tag 컬럼에 값 1개로 저장.
+  // 분류(단일) · 태그(복수) 분리. 분류 풀은 localStorage, 태그 풀은 event_tags(DB).
   const { categories, colors, addCategory, deleteCategory, updateCategoryColor, updateCategoryName } =
     useTravelCategories();
+  const { tags: allEventTags, addTag: addEventTag, deleteTag: deleteEventTag, updateTagColor: updateEventTagColor } =
+    useEventTags();
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   const [dayIndex, setDayIndex] = useState(defaultDayIndex);
@@ -119,6 +121,7 @@ export default function PlanTaskSheet({
   const [editingPlace, setEditingPlace] = useState(false);
   // 분류 1개 (빈 문자열이면 미선택)
   const [category, setCategory] = useState<string>("");
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -133,8 +136,11 @@ export default function PlanTaskSheet({
       setPlaceAddress(task.place_address);
       setPlaceLat(task.place_lat);
       setPlaceLng(task.place_lng);
-      // tag 컬럼을 분류 단일값으로 재해석. 기존 콤마형 값도 첫 토큰만 사용.
-      setCategory(task.tag ? task.tag.split(",")[0].trim() : "");
+      // 분류: 새 category 컬럼 우선, 없으면 null. 태그: tag 컬럼 (콤마구분).
+      setCategory(task.category ?? "");
+      setSelectedTags(
+        task.tag ? task.tag.split(",").map((s) => s.trim()).filter(Boolean) : []
+      );
       setContent(task.content ?? "");
     } else {
       setDayIndex(defaultDayIndex);
@@ -145,6 +151,7 @@ export default function PlanTaskSheet({
       setPlaceLat(null);
       setPlaceLng(null);
       setCategory("");
+      setSelectedTags([]);
       setContent("");
     }
     setPlaceQuery("");
@@ -160,6 +167,7 @@ export default function PlanTaskSheet({
       setPlaceLat(d.placeLat);
       setPlaceLng(d.placeLng);
       setCategory(d.category ?? "");
+      setSelectedTags(d.tags ?? []);
       setContent(d.content);
     }
   }, [open, task, defaultDayIndex, draftKey]);
@@ -177,6 +185,7 @@ export default function PlanTaskSheet({
         placeLat,
         placeLng,
         category,
+        tags: selectedTags,
         content,
       });
     }, 500);
@@ -192,6 +201,7 @@ export default function PlanTaskSheet({
     placeLat,
     placeLng,
     category,
+    selectedTags,
     content,
   ]);
 
@@ -226,7 +236,8 @@ export default function PlanTaskSheet({
       place_address: placeAddress,
       place_lat: placeLat,
       place_lng: placeLng,
-      tag: category.trim() || null,
+      tag: selectedTags.length > 0 ? selectedTags.join(",") : null,
+      category: category.trim() || null,
       content: content.trim() || null,
       stay_minutes: Number.isFinite(n) && n > 0 ? n : 0,
     });
@@ -240,9 +251,10 @@ export default function PlanTaskSheet({
     <>
         <div className="flex flex-col gap-3 px-4 pb-3">
           {/* 일차 · 시간 · 체류 — 1행 */}
-          <div className="flex items-center gap-1.5 flex-nowrap">
+          {/* 일자 · 시간 · 체류 — 명시적 폭으로 안정적 클릭 영역 확보 */}
+          <div className="flex items-center gap-2 flex-wrap">
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
-              <SelectTrigger className="h-8 text-xs w-auto">
+              <SelectTrigger className="h-8 text-xs min-w-[92px]">
                 {formatDayLabel(dayIndex)}
               </SelectTrigger>
               <SelectContent>
@@ -255,11 +267,10 @@ export default function PlanTaskSheet({
               </SelectContent>
             </Select>
 
-            {/* 시간 — 기존 TimePicker (캘린더와 동일) */}
             <TimePicker
               value={startTime}
               onChange={setStartTime}
-              className="h-8 text-xs w-auto"
+              className="h-8 text-xs min-w-[88px]"
             />
 
             <Input
@@ -269,8 +280,8 @@ export default function PlanTaskSheet({
               maxLength={3}
               value={stayMinutes}
               onChange={(e) => handleStayChange(e.target.value)}
-              placeholder="체류시간(60분)"
-              className="h-8 text-xs flex-1 min-w-0"
+              placeholder="체류(분)"
+              className="h-8 text-xs w-20"
             />
           </div>
 
@@ -332,6 +343,20 @@ export default function PlanTaskSheet({
               builtinIds={BUILTIN_TRAVEL_CATEGORIES}
               orderKey="tag-order:travel-categories"
               placeholder="분류 선택"
+            />
+          </div>
+
+          {/* 태그 — 캘린더·여행 폼과 공용 이벤트 태그 풀 */}
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">태그</Label>
+            <TagInput
+              selectedTags={selectedTags}
+              allTags={allEventTags}
+              onChange={setSelectedTags}
+              onAddTag={addEventTag}
+              onDeleteTag={deleteEventTag}
+              onUpdateTagColor={updateEventTagColor}
+              orderKey="tag-order:event-tags"
             />
           </div>
 

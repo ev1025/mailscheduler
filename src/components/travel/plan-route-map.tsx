@@ -12,12 +12,18 @@ interface MapPin {
   label?: string;
 }
 
+// 구간(leg) 한 개 — 실제 path 있으면 실선, 없으면 인접 핀 사이 점선.
+// 이 구조로 바꾸면서 "1→2 만 이어지고 2→3 부터는 끊김" 버그 해결.
+interface MapLeg {
+  fromIdx: number;  // pins 배열 내 출발 핀 인덱스
+  toIdx: number;    // pins 배열 내 도착 핀 인덱스
+  path?: [number, number][]; // 있으면 실선, 없으면 점선 fallback
+}
+
 interface Props {
   pins: MapPin[];
-  // 여러 구간의 실제 도로 경로. 각 배열은 [[lng, lat], ...] 형태.
-  // 구간별로 별도 Polyline 으로 그려 네이버 길찾기처럼 보이게 함.
-  paths?: [number, number][][];
-  connectPins?: boolean;     // paths 없이 핀 순서대로 점선으로만 이어줄지
+  // 각 leg 별 경로 정보. 없으면 인접 핀 점선 연결 안 함.
+  legs?: MapLeg[];
   height?: number;
   className?: string;
 }
@@ -33,12 +39,24 @@ const CLIENT_ID = process.env.NEXT_PUBLIC_NCP_MAP_CLIENT_ID;
 
 export default function PlanRouteMap({
   pins,
-  paths,
-  connectPins = false,
+  legs,
   height = 240,
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // 네이버 SDK 가 wheel 이벤트 preventDefault 로 페이지 스크롤/ctrl+줌 을 막음.
+  // capture phase 에서 선점해 SDK 리스너 실행 전에 stopImmediatePropagation.
+  // 결과: 지도 위에서도 휠 = 페이지 스크롤, ctrl+휠 = 브라우저 줌 동작.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.stopImmediatePropagation();
+    };
+    el.addEventListener("wheel", onWheel, { capture: true, passive: true });
+    return () => el.removeEventListener("wheel", onWheel, { capture: true });
+  }, []);
 
   useEffect(() => {
     if (!CLIENT_ID) return;
@@ -99,29 +117,35 @@ export default function PlanRouteMap({
         });
       }
 
-      // 실제 도로 경로 (NCP Directions) — 구간별 파란 실선
-      const validPaths = (paths ?? []).filter((p) => p && p.length > 1);
-      for (const p of validPaths) {
-        const latlngs = p.map((pt) => new naver.maps.LatLng(pt[1], pt[0]));
-        new naver.maps.Polyline({
-          path: latlngs,
-          strokeColor: "#3b82f6",
-          strokeOpacity: 0.9,
-          strokeWeight: 4,
-          map,
-        });
-      }
-      // 도로 경로가 하나도 없는 경우에만 단순 직선 점선으로 순서 표시
-      if (validPaths.length === 0 && connectPins && pins.length > 1) {
-        const latlngs = pins.map((p) => new naver.maps.LatLng(p.lat, p.lng));
-        new naver.maps.Polyline({
-          path: latlngs,
-          strokeColor: "#f97316",
-          strokeOpacity: 0.85,
-          strokeWeight: 3,
-          strokeStyle: "shortdash",
-          map,
-        });
+      // 구간별로 실제 path 있으면 실선, 없으면 from→to 점선 — 끊김 없이 연결.
+      for (const leg of legs ?? []) {
+        const from = pins[leg.fromIdx];
+        const to = pins[leg.toIdx];
+        if (!from || !to) continue;
+        const hasPath = leg.path && leg.path.length > 1;
+        if (hasPath) {
+          const latlngs = leg.path!.map((pt) => new naver.maps.LatLng(pt[1], pt[0]));
+          new naver.maps.Polyline({
+            path: latlngs,
+            strokeColor: "#3b82f6",
+            strokeOpacity: 0.9,
+            strokeWeight: 4,
+            map,
+          });
+        } else {
+          // Fallback — 핀 2점 직선 점선
+          new naver.maps.Polyline({
+            path: [
+              new naver.maps.LatLng(from.lat, from.lng),
+              new naver.maps.LatLng(to.lat, to.lng),
+            ],
+            strokeColor: "#94a3b8",
+            strokeOpacity: 0.8,
+            strokeWeight: 2,
+            strokeStyle: "shortdash",
+            map,
+          });
+        }
       }
 
       // NAVER 로고/저작권 DOM 을 직접 찾아 숨김. logoControl:false +
@@ -143,7 +167,7 @@ export default function PlanRouteMap({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [pins, paths, connectPins]);
+  }, [pins, legs]);
 
   if (!CLIENT_ID) {
     return (

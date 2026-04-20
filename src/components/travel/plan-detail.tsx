@@ -151,7 +151,9 @@ export default function PlanDetail({ planId, onBack }: Props) {
     return one ? [one] : [];
   }, [segment, legsWithCoords]);
 
-  // 보이는 leg 자동 path fetch
+  // 보이는 leg 자동 path fetch — 선택된 수단 기준으로 실제 경로 폴리라인.
+  // 자가용(NCP)·대중교통·도보(Google) 모두 path 를 주므로 전체 수단 지원.
+  // 기차는 Google rail 폴백의 polyline (레일 노선 근사) 표시.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -159,8 +161,9 @@ export default function PlanDetail({ planId, onBack }: Props) {
         if (cancelled) return;
         const key = `${leg.fromTaskId}-${leg.toTaskId}`;
         if (legPaths[key]) continue;
-        const mode: TransportMode = leg.toTask.transport_mode ?? "car";
-        if (mode !== "car" && mode !== "taxi") continue;
+        // 선택된 수단 없으면 skip (아직 경로 의미 없음)
+        const mode: TransportMode | null = leg.toTask.transport_mode ?? null;
+        if (!mode) continue;
         const result = await fetchRouteDuration(
           { lat: leg.fromTask.place_lat!, lng: leg.fromTask.place_lng! },
           { lat: leg.toTask.place_lat!, lng: leg.toTask.place_lng! },
@@ -175,10 +178,10 @@ export default function PlanDetail({ planId, onBack }: Props) {
     return () => { cancelled = true; };
   }, [visibleLegs, legPaths]);
 
-  const { pins, paths, connectPins } = useMemo(() => {
+  const { pins, legs: mapLegs } = useMemo(() => {
     const taskToPin = (t: TravelPlanTask) =>
       t.place_lat != null && t.place_lng != null
-        ? { lat: t.place_lat, lng: t.place_lng, label: t.place_name }
+        ? { lat: t.place_lat, lng: t.place_lng, label: t.place_name, taskId: t.id }
         : null;
 
     let shownTasks: TravelPlanTask[];
@@ -189,19 +192,29 @@ export default function PlanDetail({ planId, onBack }: Props) {
       const leg = legsWithCoords[segment.legIndex];
       shownTasks = leg ? [leg.fromTask, leg.toTask] : [];
     }
-    const shownPins = shownTasks.map(taskToPin).filter(Boolean) as {
-      lat: number; lng: number; label: string;
+    const shownPinsAll = shownTasks.map(taskToPin).filter(Boolean) as {
+      lat: number; lng: number; label: string; taskId: string;
     }[];
 
-    const shownPaths = visibleLegs
-      .map((l) => legPaths[`${l.fromTaskId}-${l.toTaskId}`])
-      .filter((p): p is [number, number][] => !!p && p.length > 1);
+    // 보이는 leg 에 대해 path 있으면 실선, 없으면 점선. pins 인덱스 매핑 필요.
+    const taskIdToIdx = new Map(shownPinsAll.map((p, i) => [p.taskId, i]));
+    type MapLegSpec = { fromIdx: number; toIdx: number; path?: [number, number][] };
+    const legsForMap: MapLegSpec[] = [];
+    for (const l of visibleLegs) {
+      const fromIdx = taskIdToIdx.get(l.fromTaskId);
+      const toIdx = taskIdToIdx.get(l.toTaskId);
+      if (fromIdx === undefined || toIdx === undefined) continue;
+      legsForMap.push({
+        fromIdx,
+        toIdx,
+        path: legPaths[`${l.fromTaskId}-${l.toTaskId}`],
+      });
+    }
 
-    return {
-      pins: shownPins,
-      paths: shownPaths,
-      connectPins: shownPins.length > 1,
-    };
+    // label·lat·lng 만 plan-route-map 에 넘김 (taskId 는 매핑용이라 불필요)
+    const shownPins = shownPinsAll.map(({ lat, lng, label }) => ({ lat, lng, label }));
+
+    return { pins: shownPins, legs: legsForMap };
   }, [segment, sorted, legsWithCoords, visibleLegs, legPaths]);
 
   // 드래그 정렬 (같은 day_index 내만 이동) — early return 이전에 선언 필수.
@@ -371,7 +384,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
             days={days}
             legs={legsWithCoords}
           />
-          <PlanRouteMap pins={pins} paths={paths} connectPins={connectPins} height={240} />
+          <PlanRouteMap pins={pins} legs={mapLegs} height={240} />
         </div>
 
         {/* 일자별 섹션 — 전체를 하나의 DndContext 로 감싸서 날짜 간 이동도 지원 */}
@@ -476,6 +489,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
               place_lat: updates.place_lat ?? null,
               place_lng: updates.place_lng ?? null,
               tag: updates.tag ?? null,
+              category: updates.category ?? null,
               content: updates.content ?? null,
               stay_minutes: updates.stay_minutes ?? 0,
               manual_order: (tasksByDay[updates.day_index ?? sheetDayIndex]?.length) ?? 0,
