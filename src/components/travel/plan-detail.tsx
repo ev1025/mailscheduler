@@ -391,7 +391,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       {/* 헤더 — ← 뒤로 + 제목 */}
       <header className="flex items-center gap-2 border-b px-3 h-14 shrink-0">
         <button

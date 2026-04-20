@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 
 // 네이버 Dynamic Map (JavaScript SDK) 임베드.
@@ -32,27 +32,8 @@ export default function NaverMap({
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-
-  // window 레벨 wheel capture — 네이버 SDK 차단 + 부모 스크롤 직접 처리
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      if (!(e.target instanceof Node) || !el.contains(e.target)) return;
-      if (e.ctrlKey) {
-        e.stopImmediatePropagation();
-        return;
-      }
-      const scrollable =
-        el.closest<HTMLElement>(".overflow-y-auto") ??
-        (document.scrollingElement as HTMLElement | null);
-      if (scrollable) scrollable.scrollTop += e.deltaY;
-      e.stopImmediatePropagation();
-      e.preventDefault();
-    };
-    window.addEventListener("wheel", onWheel, { capture: true, passive: false });
-    return () => window.removeEventListener("wheel", onWheel, { capture: true });
-  }, []);
+  // 지도 조작 활성 state — 투명 오버레이 패턴
+  const [isMapActive, setIsMapActive] = useState(false);
 
   useEffect(() => {
     if (!CLIENT_ID) return;
@@ -120,12 +101,24 @@ export default function NaverMap({
         src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`}
         strategy="afterInteractive"
       />
-      <div className={`naver-map-host relative ${className || ""}`}>
+      <div
+        className={`naver-map-host relative ${className || ""}`}
+        onMouseLeave={() => setIsMapActive(false)}
+      >
         <div
           ref={containerRef}
           className="rounded-md overflow-hidden"
           style={{ height }}
         />
+        {!isMapActive && (
+          <button
+            type="button"
+            onClick={() => setIsMapActive(true)}
+            aria-label="지도 조작 활성화"
+            className="absolute inset-0 z-10 cursor-pointer bg-transparent rounded-md"
+            style={{ height }}
+          />
+        )}
       </div>
     </>
   );
