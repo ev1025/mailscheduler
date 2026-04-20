@@ -1,8 +1,6 @@
 "use client";
 
 import { MapPin, GripVertical, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { useTravelCategories } from "@/hooks/use-travel-categories";
 import { formatMinutes } from "@/lib/travel/providers";
 import type { TravelPlanTask } from "@/types";
 
@@ -46,12 +44,6 @@ export default function PlanTaskRow({
     arrivalTime && task.stay_minutes > 0
       ? addMinutes(arrivalTime, task.stay_minutes)
       : null;
-
-  const { colors } = useTravelCategories();
-  // 신규 category 컬럼 우선. 없으면 구 tag 단일값으로 시도 (하위호환).
-  const category =
-    task.category ?? (task.tag ? task.tag.split(",")[0].trim() : "");
-  const categoryColor = category ? colors[category] || "#6B7280" : null;
 
   return (
     <div
@@ -103,23 +95,11 @@ export default function PlanTaskRow({
           </span>
         </div>
 
-        {/* Row 2: 체류시간(시간범위 ~ 아래 중앙) | 분류 · 주소 */}
+        {/* Row 2: 체류시간(시간범위 ~ 아래 중앙) | 주소·내용 */}
         <div className="text-[10px] text-muted-foreground shrink-0 text-center">
           {task.stay_minutes > 0 ? `(${formatMinutes(task.stay_minutes)})` : ""}
         </div>
-        <div className="flex items-start gap-1.5 flex-wrap text-xs text-muted-foreground min-w-0">
-          {category && categoryColor && (
-            <Badge
-              className="shrink-0 text-[10px] px-1.5 py-0 h-4 mt-0.5"
-              style={{
-                backgroundColor: categoryColor + "20",
-                color: categoryColor,
-                borderColor: categoryColor + "40",
-              }}
-            >
-              {category}
-            </Badge>
-          )}
+        <div className="flex items-start gap-1.5 flex-wrap text-[10px] text-muted-foreground min-w-0">
           {(task.content || task.place_address) && (
             <span className="flex-1 min-w-0 break-words line-clamp-2 leading-snug">
               {task.content || task.place_address}
