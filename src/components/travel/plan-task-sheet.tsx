@@ -282,30 +282,29 @@ export default function PlanTaskSheet({
   const renderForm = () => (
     <>
         <div className="flex flex-col gap-3 px-4 pb-3">
-          {/* 일차 · 시간 · 체류 — 1행 */}
-          {/* 일자 · 시간 · 체류 — 명시적 폭으로 안정적 클릭 영역 확보 */}
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* 일자 · 시간 · 체류 — h-8·text-xs 로 통일 (높이·폰트 일치) */}
+          <div className="flex items-center gap-1.5 flex-wrap">
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
-              <SelectTrigger className="h-8 text-xs w-auto">
+              <SelectTrigger className="h-8 text-xs w-auto px-2">
                 {formatDayLabel(dayIndex)}
               </SelectTrigger>
               <SelectContent>
                 {availableDays.map((d) => (
-                  <SelectItem key={d} value={String(d)}>
+                  <SelectItem key={d} value={String(d)} className="text-xs">
                     {formatDayLabel(d)}
                   </SelectItem>
                 ))}
-                <SelectItem value="__new__">+ 새 일자</SelectItem>
+                <SelectItem value="__new__" className="text-xs">+ 새 일자</SelectItem>
               </SelectContent>
             </Select>
 
             <TimePicker
               value={startTime}
               onChange={setStartTime}
-              className="h-8 text-xs min-w-[88px]"
+              className="h-8 text-xs px-2"
             />
 
-            {/* 체류시간: 분/시간 토글 + 입력 — content-fit 폭 */}
+            {/* 체류시간: 분/시간 토글 + 입력 — 다른 두 개와 같은 h-8·text-xs */}
             <div className="flex items-center h-8 rounded-md border bg-transparent overflow-hidden">
               <Input
                 type="number"
@@ -315,12 +314,12 @@ export default function PlanTaskSheet({
                 value={stayMinutes}
                 onChange={(e) => handleStayChange(e.target.value)}
                 placeholder={stayUnit === "hour" ? "체류(시간)" : "체류(분)"}
-                className="h-full text-[10px] w-[72px] border-0 rounded-none focus-visible:ring-0 px-2"
+                className="h-full text-xs w-[72px] border-0 rounded-none focus-visible:ring-0 px-2"
               />
               <button
                 type="button"
                 onClick={toggleStayUnit}
-                className="h-full px-1.5 text-[10px] font-medium border-l bg-muted/50 hover:bg-muted text-muted-foreground"
+                className="h-full px-2 text-xs font-medium border-l bg-muted/50 hover:bg-muted text-muted-foreground"
                 title="분/시간 단위 전환"
               >
                 {stayUnit === "hour" ? "시간" : "분"}
