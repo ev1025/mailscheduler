@@ -394,7 +394,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
     // 자체 스크롤 컨테이너 제거 — 부모 main 의 overflow-y-auto 에 위임.
     // 이중 스크롤 컨테이너 충돌 방지. 헤더는 sticky top-0 으로 상단 고정.
     <div className="flex flex-col">
-      <header className="sticky top-0 z-20 flex items-center gap-2 border-b px-3 h-14 bg-background/95 backdrop-blur">
+      <header className="sticky top-0 z-20 flex items-center gap-2 border-b px-3 h-12 bg-background/95 backdrop-blur">
         <button
           type="button"
           onClick={onBack}
