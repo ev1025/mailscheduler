@@ -1,23 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findNearestStation, haversineKm } from "@/lib/travel/stations";
+import { findNearestStation } from "@/lib/travel/stations";
 
 // 공공데이터 한국철도공사 "여객열차 운행계획" 조회.
 // data.go.kr 데이터셋 15125762 — B551457/run/v2/plans 엔드포인트.
 //
-// 파라미터(가이드 기준):
-//   serviceKey (required) — 디코딩 인증키
-//   cond[run_ymd::GTE]    — 운행일자 이후 (YYYYMMDD)
-//   cond[run_ymd::LTE]    — 운행일자 이전 (YYYYMMDD)
-//   cond[dptre_stn_nm::EQ]— 출발역명
-//   cond[arvl_stn_nm::EQ] — 도착역명
-//   returnType            — JSON | XML
-//
-// 응답에서 열차계획출발일시 / 열차계획도착일시 차이 중 최솟값을 소요시간으로.
-// API 실패 시 하버사인 × KTX 평균속도(150km/h) 추정치 폴백.
+// 응답에서 열차계획출발일시 / 열차계획도착일시 차이 중 최솟값을 실제 소요시간으로.
+// 실측 데이터 없으면 404 반환 (부정확한 추정치 반환 금지).
 
 export const dynamic = "force-dynamic";
 
-const KTX_EFFECTIVE_KMH = 150;
 const PLANS_URL = "https://apis.data.go.kr/B551457/run/v2/plans";
 
 // YYYY-MM-DD → YYYYMMDD
@@ -122,10 +113,6 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  const estimateSec = Math.round(
-    (haversineKm(fromStation, toStation) / KTX_EFFECTIVE_KMH) * 3600
-  );
-
   // 운행계획 API 호출 — 오늘 ~ 30일 이내 구간.
   // cond[] 키는 URL 인코딩되면 'cond%5Brun_ymd%3A%3AGTE%5D' 가 되므로
   // URLSearchParams 에 raw 문자열로 넣음.
@@ -200,19 +187,16 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // API 실패 또는 데이터 없음 → 추정치로 폴백
+  // 실제 시간표 파싱 실패 — 추정치는 반환하지 않음 (부정확한 데이터 노출 금지).
+  // Google train 이 primary 이므로 여기서 null 이면 그 상위에서 실패 처리됨.
   if (apiError) console.warn("[public-train]", apiError);
-  return NextResponse.json({
-    durationSec: estimateSec,
-    fromStation: fromStation.name,
-    toStation: toStation.name,
-    estimated: true,
-    distanceKm: Math.round(haversineKm(fromStation, toStation) * 10) / 10,
-    note:
-      rawItems.length === 0
-        ? "운행계획 조회 결과 없음 (필드명 불일치 가능) — 추정치 반환"
-        : "열차 데이터는 받았으나 일시 필드 파싱 실패 — 추정치 반환",
-    apiError: apiError ?? undefined,
-    sampleRow: rawItems[0] ?? undefined,
-  });
+  return NextResponse.json(
+    {
+      error: "운행계획 조회 실패",
+      apiError: apiError ?? undefined,
+      matchedRows: rawItems.length,
+      sampleRow: rawItems[0] ?? undefined,
+    },
+    { status: 404 }
+  );
 }

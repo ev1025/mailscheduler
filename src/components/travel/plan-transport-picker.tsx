@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Zap, Edit3, RefreshCw } from "lucide-react";
+import { Check, Zap, Edit3 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,9 +32,7 @@ interface Props {
   legDeparture: string | null;
   // 현재 선택된 수단 (있으면 체크 표시)
   selectedMode: TransportMode | null;
-  // 캐시된 수단별 duration — 열릴 때 즉시 표시 가능
-  cachedDurations?: Partial<Record<TransportMode, number | null>> | null;
-  // 수단 선택 시 호출. durations 는 새로 조회한 결과 (캐시에 반영하도록 상위 전달)
+  // 수단 선택 시 호출. allDurations = 이번 fetch 의 전체 결과 (DB 캐시 업데이트용)
   onSelect: (
     mode: TransportMode,
     durationSec: number | null,
@@ -58,7 +56,6 @@ export default function PlanTransportPicker({
   to,
   legDeparture,
   selectedMode,
-  cachedDurations,
   onSelect,
   onSelectManual,
 }: Props) {
@@ -71,63 +68,34 @@ export default function PlanTransportPicker({
     taxi: null,
   }));
 
-  // 특정 수단들만 다시 계산 (force=true 면 캐시 무시)
-  const refetch = (modesToRefetch: TransportMode[] = MODES.map((m) => m.value)) => {
-    setDurations((prev) => {
-      const next = { ...prev };
-      for (const m of modesToRefetch) next[m] = "loading";
-      return next;
-    });
-    let cancelled = false;
-    (async () => {
-      const results = await Promise.all(
-        modesToRefetch.map((m) =>
-          fetchRouteDuration(from, to, m)
-            .then((r) => [m, r?.durationSec ?? null] as const)
-            .catch(() => [m, null] as const)
-        )
-      );
-      if (cancelled) return;
-      setDurations((prev) => {
-        const n = { ...prev };
-        for (const [m, sec] of results) n[m] = sec;
-        return n;
-      });
-    })();
-    return () => { cancelled = true; };
-  };
-
-  // 열릴 때마다 캐시 반영하여 초기화, 그리고 loading 인 항목 fetch
+  // 열릴 때마다 항상 fresh fetch — 캐시된 값이 오래되거나 틀릴 수 있으므로
+  // "계산 중..." 잠깐 보이더라도 정확한 현재 시간표 데이터 보장.
+  // (API 비용은 Google $200 크레딧 + 네이버 월 6만건 내 여유 충분)
   useEffect(() => {
     if (!open) return;
-    const cached = cachedDurations ?? {};
-    const useCached = (v: number | null | undefined): ModeState =>
-      typeof v === "number" && v > 0 ? v : "loading";
-    const next: Record<TransportMode, ModeState> = {
-      walk: useCached(cached.walk),
-      car: useCached(cached.car),
-      bus: useCached(cached.bus),
-      train: useCached(cached.train),
+    setDurations({
+      walk: "loading",
+      car: "loading",
+      bus: "loading",
+      train: "loading",
       taxi: null,
-    };
-    setDurations(next);
+    });
 
     let cancelled = false;
-    const toFetch = MODES.filter((m) => next[m.value] === "loading");
-    if (toFetch.length === 0) return;
-
     (async () => {
       const results = await Promise.all(
-        toFetch.map((m) =>
+        MODES.map((m) =>
           fetchRouteDuration(from, to, m.value)
             .then((r) => [m.value, r?.durationSec ?? null] as const)
             .catch(() => [m.value, null] as const)
         )
       );
       if (cancelled) return;
-      const patch: Record<TransportMode, ModeState> = { ...next };
-      for (const [mode, sec] of results) patch[mode] = sec;
-      setDurations(patch);
+      setDurations((prev) => {
+        const next = { ...prev };
+        for (const [mode, sec] of results) next[mode] = sec;
+        return next;
+      });
     })();
 
     return () => { cancelled = true; };
@@ -163,24 +131,11 @@ export default function PlanTransportPicker({
 
   const body = (
     <div className="flex flex-col gap-1 px-1 py-2">
-      <div className="flex items-center justify-between px-3 pb-2">
-        <p className="text-xs text-muted-foreground">
-          {legDeparture ? (
-            <>출발 <span className="font-semibold text-foreground tabular-nums">{legDeparture}</span> 기준</>
-          ) : (
-            "수단별 소요시간"
-          )}
+      {legDeparture && (
+        <p className="text-xs text-muted-foreground px-3 pb-2">
+          출발 <span className="font-semibold text-foreground tabular-nums">{legDeparture}</span> 기준
         </p>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-accent"
-          title="모든 수단 다시 계산"
-        >
-          <RefreshCw className="h-3 w-3" />
-          <span>재계산</span>
-        </button>
-      </div>
+      )}
       {MODES.map((m) => {
         const d = durations[m.value];
         const selected = selectedMode === m.value;

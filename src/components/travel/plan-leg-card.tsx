@@ -103,7 +103,6 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
             to={{ lat: toTask.place_lat!, lng: toTask.place_lng! }}
             legDeparture={legDeparture}
             selectedMode={null}
-            cachedDurations={toTask.transport_durations}
             onSelect={handleSelect}
             onSelectManual={() => {
               setPickerOpen(false);
@@ -146,7 +145,6 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
           to={{ lat: toTask.place_lat!, lng: toTask.place_lng! }}
           legDeparture={legDeparture}
           selectedMode={mode === "taxi" ? "car" : mode}
-          cachedDurations={toTask.transport_durations}
           onSelect={handleSelect}
           onSelectManual={() => {
             setPickerOpen(false);
