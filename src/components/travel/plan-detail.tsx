@@ -391,9 +391,10 @@ export default function PlanDetail({ planId, onBack }: Props) {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
-      {/* 헤더 — ← 뒤로 + 제목 */}
-      <header className="flex items-center gap-2 border-b px-3 h-14 shrink-0">
+    // 자체 스크롤 컨테이너 제거 — 부모 main 의 overflow-y-auto 에 위임.
+    // 이중 스크롤 컨테이너 충돌 방지. 헤더는 sticky top-0 으로 상단 고정.
+    <div className="flex flex-col">
+      <header className="sticky top-0 z-20 flex items-center gap-2 border-b px-3 h-14 bg-background/95 backdrop-blur">
         <button
           type="button"
           onClick={onBack}
@@ -425,7 +426,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
         )}
       </header>
 
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div>
         <div className="mx-auto w-full max-w-3xl">
         {/* 기간 — 데스크탑은 DatePicker 폭 제한 (w-40), 모바일은 flex-1 로 가득 */}
         <div className="flex items-center gap-2 px-3 py-2 border-b">
