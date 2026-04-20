@@ -24,7 +24,7 @@ export default function PlanList({ onSelectPlan, newSignal }: Props) {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto p-4">
         {loading ? (
           <p className="text-xs text-muted-foreground text-center py-8">불러오는 중…</p>
         ) : plans.length === 0 ? (
