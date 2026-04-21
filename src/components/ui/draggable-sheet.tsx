@@ -1,336 +1,158 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useEffect, useRef, useState } from "react";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 // 드래그 스냅 바텀시트.
-// snapPoints = [0.5, 0.9] 면 50% / 90% 두 지점에 스냅.
-// 최저 스냅에서 추가로 끌어내리면 닫힘(closeThreshold 추가 거리).
+// TagInput 바텀시트와 동일한 React 이벤트 기반 드래그 패턴 사용 — 앱 전체 일관.
 //
-// 드래그 영역:
-//  - 상단 핸들바: 항상 시트 드래그 (스냅 이동·닫기)
-//  - 본문 전체: scroll 이 맨 위에 있고 아래로 당기면 시트 드래그. 그 외 상황에선
-//    내부 스크롤 허용. 한 제스처 안에서 한 번 결정되면 끝까지 유지.
-//
-// React onPointer 가 Base UI Dialog 와 충돌해 일부 기기에서 작동 안 해
-// native touch/mouse 이벤트를 직접 바인딩.
+// 사용 원칙:
+//  - SheetContent 자체에 React onPointerDown/Move/Up 등록 → 시트 어디서든 드래그
+//  - 입력요소(input/textarea/button) 위에선 드래그 시작 안 함
+//  - 스크롤 영역(data-sheet-scroll) 안에서 스크롤이 맨 위 아닌 상태로 아래로 끌면
+//    드래그 취소 → 스크롤 우선
+//  - 최대 스냅에서 위로 밀면 스크롤 우선
+//  - 2개 스냅 기본: [0.5, 0.9] → "half" / "full" 토글
+//  - 최하 스냅에서 추가로 아래로 크게 끌면 닫힘
 
 interface DraggableSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
-  /** 스냅 지점들 (뷰포트 높이 비율). 기본 [0.9] = 단일 스냅. */
+  /** 스냅 지점 (뷰포트 높이 비율). 2개만 사용 (첫=half, 두번째=full). 기본 [0.5, 0.9]. */
   snapPoints?: number[];
-  /** 시트 열릴 때 초기 스냅 인덱스. 기본 snapPoints.length-1 (최대) */
+  /** 시트 열릴 때 초기 스냅. 0=half, 1=full. 기본 1. */
   defaultSnapIndex?: number;
-  /** 최저 스냅 이하로 끌어내렸을 때 닫히는 최소 거리 (px). 기본 120 */
-  closeThreshold?: number;
-  /** children 을 스크롤 가능한 영역으로 감쌀지. 기본 true */
+  /** children 을 스크롤 가능 영역으로 감쌀지. 기본 true */
   scrollable?: boolean;
   className?: string;
   children: React.ReactNode;
 }
 
+// 드래그 임계치 (px)
+const SNAP_THRESHOLD = 60;
+const CLOSE_EXTRA = 3; // half 에서 closeThreshold = T × 3
+
 export default function DraggableSheet({
   open,
   onOpenChange,
   title,
-  snapPoints = [0.9],
-  defaultSnapIndex,
-  closeThreshold = 120,
+  snapPoints = [0.5, 0.9],
+  defaultSnapIndex = 1,
   scrollable = true,
   className,
   children,
 }: DraggableSheetProps) {
-  // 스냅 지점은 오름차순 정렬. 배열 identity 안정화.
-  const snaps = useMemo(
-    () => [...snapPoints].sort((a, b) => a - b),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [snapPoints.join(",")]
+  // 2개 스냅만 사용 — 부족하면 안전한 기본값으로 보정
+  const halfVh = snapPoints[0] ?? 0.5;
+  const fullVh = snapPoints[1] ?? snapPoints[0] ?? 0.9;
+  const [snap, setSnap] = useState<"half" | "full">(
+    defaultSnapIndex === 0 ? "half" : "full"
   );
-  const maxIdx = snaps.length - 1;
-  const initialIdx = Math.max(0, Math.min(maxIdx, defaultSnapIndex ?? maxIdx));
+  const [snapAnimating, setSnapAnimating] = useState(false);
 
-  const [snapIdx, setSnapIdx] = useState(initialIdx);
-  const [dragOffset, setDragOffset] = useState(0);
-  const dragging = useRef(false);
-  const startYRef = useRef<number | null>(null);
-  const startOffsetRef = useRef(0);
-
-  const handleRef = useRef<HTMLDivElement | null>(null);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  // open 재설정
+  // 열릴 때마다 초기 스냅으로 재설정
   useEffect(() => {
-    if (open) {
-      setSnapIdx(initialIdx);
-      setDragOffset(0);
+    if (open) setSnap(defaultSnapIndex === 0 ? "half" : "full");
+  }, [open, defaultSnapIndex]);
+
+  // 스냅 전환 시 애니메이션 활성 → 끝나면 비활성 (드래그 중 전환 애니메이션 없도록)
+  useEffect(() => {
+    if (snapAnimating) {
+      const t = setTimeout(() => setSnapAnimating(false), 260);
+      return () => clearTimeout(t);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [snapAnimating]);
 
-  const snapIdxRef = useRef(snapIdx);
-  useEffect(() => { snapIdxRef.current = snapIdx; });
-
-  // onOpenChange 를 ref 로 고정 — 상위가 매 렌더 새 함수를 넘겨도 drag effect 가
-  // 재실행 돼 listener 가 re-register 되지 않게. 재등록 사이에 진행 중이던
-  // 드래그가 끊기던 것이 "드래그 안 되는" 주원인.
-  const onOpenChangeRef = useRef(onOpenChange);
-  useEffect(() => { onOpenChangeRef.current = onOpenChange; });
-
-  // 공용 drag 로직 — handle / content 양쪽에서 호출
-  const start = (clientY: number) => {
-    dragging.current = true;
-    startYRef.current = clientY;
-    startOffsetRef.current = 0;
+  const changeSnap = (next: "half" | "full") => {
+    setSnap(next);
+    setSnapAnimating(true);
   };
-  const move = (clientY: number) => {
-    if (!dragging.current || startYRef.current == null) return;
-    const delta = clientY - startYRef.current;
-    setDragOffset(startOffsetRef.current + delta);
-  };
-  const end = (clientY: number) => {
-    if (!dragging.current) return;
-    dragging.current = false;
-    const startY = startYRef.current;
-    startYRef.current = null;
 
-    if (startY == null) {
-      setDragOffset(0);
+  // ── 드래그 로직 (TagInput 과 동일 패턴) ─────────────────────────
+  const dragStartY = useRef<number | null>(null);
+  const dragStartSnap = useRef<"half" | "full">("half");
+  const dragScrollEl = useRef<HTMLElement | null>(null);
+  const dragCanceled = useRef(false);
+
+  const onDragStart = (e: React.PointerEvent) => {
+    const target = (e.target as HTMLElement) || null;
+    // 입력 요소/버튼 위에서는 드래그 시작 안 함
+    if (target?.closest("input, textarea, button, select, [role=button]")) {
+      dragStartY.current = null;
       return;
     }
-    const deltaAtEnd = clientY - startY;
-    const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-    const currentSnap = snaps[snapIdxRef.current];
-    const currentHeightPx = currentSnap * vh - deltaAtEnd;
+    dragStartY.current = e.clientY;
+    dragStartSnap.current = snap;
+    dragCanceled.current = false;
+    dragScrollEl.current = target?.closest("[data-sheet-scroll]") as HTMLElement | null;
+  };
 
-    const lowestHeightPx = snaps[0] * vh;
-    if (currentHeightPx < lowestHeightPx - closeThreshold) {
-      onOpenChangeRef.current(false);
-      setDragOffset(0);
+  const onDragMove = (e: React.PointerEvent) => {
+    if (dragStartY.current === null || dragCanceled.current) return;
+    const dy = e.clientY - dragStartY.current;
+    // 스크롤 영역에서 아래로 끌고 있는데 스크롤이 위가 아니면 → 스크롤 우선
+    if (dragScrollEl.current && dy > 0 && dragScrollEl.current.scrollTop > 0) {
+      dragCanceled.current = true;
       return;
     }
-
-    let nearest = 0;
-    let minDist = Infinity;
-    for (let i = 0; i < snaps.length; i++) {
-      const d = Math.abs(snaps[i] * vh - currentHeightPx);
-      if (d < minDist) {
-        minDist = d;
-        nearest = i;
-      }
+    // full 상태에서 위로는 더 이상 올릴 공간 없음 → 스크롤 허용
+    if (dragStartSnap.current === "full" && dy < 0 && dragScrollEl.current) {
+      dragCanceled.current = true;
+      return;
     }
-    setSnapIdx(nearest);
-    setDragOffset(0);
   };
 
-  // 핸들바 전용 리스너 — 항상 시트 드래그.
-  // open 을 deps 에 포함해야 SheetPortal 이 open=true 로 마운트된 직후 ref 가
-  // 채워진 시점에 re-run 되어 native listener 가 등록됨.
-  useEffect(() => {
-    if (!open) return;
-    const el = handleRef.current;
-    if (!el) return;
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      start(e.touches[0].clientY);
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (!dragging.current) return;
-      e.preventDefault();
-      move(e.touches[0].clientY);
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      const y = e.changedTouches[0]?.clientY ?? 0;
-      end(y);
-    };
-    const onMouseDown = (e: MouseEvent) => {
-      start(e.clientY);
-      const onMove = (ev: MouseEvent) => move(ev.clientY);
-      const onUp = (ev: MouseEvent) => {
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-        end(ev.clientY);
-      };
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-    };
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
-    el.addEventListener("mousedown", onMouseDown);
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-      el.removeEventListener("touchcancel", onTouchEnd);
-      el.removeEventListener("mousedown", onMouseDown);
-    };
-  }, [open, snaps, closeThreshold]);
-
-  // 본문 영역 리스너 — 내부 스크롤과 공존. 제스처 시작 시 scroll 상태 + 방향으로
-  // "sheet drag" vs "content scroll" 모드 결정.
-  useEffect(() => {
-    if (!open) return;
-    const el = scrollRef.current;
-    if (!el) return;
-
-    // 한 제스처의 모드. null = 미결정, "sheet" = 시트 이동, "content" = 내부 스크롤
-    let gestureMode: "sheet" | "content" | null = null;
-    let gestureStartY: number | null = null;
-    let gestureStartScrollTop = 0;
-    const DECIDE_PX = 6; // 이만큼 움직여야 모드 결정
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      gestureStartY = e.touches[0].clientY;
-      gestureStartScrollTop = el.scrollTop;
-      gestureMode = null;
-    };
-    const onTouchMove = (e: TouchEvent) => {
-      if (gestureStartY == null) return;
-      const y = e.touches[0].clientY;
-      const delta = y - gestureStartY;
-      if (gestureMode == null) {
-        if (Math.abs(delta) < DECIDE_PX) return;
-        // 아래로 당기기 + 스크롤 맨 위 → 시트 드래그 (닫기/축소)
-        // 위로 밀기 + 시트가 최대 스냅 아님 → 시트 드래그 (확장)
-        const canGrow = snapIdxRef.current < maxIdx;
-        if (delta > 0 && gestureStartScrollTop <= 0) {
-          gestureMode = "sheet";
-          start(gestureStartY);
-        } else if (delta < 0 && canGrow && gestureStartScrollTop <= 0) {
-          gestureMode = "sheet";
-          start(gestureStartY);
-        } else {
-          gestureMode = "content";
-        }
-      }
-      if (gestureMode === "sheet") {
-        e.preventDefault();
-        move(y);
-      }
-      // content 모드는 아무것도 안 함 → 네이티브 스크롤
-    };
-    const onTouchEnd = (e: TouchEvent) => {
-      const y = e.changedTouches[0]?.clientY ?? 0;
-      if (gestureMode === "sheet") end(y);
-      gestureMode = null;
-      gestureStartY = null;
-    };
-
-    const onMouseDown = (e: MouseEvent) => {
-      gestureStartY = e.clientY;
-      gestureStartScrollTop = el.scrollTop;
-      gestureMode = null;
-      const onMove = (ev: MouseEvent) => {
-        if (gestureStartY == null) return;
-        const delta = ev.clientY - gestureStartY;
-        if (gestureMode == null) {
-          if (Math.abs(delta) < DECIDE_PX) return;
-          const canGrow = snapIdxRef.current < maxIdx;
-          if (delta > 0 && gestureStartScrollTop <= 0) {
-            gestureMode = "sheet";
-            start(gestureStartY);
-          } else if (delta < 0 && canGrow && gestureStartScrollTop <= 0) {
-            gestureMode = "sheet";
-            start(gestureStartY);
-          } else {
-            gestureMode = "content";
-          }
-        }
-        if (gestureMode === "sheet") move(ev.clientY);
-      };
-      const onUp = (ev: MouseEvent) => {
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
-        if (gestureMode === "sheet") end(ev.clientY);
-        gestureMode = null;
-        gestureStartY = null;
-      };
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mouseup", onUp);
-    };
-
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
-    el.addEventListener("mousedown", onMouseDown);
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-      el.removeEventListener("touchcancel", onTouchEnd);
-      el.removeEventListener("mousedown", onMouseDown);
-    };
-  }, [open, snaps, maxIdx, closeThreshold]);
-
-  // 입력칸 포커스 시 키보드로 가려지지 않도록 자동 스크롤.
-  // overlays-content 모드에선 layout viewport 가 변하지 않아 브라우저 기본
-  // 스크롤이 작동 안 함. 키보드가 올라온 뒤(≈300ms) 포커스된 element 를
-  // 스크롤 영역의 중앙으로 끌어옴.
-  useEffect(() => {
-    if (!open) return;
-    const el = scrollRef.current;
-    if (!el) return;
-
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    const onFocusIn = (e: FocusEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        !(target instanceof HTMLInputElement) &&
-        !(target instanceof HTMLTextAreaElement)
-      ) return;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        target.scrollIntoView({ block: "center", behavior: "smooth" });
-      }, 300);
-    };
-    el.addEventListener("focusin", onFocusIn);
-    return () => {
-      if (timer) clearTimeout(timer);
-      el.removeEventListener("focusin", onFocusIn);
-    };
-  }, [open]);
-
-  const currentSnap = snaps[snapIdx];
-  // 시트 위치 = top. bottom 은 Sheet 베이스 style 의 `var(--kb-offset)` 유지
-  // (키보드 올라오면 그 높이만큼 시트가 위로 밀려 입력칸 가려지지 않음).
-  // height 로 고정하면 bottom 이 올라갔을 때 top 이 음수가 되어 상단이 잘림.
-  const topPercent = (1 - currentSnap) * 100;
-  const positionStyle: React.CSSProperties = {
-    top: `calc(${topPercent}dvh + ${dragOffset}px)`,
-    maxHeight: "100dvh",
-    transition: dragging.current ? "none" : "top 180ms ease-out",
-    // 상단 흰색 border 제거 — Sheet 의 data-[side=bottom]:border-t 오버라이드
-    borderTopWidth: 0,
+  const onDragEnd = (e: React.PointerEvent) => {
+    const canceled = dragCanceled.current;
+    dragCanceled.current = false;
+    dragScrollEl.current = null;
+    if (dragStartY.current === null || canceled) {
+      dragStartY.current = null;
+      return;
+    }
+    const dy = e.clientY - dragStartY.current;
+    dragStartY.current = null;
+    const T = SNAP_THRESHOLD;
+    if (dragStartSnap.current === "half") {
+      if (dy < -T) changeSnap("full");
+      else if (dy > T) onOpenChange(false);
+    } else {
+      // full 상태
+      if (dy > T * CLOSE_EXTRA) onOpenChange(false);
+      else if (dy > T) changeSnap("half");
+    }
   };
+
+  const height = snap === "full" ? `${fullVh * 100}dvh` : `${halfVh * 100}dvh`;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="bottom"
-        className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] flex flex-col ${className ?? ""}`}
-        style={positionStyle}
+        className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden flex flex-col touch-pan-y ${
+          snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
+        } ${className ?? ""}`}
+        style={{ height, borderTopWidth: 0 }}
         showBackButton={false}
         showCloseButton={false}
         initialFocus={false}
+        finalFocus={false}
+        onPointerDown={onDragStart}
+        onPointerMove={onDragMove}
+        onPointerUp={onDragEnd}
+        onPointerCancel={onDragEnd}
       >
-        <SheetHeader className="px-4 pt-1 pb-1.5 gap-1 shrink-0">
-          <div
-            ref={handleRef}
-            className="flex justify-center py-3 -my-2 touch-none cursor-grab active:cursor-grabbing"
-            aria-label="드래그로 이동/닫기"
-          >
-            <div className="h-1.5 w-12 rounded-full bg-muted-foreground/40" />
-          </div>
-          {title && <SheetTitle className="text-sm">{title}</SheetTitle>}
-        </SheetHeader>
+        {/* 핸들바 — 시각적 인디케이터 (실제 드래그는 SheetContent 전체에서 가능) */}
+        <div className="flex justify-center py-2 shrink-0" aria-label="드래그로 이동/닫기">
+          <div className="h-1.5 w-12 rounded-full bg-muted-foreground/40" />
+        </div>
+        {title && (
+          <SheetTitle className="text-sm px-4 pb-1.5 shrink-0">{title}</SheetTitle>
+        )}
         {scrollable ? (
           <div
-            ref={scrollRef}
+            data-sheet-scroll
             className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
           >
             {children}
