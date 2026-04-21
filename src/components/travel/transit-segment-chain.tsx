@@ -67,16 +67,20 @@ export default function TransitSegmentChain({ segments, filterKinds }: Props) {
       {filtered.map((s, i) => {
         const from = cleanStopName(s.fromStop);
         const to = cleanStopName(s.toStop);
+        // 지하철·기차·트램은 도착역에도 호선 배지 반복 (같은 호선 이어감을 시각적으로 강조).
+        // 버스는 번호 배지 1개로 충분.
+        const repeatBadge = s.kind === "subway" || s.kind === "train" || s.kind === "tram";
         return (
           <div
             key={i}
-            className="flex items-center gap-1.5 text-[11px] leading-tight text-foreground"
+            className="flex items-center gap-1.5 text-[11px] leading-tight text-foreground flex-wrap"
           >
             <SegmentBadge segment={s} />
             {from && <span className="break-keep">{from}</span>}
             {to && (
               <>
                 <ArrowRight className="h-3 w-3 text-muted-foreground/70 shrink-0" />
+                {repeatBadge && <SegmentBadge segment={s} />}
                 <span className="break-keep">{to}</span>
               </>
             )}
