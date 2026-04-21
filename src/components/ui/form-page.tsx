@@ -60,28 +60,72 @@ export default function FormPage({
   const handleCancel = onCancel ?? (() => onOpenChange(false));
   const handleBack = onBack ?? handleCancel;
 
-  // 키보드 대응 — 입력칸 포커스 시 내부 스크롤 중앙으로
+  // 키보드 대응 — 입력칸 포커스 시 visualViewport 기준으로 키보드 위에 오도록 스크롤.
+  // overlays-content 모드에서 브라우저 기본 스크롤이 layout viewport 기준이라
+  // 키보드에 가려지는 입력칸을 못 올림 → 수동 처리 필수.
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!open) return;
-    const el = scrollRef.current;
-    if (!el) return;
+    const scrollEl = scrollRef.current;
+    if (!scrollEl) return;
+
     let timer: ReturnType<typeof setTimeout> | null = null;
+
+    // 입력칸이 visualViewport 안에 보이도록 스크롤
+    const bringIntoView = (target: HTMLElement) => {
+      const vv = window.visualViewport;
+      const visibleTop = vv ? vv.offsetTop : 0;
+      const visibleBottom = vv
+        ? vv.offsetTop + vv.height
+        : window.innerHeight;
+      const rect = target.getBoundingClientRect();
+      // 입력칸 하단이 visual viewport 하단에서 최소 40px 이상 위에 있도록
+      const safeBottom = visibleBottom - 40;
+      if (rect.bottom > safeBottom) {
+        const delta = rect.bottom - safeBottom;
+        scrollEl.scrollBy({ top: delta, behavior: "smooth" });
+        return;
+      }
+      // 위로 가려진 경우 (타이틀 아래로 숨음)
+      const safeTop = visibleTop + 20;
+      if (rect.top < safeTop) {
+        const delta = rect.top - safeTop;
+        scrollEl.scrollBy({ top: delta, behavior: "smooth" });
+      }
+    };
+
+    const scheduleBring = (target: HTMLElement) => {
+      if (timer) clearTimeout(timer);
+      // 키보드 슬라이드 애니메이션(≈250ms) + visualViewport resize 이벤트 기다림
+      timer = setTimeout(() => bringIntoView(target), 350);
+    };
+
     const onFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
       if (
         !(target instanceof HTMLInputElement) &&
         !(target instanceof HTMLTextAreaElement)
       ) return;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        target.scrollIntoView({ block: "center", behavior: "smooth" });
-      }, 300);
+      scheduleBring(target);
     };
-    el.addEventListener("focusin", onFocusIn);
+
+    // visualViewport 가 변하면(키보드가 뒤늦게 올라오거나 내려가면) 활성 입력칸 재조정
+    const onViewportResize = () => {
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLInputElement ||
+        active instanceof HTMLTextAreaElement
+      ) {
+        if (scrollEl.contains(active)) bringIntoView(active);
+      }
+    };
+
+    scrollEl.addEventListener("focusin", onFocusIn);
+    window.visualViewport?.addEventListener("resize", onViewportResize);
     return () => {
       if (timer) clearTimeout(timer);
-      el.removeEventListener("focusin", onFocusIn);
+      scrollEl.removeEventListener("focusin", onFocusIn);
+      window.visualViewport?.removeEventListener("resize", onViewportResize);
     };
   }, [open]);
 
