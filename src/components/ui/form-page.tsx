@@ -64,18 +64,25 @@ export default function FormPage({
   const isDesktop = useMediaQuery("(min-width: 768px)");
 
   // 모바일 DialogContent 실제 높이 — visualViewport.height 직접 사용.
-  // dvh / window.innerHeight 는 브라우저(특히 Android Chrome)마다 키보드 처리가
-  // 달라 신뢰 어려움. visualViewport 는 항상 "현재 보이는 영역" 을 반환.
+  // + 키보드 높이(bumper 용) 동시 계산: window.innerHeight - visualViewport.height
   const [visualHeight, setVisualHeight] = useState<number | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
     if (isDesktop) {
       setVisualHeight(null);
+      setKeyboardHeight(0);
       return;
     }
     const vv = window.visualViewport;
     const update = () => {
-      setVisualHeight(vv ? vv.height : window.innerHeight);
+      if (vv) {
+        setVisualHeight(vv.height);
+        setKeyboardHeight(Math.max(0, window.innerHeight - vv.height));
+      } else {
+        setVisualHeight(window.innerHeight);
+        setKeyboardHeight(0);
+      }
     };
     update();
     vv?.addEventListener("resize", update);
@@ -161,8 +168,12 @@ export default function FormPage({
             ? { height: `${visualHeight}px` }
             : undefined
         }
+        // h-[100dvh] 에서 `!` 제거 — !important 가 inline style.height 를 이겨서
+        // visualViewport 기반 높이 축소가 무시되던 버그 수정. 모바일은 inline
+        // style.height 가 driver, CSS 는 visualHeight 계산 전 초기 렌더 fallback.
+        // 데스크탑은 inline style=undefined 이므로 md:!h-auto 가 적용.
         className={`
-          !max-w-none !w-full !h-[100dvh] !top-0 !left-0
+          !max-w-none !w-full h-[100dvh] !top-0 !left-0
           !translate-x-0 !translate-y-0 !rounded-none !p-0
           !gap-0 flex flex-col
           ${desktopMaxWidth} md:!w-auto md:!max-h-[85dvh] md:!h-auto
@@ -180,16 +191,19 @@ export default function FormPage({
             <DialogTitle className="text-base">{title}</DialogTitle>
           )}
         </DialogHeader>
-        {/* 스크롤 컨테이너. DialogContent 가 이미 kb-offset 만큼 줄어든 상태라
-            내부는 padding-bottom=2rem (단순 여백) + scroll-padding-bottom=3rem
-            (block:end scrollIntoView 시 target 이 footer 바로 붙어 바닥에 안 붙게)
-            만 있으면 충분. */}
+        {/* 스크롤 컨테이너 — 키보드 방어 2중 안전망:
+            1. DialogContent 자체가 visualViewport 기반으로 축소 (위 inline style)
+            2. 여기 padding-bottom 에 키보드 높이만큼 bumper 추가해서 스크롤 여유
+               공간 확보. scrollIntoView({block:end}) 가 그 공간까지 활용해 textarea 를
+               가려지지 않는 위치로 올림. */}
         <div
           ref={scrollRef}
-          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-3 pb-8"
-          style={{ scrollPaddingBottom: "3rem" }}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-3"
+          style={{
+            scrollPaddingBottom: "3rem",
+            paddingBottom: `${Math.max(32, keyboardHeight + 40)}px`,
+          }}
           // 빈 영역 탭 시 포커스된 input/textarea blur → 키보드 자동 내림.
-          // 진짜 빈 영역에서만 동작하도록 target=currentTarget 인 경우만.
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               const active = document.activeElement;
