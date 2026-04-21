@@ -258,10 +258,14 @@ export default function DraggableSheet({
   }, [snaps, maxIdx, closeThreshold, onOpenChange]);
 
   const currentSnap = snaps[snapIdx];
-  const heightStyle: React.CSSProperties = {
-    height: `calc(${currentSnap * 100}dvh - ${dragOffset}px)`,
+  // 시트 위치 = top. bottom 은 Sheet 베이스 style 의 `var(--kb-offset)` 유지
+  // (키보드 올라오면 그 높이만큼 시트가 위로 밀려 입력칸 가려지지 않음).
+  // height 로 고정하면 bottom 이 올라갔을 때 top 이 음수가 되어 상단이 잘림.
+  const topPercent = (1 - currentSnap) * 100;
+  const positionStyle: React.CSSProperties = {
+    top: `calc(${topPercent}dvh + ${dragOffset}px)`,
     maxHeight: "100dvh",
-    transition: dragging.current ? "none" : "height 180ms ease-out",
+    transition: dragging.current ? "none" : "top 180ms ease-out",
     // 상단 흰색 border 제거 — Sheet 의 data-[side=bottom]:border-t 오버라이드
     borderTopWidth: 0,
   };
@@ -271,7 +275,7 @@ export default function DraggableSheet({
       <SheetContent
         side="bottom"
         className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] flex flex-col ${className ?? ""}`}
-        style={heightStyle}
+        style={positionStyle}
         showBackButton={false}
         showCloseButton={false}
         initialFocus={false}
