@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Check, Zap, Edit3 } from "lucide-react";
+import { Check, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,12 +70,23 @@ export default function PlanTransportPicker({
     <DeviceDialog
       open={open}
       onOpenChange={onOpenChange}
-      title={legDeparture ? `이동수단 선택 (출발 ${legDeparture} 기준)` : "이동수단 선택"}
+      title="이동수단 선택"
       desktopMaxWidth="max-w-sm"
       snapPoints={[0.5, 0.9]}
       defaultSnapIndex={1}
     >
       <div className="flex flex-col gap-1 px-1 py-2">
+        {legDeparture && (
+          // 서브헤더 — 타이틀("이동수단 선택", text-base · medium) 과 구분되도록
+          // text-[11px] · muted-foreground + 시간은 tabular-nums 강조
+          <p className="px-3 pb-2 -mt-1 text-[11px] text-muted-foreground">
+            출발{" "}
+            <span className="font-semibold text-foreground tabular-nums">
+              {legDeparture}
+            </span>{" "}
+            기준
+          </p>
+        )}
         {MODES.map((m) => {
           const d = durations[m.value];
           const selected = selectedMode === m.value;
@@ -151,14 +162,21 @@ export default function PlanTransportPicker({
           );
         })}
 
-        <div className="border-t mt-1 pt-1">
+        {/* 수동 입력 — 다른 수단 버튼과 동일한 카드 구조 (이모지·라벨·부가 설명).
+            구분선 대신 약간의 간격으로 "별도 존" 임을 시각화. */}
+        <div className="mt-2 pt-2 border-t border-dashed">
           <button
             type="button"
             onClick={onSelectManual}
-            className="flex items-center gap-3 rounded-md px-3 py-2 w-full text-left text-xs text-muted-foreground hover:bg-accent"
+            className="flex items-start gap-3 rounded-md px-3 py-2.5 w-full text-left transition-colors hover:bg-accent"
           >
-            <Edit3 className="h-3.5 w-3.5" />
-            <span>수동으로 소요시간 직접 입력</span>
+            <span className="text-2xl shrink-0" aria-hidden="true">✏️</span>
+            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+              <span className="font-medium text-sm">수동 입력</span>
+              <span className="text-xs text-muted-foreground">
+                소요시간을 직접 분 단위로 지정
+              </span>
+            </div>
           </button>
         </div>
       </div>
