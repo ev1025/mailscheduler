@@ -7,6 +7,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 // snapPoints = [0.5, 0.9] 면 50% / 90% 두 지점에 스냅.
 // 최저 스냅에서 추가로 끌어내리면 닫힘(closeThreshold 추가 거리).
 //
+// 드래그 영역:
+//  - 상단 핸들바: 항상 시트 드래그 (스냅 이동·닫기)
+//  - 본문 전체: scroll 이 맨 위에 있고 아래로 당기면 시트 드래그. 그 외 상황에선
+//    내부 스크롤 허용. 한 제스처 안에서 한 번 결정되면 끝까지 유지.
+//
 // React onPointer 가 Base UI Dialog 와 충돌해 일부 기기에서 작동 안 해
 // native touch/mouse 이벤트를 직접 바인딩.
 
@@ -37,11 +42,9 @@ export default function DraggableSheet({
   className,
   children,
 }: DraggableSheetProps) {
-  // 스냅 지점은 오름차순 정렬. 배열 identity 가 매 렌더마다 바뀌면 effect 재구독되어
-  // native listener 가 깜빡이므로 memoize.
+  // 스냅 지점은 오름차순 정렬. 배열 identity 안정화.
   const snaps = useMemo(
     () => [...snapPoints].sort((a, b) => a - b),
-    // 실제 값 변화만 감지: join 으로 안정화 (length/값 다 포함).
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [snapPoints.join(",")]
   );
@@ -49,11 +52,13 @@ export default function DraggableSheet({
   const initialIdx = Math.max(0, Math.min(maxIdx, defaultSnapIndex ?? maxIdx));
 
   const [snapIdx, setSnapIdx] = useState(initialIdx);
-  const [dragOffset, setDragOffset] = useState(0); // 현재 스냅 기준 추가 픽셀 오프셋(아래쪽 +)
+  const [dragOffset, setDragOffset] = useState(0);
   const dragging = useRef(false);
   const startYRef = useRef<number | null>(null);
   const startOffsetRef = useRef(0);
+
   const handleRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   // open 재설정
   useEffect(() => {
@@ -64,61 +69,59 @@ export default function DraggableSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // snapIdx 도 ref 로 접근 — end() 시점에 최신 값 필요.
   const snapIdxRef = useRef(snapIdx);
   useEffect(() => { snapIdxRef.current = snapIdx; });
 
+  // 공용 drag 로직 — handle / content 양쪽에서 호출
+  const start = (clientY: number) => {
+    dragging.current = true;
+    startYRef.current = clientY;
+    startOffsetRef.current = 0;
+  };
+  const move = (clientY: number) => {
+    if (!dragging.current || startYRef.current == null) return;
+    const delta = clientY - startYRef.current;
+    setDragOffset(startOffsetRef.current + delta);
+  };
+  const end = (clientY: number) => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    const startY = startYRef.current;
+    startYRef.current = null;
+
+    if (startY == null) {
+      setDragOffset(0);
+      return;
+    }
+    const deltaAtEnd = clientY - startY;
+    const vh = typeof window !== "undefined" ? window.innerHeight : 800;
+    const currentSnap = snaps[snapIdxRef.current];
+    const currentHeightPx = currentSnap * vh - deltaAtEnd;
+
+    const lowestHeightPx = snaps[0] * vh;
+    if (currentHeightPx < lowestHeightPx - closeThreshold) {
+      onOpenChange(false);
+      setDragOffset(0);
+      return;
+    }
+
+    let nearest = 0;
+    let minDist = Infinity;
+    for (let i = 0; i < snaps.length; i++) {
+      const d = Math.abs(snaps[i] * vh - currentHeightPx);
+      if (d < minDist) {
+        minDist = d;
+        nearest = i;
+      }
+    }
+    setSnapIdx(nearest);
+    setDragOffset(0);
+  };
+
+  // 핸들바 전용 리스너 — 항상 시트 드래그
   useEffect(() => {
     const el = handleRef.current;
     if (!el) return;
-
-    const start = (clientY: number) => {
-      dragging.current = true;
-      startYRef.current = clientY;
-      startOffsetRef.current = 0;
-    };
-    const move = (clientY: number) => {
-      if (!dragging.current || startYRef.current == null) return;
-      const delta = clientY - startYRef.current;
-      setDragOffset(startOffsetRef.current + delta);
-    };
-    const end = (clientY: number) => {
-      if (!dragging.current) return;
-      dragging.current = false;
-      const startY = startYRef.current;
-      startYRef.current = null;
-
-      if (startY == null) {
-        setDragOffset(0);
-        return;
-      }
-      const deltaAtEnd = clientY - startY;
-      const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-      const currentSnap = snaps[snapIdxRef.current];
-      const currentHeightPx = currentSnap * vh - deltaAtEnd;
-
-      // 닫기 조건: 최저 스냅보다 closeThreshold 만큼 더 내려감
-      const lowestHeightPx = snaps[0] * vh;
-      if (currentHeightPx < lowestHeightPx - closeThreshold) {
-        onOpenChange(false);
-        setDragOffset(0);
-        return;
-      }
-
-      // 가장 가까운 스냅 선택
-      let nearest = 0;
-      let minDist = Infinity;
-      for (let i = 0; i < snaps.length; i++) {
-        const d = Math.abs(snaps[i] * vh - currentHeightPx);
-        if (d < minDist) {
-          minDist = d;
-          nearest = i;
-        }
-      }
-      setSnapIdx(nearest);
-      setDragOffset(0);
-    };
-
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       start(e.touches[0].clientY);
@@ -132,7 +135,6 @@ export default function DraggableSheet({
       const y = e.changedTouches[0]?.clientY ?? 0;
       end(y);
     };
-
     const onMouseDown = (e: MouseEvent) => {
       start(e.clientY);
       const onMove = (ev: MouseEvent) => move(ev.clientY);
@@ -140,6 +142,102 @@ export default function DraggableSheet({
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
         end(ev.clientY);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    el.addEventListener("mousedown", onMouseDown);
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+      el.removeEventListener("mousedown", onMouseDown);
+    };
+  }, [snaps, closeThreshold, onOpenChange]);
+
+  // 본문 영역 리스너 — 내부 스크롤과 공존. 제스처 시작 시 scroll 상태 + 방향으로
+  // "sheet drag" vs "content scroll" 모드 결정.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    // 한 제스처의 모드. null = 미결정, "sheet" = 시트 이동, "content" = 내부 스크롤
+    let gestureMode: "sheet" | "content" | null = null;
+    let gestureStartY: number | null = null;
+    let gestureStartScrollTop = 0;
+    const DECIDE_PX = 6; // 이만큼 움직여야 모드 결정
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      gestureStartY = e.touches[0].clientY;
+      gestureStartScrollTop = el.scrollTop;
+      gestureMode = null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (gestureStartY == null) return;
+      const y = e.touches[0].clientY;
+      const delta = y - gestureStartY;
+      if (gestureMode == null) {
+        if (Math.abs(delta) < DECIDE_PX) return;
+        // 아래로 당기기 + 스크롤 맨 위 → 시트 드래그 (닫기/축소)
+        // 위로 밀기 + 시트가 최대 스냅 아님 → 시트 드래그 (확장)
+        const canGrow = snapIdxRef.current < maxIdx;
+        if (delta > 0 && gestureStartScrollTop <= 0) {
+          gestureMode = "sheet";
+          start(gestureStartY);
+        } else if (delta < 0 && canGrow && gestureStartScrollTop <= 0) {
+          gestureMode = "sheet";
+          start(gestureStartY);
+        } else {
+          gestureMode = "content";
+        }
+      }
+      if (gestureMode === "sheet") {
+        e.preventDefault();
+        move(y);
+      }
+      // content 모드는 아무것도 안 함 → 네이티브 스크롤
+    };
+    const onTouchEnd = (e: TouchEvent) => {
+      const y = e.changedTouches[0]?.clientY ?? 0;
+      if (gestureMode === "sheet") end(y);
+      gestureMode = null;
+      gestureStartY = null;
+    };
+
+    const onMouseDown = (e: MouseEvent) => {
+      gestureStartY = e.clientY;
+      gestureStartScrollTop = el.scrollTop;
+      gestureMode = null;
+      const onMove = (ev: MouseEvent) => {
+        if (gestureStartY == null) return;
+        const delta = ev.clientY - gestureStartY;
+        if (gestureMode == null) {
+          if (Math.abs(delta) < DECIDE_PX) return;
+          const canGrow = snapIdxRef.current < maxIdx;
+          if (delta > 0 && gestureStartScrollTop <= 0) {
+            gestureMode = "sheet";
+            start(gestureStartY);
+          } else if (delta < 0 && canGrow && gestureStartScrollTop <= 0) {
+            gestureMode = "sheet";
+            start(gestureStartY);
+          } else {
+            gestureMode = "content";
+          }
+        }
+        if (gestureMode === "sheet") move(ev.clientY);
+      };
+      const onUp = (ev: MouseEvent) => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        if (gestureMode === "sheet") end(ev.clientY);
+        gestureMode = null;
+        gestureStartY = null;
       };
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
@@ -157,15 +255,15 @@ export default function DraggableSheet({
       el.removeEventListener("touchcancel", onTouchEnd);
       el.removeEventListener("mousedown", onMouseDown);
     };
-  }, [snaps, closeThreshold, onOpenChange]);
+  }, [snaps, maxIdx, closeThreshold, onOpenChange]);
 
-  // 현재 시트 높이 = 스냅% - 드래그 오프셋 (오프셋은 px).
-  // Tailwind 에서 동적 calc 로 계산.
   const currentSnap = snaps[snapIdx];
   const heightStyle: React.CSSProperties = {
     height: `calc(${currentSnap * 100}dvh - ${dragOffset}px)`,
     maxHeight: "100dvh",
     transition: dragging.current ? "none" : "height 180ms ease-out",
+    // 상단 흰색 border 제거 — Sheet 의 data-[side=bottom]:border-t 오버라이드
+    borderTopWidth: 0,
   };
 
   return (
@@ -189,7 +287,10 @@ export default function DraggableSheet({
           {title && <SheetTitle className="text-sm">{title}</SheetTitle>}
         </SheetHeader>
         {scrollable ? (
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <div
+            ref={scrollRef}
+            className="flex-1 min-h-0 overflow-y-auto overscroll-contain"
+          >
             {children}
           </div>
         ) : (

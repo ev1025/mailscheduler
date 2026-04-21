@@ -70,17 +70,12 @@ export default function PlanTransportPicker({
     <DeviceDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="이동수단 선택"
+      title={legDeparture ? `이동수단 선택 (출발 ${legDeparture} 기준)` : "이동수단 선택"}
       desktopMaxWidth="max-w-sm"
       snapPoints={[0.5, 0.9]}
-      defaultSnapIndex={0}
+      defaultSnapIndex={1}
     >
       <div className="flex flex-col gap-1 px-1 py-2">
-        {legDeparture && (
-          <p className="text-xs text-muted-foreground px-3 pb-2">
-            출발 <span className="font-semibold text-foreground tabular-nums">{legDeparture}</span> 기준
-          </p>
-        )}
         {MODES.map((m) => {
           const d = durations[m.value];
           const selected = selectedMode === m.value;
