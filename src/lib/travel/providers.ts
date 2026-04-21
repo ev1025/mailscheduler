@@ -19,6 +19,15 @@ export interface RouteResult {
   segments?: TransitSegment[];
 }
 
+/**
+ * 실패 원인 상세. "계산 실패" 만 보였던 UX 를 "어떤 이유로 실패" 까지 노출.
+ * 예: "Google REQUEST_DENIED", "Google ZERO_RESULTS", "NCP 503", "네트워크 에러"
+ */
+export interface RouteError {
+  code: string;      // 간단 분류 (REQUEST_DENIED / ZERO_RESULTS / OVER_QUERY_LIMIT / HTTP_503 / NETWORK 등)
+  message: string;   // 사용자용 한 줄 설명
+}
+
 // 자가용: NCP Directions 서버 프록시 호출
 async function getDrivingDuration(
   from: { lat: number; lng: number },
@@ -152,6 +161,76 @@ export async function fetchRouteDuration(
       return getTrainDuration(from, to);
     default:
       return null;
+  }
+}
+
+/**
+ * 결과 + 실패 원인 함께 반환하는 확장 버전.
+ * null 결과일 때 UI 가 "왜 실패했는지" 표시할 수 있도록 Google status/메시지 포함.
+ */
+export async function fetchRouteDetailed(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+  mode: TransportMode
+): Promise<{ result: RouteResult | null; error?: RouteError }> {
+  const params = new URLSearchParams({
+    fromLat: String(from.lat),
+    fromLng: String(from.lng),
+    toLat: String(to.lat),
+    toLng: String(to.lng),
+  });
+  const isGoogle = mode === "walk" || mode === "bus" || mode === "train";
+  const endpoint =
+    mode === "car" || mode === "taxi"
+      ? "/api/naver/directions"
+      : mode === "walk"
+        ? "/api/google-transit"
+        : mode === "bus"
+          ? "/api/google-transit"
+          : "/api/google-transit"; // train
+  if (mode === "walk") params.set("mode", "walking");
+  else if (mode === "bus") params.set("mode", "bus");
+  else if (mode === "train") params.set("mode", "train|subway|rail");
+
+  try {
+    const res = await fetch(`${endpoint}?${params.toString()}`);
+    if (!res.ok) {
+      let body: { error?: string; googleStatus?: string; googleMessage?: string } = {};
+      try {
+        body = await res.json();
+      } catch {
+        /* ignore */
+      }
+      // walk 는 Google 실패 시 직선거리 폴백 — 한국은 Google 보행자 데이터 불완전
+      if (mode === "walk") {
+        const km = haversineKm(from, to);
+        if (km <= 15) {
+          const estimatedSec = Math.round((km * 1.3 / 4.5) * 3600);
+          return { result: { durationSec: estimatedSec } };
+        }
+      }
+      const code = body.googleStatus ?? `HTTP_${res.status}`;
+      const message =
+        body.googleStatus === "REQUEST_DENIED"
+          ? "Google API 권한 문제 — 키에 Directions API 허용됐는지 확인하세요"
+          : body.googleStatus === "OVER_QUERY_LIMIT"
+            ? "Google 쿼터 초과"
+            : body.googleStatus === "ZERO_RESULTS"
+              ? "경로 없음"
+              : res.status === 503
+                ? isGoogle
+                  ? "GOOGLE_MAPS_API_KEY 미설정 (/api/diagnose-google 확인)"
+                  : "API 키 미설정"
+                : body.googleMessage ?? body.error ?? `HTTP ${res.status}`;
+      return { result: null, error: { code, message } };
+    }
+    const j = await res.json();
+    if (typeof j.durationSec !== "number") {
+      return { result: null, error: { code: "NO_DURATION", message: "응답에 소요시간 없음" } };
+    }
+    return { result: { durationSec: j.durationSec, path: j.path, segments: j.segments } };
+  } catch (e) {
+    return { result: null, error: { code: "NETWORK", message: String(e) } };
   }
 }
 

@@ -51,7 +51,7 @@ export default function PlanTransportPicker({
   onSelect,
   onSelectManual,
 }: Props) {
-  const { durations, results } = useRouteDurations(from, to, open);
+  const { durations, results, errors } = useRouteDurations(from, to, open);
 
   const fastestMode = useMemo(() => {
     let best: TransportMode | null = null;
@@ -89,9 +89,10 @@ export default function PlanTransportPicker({
             legDeparture && typeof d === "number"
               ? addMinutes(legDeparture, Math.max(1, Math.round(d / 60)))
               : null;
+          const err = errors[m.value];
           const label =
             d === "loading" ? "계산 중…" :
-            d === null ? "계산 실패" :
+            d === null ? (err?.message ?? "계산 실패") :
             formatDuration(d);
 
           // 버스·지하철만 세그먼트 체인 표시 (호선 배지 + 역 이름)

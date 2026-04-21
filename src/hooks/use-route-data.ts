@@ -1,38 +1,32 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchRouteDuration, type RouteResult } from "@/lib/travel/providers";
+import { fetchRouteDetailed, type RouteResult, type RouteError } from "@/lib/travel/providers";
 import type { TransportMode } from "@/types";
 
 // 좌표·수단 조합 기반 route 결과 캐시.
-// - 모듈 레벨 Map 으로 모든 컴포넌트 공유 (탭 간 일관성)
-// - TTL 2분 — 네이버 Directions 5 일일 한도(6만건) 대비 여유 + 실제 교통상황
-//   반영은 포기 (대신 사용자가 picker 닫았다 다시 열어도 즉시 표시)
+// - 모듈 레벨 Map 으로 모든 컴포넌트 공유
+// - 성공 결과만 2분 TTL 캐시. 실패(null)는 캐시하지 않아 재시도 가능
 // - key = "fromLat,fromLng|toLat,toLng|mode" — 좌표·수단 바뀌면 자동 갱신
-//
-// 이전 구조: picker 열 때마다 4모드 호출 + DB jsonb 캐시를 시도했으나
-//   DB 캐시는 invalidation 규칙이 복잡해 (모드 변경·실패값·좌표 변경)
-//   임기응변이 되어 29분 버그 같은 정상/비정상 구분 어려움.
-//
-// 현 설계: DB 는 "선택된 수단의 확정 duration" 만 저장 (user's choice 로그).
-// in-memory 캐시가 세션 단위 조회 최적화 담당.
+// - error 정보도 함께 반환해 UI 가 실패 원인 표시 가능
 
 const CACHE_TTL_MS = 2 * 60 * 1000;
 
 interface CacheEntry {
   result: RouteResult | null;
+  error?: RouteError;
   expiresAt: number;
 }
 
 const cache = new Map<string, CacheEntry>();
-const pending = new Map<string, Promise<RouteResult | null>>();
+const pending = new Map<string, Promise<CacheEntry>>();
 
 function keyOf(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number },
   mode: TransportMode
 ): string {
-  const r = (n: number) => Math.round(n * 1e5) / 1e5; // 좌표 해시 — 소수 5자리
+  const r = (n: number) => Math.round(n * 1e5) / 1e5;
   return `${r(from.lat)},${r(from.lng)}|${r(to.lat)},${r(to.lng)}|${mode}`;
 }
 
@@ -41,24 +35,29 @@ export async function getRouteData(
   to: { lat: number; lng: number },
   mode: TransportMode
 ): Promise<RouteResult | null> {
+  const entry = await getRouteEntry(from, to, mode);
+  return entry.result;
+}
+
+async function getRouteEntry(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+  mode: TransportMode
+): Promise<CacheEntry> {
   const key = keyOf(from, to, mode);
   const now = Date.now();
   const hit = cache.get(key);
-  if (hit && hit.expiresAt > now) return hit.result;
+  if (hit && hit.expiresAt > now && hit.result) return hit;
 
-  // 동일 key 에 대해 이미 진행 중인 요청 있으면 그 promise 공유
   const existing = pending.get(key);
   if (existing) return existing;
 
-  const p = fetchRouteDuration(from, to, mode)
-    .then((result) => {
-      // 성공 결과만 캐시. null(실패) 은 다음 호출에 즉시 재시도 가능하도록
-      // 캐시하지 않음 — 이전엔 실패도 2분간 남아 "한 번 실패 → 계속 실패"
-      // 스티키 버그 발생.
-      if (result) {
-        cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
-      }
-      return result;
+  const p = fetchRouteDetailed(from, to, mode)
+    .then(({ result, error }) => {
+      const entry: CacheEntry = { result, error, expiresAt: Date.now() + CACHE_TTL_MS };
+      // 성공일 때만 캐시 — 실패는 즉시 재시도 가능하도록
+      if (result) cache.set(key, entry);
+      return entry;
     })
     .finally(() => {
       pending.delete(key);
@@ -67,7 +66,6 @@ export async function getRouteData(
   return p;
 }
 
-// 특정 좌표쌍의 모든 모드 결과 무효화 — 좌표 변경 시 호출
 export function invalidateRouteData(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number }
@@ -80,13 +78,11 @@ export function invalidateRouteData(
   }
 }
 
-// 4개 수단 병렬 fetch. picker 오픈 시 한 번에 로드용.
-// durations(숫자|"loading"|null) 와 results(RouteResult|null) 를 함께 제공 —
-// UI 는 duration 만 필요하면 간단하게, segments(버스번호·호선) 가 필요하면
-// results 에서 꺼내 쓴다.
 export interface RouteResultsMap {
   durations: Record<TransportMode, number | null | "loading">;
   results: Partial<Record<TransportMode, RouteResult | null>>;
+  /** 실패한 수단별 에러 정보 — UI 에서 실패 사유 표시용 */
+  errors: Partial<Record<TransportMode, RouteError | undefined>>;
 }
 
 export function useRouteDurations(
@@ -103,21 +99,22 @@ export function useRouteDurations(
       taxi: null,
     },
     results: {},
+    errors: {},
   }));
 
   useEffect(() => {
     if (!enabled || !from || !to) return;
     let cancelled = false;
 
-    // 이미 캐시된 것 먼저 반영, 나머지만 fetch
     const modes: TransportMode[] = ["walk", "car", "bus", "train"];
     const initialDur: Partial<Record<TransportMode, number | null | "loading">> = {};
     const initialRes: Partial<Record<TransportMode, RouteResult | null>> = {};
+    const initialErr: Partial<Record<TransportMode, RouteError | undefined>> = {};
     for (const m of modes) {
       const key = keyOf(from, to, m);
       const hit = cache.get(key);
-      if (hit && hit.expiresAt > Date.now()) {
-        initialDur[m] = hit.result?.durationSec ?? null;
+      if (hit && hit.expiresAt > Date.now() && hit.result) {
+        initialDur[m] = hit.result.durationSec;
         initialRes[m] = hit.result;
       } else {
         initialDur[m] = "loading";
@@ -126,25 +123,28 @@ export function useRouteDurations(
     setState((prev) => ({
       durations: { ...prev.durations, ...initialDur, taxi: null },
       results: { ...prev.results, ...initialRes },
+      errors: { ...prev.errors, ...initialErr },
     }));
 
     (async () => {
-      const results = await Promise.all(
+      const entries = await Promise.all(
         modes.map((m) =>
-          getRouteData(from, to, m)
-            .then((r) => [m, r] as const)
-            .catch(() => [m, null] as const)
+          getRouteEntry(from, to, m)
+            .then((e) => [m, e] as const)
+            .catch((err) => [m, { result: null, error: { code: "NETWORK", message: String(err) }, expiresAt: 0 } as CacheEntry] as const)
         )
       );
       if (cancelled) return;
       setState((prev) => {
         const nextDur = { ...prev.durations };
         const nextRes = { ...prev.results };
-        for (const [m, r] of results) {
-          nextDur[m] = r?.durationSec ?? null;
-          nextRes[m] = r;
+        const nextErr = { ...prev.errors };
+        for (const [m, e] of entries) {
+          nextDur[m] = e.result?.durationSec ?? null;
+          nextRes[m] = e.result;
+          nextErr[m] = e.error;
         }
-        return { durations: nextDur, results: nextRes };
+        return { durations: nextDur, results: nextRes, errors: nextErr };
       });
     })();
 
