@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -78,10 +72,8 @@ export default function TransactionForm({
 
   const filteredCategories = categories.filter((c) => c.type === type);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!amount || !categoryId) return;
-
     setSaving(true);
     const { error } = await onSave({
       amount: parseInt(amount, 10),
@@ -96,14 +88,15 @@ export default function TransactionForm({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {transaction ? "내역 수정" : "내역 추가"}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <FormPage
+      open={open}
+      onOpenChange={onOpenChange}
+      title={transaction ? "내역 수정" : "내역 추가"}
+      submitDisabled={!amount || !categoryId}
+      saving={saving}
+      onSubmit={handleSubmit}
+    >
+        <div className="flex flex-col gap-4">
           <Tabs
             value={type}
             onValueChange={(v) => {
@@ -205,20 +198,7 @@ export default function TransactionForm({
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              취소
-            </Button>
-            <Button type="submit" disabled={!amount || !categoryId || saving}>
-              {saving ? "저장 중..." : "저장"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+    </FormPage>
   );
 }

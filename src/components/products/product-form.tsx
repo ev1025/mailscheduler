@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -174,8 +169,7 @@ export default function ProductForm({
     if (editingIdx === i) resetDraft();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!name.trim()) return;
     setSaving(true);
 
@@ -254,12 +248,30 @@ export default function ProductForm({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
-        <DialogHeader>
-          <DialogTitle>{product ? "제품 수정" : "제품 추가"}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <>
+    <FormPage
+      open={open}
+      onOpenChange={onOpenChange}
+      title={product ? "제품 수정" : "제품 추가"}
+      submitDisabled={!name.trim()}
+      saving={saving}
+      onSubmit={handleSubmit}
+      footerStart={
+        product && onDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={() => setDeleteConfirmOpen(true)}
+            title="삭제"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        ) : null
+      }
+    >
+        <div className="flex flex-col gap-4">
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -450,53 +462,28 @@ export default function ProductForm({
             />
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
-            {product && onDelete && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                onClick={() => setDeleteConfirmOpen(true)}
-                title="삭제"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
-            <div className="flex-1" />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              취소
-            </Button>
-            <Button type="submit" disabled={!name.trim() || saving}>
-              {saving ? "저장 중..." : "저장"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
+        </div>
+    </FormPage>
 
-      {product && onDelete && (
-        <ConfirmDialog
-          open={deleteConfirmOpen}
-          onOpenChange={setDeleteConfirmOpen}
-          title="제품 삭제"
-          description={`"${product.name}"을(를) 삭제할까요?`}
-          confirmLabel="삭제"
-          destructive
-          onConfirm={async () => {
-            const { error } = await onDelete(product.id);
-            if (!error) {
-              setDeleteConfirmOpen(false);
-              onOpenChange(false);
-            } else {
-              toast.error("삭제 실패");
-            }
-          }}
-        />
-      )}
-    </Dialog>
+    {product && onDelete && (
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="제품 삭제"
+        description={`"${product.name}"을(를) 삭제할까요?`}
+        confirmLabel="삭제"
+        destructive
+        onConfirm={async () => {
+          const { error } = await onDelete(product.id);
+          if (!error) {
+            setDeleteConfirmOpen(false);
+            onOpenChange(false);
+          } else {
+            toast.error("삭제 실패");
+          }
+        }}
+      />
+    )}
+    </>
   );
 }

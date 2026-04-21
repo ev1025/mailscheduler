@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -64,10 +58,8 @@ export default function SupplementForm({
     }
   }, [supplement, open]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!name.trim()) return;
-
     setSaving(true);
     const { error } = await onSave({
       name: name.trim(),
@@ -82,14 +74,15 @@ export default function SupplementForm({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {supplement ? "영양제 수정" : "영양제 추가"}
-          </DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <FormPage
+      open={open}
+      onOpenChange={onOpenChange}
+      title={supplement ? "영양제 수정" : "영양제 추가"}
+      submitDisabled={!name.trim()}
+      saving={saving}
+      onSubmit={handleSubmit}
+    >
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="name" className={FORM_LABEL}>이름</Label>
             <Input
@@ -157,20 +150,7 @@ export default function SupplementForm({
               className={FORM_TEXTAREA}
             />
           </div>
-          <div className="flex justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              취소
-            </Button>
-            <Button type="submit" disabled={!name.trim() || saving}>
-              {saving ? "저장 중..." : "저장"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+    </FormPage>
   );
 }
