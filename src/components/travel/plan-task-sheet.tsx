@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { MapPin } from "lucide-react";
-import DeviceDialog from "@/components/ui/device-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -243,70 +244,40 @@ export default function PlanTaskSheet({
     }
   };
 
-  // 최신 상태를 ref 로도 보관 — onOpenChange(false) 콜백 시점에 최신 값 사용
-  const stateRef = useRef({
-    dayIndex,
-    startTime,
-    stayMinutes,
-    stayUnit,
-    placeName,
-    placeAddress,
-    placeLat,
-    placeLng,
-    category,
-    selectedTags,
-    content,
-  });
-  useEffect(() => {
-    stateRef.current = {
-      dayIndex,
-      startTime,
-      stayMinutes,
-      stayUnit,
-      placeName,
-      placeAddress,
-      placeLat,
-      placeLng,
-      category,
-      selectedTags,
-      content,
-    };
-  });
+  const [saving, setSaving] = useState(false);
 
-  // 자동 저장: 시트가 닫힐 때 호출. 장소가 비어있으면 저장 스킵(신규 빈 일정 방지).
-  const autoSave = async () => {
-    const s = stateRef.current;
-    if (!s.placeName.trim()) {
+  // 명시적 저장 버튼
+  const handleSave = async () => {
+    if (!placeName.trim()) return;
+    const mins = (() => {
+      const n = parseFloat(stayMinutes);
+      if (!Number.isFinite(n) || n <= 0) return 0;
+      return stayUnit === "hour" ? Math.round(n * 60) : Math.floor(n);
+    })();
+    setSaving(true);
+    try {
+      await onSave({
+        day_index: dayIndex,
+        start_time: startTime || null,
+        place_name: placeName,
+        place_address: placeAddress,
+        place_lat: placeLat,
+        place_lng: placeLng,
+        tag: selectedTags.length > 0 ? selectedTags.join(",") : null,
+        category: category.trim() || null,
+        content: content.trim() || null,
+        stay_minutes: mins,
+      });
       clearDraft(draftKey);
-      return;
+      onOpenChange(false);
+    } finally {
+      setSaving(false);
     }
-    const mins =
-      (() => {
-        const n = parseFloat(s.stayMinutes);
-        if (!Number.isFinite(n) || n <= 0) return 0;
-        return s.stayUnit === "hour" ? Math.round(n * 60) : Math.floor(n);
-      })();
-    await onSave({
-      day_index: s.dayIndex,
-      start_time: s.startTime || null,
-      place_name: s.placeName,
-      place_address: s.placeAddress,
-      place_lat: s.placeLat,
-      place_lng: s.placeLng,
-      tag: s.selectedTags.length > 0 ? s.selectedTags.join(",") : null,
-      category: s.category.trim() || null,
-      content: s.content.trim() || null,
-      stay_minutes: mins,
-    });
-    clearDraft(draftKey);
   };
 
-  const handleOpenChange = (next: boolean) => {
-    if (!next) {
-      // 닫힘 → 자동 저장 (비동기 — 사용자 기다리지 않음)
-      void autoSave();
-    }
-    onOpenChange(next);
+  // 취소 — draft 유지(다시 열면 복원), onSave 호출 없음
+  const handleCancel = () => {
+    onOpenChange(false);
   };
 
   // 폼 본문 — Sheet(모바일)·Dialog(데스크탑) 공통. 드래그 핸들은 모바일만.
@@ -467,27 +438,54 @@ export default function PlanTaskSheet({
             />
           </div>
 
-          {/* 자동 저장 — 시트를 내리거나 배경을 누르면 자동 저장됨.
-              장소가 비어 있으면 저장 스킵(빈 일정 방지). */}
-          <p className="text-[10px] text-muted-foreground text-center pt-1">
-            아래로 내리거나 배경을 누르면 자동 저장됩니다.
-          </p>
         </div>
     </>
   );
 
   const title = task ? "일정 수정" : "새 일정";
 
+  // 팝업 형태: 모바일 = 전체화면, 데스크탑 = 중앙 모달.
+  // 왼쪽 상단 ← (DialogHeader 자동), 하단 취소/저장 버튼.
   return (
-    <DeviceDialog
-      open={open}
-      onOpenChange={handleOpenChange}
-      title={title}
-      desktopMaxWidth="max-w-lg"
-      snapPoints={[0.5, 0.9]}
-      defaultSnapIndex={1}
-    >
-      {renderForm()}
-    </DeviceDialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        showBackButton
+        onBack={handleCancel}
+        className="
+          !max-w-none !w-full !h-[100dvh] !top-0 !left-0
+          !translate-x-0 !translate-y-0 !rounded-none !p-0
+          !gap-0 flex flex-col
+          md:!max-w-lg md:!w-auto md:!h-auto md:!max-h-[85dvh]
+          md:!top-1/2 md:!left-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2
+          md:!rounded-xl
+        "
+      >
+        <DialogHeader className="px-3 pt-3 pb-2 border-b shrink-0">
+          <DialogTitle className="text-base">{title}</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-3">
+          {renderForm()}
+        </div>
+        <div className="flex items-center justify-end gap-2 px-4 py-3 border-t shrink-0 bg-background">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleCancel}
+            disabled={saving}
+          >
+            취소
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleSave}
+            disabled={saving || !placeName.trim()}
+          >
+            {saving ? "저장 중…" : "저장"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
