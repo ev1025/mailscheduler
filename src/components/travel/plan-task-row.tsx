@@ -92,9 +92,9 @@ export default function PlanTaskRow({
 
       {/* 본문 — grid 3 컬럼 (시간 고정 | 장소·주소 flex).
           grid-cols-[auto_1fr] 로 시간 열은 content-fit, 장소는 flex. */}
-      {/* grid 의 시간 열을 고정 폭(w-[6.25rem] ≈ 100px) 으로 고정 →
-          시간 없어도 장소 마커 x 위치 일정. "22:38 ~ 22:53" 가 max 길이. */}
-      <div className="flex-1 min-w-0 grid grid-cols-[6.25rem_1fr] gap-x-3 gap-y-0.5 px-2 py-2">
+      {/* grid 의 시간 열을 고정 폭(5.5rem ≈ 88px) 으로 고정 — "22:38 ~ 22:53"
+          max 길이에 딱 맞게 축소. gap-x-2 (8px ≈ 2칸) 로 마커 사이 거리 타이트하게. */}
+      <div className="flex-1 min-w-0 grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-0.5 px-2 py-2">
         {/* 시간 열 — 고정 폭 안에서 좌측 정렬 */}
         <div className="flex items-center gap-1 tabular-nums text-xs font-semibold justify-start overflow-hidden">
           {arrivalTime ? (
