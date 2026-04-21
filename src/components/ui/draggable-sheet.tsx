@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
-// 드래그 스냅 바텀시트.
-// - 버튼 위에서도 드래그 허용. 짧은 터치(<8px)=click, 이상=drag.
-// - native touchmove 리스너에 passive:false 로 preventDefault 가능 → 스크롤/클릭
-//   합성 확실히 차단.
+// 드래그 스냅 바텀시트 — React onTouch 기반 (TagInput 과 동일한 검증된 패턴).
+// - 핸들바·빈 영역·버튼 어디서든 드래그로 시트 이동/닫기
+// - 짧은 터치(<8px)는 click 으로 버튼 정상 동작
+// - 드래그 확정 시 touchend 이후 합성되는 click 1회 차단
+// - input/textarea/select 편집 요소는 제외 (포커스/캐럿 방해 X)
 
 interface DraggableSheetProps {
   open: boolean;
@@ -58,128 +59,98 @@ export default function DraggableSheet({
     setSnapAnimating(true);
   };
 
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  // 드래그 상태 — ref 로 touch 이벤트 간 유지
+  const dragStartY = useRef<number | null>(null);
+  const dragStartSnap = useRef<"half" | "full">("half");
+  const dragScrollEl = useRef<HTMLElement | null>(null);
+  const dragCanceled = useRef(false);
+  const dragActive = useRef(false); // 실제 drag 로 판정 (>MOVE_LOCK_PX)
 
-  // 최신 state 접근용 ref
-  const snapRef = useRef(snap);
-  useEffect(() => { snapRef.current = snap; });
-  const onOpenChangeRef = useRef(onOpenChange);
-  useEffect(() => { onOpenChangeRef.current = onOpenChange; });
+  const onTouchStart = (e: React.TouchEvent) => {
+    const target = (e.target as HTMLElement) || null;
+    // 편집 요소만 제외 — button 포함 나머지는 drag 허용
+    if (target?.closest("input, textarea, select")) {
+      dragStartY.current = null;
+      return;
+    }
+    dragStartY.current = e.touches[0].clientY;
+    dragStartSnap.current = snap;
+    dragCanceled.current = false;
+    dragActive.current = false;
+    dragScrollEl.current = target?.closest("[data-sheet-scroll]") as HTMLElement | null;
+  };
 
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (dragStartY.current === null || dragCanceled.current) return;
+    const dy = e.touches[0].clientY - dragStartY.current;
+
+    // 스크롤 영역 판단은 drag 확정 전에만
+    if (!dragActive.current) {
+      if (dragScrollEl.current && dy > 0 && dragScrollEl.current.scrollTop > 0) {
+        dragCanceled.current = true;
+        return;
+      }
+      if (dragStartSnap.current === "full" && dy < 0 && dragScrollEl.current) {
+        dragCanceled.current = true;
+        return;
+      }
+    }
+
+    // 8px 넘으면 drag 로 확정 (이후 touchend 에서 합성 click 차단)
+    if (!dragActive.current && Math.abs(dy) > MOVE_LOCK_PX) {
+      dragActive.current = true;
+    }
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const canceled = dragCanceled.current;
+    const wasActive = dragActive.current;
+    dragCanceled.current = false;
+    dragActive.current = false;
+    dragScrollEl.current = null;
+    if (dragStartY.current === null || canceled) {
+      dragStartY.current = null;
+      return;
+    }
+    const dy = (e.changedTouches[0]?.clientY ?? dragStartY.current) - dragStartY.current;
+    dragStartY.current = null;
+
+    const T = SNAP_THRESHOLD;
+    let didSomething = false;
+    if (isSingleSnap) {
+      if (dy > T * 2) {
+        onOpenChange(false);
+        didSomething = true;
+      }
+    } else if (dragStartSnap.current === "half") {
+      if (dy < -T) { changeSnap("full"); didSomething = true; }
+      else if (dy > T) { onOpenChange(false); didSomething = true; }
+    } else {
+      if (dy > T * 3) { onOpenChange(false); didSomething = true; }
+      else if (dy > T) { changeSnap("half"); didSomething = true; }
+    }
+
+    // drag 확정됐거나 실제 snap 변화 있었으면 touchend 뒤 합성되는 click 1회 차단
+    if (wasActive || didSomething) {
+      setClickBlock(true);
+    }
+  };
+
+  // click 차단 플래그 — touch 드래그 직후 합성되는 click 을 1회 무시
+  const [clickBlock, setClickBlock] = useState(false);
   useEffect(() => {
-    if (!open) return;
-    const el = wrapperRef.current;
-    if (!el) return;
+    if (!clickBlock) return;
+    const timer = setTimeout(() => setClickBlock(false), 350);
+    return () => clearTimeout(timer);
+  }, [clickBlock]);
 
-    let startY: number | null = null;
-    let startSnap: "half" | "full" = "half";
-    let scrollEl: HTMLElement | null = null;
-    let canceled = false;
-    let active = false;
-    let clickBlocker: ((e: Event) => void) | null = null;
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      const target = e.target as HTMLElement | null;
-      // 편집 요소는 drag 스킵 (포커스/캐럿 이동 방해 X)
-      if (target?.closest("input, textarea, select")) {
-        startY = null;
-        return;
-      }
-      startY = e.touches[0].clientY;
-      startSnap = snapRef.current;
-      canceled = false;
-      active = false;
-      scrollEl = target?.closest("[data-sheet-scroll]") as HTMLElement | null;
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (startY === null || canceled) return;
-      const dy = e.touches[0].clientY - startY;
-
-      // 스크롤 영역에서 정상 스크롤 허용 판단 (드래그 확정 전에만)
-      if (!active) {
-        if (scrollEl && dy > 0 && scrollEl.scrollTop > 0) {
-          canceled = true;
-          return;
-        }
-        if (startSnap === "full" && dy < 0 && scrollEl) {
-          canceled = true;
-          return;
-        }
-      }
-
-      // 임계치 넘으면 drag 확정
-      if (!active && Math.abs(dy) > MOVE_LOCK_PX) {
-        active = true;
-      }
-      if (active && e.cancelable) {
-        e.preventDefault(); // 스크롤/클릭 합성 차단
-      }
-    };
-
-    const onTouchEnd = (e: TouchEvent) => {
-      if (startY === null || canceled) {
-        startY = null;
-        active = false;
-        canceled = false;
-        scrollEl = null;
-        return;
-      }
-      const wasActive = active;
-      const dy = (e.changedTouches[0]?.clientY ?? startY) - startY;
-      startY = null;
-      active = false;
-      canceled = false;
-      scrollEl = null;
-
-      // 드래그였으면 터치 후 합성되는 click 을 1회 차단
-      if (wasActive) {
-        clickBlocker = (ev: Event) => {
-          ev.stopPropagation();
-          ev.preventDefault();
-          if (clickBlocker) {
-            el.removeEventListener("click", clickBlocker, true);
-            clickBlocker = null;
-          }
-        };
-        el.addEventListener("click", clickBlocker, true);
-        // 백업: 300ms 안에 click 안 오면 해제
-        setTimeout(() => {
-          if (clickBlocker) {
-            el.removeEventListener("click", clickBlocker, true);
-            clickBlocker = null;
-          }
-        }, 300);
-      }
-
-      const T = SNAP_THRESHOLD;
-      if (isSingleSnap) {
-        if (dy > T * 2) onOpenChangeRef.current(false);
-        return;
-      }
-      if (startSnap === "half") {
-        if (dy < -T) changeSnap("full");
-        else if (dy > T) onOpenChangeRef.current(false);
-      } else {
-        if (dy > T * 3) onOpenChangeRef.current(false);
-        else if (dy > T) changeSnap("half");
-      }
-    };
-
-    // passive:false — onTouchMove 에서 preventDefault 가 실제 작동하도록
-    el.addEventListener("touchstart", onTouchStart, { passive: true });
-    el.addEventListener("touchmove", onTouchMove, { passive: false });
-    el.addEventListener("touchend", onTouchEnd, { passive: true });
-    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
-    return () => {
-      el.removeEventListener("touchstart", onTouchStart);
-      el.removeEventListener("touchmove", onTouchMove);
-      el.removeEventListener("touchend", onTouchEnd);
-      el.removeEventListener("touchcancel", onTouchEnd);
-      if (clickBlocker) el.removeEventListener("click", clickBlocker, true);
-    };
-  }, [open, isSingleSnap]);
+  const onClickCapture = (e: React.MouseEvent) => {
+    if (clickBlock) {
+      e.stopPropagation();
+      e.preventDefault();
+      setClickBlock(false);
+    }
+  };
 
   const height = snap === "full" ? `${fullVh * 100}dvh` : `${halfVh * 100}dvh`;
 
@@ -196,7 +167,14 @@ export default function DraggableSheet({
         initialFocus={false}
         finalFocus={false}
       >
-        <div ref={wrapperRef} className="flex flex-col h-full min-h-0">
+        <div
+          className="flex flex-col h-full min-h-0"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onTouchCancel={onTouchEnd}
+          onClickCapture={onClickCapture}
+        >
           {/* 핸들바 */}
           <div className="flex justify-center py-2 shrink-0 touch-none" aria-label="드래그로 이동/닫기">
             <div className="h-1.5 w-12 rounded-full bg-muted-foreground/40" />
