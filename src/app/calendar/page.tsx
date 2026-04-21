@@ -261,12 +261,20 @@ function CalendarPageInner() {
         : view === "travel"
           ? "여행"
           : "여행 계획";
-  const viewMenuItems = [
-    { key: "calendar" as const, label: "달력", icon: CalendarDays },
-    { key: "database" as const, label: "일정목록", icon: TableProperties },
-    { key: "travel" as const, label: "여행", icon: Plane },
-    { key: "travel-plans" as const, label: "여행 계획", icon: Route },
-  ];
+
+  // 햄버거 메뉴 — 하단 네비의 "캘린더" / "여행" 탭 그룹에 맞춰 분리.
+  //  - 캘린더 탭(view=calendar|database): 달력·일정목록만 노출
+  //  - 여행 탭(view=travel|travel-plans|travel-plan): 여행·여행 계획만 노출
+  const isTravelTab = view === "travel" || view === "travel-plans" || view === "travel-plan";
+  const viewMenuItems = isTravelTab
+    ? [
+        { key: "travel" as const, label: "여행", icon: Plane },
+        { key: "travel-plans" as const, label: "여행 계획", icon: Route },
+      ]
+    : [
+        { key: "calendar" as const, label: "달력", icon: CalendarDays },
+        { key: "database" as const, label: "일정목록", icon: TableProperties },
+      ];
 
   // 여행 계획 상세는 자체 헤더(← 제목)를 쓰므로 상위 PageHeader·메뉴 숨김
   const hideTopHeader = view === "travel-plan";
