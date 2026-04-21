@@ -173,7 +173,14 @@ export default function EventForm({
     if (!title.trim() || !startDate) return;
 
     setSaving(true);
-    const rc = repeat !== "none" && !event ? repeatCount : undefined;
+    // repeatCount = 사용자가 본 "추가 반복 횟수" (1 = 이번 + 1번 더 = 총 2번).
+    // handleSave 는 총 개수 기준이므로 +1 변환. -1(무한) 은 그대로.
+    const rc =
+      repeat !== "none" && !event
+        ? repeatCount === -1
+          ? -1
+          : repeatCount + 1
+        : undefined;
     const { error } = await onSave(
       {
         title: title.trim(),
@@ -300,17 +307,17 @@ export default function EventForm({
             </div>
           </div>
 
-          {/* 반복 — 날짜 행과 동일한 grid로 정렬 */}
+          {/* 반복 — Select 는 컨텐츠 크기에 맞게 축소 */}
           <div className="flex items-center gap-2">
             <Label className={`w-12 shrink-0 ${FORM_LABEL}`}>반복</Label>
-            <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
               <Select value={repeat} onValueChange={(v) => {
                 if (v) setRepeat(v as RepeatType);
               }}>
-                <SelectTrigger className={`${FORM_INPUT_COMPACT} w-full min-w-0`}>
+                <SelectTrigger className={`${FORM_INPUT_COMPACT} w-[7rem]`}>
                   {REPEAT_OPTIONS.find((o) => o.value === repeat)?.label || "반복 안 함"}
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="min-w-[7rem]">
                   {REPEAT_OPTIONS.map((opt) => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
@@ -318,17 +325,11 @@ export default function EventForm({
                   ))}
                 </SelectContent>
               </Select>
-              {repeat !== "none" ? (
+              {repeat !== "none" && (
                 <>
-                  <span className="text-xs text-muted-foreground px-0.5">횟수</span>
+                  <span className="text-xs text-muted-foreground">+</span>
                   <NumberWheel value={repeatCount} onChange={setRepeatCount} min={1} max={52} allowInfinity />
-                  <span className="w-4" />
-                </>
-              ) : (
-                <>
-                  <span />
-                  <span />
-                  <span className="w-4" />
+                  <span className="text-xs text-muted-foreground">회 반복</span>
                 </>
               )}
             </div>

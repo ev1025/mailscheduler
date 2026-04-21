@@ -124,7 +124,7 @@ export default function TimePicker({ value, onChange, className }: TimePickerPro
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={cn(
-          "flex items-center gap-1.5 rounded-md border px-2.5 text-sm transition-colors hover:bg-accent cursor-pointer",
+          "flex items-center justify-center gap-1.5 rounded-md border px-2.5 text-sm transition-colors hover:bg-accent cursor-pointer",
           !value && "text-muted-foreground",
           className
         )}
