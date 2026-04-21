@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -246,6 +246,33 @@ export default function PlanTaskSheet({
 
   const [saving, setSaving] = useState(false);
 
+  // 키보드 대응 — 입력칸 포커스 시 내부 스크롤로 입력칸을 화면 중앙으로.
+  // (overlays-content 모드라 브라우저 기본 스크롤이 layout viewport 기준이라
+  // 키보드에 가려지는 입력칸을 visual viewport 기준으로 못 올림 → 수동 처리)
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        !(target instanceof HTMLInputElement) &&
+        !(target instanceof HTMLTextAreaElement)
+      ) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        target.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 300);
+    };
+    el.addEventListener("focusin", onFocusIn);
+    return () => {
+      if (timer) clearTimeout(timer);
+      el.removeEventListener("focusin", onFocusIn);
+    };
+  }, [open]);
+
   // 명시적 저장 버튼
   const handleSave = async () => {
     if (!placeName.trim()) return;
@@ -451,11 +478,16 @@ export default function PlanTaskSheet({
       <DialogContent
         showBackButton
         onBack={handleCancel}
+        // 키보드 올라오면 height 축소(kb-offset 만큼) 로 입력칸이 가려지지 않음.
+        // 데스크탑은 80dvh 고정 (keyboard 영향 없음).
+        style={{
+          height: "calc(100dvh - var(--kb-offset, 0px))",
+        }}
         className="
-          !max-w-none !w-full !h-[100dvh] !top-0 !left-0
+          !max-w-none !w-full !top-0 !left-0
           !translate-x-0 !translate-y-0 !rounded-none !p-0
           !gap-0 flex flex-col
-          md:!max-w-lg md:!w-auto md:!h-auto md:!max-h-[85dvh]
+          md:!max-w-lg md:!w-auto md:!max-h-[85dvh]
           md:!top-1/2 md:!left-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2
           md:!rounded-xl
         "
@@ -463,7 +495,10 @@ export default function PlanTaskSheet({
         <DialogHeader className="px-3 pt-3 pb-2 border-b shrink-0">
           <DialogTitle className="text-base">{title}</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-3">
+        <div
+          ref={scrollRef}
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-3"
+        >
           {renderForm()}
         </div>
         <div className="flex items-center justify-end gap-2 px-4 py-3 border-t shrink-0 bg-background">
