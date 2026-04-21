@@ -1,21 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import DatePicker from "@/components/ui/date-picker";
 import PlanTaskRow from "@/components/travel/plan-task-row";
 import PlanTaskSheet from "@/components/travel/plan-task-sheet";
 import PlanSegmentTabs, { type Segment } from "@/components/travel/plan-segment-tabs";
 import PlanLegCard from "@/components/travel/plan-leg-card";
 import PlanRouteMap from "@/components/travel/plan-route-map";
+import PlanDetailHeader from "@/components/travel/plan-detail-header";
+import PlanDateRange from "@/components/travel/plan-date-range";
 import { useTravelPlans } from "@/hooks/use-travel-plans";
 import { useTravelPlanTasks } from "@/hooks/use-travel-plan-tasks";
 import { sortTasks } from "@/lib/travel/sort-tasks";
 import { tasksToLegs } from "@/lib/travel/legs";
 import { invalidateRouteData } from "@/hooks/use-route-data";
 import { computeExpectedTimes } from "@/lib/travel/expected-time";
+import { addMinutes } from "@/lib/travel/time";
 import { useLegPaths } from "@/components/travel/use-leg-paths";
 import { createPlanDragEndHandler } from "@/components/travel/use-plan-drag-and-drop";
 import type { TravelPlanTask } from "@/types";
@@ -42,6 +43,13 @@ interface Props {
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
+const TRANSPORT_RESET = {
+  transport_mode: null,
+  transport_duration_sec: null,
+  transport_manual: false,
+  transport_durations: null,
+} as const;
+
 function addDaysISO(iso: string, days: number): string {
   const d = new Date(iso + "T00:00:00");
   d.setDate(d.getDate() + days);
@@ -55,7 +63,6 @@ function daysBetween(startIso: string, endIso: string): number {
 }
 
 // 빈 일자에도 드롭 가능하도록 일자 섹션 전체를 droppable zone 으로 감쌈.
-// 드롭 시 id "day-{n}" 로 식별 → handleDragEnd 에서 day_index 이동 처리.
 function DayDropZone({ day, children }: { day: number; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: `day-${day}` });
   return (
@@ -109,16 +116,13 @@ export default function PlanDetail({ planId, onBack }: Props) {
   const plan = plans.find((p) => p.id === planId);
   const { tasks, addTask, updateTask, deleteTask } = useTravelPlanTasks(planId);
 
-  const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [segment, setSegment] = useState<Segment>({ mode: "all" });
 
-  // 시트 상태: 편집 중이면 task, 신규면 null + 대상 day_index
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetTask, setSheetTask] = useState<TravelPlanTask | null>(null);
   const [sheetDayIndex, setSheetDayIndex] = useState(0);
 
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
-  // 출발지 시간 + 체류 + 이동시간 → 도착지 예상 시간 맵
   const expectedTimes = useMemo(() => computeExpectedTimes(sorted), [sorted]);
   const legs = useMemo(() => tasksToLegs(sorted), [sorted]);
   const legsWithCoords = useMemo(
@@ -143,8 +147,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
     return Array.from(set).sort((a, b) => a - b);
   }, [sorted, plan?.start_date, plan?.end_date]);
 
-  // 날짜는 start_date 가 있든 없든 항상 "M/D(요일)" 로 표시.
-  // start_date 미설정 시 오늘을 기준으로 dayIndex 만큼 더해 반환.
   const formatDayLabel = (dayIndex: number): string => {
     const today = new Date();
     const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -167,7 +169,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
     return one ? [one] : [];
   }, [segment, legsWithCoords]);
 
-  // 보이는 leg 들의 실제 경로 polyline 자동 fetch (useLegPaths 훅에 위임)
   const legPaths = useLegPaths(visibleLegs);
 
   const { pins, legs: mapLegs } = useMemo(() => {
@@ -188,7 +189,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
       lat: number; lng: number; label: string; taskId: string;
     }[];
 
-    // 보이는 leg 에 대해 path 있으면 실선, 없으면 점선. pins 인덱스 매핑 필요.
     const taskIdToIdx = new Map(shownPinsAll.map((p, i) => [p.taskId, i]));
     type MapLegSpec = { fromIdx: number; toIdx: number; path?: [number, number][] };
     const legsForMap: MapLegSpec[] = [];
@@ -199,25 +199,37 @@ export default function PlanDetail({ planId, onBack }: Props) {
       legsForMap.push({
         fromIdx,
         toIdx,
-        // 선택된 수단에 따른 path 조회 — mode 포함 key
         path: l.toTask.transport_mode
           ? legPaths[`${l.fromTaskId}-${l.toTaskId}-${l.toTask.transport_mode}`]
           : undefined,
       });
     }
 
-    // label·lat·lng 만 plan-route-map 에 넘김 (taskId 는 매핑용이라 불필요)
     const shownPins = shownPinsAll.map(({ lat, lng, label }) => ({ lat, lng, label }));
-
     return { pins: shownPins, legs: legsForMap };
   }, [segment, sorted, legsWithCoords, visibleLegs, legPaths]);
 
-  // 드래그 정렬 (같은 day_index 내만 이동) — early return 이전에 선언 필수.
-  // 훅은 조건부 return 뒤에 호출하면 "Rules of Hooks" 위반.
+  // 드래그 센서 — early return 전에 호출 (훅 규칙)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
   );
+
+  const handleDragEnd = useMemo(
+    () => createPlanDragEndHandler({ sorted, updateTask }),
+    [sorted, updateTask]
+  );
+
+  // 일자별 task 그룹핑 — 훅 의존성 없는 순수 계산
+  const tasksByDay: Record<number, TravelPlanTask[]> = useMemo(() => {
+    const map: Record<number, TravelPlanTask[]> = {};
+    for (const d of days) map[d] = [];
+    for (const t of sorted) {
+      if (!map[t.day_index]) map[t.day_index] = [];
+      map[t.day_index].push(t);
+    }
+    return map;
+  }, [days, sorted]);
 
   if (!plan) {
     return (
@@ -244,198 +256,162 @@ export default function PlanDetail({ planId, onBack }: Props) {
     setSheetOpen(true);
   };
 
-  const handleTitleCommit = async () => {
-    if (titleDraft == null) return;
-    const trimmed = titleDraft.trim();
-    if (trimmed && trimmed !== plan.title) {
-      await updatePlan(plan.id, { title: trimmed });
+  // 시트 저장 처리 — 신규 insert 또는 기존 update + 위치 변경 시 이동수단 리셋.
+  const handleSheetSave = async (updates: Partial<TravelPlanTask>) => {
+    if (sheetTask) {
+      const placeChanged =
+        updates.place_lat !== sheetTask.place_lat ||
+        updates.place_lng !== sheetTask.place_lng;
+
+      const finalUpdates = placeChanged ? { ...updates, ...TRANSPORT_RESET } : updates;
+
+      if (placeChanged) {
+        // 관련 leg 의 path 캐시 무효화 — 좌표 바뀌었으니 기존 polyline 재사용 금지
+        const targetDay = updates.day_index ?? sheetTask.day_index;
+        const dayTasks = sorted.filter((t) => t.day_index === targetDay);
+        const myIdx = dayTasks.findIndex((t) => t.id === sheetTask.id);
+        const prev = myIdx > 0 ? dayTasks[myIdx - 1] : undefined;
+        const next = myIdx >= 0 ? dayTasks[myIdx + 1] : undefined;
+        if (
+          prev?.place_lat != null && prev?.place_lng != null &&
+          sheetTask.place_lat != null && sheetTask.place_lng != null
+        ) {
+          invalidateRouteData(
+            { lat: prev.place_lat, lng: prev.place_lng },
+            { lat: sheetTask.place_lat, lng: sheetTask.place_lng }
+          );
+        }
+        if (
+          next?.place_lat != null && next?.place_lng != null &&
+          sheetTask.place_lat != null && sheetTask.place_lng != null
+        ) {
+          invalidateRouteData(
+            { lat: sheetTask.place_lat, lng: sheetTask.place_lng },
+            { lat: next.place_lat, lng: next.place_lng }
+          );
+        }
+        if (next) {
+          await updateTask(next.id, TRANSPORT_RESET);
+        }
+      }
+      await updateTask(sheetTask.id, finalUpdates);
+    } else {
+      const dayIdx = updates.day_index ?? sheetDayIndex;
+      await addTask({
+        plan_id: planId,
+        day_index: dayIdx,
+        start_time: updates.start_time ?? null,
+        place_name: updates.place_name ?? "",
+        place_address: updates.place_address ?? null,
+        place_lat: updates.place_lat ?? null,
+        place_lng: updates.place_lng ?? null,
+        tag: updates.tag ?? null,
+        category: updates.category ?? null,
+        content: updates.content ?? null,
+        stay_minutes: updates.stay_minutes ?? 0,
+        manual_order: tasksByDay[dayIdx]?.length ?? 0,
+        transport_mode: null,
+        transport_duration_sec: null,
+        transport_manual: false,
+      });
     }
-    setTitleDraft(null);
   };
 
-  // DnD 드래그 종료 핸들러 — 별도 모듈에서 구성
-  const handleDragEnd = useMemo(
-    () => createPlanDragEndHandler({ sorted, updateTask }),
-    [sorted, updateTask]
-  );
-
-  // 일자별로 task 그룹핑
-  const tasksByDay: Record<number, TravelPlanTask[]> = {};
-  for (const d of days) tasksByDay[d] = [];
-  for (const t of sorted) {
-    if (!tasksByDay[t.day_index]) tasksByDay[t.day_index] = [];
-    tasksByDay[t.day_index].push(t);
-  }
-
   return (
-    // 자체 스크롤 컨테이너 제거 — 부모 main 의 overflow-y-auto 에 위임.
-    // 이중 스크롤 컨테이너 충돌 방지. 헤더는 sticky top-0 으로 상단 고정.
     <div className="flex flex-col">
-      <header className="sticky top-0 z-20 flex items-center gap-2 border-b px-3 h-12 bg-background/95 backdrop-blur">
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground -ml-1"
-          aria-label="계획 목록으로"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        {titleDraft != null ? (
-          <Input
-            autoFocus
-            value={titleDraft}
-            onChange={(e) => setTitleDraft(e.target.value)}
-            onBlur={handleTitleCommit}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleTitleCommit();
-              if (e.key === "Escape") setTitleDraft(null);
-            }}
-            className="h-9 flex-1 text-base font-semibold"
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={() => setTitleDraft(plan.title)}
-            className="flex-1 text-left text-base font-semibold truncate hover:text-muted-foreground"
-          >
-            {plan.title}
-          </button>
-        )}
-      </header>
+      <PlanDetailHeader
+        title={plan.title}
+        onBack={onBack}
+        onRename={(next) => updatePlan(plan.id, { title: next })}
+      />
 
       <div>
         <div className="mx-auto w-full max-w-3xl">
-        {/* 기간 — 데스크탑은 DatePicker 폭 제한 (w-40), 모바일은 flex-1 로 가득 */}
-        <div className="flex items-center gap-2 px-3 py-2 border-b">
-          <span className="text-xs text-muted-foreground shrink-0">기간</span>
-          <div className="flex items-center gap-1 flex-1 min-w-0">
-            <DatePicker
-              value={plan.start_date ?? ""}
-              onChange={(v) => updatePlan(plan.id, { start_date: v || null })}
-              className="h-8 min-w-0 text-xs flex-1 md:flex-none md:w-36"
-            />
-            <span className="text-xs text-muted-foreground shrink-0">~</span>
-            <DatePicker
-              value={plan.end_date ?? ""}
-              onChange={(v) => updatePlan(plan.id, { end_date: v || null })}
-              min={plan.start_date ?? undefined}
-              className="h-8 min-w-0 text-xs flex-1 md:flex-none md:w-36"
-            />
-            {plan.end_date && (
-              <button
-                type="button"
-                onClick={() => updatePlan(plan.id, { end_date: null })}
-                className="text-muted-foreground hover:text-foreground shrink-0 p-0.5"
-                aria-label="종료일 제거"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-          {totalDays > 0 && (
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {totalDays - 1}박 {totalDays}일
-            </span>
-          )}
-        </div>
-
-        {/* 경로맵 */}
-        <div className="flex flex-col gap-2 p-3 border-b">
-          <PlanSegmentTabs
-            segment={segment}
-            onChange={setSegment}
-            days={days}
-            legs={legsWithCoords}
+          <PlanDateRange
+            startDate={plan.start_date}
+            endDate={plan.end_date}
+            totalDays={totalDays}
+            onChangeStart={(iso) => updatePlan(plan.id, { start_date: iso })}
+            onChangeEnd={(iso) => updatePlan(plan.id, { end_date: iso })}
           />
-          <PlanRouteMap pins={pins} legs={mapLegs} height={240} />
-        </div>
 
-        {/* 일자별 섹션 — 전체를 하나의 DndContext 로 감싸서 날짜 간 이동도 지원 */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={sorted.map((t) => t.id)}
-            strategy={verticalListSortingStrategy}
-          >
-        <div className="flex flex-col gap-3 p-3">
-          {days.map((day) => {
-            const dayTasks = tasksByDay[day] ?? [];
-            return (
-              <section key={day} className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold">{formatDayLabel(day)}</h3>
-                  <div className="flex-1 h-px bg-border" />
-                </div>
-                <DayDropZone day={day}>
+          {/* 경로맵 */}
+          <div className="flex flex-col gap-2 p-3 border-b">
+            <PlanSegmentTabs
+              segment={segment}
+              onChange={setSegment}
+              days={days}
+              legs={legsWithCoords}
+            />
+            <PlanRouteMap pins={pins} legs={mapLegs} height={240} />
+          </div>
 
-                {dayTasks.length > 0 && (
-                      <div className="flex flex-col gap-1.5">
-                        {dayTasks.map((t, i) => {
-                          const next = dayTasks[i + 1];
-                          const leg = next
-                            ? legsWithCoords.find(
-                                (l) => l.fromTaskId === t.id && l.toTaskId === next.id
-                              )
-                            : undefined;
-                          // 이 구간의 출발 시각 = 현재 task 의 [도착시간 + 체류분]
-                          let legDeparture: string | null = null;
-                          if (leg) {
-                            const arr = expectedTimes[t.id]?.time ?? null;
-                            if (arr) {
-                              const [hh, mm] = arr.split(":").map((s) => parseInt(s, 10));
-                              const stay = t.stay_minutes ?? 0;
-                              const total = hh * 60 + mm + stay;
-                              const w = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
-                              legDeparture = `${String(Math.floor(w / 60)).padStart(2, "0")}:${String(w % 60).padStart(2, "0")}`;
-                            }
-                          }
-                          return (
-                            <div key={t.id} className="flex flex-col gap-1.5">
-                              <SortableTaskRow
-                                task={t}
-                                onClick={() => openEditSheet(t)}
-                                onDelete={() => deleteTask(t.id)}
-                                // predicted=true (체인 계산값) 일 때만 expectedTime 전달 —
-                                // row 는 expectedTime 이 있으면 stored start_time 무시하므로
-                                // 첫 task (predicted=false) 는 null 로 보내 stored 값 사용
-                                expectedTime={
-                                  expectedTimes[t.id]?.predicted
-                                    ? expectedTimes[t.id]?.time ?? null
-                                    : null
-                                }
-                              />
-                              {leg && (
-                                <PlanLegCard
-                                  leg={leg}
-                                  legDeparture={legDeparture}
-                                  onUpdateTask={updateTask}
-                                />
-                              )}
-                            </div>
-                          );
-                        })}
+          {/* 일자별 섹션 — 전체를 하나의 DndContext 로 감싸 일자 간 이동도 지원 */}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={sorted.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+              <div className="flex flex-col gap-3 p-3">
+                {days.map((day) => {
+                  const dayTasks = tasksByDay[day] ?? [];
+                  return (
+                    <section key={day} className="flex flex-col gap-2">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-semibold">{formatDayLabel(day)}</h3>
+                        <div className="flex-1 h-px bg-border" />
                       </div>
-                )}
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => openNewSheet(day)}
-                  className="self-start h-8 text-xs"
-                >
-                  <Plus className="h-3.5 w-3.5 mr-1" /> 일정 추가
-                </Button>
-                </DayDropZone>
-              </section>
-            );
-          })}
-        </div>
-          </SortableContext>
-        </DndContext>
+                      <DayDropZone day={day}>
+                        {dayTasks.length > 0 && (
+                          <div className="flex flex-col gap-1.5">
+                            {dayTasks.map((t, i) => {
+                              const next = dayTasks[i + 1];
+                              const leg = next
+                                ? legsWithCoords.find(
+                                    (l) => l.fromTaskId === t.id && l.toTaskId === next.id
+                                  )
+                                : undefined;
+                              // 이 구간의 출발 시각 = 현재 task 의 [도착시간 + 체류]
+                              const arr = expectedTimes[t.id]?.time ?? null;
+                              const legDeparture =
+                                leg && arr ? addMinutes(arr, t.stay_minutes ?? 0) : null;
+                              return (
+                                <div key={t.id} className="flex flex-col gap-1.5">
+                                  <SortableTaskRow
+                                    task={t}
+                                    onClick={() => openEditSheet(t)}
+                                    onDelete={() => deleteTask(t.id)}
+                                    expectedTime={
+                                      expectedTimes[t.id]?.predicted
+                                        ? expectedTimes[t.id]?.time ?? null
+                                        : null
+                                    }
+                                  />
+                                  {leg && (
+                                    <PlanLegCard
+                                      leg={leg}
+                                      legDeparture={legDeparture}
+                                      onUpdateTask={updateTask}
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openNewSheet(day)}
+                          className="self-start h-8 text-xs"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" /> 일정 추가
+                        </Button>
+                      </DayDropZone>
+                    </section>
+                  );
+                })}
+              </div>
+            </SortableContext>
+          </DndContext>
         </div>
       </div>
 
@@ -448,76 +424,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
         availableDays={days}
         formatDayLabel={formatDayLabel}
         onAddNewDay={handleAddNewDay}
-        onSave={async (updates) => {
-          if (sheetTask) {
-            // 위치가 변경됐으면 이동수단 정보 전부 무효 — 두 leg 영향.
-            // (1) 이 task 의 arriving leg (prev→this) → this.transport_* 리셋
-            // (2) 이 task 의 departing leg (this→next) → next.transport_* 리셋
-            const placeChanged =
-              updates.place_lat !== sheetTask.place_lat ||
-              updates.place_lng !== sheetTask.place_lng;
-
-            let finalUpdates = updates;
-            if (placeChanged) {
-              finalUpdates = {
-                ...updates,
-                transport_mode: null,
-                transport_duration_sec: null,
-                transport_manual: false,
-                transport_durations: null,
-              };
-              // 관련 leg 의 route 캐시도 무효화 (메모리 cache 엔트리 제거)
-              const targetDay = updates.day_index ?? sheetTask.day_index;
-              const dayTasks = sorted.filter((t) => t.day_index === targetDay);
-              const myIdx = dayTasks.findIndex((t) => t.id === sheetTask.id);
-              const prev = myIdx > 0 ? dayTasks[myIdx - 1] : undefined;
-              const next = myIdx >= 0 ? dayTasks[myIdx + 1] : undefined;
-              // 이전 이동수단 path 캐시 무효화 (from/to 중 하나가 바뀌었으므로)
-              if (prev?.place_lat != null && prev?.place_lng != null &&
-                  sheetTask.place_lat != null && sheetTask.place_lng != null) {
-                invalidateRouteData(
-                  { lat: prev.place_lat, lng: prev.place_lng },
-                  { lat: sheetTask.place_lat, lng: sheetTask.place_lng }
-                );
-              }
-              if (next?.place_lat != null && next?.place_lng != null &&
-                  sheetTask.place_lat != null && sheetTask.place_lng != null) {
-                invalidateRouteData(
-                  { lat: sheetTask.place_lat, lng: sheetTask.place_lng },
-                  { lat: next.place_lat, lng: next.place_lng }
-                );
-              }
-              if (next) {
-                await updateTask(next.id, {
-                  transport_mode: null,
-                  transport_duration_sec: null,
-                  transport_manual: false,
-                  transport_durations: null,
-                });
-              }
-            }
-            await updateTask(sheetTask.id, finalUpdates);
-          } else {
-            await addTask({
-              plan_id: planId,
-              day_index: updates.day_index ?? sheetDayIndex,
-              start_time: updates.start_time ?? null,
-              place_name: updates.place_name ?? "",
-              place_address: updates.place_address ?? null,
-              place_lat: updates.place_lat ?? null,
-              place_lng: updates.place_lng ?? null,
-              tag: updates.tag ?? null,
-              category: updates.category ?? null,
-              content: updates.content ?? null,
-              stay_minutes: updates.stay_minutes ?? 0,
-              manual_order: (tasksByDay[updates.day_index ?? sheetDayIndex]?.length) ?? 0,
-              transport_mode: null,
-              transport_duration_sec: null,
-              transport_manual: false,
-              // transport_durations 는 SQL 마이그레이션 후 자동 채워지므로 insert 에서 제외
-            });
-          }
-        }}
+        onSave={handleSheetSave}
       />
     </div>
   );
