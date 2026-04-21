@@ -56,11 +56,11 @@ export default function PlanTaskRow({
       className="group flex items-stretch gap-1 rounded-md border bg-card hover:bg-accent/40 transition-colors cursor-pointer select-none"
     >
       {/* 드래그바 — 탭하면 Popover 메뉴 (삭제 등), 드래그하면 이동.
-          여행목록의 TravelRow 와 동일 패턴. */}
+          1행·2행 사이(수직 중앙)에 위치시켜 카드 대칭감 확보. */}
       {dragListeners !== undefined && (
         <div
           onClick={(e) => e.stopPropagation()}
-          className="flex items-start pt-1.5 pl-0.5"
+          className="flex items-center pl-0.5"
         >
           <Popover open={menuOpen} onOpenChange={setMenuOpen}>
             <PopoverTrigger
@@ -132,9 +132,13 @@ export default function PlanTaskRow({
           </span>
         </div>
 
-        {/* 체류시간 열 — 시간 컬럼 바로 아래. 시간 범위 중앙("~" 위치) 에 오도록 center. */}
-        <div className="text-[10px] text-muted-foreground shrink-0 text-center self-start">
-          {task.stay_minutes > 0 ? `(${formatMinutes(task.stay_minutes)})` : ""}
+        {/* 체류시간 열 — 투명 "22:38" phantom 으로 arrival 폭만큼 들여써서
+            ({체류시간}) 이 시간 범위의 "~" 바로 아래에 오도록. */}
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground tabular-nums self-start overflow-hidden">
+          <span className="invisible text-xs font-semibold" aria-hidden="true">00:00</span>
+          {task.stay_minutes > 0 && (
+            <span>({formatMinutes(task.stay_minutes)})</span>
+          )}
         </div>
         {/* 주소·내용 열 */}
         <div className="flex items-start gap-1.5 flex-wrap text-[10px] text-muted-foreground min-w-0">
