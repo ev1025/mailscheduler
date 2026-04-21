@@ -18,7 +18,7 @@ function SubwayBadge({ name }: { name: string | null }) {
   const label = subwayBadgeLabel(name);
   return (
     <span
-      className="inline-flex items-center justify-center h-5 min-w-5 rounded-full px-1 text-[10px] font-bold text-white shrink-0"
+      className="inline-flex items-center justify-center h-4 min-w-4 rounded-full px-0.5 text-[9px] font-bold text-white shrink-0"
       style={{ backgroundColor: color }}
       aria-label={name ?? "지하철 호선"}
     >
