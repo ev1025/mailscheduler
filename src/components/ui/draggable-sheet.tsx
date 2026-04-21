@@ -118,8 +118,11 @@ export default function DraggableSheet({
     setDragOffset(0);
   };
 
-  // 핸들바 전용 리스너 — 항상 시트 드래그
+  // 핸들바 전용 리스너 — 항상 시트 드래그.
+  // open 을 deps 에 포함해야 SheetPortal 이 open=true 로 마운트된 직후 ref 가
+  // 채워진 시점에 re-run 되어 native listener 가 등록됨.
   useEffect(() => {
+    if (!open) return;
     const el = handleRef.current;
     if (!el) return;
     const onTouchStart = (e: TouchEvent) => {
@@ -158,11 +161,12 @@ export default function DraggableSheet({
       el.removeEventListener("touchcancel", onTouchEnd);
       el.removeEventListener("mousedown", onMouseDown);
     };
-  }, [snaps, closeThreshold, onOpenChange]);
+  }, [open, snaps, closeThreshold, onOpenChange]);
 
   // 본문 영역 리스너 — 내부 스크롤과 공존. 제스처 시작 시 scroll 상태 + 방향으로
   // "sheet drag" vs "content scroll" 모드 결정.
   useEffect(() => {
+    if (!open) return;
     const el = scrollRef.current;
     if (!el) return;
 
@@ -255,7 +259,35 @@ export default function DraggableSheet({
       el.removeEventListener("touchcancel", onTouchEnd);
       el.removeEventListener("mousedown", onMouseDown);
     };
-  }, [snaps, maxIdx, closeThreshold, onOpenChange]);
+  }, [open, snaps, maxIdx, closeThreshold, onOpenChange]);
+
+  // 입력칸 포커스 시 키보드로 가려지지 않도록 자동 스크롤.
+  // overlays-content 모드에선 layout viewport 가 변하지 않아 브라우저 기본
+  // 스크롤이 작동 안 함. 키보드가 올라온 뒤(≈300ms) 포커스된 element 를
+  // 스크롤 영역의 중앙으로 끌어옴.
+  useEffect(() => {
+    if (!open) return;
+    const el = scrollRef.current;
+    if (!el) return;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const onFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        !(target instanceof HTMLInputElement) &&
+        !(target instanceof HTMLTextAreaElement)
+      ) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        target.scrollIntoView({ block: "center", behavior: "smooth" });
+      }, 300);
+    };
+    el.addEventListener("focusin", onFocusIn);
+    return () => {
+      if (timer) clearTimeout(timer);
+      el.removeEventListener("focusin", onFocusIn);
+    };
+  }, [open]);
 
   const currentSnap = snaps[snapIdx];
   // 시트 위치 = top. bottom 은 Sheet 베이스 style 의 `var(--kb-offset)` 유지
