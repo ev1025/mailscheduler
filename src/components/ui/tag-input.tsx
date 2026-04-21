@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/popover";
 import ColorPickerPanel from "@/components/ui/color-picker";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { useExclusiveBottomSheet } from "@/lib/dialog-stack";
 import { Plus, X, Search, MoreHorizontal, ArrowLeft, Trash2 } from "lucide-react";
 import {
   DndContext,
@@ -185,6 +186,10 @@ export default function TagInput({
   const inputRef = useRef<HTMLInputElement>(null);
   // 데스크탑(md 이상)에서는 바텀시트 대신 트리거 아래 Popover 로 렌더
   const isDesktop = useMediaQuery("(min-width: 768px)");
+
+  // 모바일 바텀시트 single-instance — 분류/태그 동시에 두 개 열리지 않도록
+  // (새로 열리는 시트가 이전 활성 시트를 자동으로 닫음)
+  useExclusiveBottomSheet(!isDesktop && open, () => setOpen(false));
 
   // half (50dvh) ↔ full (95dvh) 스냅 포인트
   const [snap, setSnap] = useState<"half" | "full">("half");

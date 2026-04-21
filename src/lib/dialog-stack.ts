@@ -68,3 +68,34 @@ export function useDialogStackEntry(
     };
   }, [open]);
 }
+
+// ── 모바일 바텀시트 single-instance 제한 ─────────────────────
+// "한 번에 하나만 열림" 보장용. TagInput 등 sub-sheet 가 여러 개 스택되어
+// 분류·태그 시트가 겹쳐 뜨는 문제 방지.
+// 새로 열리는 sheet 가 registerExclusiveSheet 호출 시 이전 활성 sheet 자동 닫힘.
+
+let activeExclusiveSheetClose: (() => void) | null = null;
+
+export function useExclusiveBottomSheet(
+  open: boolean,
+  close: () => void
+) {
+  const closeRef = React.useRef(close);
+  React.useEffect(() => {
+    closeRef.current = close;
+  });
+  React.useEffect(() => {
+    if (!open) return;
+    // 이전 활성 시트 닫기
+    const prevClose = activeExclusiveSheetClose;
+    if (prevClose) prevClose();
+    // 이 시트 활성 등록
+    const myClose = () => closeRef.current();
+    activeExclusiveSheetClose = myClose;
+    return () => {
+      if (activeExclusiveSheetClose === myClose) {
+        activeExclusiveSheetClose = null;
+      }
+    };
+  }, [open]);
+}
