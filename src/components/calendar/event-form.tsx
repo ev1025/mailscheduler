@@ -1,13 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -203,36 +197,27 @@ export default function EventForm({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        initialFocus={false}
-        onBack={
-          onBack && event
-            ? () => { onOpenChange(false); onBack(); }
-            : () => onOpenChange(false)
-        }
-        // 모바일: 전체화면. 데스크탑: 중앙 모달(max-w-lg).
-        // 키보드 올라오면 height 축소로 입력칸 안 가려짐.
-        style={{ height: "calc(100dvh - var(--kb-offset, 0px))" }}
-        className="
-          !max-w-none !w-full !top-0 !left-0
-          !translate-x-0 !translate-y-0 !rounded-none !p-0
-          !gap-0 flex flex-col
-          md:!max-w-lg md:!w-auto md:!max-h-[85dvh]
-          md:!top-1/2 md:!left-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2
-          md:!rounded-xl
-        "
-      >
-        <DialogHeader className="px-3 pt-3 pb-2 border-b shrink-0">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-base">{event ? "일정 수정" : "새 일정"}</DialogTitle>
-            {weatherMap && startDate && weatherMap[startDate] && (
-              <WeatherIcon weather={weatherMap[startDate]} showRange />
-            )}
-          </div>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 flex flex-col gap-4">
+    <FormPage
+      open={open}
+      onOpenChange={onOpenChange}
+      title={event ? "일정 수정" : "새 일정"}
+      headerExtra={
+        weatherMap && startDate && weatherMap[startDate] ? (
+          <WeatherIcon weather={weatherMap[startDate]} showRange />
+        ) : null
+      }
+      onBack={
+        onBack && event
+          ? () => { onOpenChange(false); onBack(); }
+          : undefined
+      }
+      submitDisabled={!title.trim() || !startDate}
+      saving={saving}
+      onSubmit={() => {
+        void handleSubmit({ preventDefault: () => {} } as React.FormEvent);
+      }}
+    >
+        <div className="flex flex-col gap-4">
           {/* 제목 */}
           <Input
             value={title}
@@ -364,18 +349,7 @@ export default function EventForm({
             />
           </div>
 
-          </div>
-          {/* 버튼 — 하단 고정 footer */}
-          <div className="flex items-center justify-end gap-2 px-4 py-3 border-t shrink-0 bg-background">
-            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              취소
-            </Button>
-            <Button type="submit" size="sm" disabled={!title.trim() || !startDate || saving}>
-              {saving ? "저장 중..." : "저장"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </div>
+    </FormPage>
   );
 }

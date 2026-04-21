@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -150,8 +145,7 @@ export default function TravelForm({
   }, [placeQuery]);
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!title.trim() || !category) return;
     setSaving(true);
     // 호환 — 기존 단일 컬럼에도 places[0] 값을 같이 써둔다 (travel-list 등 아직
@@ -192,12 +186,15 @@ export default function TravelForm({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto" initialFocus={false}>
-        <DialogHeader>
-          <DialogTitle>{item ? "여행 항목 수정" : "여행 항목 추가"}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <FormPage
+      open={open}
+      onOpenChange={onOpenChange}
+      title={item ? "여행 항목 수정" : "여행 항목 추가"}
+      submitDisabled={!title.trim() || !category}
+      saving={saving}
+      onSubmit={handleSubmit}
+    >
+        <div className="flex flex-col gap-4">
           {/* 제목 */}
           <Input
             value={title}
@@ -454,16 +451,7 @@ export default function TravelForm({
             </div>
           )}
 
-          {/* 버튼 */}
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>취소</Button>
-            <Button type="submit" disabled={!title.trim() || !category || saving}>
-              {saving ? "저장 중..." : "저장"}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-
-    </Dialog>
+        </div>
+    </FormPage>
   );
 }
