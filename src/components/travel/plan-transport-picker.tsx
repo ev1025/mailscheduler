@@ -90,13 +90,27 @@ export default function PlanTransportPicker({
               ? addMinutes(legDeparture, Math.max(1, Math.round(d / 60)))
               : null;
           const err = errors[m.value];
+          // 지하철 모드에선 버스 segment 만 나오는 결과를 "지하철 경로 없음" 처리.
+          // Google transit_mode 가 강제 필터가 아니라 선호만이라 버스 경로가 반환될 수 있음.
+          const rawSegments = results[m.value]?.segments ?? [];
+          const railSegments = rawSegments.filter(
+            (s) => s.kind === "subway" || s.kind === "train" || s.kind === "tram"
+          );
+          const trainHasOnlyBus =
+            m.value === "train" && rawSegments.length > 0 && railSegments.length === 0;
+
           const label =
             d === "loading" ? "계산 중…" :
+            trainHasOnlyBus ? "지하철 경로 없음" :
             d === null ? (err?.message ?? "계산 실패") :
             formatDuration(d);
 
-          // 버스·지하철만 세그먼트 체인 표시 (호선 배지 + 역 이름)
-          const showSegments = (m.value === "bus" || m.value === "train") && !!results[m.value]?.segments?.length;
+          // 버스·지하철 세그먼트 체인 표시 (호선 배지 + 역 이름).
+          // 지하철 모드: rail 만. 버스 모드: bus 만.
+          const showSegments =
+            (m.value === "bus" || m.value === "train") && !trainHasOnlyBus && rawSegments.length > 0;
+          const filterKinds: "bus" | "rail" | undefined =
+            m.value === "bus" ? "bus" : m.value === "train" ? "rail" : undefined;
 
           return (
             <button
@@ -129,8 +143,11 @@ export default function PlanTransportPicker({
                   )}
                 </div>
                 {showSegments && (
-                  <div className="mt-1">
-                    <TransitSegmentChain segments={results[m.value]!.segments} />
+                  <div className="mt-1.5">
+                    <TransitSegmentChain
+                      segments={results[m.value]!.segments}
+                      filterKinds={filterKinds}
+                    />
                   </div>
                 )}
               </div>

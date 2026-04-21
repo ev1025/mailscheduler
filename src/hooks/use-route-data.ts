@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { fetchRouteDetailed, type RouteResult, type RouteError } from "@/lib/travel/providers";
 import type { TransportMode } from "@/types";
 
-// 좌표·수단 조합 기반 route 결과 캐시.
-// - 모듈 레벨 Map 으로 모든 컴포넌트 공유
-// - 성공 결과만 2분 TTL 캐시. 실패(null)는 캐시하지 않아 재시도 가능
-// - key = "fromLat,fromLng|toLat,toLng|mode" — 좌표·수단 바뀌면 자동 갱신
-// - error 정보도 함께 반환해 UI 가 실패 원인 표시 가능
+// 좌표·수단 조합 기반 route 결과 캐시 (메모리 한정).
+// - 모듈 레벨 Map 으로 세션 내 공유. 새로고침 시 초기화 — 최신화 우선.
+// - 2분 TTL — 동일 세션에서 picker 껐다 켜도 즉시 표시
+// - 성공 결과만 캐시. 실패(null)는 캐시 안 함 → 재시도 즉시 가능
+// - 에러 정보 함께 반환해 UI 가 실패 원인 표시 가능
 
 const CACHE_TTL_MS = 2 * 60 * 1000;
 
@@ -55,7 +55,6 @@ async function getRouteEntry(
   const p = fetchRouteDetailed(from, to, mode)
     .then(({ result, error }) => {
       const entry: CacheEntry = { result, error, expiresAt: Date.now() + CACHE_TTL_MS };
-      // 성공일 때만 캐시 — 실패는 즉시 재시도 가능하도록
       if (result) cache.set(key, entry);
       return entry;
     })
@@ -81,7 +80,6 @@ export function invalidateRouteData(
 export interface RouteResultsMap {
   durations: Record<TransportMode, number | null | "loading">;
   results: Partial<Record<TransportMode, RouteResult | null>>;
-  /** 실패한 수단별 에러 정보 — UI 에서 실패 사유 표시용 */
   errors: Partial<Record<TransportMode, RouteError | undefined>>;
 }
 
