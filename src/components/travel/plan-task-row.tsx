@@ -90,53 +90,54 @@ export default function PlanTaskRow({
         </div>
       )}
 
-      {/* 본문 — 2열 grid [시간 고정폭 | flex].
-          시간 행은 justify-center 로 내용을 col 중앙에 둠 → "~" 가 col 중앙.
-          체류 행은 text-center 로 중앙 → "~" 와 동일 위치에 정렬. */}
-      <div className="flex-1 min-w-0 grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-0.5 px-2 py-2">
-        {/* Row 1 col 1 — 시간 (중앙 정렬로 "~" 가 col 정중앙에) */}
-        <div className="flex items-center justify-center gap-1 tabular-nums text-xs font-semibold overflow-hidden">
-          {arrivalTime ? (
-            <>
-              <span>{arrivalTime}</span>
-              {leaveTime && (
-                <>
-                  <span className="text-muted-foreground font-normal">~</span>
-                  <span>{leaveTime}</span>
-                </>
-              )}
-            </>
-          ) : (
-            <span className="text-muted-foreground/60 font-normal">--:--</span>
+      {/* 본문 — 좌우 2개 컨테이너.
+          [왼쪽: 시간·체류시간 세로] [오른쪽: 장소·주소 세로]
+          왼쪽은 items-center 로 내부 모두 중앙정렬 → "~" 아래 "(체류시간)" 자동 정렬.
+          왼쪽 컨테이너 고정 너비(5.5rem) 로 마커 x 위치 일정. */}
+      <div className="flex-1 min-w-0 flex items-start gap-2 px-2 py-2">
+        {/* 왼쪽: 시간 위, 체류시간 아래 */}
+        <div className="shrink-0 flex flex-col items-center w-[5.5rem]">
+          <div className="flex items-center gap-1 tabular-nums text-xs font-semibold">
+            {arrivalTime ? (
+              <>
+                <span>{arrivalTime}</span>
+                {leaveTime && (
+                  <>
+                    <span className="text-muted-foreground font-normal">~</span>
+                    <span>{leaveTime}</span>
+                  </>
+                )}
+              </>
+            ) : (
+              <span className="text-muted-foreground/60 font-normal">--:--</span>
+            )}
+          </div>
+          {task.stay_minutes > 0 && (
+            <div className="text-[10px] text-muted-foreground whitespace-nowrap">
+              ({formatMinutes(task.stay_minutes)})
+            </div>
           )}
         </div>
 
-        {/* Row 1 col 2 — 장소 */}
-        <div className="flex items-center gap-1.5 min-w-0">
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
-            <path
-              d="M12 22s7-7.5 7-13a7 7 0 10-14 0c0 5.5 7 13 7 13z"
-              className="fill-red-500 stroke-red-600"
-              strokeWidth={1.5}
-            />
-            <circle cx="12" cy="9" r="2.5" className="fill-white" />
-          </svg>
-          <span className="text-xs md:text-sm font-medium truncate">
-            {task.place_name || "(장소 미입력)"}
-          </span>
-        </div>
-
-        {/* Row 2 col 1 — 체류시간 (text-center → col 중앙, "~" 아래) */}
-        <div className="text-[10px] text-muted-foreground text-center self-start">
-          {task.stay_minutes > 0 ? `(${formatMinutes(task.stay_minutes)})` : ""}
-        </div>
-
-        {/* Row 2 col 2 — 주소·내용 */}
-        <div className="flex items-start gap-1.5 text-[10px] text-muted-foreground min-w-0">
-          {(task.content || task.place_address) && (
-            <span className="flex-1 min-w-0 break-words line-clamp-2 leading-snug">
-              {task.content || task.place_address}
+        {/* 오른쪽: 장소 위, 주소 아래 */}
+        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
+              <path
+                d="M12 22s7-7.5 7-13a7 7 0 10-14 0c0 5.5 7 13 7 13z"
+                className="fill-red-500 stroke-red-600"
+                strokeWidth={1.5}
+              />
+              <circle cx="12" cy="9" r="2.5" className="fill-white" />
+            </svg>
+            <span className="text-xs md:text-sm font-medium truncate">
+              {task.place_name || "(장소 미입력)"}
             </span>
+          </div>
+          {(task.content || task.place_address) && (
+            <div className="text-[10px] text-muted-foreground min-w-0 break-words line-clamp-2 leading-snug">
+              {task.content || task.place_address}
+            </div>
           )}
         </div>
       </div>
