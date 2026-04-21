@@ -448,6 +448,7 @@ export default function PlanTaskSheet({
       open={open}
       onOpenChange={onOpenChange}
       title={title}
+      desktopMaxWidth="md:!max-w-2xl"
       onCancel={handleCancel}
       submitDisabled={!placeName.trim()}
       saving={saving}

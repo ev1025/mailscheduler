@@ -469,7 +469,9 @@ export default function TagInput({
             side="bottom"
             sideOffset={2}
             collisionAvoidance={{ side: "none", align: "none" }}
-            className="w-[320px] p-0 max-h-[60dvh] overflow-hidden"
+            // 트리거(input) 폭과 동일하게 — Base UI Popover 가 positioner 에
+            // --anchor-width 변수를 세팅하므로 이를 그대로 사용
+            className="w-[var(--anchor-width)] min-w-[240px] p-0 max-h-[60dvh] overflow-hidden"
           >
             {renderBody()}
           </PopoverContent>

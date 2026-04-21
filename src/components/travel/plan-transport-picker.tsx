@@ -210,40 +210,45 @@ export default function PlanTransportPicker({
               type="button"
               onClick={() => onSelect(m.value, typeof d === "number" ? d : null)}
               disabled={d === "loading"}
-              className={`flex items-start gap-3 rounded-md px-3 py-2.5 text-left transition-colors disabled:opacity-60 ${
+              className={`grid grid-cols-[2.25rem_1fr_auto] gap-x-2 gap-y-0.5 items-center rounded-md px-3 py-2 text-left transition-colors disabled:opacity-60 ${
                 selected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-accent"
               }`}
             >
-              <span className="text-2xl shrink-0">{m.emoji}</span>
-              <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="font-medium text-sm">{m.label}</span>
-                  {isFastest && (
-                    <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-600">
-                      <Zap className="h-2.5 w-2.5 fill-amber-500 stroke-amber-600" />
-                      최속
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
-                  <span className={d === null ? "" : "font-medium text-foreground"}>{label}</span>
-                  {arrival && (
-                    <>
-                      <span>·</span>
-                      <span>도착 {arrival}</span>
-                    </>
-                  )}
-                </div>
-                {showSegments && (
-                  <div className="mt-1.5">
-                    <TransitSegmentChain
-                      segments={results[m.value]!.segments}
-                      filterKinds={filterKinds}
-                    />
-                  </div>
+              {/* Row 1: 이모지 | 소요시간 | check */}
+              <span className="text-xl text-center row-start-1 col-start-1" aria-hidden="true">
+                {m.emoji}
+              </span>
+              <div className="row-start-1 col-start-2 flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0">
+                <span className={d === null ? "" : "font-medium text-foreground text-sm"}>{label}</span>
+                {arrival && (
+                  <>
+                    <span>·</span>
+                    <span>도착 {arrival}</span>
+                  </>
+                )}
+                {isFastest && (
+                  <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-600">
+                    <Zap className="h-2.5 w-2.5 fill-amber-500 stroke-amber-600" />
+                    최속
+                  </span>
                 )}
               </div>
-              {selected && <Check className="h-4 w-4 shrink-0 text-primary mt-1" />}
+              <span className="row-start-1 col-start-3 row-span-2 flex items-center justify-center w-4">
+                {selected && <Check className="h-4 w-4 text-primary" />}
+              </span>
+
+              {/* Row 2: 수단 | 경로 */}
+              <span className="row-start-2 col-start-1 text-[11px] text-muted-foreground text-center">
+                {m.label}
+              </span>
+              <div className="row-start-2 col-start-2 min-w-0">
+                {showSegments ? (
+                  <TransitSegmentChain
+                    segments={results[m.value]!.segments}
+                    filterKinds={filterKinds}
+                  />
+                ) : null}
+              </div>
             </button>
           );
         })}
