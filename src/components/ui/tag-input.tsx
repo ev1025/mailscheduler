@@ -404,7 +404,10 @@ export default function TagInput({
         /* ── 데스크탑: 트리거 자체가 실제 input (콤보박스) — 드롭다운 내부는 리스트만 ── */
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger
-            render={<div />}
+            // 트리거가 input + badges 를 포함해야 해서 native button 으로 감쌀 수
+            // 없음 (button 안에 input 불가). nativeButton=false 로 비버튼 요소 허용.
+            nativeButton={false}
+            render={<div role="combobox" aria-haspopup="listbox" aria-expanded={open} tabIndex={0} />}
             className={`${triggerClass} cursor-text`}
             onClick={() => {
               setOpen(true);
