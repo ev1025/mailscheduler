@@ -18,7 +18,7 @@ const MODES: { value: TransportMode; label: string; emoji: string }[] = [
   { value: "walk", label: "도보", emoji: "🚶" },
   { value: "car", label: "승용차", emoji: "🚗" },
   { value: "bus", label: "버스", emoji: "🚌" },
-  { value: "train", label: "지하철", emoji: "🚇" },
+  { value: "train", label: "지하철", emoji: "🚈" },
 ];
 
 interface Props {
@@ -181,7 +181,7 @@ export default function PlanTransportPicker({
         })}
 
         {/* 수동 입력 — 같은 카드에서 바로 입력·저장. 팝업 없음. */}
-        <div className="mt-2 pt-2 border-t border-dashed">
+        <div className="mt-1">
           <div className="flex items-start gap-3 rounded-md px-3 py-2.5">
             <span className="text-2xl shrink-0" aria-hidden="true">✏️</span>
             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
