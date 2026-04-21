@@ -90,25 +90,29 @@ export default function PlanTaskRow({
         </div>
       )}
 
-      {/* 본문 — 4열 grid: [arrival][sep][leave][flex]
-          시간 행과 체류 행이 같은 grid 를 공유해서 col 너비 자동 일치 →
-          "~" 와 "(체류시간)" 이 같은 col-2 안에서 justify-self-center 로 정렬됨.
-          col 1·3 은 tabular-nums 로 arrival/leave 가 언제나 동일 폭 → 마커 x 고정.
-          col 2 너비는 max(~, (체류시간)) 로 자동. */}
-      <div className="flex-1 min-w-0 grid grid-cols-[auto_auto_auto_1fr] items-center gap-x-1 gap-y-0.5 px-2 py-2">
-        {/* Row 1 — 시간 */}
-        <span className="text-xs font-semibold tabular-nums">
-          {arrivalTime ?? <span className="text-muted-foreground/60 font-normal">--:--</span>}
-        </span>
-        <span className="text-xs text-muted-foreground font-normal justify-self-center">
-          {leaveTime ? "~" : ""}
-        </span>
-        <span className="text-xs font-semibold tabular-nums">
-          {leaveTime ?? ""}
-        </span>
+      {/* 본문 — 2열 grid [시간 고정폭 | flex].
+          시간 행은 justify-center 로 내용을 col 중앙에 둠 → "~" 가 col 중앙.
+          체류 행은 text-center 로 중앙 → "~" 와 동일 위치에 정렬. */}
+      <div className="flex-1 min-w-0 grid grid-cols-[5.5rem_1fr] gap-x-2 gap-y-0.5 px-2 py-2">
+        {/* Row 1 col 1 — 시간 (중앙 정렬로 "~" 가 col 정중앙에) */}
+        <div className="flex items-center justify-center gap-1 tabular-nums text-xs font-semibold overflow-hidden">
+          {arrivalTime ? (
+            <>
+              <span>{arrivalTime}</span>
+              {leaveTime && (
+                <>
+                  <span className="text-muted-foreground font-normal">~</span>
+                  <span>{leaveTime}</span>
+                </>
+              )}
+            </>
+          ) : (
+            <span className="text-muted-foreground/60 font-normal">--:--</span>
+          )}
+        </div>
 
-        {/* Row 1 col 4 — 장소 (마커 + 이름) */}
-        <span className="flex items-center gap-1.5 min-w-0 ml-2">
+        {/* Row 1 col 2 — 장소 */}
+        <div className="flex items-center gap-1.5 min-w-0">
           <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
             <path
               d="M12 22s7-7.5 7-13a7 7 0 10-14 0c0 5.5 7 13 7 13z"
@@ -120,27 +124,21 @@ export default function PlanTaskRow({
           <span className="text-xs md:text-sm font-medium truncate">
             {task.place_name || "(장소 미입력)"}
           </span>
-        </span>
+        </div>
 
-        {/* Row 2 — 체류시간 (arrival/leave 폭은 invisible phantom 으로 유지) */}
-        <span className="invisible text-xs font-semibold tabular-nums" aria-hidden="true">
-          {arrivalTime || "--:--"}
-        </span>
-        <span className="text-[10px] text-muted-foreground whitespace-nowrap justify-self-center">
+        {/* Row 2 col 1 — 체류시간 (text-center → col 중앙, "~" 아래) */}
+        <div className="text-[10px] text-muted-foreground text-center self-start">
           {task.stay_minutes > 0 ? `(${formatMinutes(task.stay_minutes)})` : ""}
-        </span>
-        <span className="invisible text-xs font-semibold tabular-nums" aria-hidden="true">
-          {leaveTime || ""}
-        </span>
+        </div>
 
-        {/* Row 2 col 4 — 주소·내용 */}
-        <span className="flex items-start gap-1.5 text-[10px] text-muted-foreground min-w-0 ml-2">
+        {/* Row 2 col 2 — 주소·내용 */}
+        <div className="flex items-start gap-1.5 text-[10px] text-muted-foreground min-w-0">
           {(task.content || task.place_address) && (
             <span className="flex-1 min-w-0 break-words line-clamp-2 leading-snug">
               {task.content || task.place_address}
             </span>
           )}
-        </span>
+        </div>
       </div>
     </div>
   );
