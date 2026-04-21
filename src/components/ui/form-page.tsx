@@ -188,6 +188,19 @@ export default function FormPage({
           ref={scrollRef}
           className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-3 pb-8"
           style={{ scrollPaddingBottom: "3rem" }}
+          // 빈 영역 탭 시 포커스된 input/textarea blur → 키보드 자동 내림.
+          // 진짜 빈 영역에서만 동작하도록 target=currentTarget 인 경우만.
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              const active = document.activeElement;
+              if (
+                active instanceof HTMLInputElement ||
+                active instanceof HTMLTextAreaElement
+              ) {
+                active.blur();
+              }
+            }
+          }}
         >
           {children}
         </div>
