@@ -1,8 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Zap } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DeviceDialog from "@/components/ui/device-dialog";
@@ -10,7 +9,6 @@ import { formatDuration } from "@/lib/travel/providers";
 import { useRouteDurations } from "@/hooks/use-route-data";
 import TransitSegmentChain from "@/components/travel/transit-segment-chain";
 import type { TransportMode } from "@/types";
-import { useEffect, useState } from "react";
 
 // 이동수단 선택 모달 — 모바일 바텀시트 / 데스크탑 Dialog (DeviceDialog 자동 전환).
 // useRouteDurations 훅으로 4수단 동시 fetch + 모듈 레벨 캐시.
@@ -31,7 +29,10 @@ interface Props {
   legDeparture: string | null;
   selectedMode: TransportMode | null;
   onSelect: (mode: TransportMode, durationSec: number | null) => void;
-  onSelectManual: () => void;
+  /** 수동 입력 저장 — 분 단위 */
+  onManualSave: (minutes: number) => void;
+  /** 수동 입력 초기값 (기존 수동값이 있으면) */
+  initialManualMinutes?: number;
 }
 
 function addMinutes(hhmm: string, addMin: number): string {
@@ -49,9 +50,26 @@ export default function PlanTransportPicker({
   legDeparture,
   selectedMode,
   onSelect,
-  onSelectManual,
+  onManualSave,
+  initialManualMinutes,
 }: Props) {
   const { durations, results, errors } = useRouteDurations(from, to, open);
+  const [manualMinutes, setManualMinutes] = useState(
+    initialManualMinutes ? String(initialManualMinutes) : ""
+  );
+
+  // open 될 때마다 초기값 리셋
+  useEffect(() => {
+    if (open) setManualMinutes(initialManualMinutes ? String(initialManualMinutes) : "");
+  }, [open, initialManualMinutes]);
+
+  const commitManual = () => {
+    const n = parseInt(manualMinutes, 10);
+    if (Number.isFinite(n) && n > 0) {
+      onManualSave(n);
+      onOpenChange(false);
+    }
+  };
 
   const fastestMode = useMemo(() => {
     let best: TransportMode | null = null;
@@ -162,78 +180,43 @@ export default function PlanTransportPicker({
           );
         })}
 
-        {/* 수동 입력 — 다른 수단 버튼과 동일한 카드 구조 (이모지·라벨·부가 설명).
-            구분선 대신 약간의 간격으로 "별도 존" 임을 시각화. */}
+        {/* 수동 입력 — 같은 카드에서 바로 입력·저장. 팝업 없음. */}
         <div className="mt-2 pt-2 border-t border-dashed">
-          <button
-            type="button"
-            onClick={onSelectManual}
-            className="flex items-start gap-3 rounded-md px-3 py-2.5 w-full text-left transition-colors hover:bg-accent"
-          >
+          <div className="flex items-start gap-3 rounded-md px-3 py-2.5">
             <span className="text-2xl shrink-0" aria-hidden="true">✏️</span>
-            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
               <span className="font-medium text-sm">수동 입력</span>
-              <span className="text-xs text-muted-foreground">
-                소요시간을 직접 분 단위로 지정
-              </span>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={manualMinutes}
+                  onChange={(e) => setManualMinutes(e.target.value.replace(/[^0-9]/g, ""))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitManual();
+                    }
+                  }}
+                  placeholder="분"
+                  className="h-8 w-20 text-xs tabular-nums"
+                />
+                <span className="text-xs text-muted-foreground">분</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-8 px-3 text-xs"
+                  disabled={!manualMinutes || parseInt(manualMinutes, 10) <= 0}
+                  onClick={commitManual}
+                >
+                  저장
+                </Button>
+              </div>
             </div>
-          </button>
+          </div>
         </div>
       </div>
     </DeviceDialog>
   );
 }
 
-// 수동 입력 전용 소형 Dialog — 데스크탑에도 동일하게 표시 (작은 모달)
-export function ManualDurationDialog({
-  open,
-  onOpenChange,
-  initialMinutes,
-  onSave,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  initialMinutes: number;
-  onSave: (minutes: number) => void;
-}) {
-  const [value, setValue] = useState(String(initialMinutes || ""));
-  useEffect(() => {
-    if (open) setValue(String(initialMinutes || ""));
-  }, [open, initialMinutes]);
-
-  const commit = () => {
-    const n = parseInt(value, 10);
-    if (Number.isFinite(n) && n >= 0) {
-      onSave(n);
-      onOpenChange(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xs">
-        <DialogHeader>
-          <DialogTitle className="text-sm">소요시간 직접 입력</DialogTitle>
-        </DialogHeader>
-        <div className="flex items-center gap-2 px-4 pb-2">
-          <Input
-            type="number"
-            inputMode="numeric"
-            min={0}
-            value={value}
-            onChange={(e) => setValue(e.target.value.replace(/[^0-9]/g, ""))}
-            onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
-            placeholder="분"
-            autoFocus
-            className="flex-1"
-          />
-          <span className="text-xs text-muted-foreground">분</span>
-        </div>
-        <div className="flex gap-2 px-4 pb-4">
-          <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>취소</Button>
-          <Button type="button" className="flex-1" onClick={commit}>저장</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}

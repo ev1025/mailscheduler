@@ -5,18 +5,13 @@ import { ChevronDown } from "lucide-react";
 import type { TaskLeg } from "@/lib/travel/legs";
 import type { TransportMode } from "@/types";
 import { formatDuration } from "@/lib/travel/providers";
-import PlanTransportPicker, { ManualDurationDialog } from "@/components/travel/plan-transport-picker";
+import PlanTransportPicker from "@/components/travel/plan-transport-picker";
 
 // Leg 카드 (2-line compact).
-// Unselected:
-//   : ---   [ 이동수단 선택 ▾ ]
-// Selected:
-//   22:38  →  🚶 도보 16분  →  22:53    [변경]
+// Unselected:   [ 이동수단 선택 ▾ ]
+// Selected:     🚶 도보 16분  (탭하면 picker 재오픈)
 //
-// 클릭 시 PlanTransportPicker (바텀시트/Dialog) 열려 4개 수단 비교·선택.
-// 선택된 수단·duration 은 DB 의 transport_mode · transport_duration_sec 에 저장.
-// 이번 picker 에서 새로 얻은 모든 수단 duration 도 transport_durations JSONB 에
-// 캐시 → 다음에 picker 열면 즉시 표시.
+// picker 안에 수동 입력까지 포함되어 더 이상 별도 팝업 없음.
 
 const MODE_ICON: Record<TransportMode, { emoji: string; label: string }> = {
   car: { emoji: "🚗", label: "승용차" },
@@ -46,12 +41,13 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
     toTask.place_lng != null;
 
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [manualOpen, setManualOpen] = useState(false);
 
   const mode = toTask.transport_mode;
   const durationSec = toTask.transport_duration_sec;
   const isManual = toTask.transport_manual;
   const icon = mode ? MODE_ICON[mode] : null;
+  const initialManualMinutes =
+    isManual && durationSec ? Math.round(durationSec / 60) : undefined;
 
   const handleSelect = (
     selectedMode: TransportMode,
@@ -74,7 +70,6 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
     });
   };
 
-  // Unselected 상태: 선택 버튼만 (시간은 task row 에서 표시하므로 생략)
   if (!mode || durationSec == null) {
     return (
       <>
@@ -101,23 +96,14 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
             legDeparture={legDeparture}
             selectedMode={null}
             onSelect={handleSelect}
-            onSelectManual={() => {
-              setPickerOpen(false);
-              setManualOpen(true);
-            }}
+            onManualSave={handleManual}
+            initialManualMinutes={initialManualMinutes}
           />
         )}
-        <ManualDurationDialog
-          open={manualOpen}
-          onOpenChange={setManualOpen}
-          initialMinutes={0}
-          onSave={handleManual}
-        />
       </>
     );
   }
 
-  // Selected 상태: 수단 · 소요시간만 (시간은 task row 에서 표시)
   return (
     <>
       <div className="flex items-center ml-6 pl-2 border-l-2 border-primary/30 py-1">
@@ -143,18 +129,10 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
           legDeparture={legDeparture}
           selectedMode={mode === "taxi" ? "car" : mode}
           onSelect={handleSelect}
-          onSelectManual={() => {
-            setPickerOpen(false);
-            setManualOpen(true);
-          }}
+          onManualSave={handleManual}
+          initialManualMinutes={initialManualMinutes}
         />
       )}
-      <ManualDurationDialog
-        open={manualOpen}
-        onOpenChange={setManualOpen}
-        initialMinutes={isManual && durationSec ? Math.round(durationSec / 60) : 0}
-        onSave={handleManual}
-      />
     </>
   );
 }
