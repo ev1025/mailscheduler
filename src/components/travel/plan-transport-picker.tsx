@@ -8,6 +8,7 @@ import DeviceDialog from "@/components/ui/device-dialog";
 import { formatDuration } from "@/lib/travel/providers";
 import { useRouteDurations } from "@/hooks/use-route-data";
 import TransitSegmentChain from "@/components/travel/transit-segment-chain";
+import { addMinutes } from "@/lib/travel/time";
 import type { TransportMode } from "@/types";
 
 // 이동수단 선택 모달 — 모바일 바텀시트 / 데스크탑 Dialog (DeviceDialog 자동 전환).
@@ -33,13 +34,6 @@ interface Props {
   onManualSave: (minutes: number) => void;
   /** 수동 입력 초기값 (기존 수동값이 있으면) */
   initialManualMinutes?: number;
-}
-
-function addMinutes(hhmm: string, addMin: number): string {
-  const [h, m] = hhmm.split(":").map((s) => parseInt(s, 10));
-  const total = h * 60 + m + addMin;
-  const w = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
-  return `${String(Math.floor(w / 60)).padStart(2, "0")}:${String(w % 60).padStart(2, "0")}`;
 }
 
 export default function PlanTransportPicker({

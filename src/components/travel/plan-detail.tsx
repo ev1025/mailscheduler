@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { ArrowLeft, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,11 @@ import { useTravelPlans } from "@/hooks/use-travel-plans";
 import { useTravelPlanTasks } from "@/hooks/use-travel-plan-tasks";
 import { sortTasks } from "@/lib/travel/sort-tasks";
 import { tasksToLegs } from "@/lib/travel/legs";
-import { getRouteData, invalidateRouteData } from "@/hooks/use-route-data";
+import { invalidateRouteData } from "@/hooks/use-route-data";
 import { computeExpectedTimes } from "@/lib/travel/expected-time";
-import type { TravelPlanTask, TransportMode } from "@/types";
+import { useLegPaths } from "@/components/travel/use-leg-paths";
+import { createPlanDragEndHandler } from "@/components/travel/use-plan-drag-and-drop";
+import type { TravelPlanTask } from "@/types";
 import {
   DndContext,
   closestCenter,
@@ -25,13 +27,11 @@ import {
   useDroppable,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -111,10 +111,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
 
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [segment, setSegment] = useState<Segment>({ mode: "all" });
-  // legPaths: "{fromId}-{toId}-{mode}" 를 key 로 사용 — mode 가 바뀌면 자동으로
-  // 새 key 가 되어 이전 path 재사용 금지. 이전엔 (fromId-toId) 만 써서 수단을
-  // 바꿔도 예전 경로가 그대로 남았음.
-  const [legPaths, setLegPaths] = useState<Record<string, [number, number][]>>({});
 
   // 시트 상태: 편집 중이면 task, 신규면 null + 대상 day_index
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -171,41 +167,8 @@ export default function PlanDetail({ planId, onBack }: Props) {
     return one ? [one] : [];
   }, [segment, legsWithCoords]);
 
-  // 보이는 leg 자동 path fetch — 선택된 수단 기준으로 실제 경로 폴리라인.
-  // 자가용(NCP)·대중교통·도보(Google) 모두 path 를 주므로 전체 수단 지원.
-  // 기차는 Google rail 폴백의 polyline (레일 노선 근사) 표시.
-  // 진행 중인 요청 추적 — legPaths 를 deps 에 넣으면 매 setLegPaths 마다
-  // 이펙트가 재실행되어 race condition · 중복 호출 발생. useRef 로 분리.
-  const pendingPathRequests = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      for (const leg of visibleLegs) {
-        if (cancelled) return;
-        const mode: TransportMode | null = leg.toTask.transport_mode ?? null;
-        if (!mode) continue;
-        const key = `${leg.fromTaskId}-${leg.toTaskId}-${mode}`;
-        if (legPaths[key] || pendingPathRequests.current.has(key)) continue;
-        pendingPathRequests.current.add(key);
-        try {
-          const result = await getRouteData(
-            { lat: leg.fromTask.place_lat!, lng: leg.fromTask.place_lng! },
-            { lat: leg.toTask.place_lat!, lng: leg.toTask.place_lng! },
-            mode
-          );
-          if (cancelled) return;
-          if (result?.path && result.path.length > 1) {
-            setLegPaths((p) => ({ ...p, [key]: result.path! }));
-          }
-        } finally {
-          pendingPathRequests.current.delete(key);
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-    // legPaths 는 일부러 deps 에서 제외 — pendingPathRequests.current 로 중복 방지
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visibleLegs]);
+  // 보이는 leg 들의 실제 경로 polyline 자동 fetch (useLegPaths 훅에 위임)
+  const legPaths = useLegPaths(visibleLegs);
 
   const { pins, legs: mapLegs } = useMemo(() => {
     const taskToPin = (t: TravelPlanTask) =>
@@ -290,97 +253,11 @@ export default function PlanDetail({ planId, onBack }: Props) {
     setTitleDraft(null);
   };
 
-  // 순서 변경 시 인접 leg 들 무효화 — transport 필드 리셋 대상 task id 세트.
-  //  - moved task 본인 (arriving leg 변경)
-  //  - moved task 의 새 next (this → newNext leg 변경)
-  //  - moved task 의 기존 next (원래 위치에서의 다음 task — 그 departing leg 변경)
-  const resetTransport = async (taskIds: string[]) => {
-    for (const id of taskIds) {
-      await updateTask(id, {
-        transport_mode: null,
-        transport_duration_sec: null,
-        transport_manual: false,
-        transport_durations: null,
-      });
-    }
-  };
-
-  // Drag end:
-  //  - task → task (다른 일자): 해당 위치에 끼워넣음 + day_index 변경
-  //  - task → task (같은 일자): 순서 재정렬
-  //  - task → day zone (빈 일자 등): 해당 일자 맨 뒤로 이동
-  const handleDragEnd = async (e: DragEndEvent) => {
-    if (!e.over || e.active.id === e.over.id) return;
-    const activeTask = sorted.find((t) => t.id === e.active.id);
-    if (!activeTask) return;
-    const overId = String(e.over.id);
-
-    // 원래 위치에서의 기존 next (옛 departing leg 무효)
-    const oldDayTasks = sorted.filter((t) => t.day_index === activeTask.day_index);
-    const oldIdx = oldDayTasks.findIndex((t) => t.id === activeTask.id);
-    const oldNext = oldIdx >= 0 ? oldDayTasks[oldIdx + 1] : undefined;
-
-    // 리셋 대상: 옮겨진 task 본인 + 기존 next (원래 그 사이의 leg 옮겨짐)
-    const affected = new Set<string>([activeTask.id]);
-    if (oldNext) affected.add(oldNext.id);
-
-    // 빈 일자 droppable 로 드롭한 경우
-    if (overId.startsWith("day-")) {
-      const targetDay = parseInt(overId.slice(4), 10);
-      if (!Number.isFinite(targetDay) || targetDay === activeTask.day_index) return;
-      const targetDayTasks = sorted.filter(
-        (t) => t.day_index === targetDay && t.id !== activeTask.id
-      );
-      targetDayTasks.push(activeTask); // 맨 뒤 — 따라서 새 next 없음 (end 에 위치)
-      await updateTask(activeTask.id, { day_index: targetDay });
-      for (let i = 0; i < targetDayTasks.length; i++) {
-        const t = targetDayTasks[i];
-        if (t.id === activeTask.id || t.manual_order !== i) {
-          await updateTask(t.id, { manual_order: i });
-        }
-      }
-      await resetTransport([...affected]);
-      return;
-    }
-
-    const overTask = sorted.find((t) => t.id === overId);
-    if (!overTask) return;
-
-    if (activeTask.day_index !== overTask.day_index) {
-      // 다른 일자로 이동 — overTask 앞에 끼워넣음
-      const targetDayTasks = sorted.filter(
-        (t) => t.day_index === overTask.day_index && t.id !== activeTask.id
-      );
-      const overIdx = targetDayTasks.findIndex((t) => t.id === overTask.id);
-      targetDayTasks.splice(overIdx, 0, activeTask);
-      await updateTask(activeTask.id, { day_index: overTask.day_index });
-      for (let i = 0; i < targetDayTasks.length; i++) {
-        const t = targetDayTasks[i];
-        if (t.id === activeTask.id || t.manual_order !== i) {
-          await updateTask(t.id, { manual_order: i });
-        }
-      }
-      // 새 next (overTask 가 active 뒤로 밀려난 경우 overTask 가 새 next)
-      affected.add(overTask.id);
-      await resetTransport([...affected]);
-    } else {
-      const dayTasks = sorted.filter((t) => t.day_index === activeTask.day_index);
-      const oldIdx = dayTasks.findIndex((t) => t.id === activeTask.id);
-      const newIdx = dayTasks.findIndex((t) => t.id === overTask.id);
-      if (oldIdx < 0 || newIdx < 0) return;
-      const reordered = arrayMove(dayTasks, oldIdx, newIdx);
-      for (let i = 0; i < reordered.length; i++) {
-        if (reordered[i].manual_order !== i) {
-          await updateTask(reordered[i].id, { manual_order: i });
-        }
-      }
-      // 재정렬된 배열에서 activeTask 의 새 next
-      const newActiveIdx = reordered.findIndex((t) => t.id === activeTask.id);
-      const newNext = newActiveIdx >= 0 ? reordered[newActiveIdx + 1] : undefined;
-      if (newNext) affected.add(newNext.id);
-      await resetTransport([...affected]);
-    }
-  };
+  // DnD 드래그 종료 핸들러 — 별도 모듈에서 구성
+  const handleDragEnd = useMemo(
+    () => createPlanDragEndHandler({ sorted, updateTask }),
+    [sorted, updateTask]
+  );
 
   // 일자별로 task 그룹핑
   const tasksByDay: Record<number, TravelPlanTask[]> = {};

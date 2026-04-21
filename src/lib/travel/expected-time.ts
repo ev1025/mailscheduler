@@ -1,4 +1,5 @@
 import type { TravelPlanTask } from "@/types";
+import { fromMinutes, toMinutes } from "@/lib/travel/time";
 
 // 정렬된 task 들에 대해 각 task 의 "예상 도착 시각"을 계산.
 // 규칙 (변경됨 — 자동 조절 강화):
@@ -17,19 +18,6 @@ import type { TravelPlanTask } from "@/types";
 export interface ExpectedTimeInfo {
   time: string | null;   // HH:MM
   predicted: boolean;    // 첫 task 는 false, 체인 계산된 건 true
-}
-
-function toMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(":").map((s) => parseInt(s, 10));
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return 0;
-  return h * 60 + m;
-}
-
-function fromMinutes(min: number): string {
-  const total = ((min % (24 * 60)) + 24 * 60) % (24 * 60);
-  const h = Math.floor(total / 60);
-  const m = total % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 export function computeExpectedTimes(

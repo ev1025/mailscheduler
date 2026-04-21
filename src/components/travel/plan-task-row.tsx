@@ -4,6 +4,7 @@ import { useState } from "react";
 import { GripVertical, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatMinutes } from "@/lib/travel/providers";
+import { addMinutes, formatTime } from "@/lib/travel/time";
 import type { TravelPlanTask } from "@/types";
 
 // 일정 한 행 — 3열 레이아웃으로 시간·장소 컬럼 분리.
@@ -20,18 +21,6 @@ interface Props {
   dragListeners?: React.HTMLAttributes<HTMLButtonElement>;
   dragAttributes?: React.HTMLAttributes<HTMLButtonElement>;
   expectedTime?: string | null;
-}
-
-function formatTime(t: string | null): string {
-  if (!t) return "";
-  return t.length >= 5 ? t.slice(0, 5) : t;
-}
-
-function addMinutes(hhmm: string, addMin: number): string {
-  const [h, m] = hhmm.split(":").map((s) => parseInt(s, 10));
-  const total = h * 60 + m + addMin;
-  const w = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
-  return `${String(Math.floor(w / 60)).padStart(2, "0")}:${String(w % 60).padStart(2, "0")}`;
 }
 
 export default function PlanTaskRow({
