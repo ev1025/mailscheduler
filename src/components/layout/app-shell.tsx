@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "./sidebar";
 import BottomNav from "./bottom-nav";
@@ -70,11 +70,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {/* Sidebar: 데스크탑에선 fixed, 모바일에선 hidden (Sidebar 내부에서 hidden md:flex 처리) */}
-      <Sidebar
-        collapsed={collapsed}
-        onToggle={() => setCollapsed(!collapsed)}
-      />
+      {/* Sidebar: 데스크탑에선 fixed, 모바일에선 hidden (Sidebar 내부에서 hidden md:flex 처리).
+          useSearchParams 를 쓰므로 Suspense 로 감쌈. */}
+      <Suspense fallback={null}>
+        <Sidebar
+          collapsed={collapsed}
+          onToggle={() => setCollapsed(!collapsed)}
+        />
+      </Suspense>
 
       {/* Main: 모바일=화면 고정 내부스크롤 / 데스크탑=document 스크롤 */}
       <main
@@ -87,7 +90,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <BottomNav />
+      {/* BottomNav 는 useSearchParams 를 쓰므로 prerender 시 Suspense 필요 */}
+      <Suspense fallback={null}>
+        <BottomNav />
+      </Suspense>
 
       <UserSwitcher
         open={gateOpen}

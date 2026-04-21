@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Calendar,
+  Plane,
   Wallet,
-  StickyNote,
   BookOpen,
   PanelLeftClose,
   PanelLeftOpen,
@@ -19,10 +19,18 @@ import NotificationsPanel from "./notifications-panel";
 import { useCurrentUser } from "@/lib/current-user";
 import { useNotifications } from "@/hooks/use-notifications";
 
-const navItems = [
-  { href: "/calendar", label: "캘린더", icon: Calendar },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  views?: string[];
+  isCalendarDefault?: boolean;
+}
+
+const navItems: NavItem[] = [
+  { href: "/calendar", label: "캘린더", icon: Calendar, isCalendarDefault: true },
+  { href: "/calendar?view=travel", label: "여행", icon: Plane, views: ["travel", "travel-plans", "travel-plan"] },
   { href: "/finance", label: "가계부", icon: Wallet },
-  { href: "/memo", label: "메모", icon: StickyNote },
   { href: "/knowledge", label: "지식창고", icon: BookOpen },
 ];
 
@@ -33,9 +41,23 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const viewParam = searchParams.get("view");
   const [notiOpen, setNotiOpen] = useState(false);
   const currentUser = useCurrentUser();
   const { unreadCount } = useNotifications();
+
+  const isActive = (item: NavItem): boolean => {
+    if (item.views && item.views.length > 0) {
+      return pathname === "/calendar" && !!viewParam && item.views.includes(viewParam);
+    }
+    if (item.isCalendarDefault) {
+      if (pathname !== "/calendar") return false;
+      if (viewParam && ["travel", "travel-plans", "travel-plan"].includes(viewParam)) return false;
+      return true;
+    }
+    return pathname === item.href || pathname.startsWith(item.href + "/");
+  };
 
   return (
     <aside
@@ -72,11 +94,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
       >
         {navItems.map((item) => {
-          const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+          const active = isActive(item);
           return (
             <Link
-              key={item.href}
+              key={item.label}
               href={item.href}
               title={collapsed ? item.label : undefined}
               className={cn(
@@ -84,7 +105,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 collapsed
                   ? "justify-center p-2.5"
                   : "gap-2.5 px-2.5 py-1.5 text-[13px]",
-                isActive
+                active
                   ? "bg-accent font-medium text-foreground"
                   : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
               )}
