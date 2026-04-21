@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 // 공용 폼 페이지 팝업.
 //  - 모바일: 전체화면 (h = 100dvh - kb-offset)
@@ -60,56 +61,72 @@ export default function FormPage({
   const handleCancel = onCancel ?? (() => onOpenChange(false));
   const handleBack = onBack ?? handleCancel;
 
-  // 키보드 대응 — 입력칸 포커스 시 visualViewport 기준으로 키보드 위에 오도록 스크롤.
-  // overlays-content 모드에서 브라우저 기본 스크롤이 layout viewport 기준이라
-  // 키보드에 가려지는 입력칸을 못 올림 → 수동 처리 필수.
+  const isDesktop = useMediaQuery("(min-width: 768px)");
+
+  // 모바일 DialogContent 실제 높이 — visualViewport.height 직접 사용.
+  // dvh / window.innerHeight 는 브라우저(특히 Android Chrome)마다 키보드 처리가
+  // 달라 신뢰 어려움. visualViewport 는 항상 "현재 보이는 영역" 을 반환.
+  const [visualHeight, setVisualHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    if (isDesktop) {
+      setVisualHeight(null);
+      return;
+    }
+    const vv = window.visualViewport;
+    const update = () => {
+      setVisualHeight(vv ? vv.height : window.innerHeight);
+    };
+    update();
+    vv?.addEventListener("resize", update);
+    window.addEventListener("resize", update);
+    return () => {
+      vv?.removeEventListener("resize", update);
+      window.removeEventListener("resize", update);
+    };
+  }, [open, isDesktop]);
+
+  // 키보드 대응 — 입력칸 포커스 시 스크롤.
+  // 전략: scroll-padding-bottom + padding-bottom (CSS, 위 style) 이 주로 처리.
+  //  1. 컨테이너의 padding-bottom = kb-offset + 여분 → textarea 아래 스크롤 여유 확보
+  //  2. scroll-padding-bottom = kb-offset + 여분 → scrollIntoView 시 target 이 이
+  //     영역 위에 오도록 브라우저가 보장
+  //  3. focusin 에서 scrollIntoView({block:end}) 명시 호출
+  //  4. visualViewport resize 에서도 재호출 (키보드가 뒤늦게 올라오는 케이스)
   const scrollRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!open) return;
     const scrollEl = scrollRef.current;
     if (!scrollEl) return;
 
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    // 입력칸이 visualViewport 안에 보이도록 스크롤
     const bringIntoView = (target: HTMLElement) => {
-      const vv = window.visualViewport;
-      const visibleTop = vv ? vv.offsetTop : 0;
-      const visibleBottom = vv
-        ? vv.offsetTop + vv.height
-        : window.innerHeight;
-      const rect = target.getBoundingClientRect();
-      // 입력칸 하단이 visual viewport 하단에서 최소 40px 이상 위에 있도록
-      const safeBottom = visibleBottom - 40;
-      if (rect.bottom > safeBottom) {
-        const delta = rect.bottom - safeBottom;
-        scrollEl.scrollBy({ top: delta, behavior: "smooth" });
-        return;
-      }
-      // 위로 가려진 경우 (타이틀 아래로 숨음)
-      const safeTop = visibleTop + 20;
-      if (rect.top < safeTop) {
-        const delta = rect.top - safeTop;
-        scrollEl.scrollBy({ top: delta, behavior: "smooth" });
-      }
+      target.scrollIntoView({ block: "end", behavior: "smooth" });
+      // visualViewport 상 input 이 여전히 가려져 있으면 scrollBy 로 추가 보정
+      requestAnimationFrame(() => {
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const rect = target.getBoundingClientRect();
+        const visibleBottom = vv.offsetTop + vv.height;
+        const safeBottom = visibleBottom - 40;
+        if (rect.bottom > safeBottom) {
+          scrollEl.scrollBy({ top: rect.bottom - safeBottom, behavior: "smooth" });
+        }
+      });
     };
 
-    const scheduleBring = (target: HTMLElement) => {
-      if (timer) clearTimeout(timer);
-      // 키보드 슬라이드 애니메이션(≈250ms) + visualViewport resize 이벤트 기다림
-      timer = setTimeout(() => bringIntoView(target), 350);
-    };
-
+    let timer: ReturnType<typeof setTimeout> | null = null;
     const onFocusIn = (e: FocusEvent) => {
       const target = e.target as HTMLElement;
       if (
         !(target instanceof HTMLInputElement) &&
         !(target instanceof HTMLTextAreaElement)
       ) return;
-      scheduleBring(target);
+      if (timer) clearTimeout(timer);
+      // 즉시 한 번 + 350ms 후 한 번 (키보드 슬라이드 완료 후)
+      bringIntoView(target);
+      timer = setTimeout(() => bringIntoView(target), 350);
     };
 
-    // visualViewport 가 변하면(키보드가 뒤늦게 올라오거나 내려가면) 활성 입력칸 재조정
     const onViewportResize = () => {
       const active = document.activeElement;
       if (
@@ -135,12 +152,20 @@ export default function FormPage({
         showBackButton
         onBack={handleBack}
         initialFocus={false}
-        style={{ height: "calc(100dvh - var(--kb-offset, 0px))" }}
+        // 모바일 높이는 visualViewport 기준으로 JS 직접 세팅.
+        // 키보드 올라오면 visualViewport.height 가 줄어들고 DialogContent 도 같이
+        // 줄어 footer 와 마지막 입력칸이 키보드에 가려지지 않음.
+        // 데스크탑은 미디어쿼리로 이 inline height 를 덮어쓰기 어려우므로 CSS 로 처리.
+        style={
+          !isDesktop && visualHeight != null
+            ? { height: `${visualHeight}px` }
+            : undefined
+        }
         className={`
-          !max-w-none !w-full !top-0 !left-0
+          !max-w-none !w-full !h-[100dvh] !top-0 !left-0
           !translate-x-0 !translate-y-0 !rounded-none !p-0
           !gap-0 flex flex-col
-          ${desktopMaxWidth} md:!w-auto md:!max-h-[85dvh]
+          ${desktopMaxWidth} md:!w-auto md:!max-h-[85dvh] md:!h-auto
           md:!top-1/2 md:!left-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2
           md:!rounded-xl
         `}
@@ -155,9 +180,14 @@ export default function FormPage({
             <DialogTitle className="text-base">{title}</DialogTitle>
           )}
         </DialogHeader>
+        {/* 스크롤 컨테이너. DialogContent 가 이미 kb-offset 만큼 줄어든 상태라
+            내부는 padding-bottom=2rem (단순 여백) + scroll-padding-bottom=3rem
+            (block:end scrollIntoView 시 target 이 footer 바로 붙어 바닥에 안 붙게)
+            만 있으면 충분. */}
         <div
           ref={scrollRef}
-          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3"
+          className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-3 pb-8"
+          style={{ scrollPaddingBottom: "3rem" }}
         >
           {children}
         </div>
