@@ -120,8 +120,8 @@ export default function PlanTransportPicker({
       onOpenChange={onOpenChange}
       title="이동수단 선택"
       desktopMaxWidth="max-w-sm"
-      snapPoints={[0.5, 0.9]}
-      defaultSnapIndex={1}
+      snapPoints={[0.9]}
+      defaultSnapIndex={0}
     >
       <div className="flex flex-col gap-1 px-1 py-2">
         {legDeparture && (

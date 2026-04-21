@@ -32,6 +32,8 @@ export default function DraggableSheet({
   className,
   children,
 }: DraggableSheetProps) {
+  // snapPoints 길이 1 = 단일 스냅(열림/닫힘만). 2 = half/full 두 지점.
+  const isSingleSnap = snapPoints.length === 1;
   const halfVh = snapPoints[0] ?? 0.5;
   const fullVh = snapPoints[1] ?? snapPoints[0] ?? 0.9;
   const [snap, setSnap] = useState<"half" | "full">(
@@ -101,6 +103,11 @@ export default function DraggableSheet({
     const dy = y - dragStartY.current;
     dragStartY.current = null;
     const T = SNAP_THRESHOLD;
+    // 단일 스냅 모드: 열림 ↔ 닫힘만. 드래그 2T 이상 내리면 닫힘.
+    if (isSingleSnap) {
+      if (dy > T * 2) onOpenChange(false);
+      return;
+    }
     if (dragStartSnap.current === "half") {
       if (dy < -T) changeSnap("full");
       else if (dy > T) onOpenChange(false);
