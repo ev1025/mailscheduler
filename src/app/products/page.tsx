@@ -4,7 +4,6 @@ import { Suspense, useState, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
-  Search,
   Crown,
   ChevronDown,
   ChevronRight,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import SearchInput from "@/components/ui/search-input";
 import { supabase } from "@/lib/supabase";
 import {
   DndContext,
@@ -342,15 +342,13 @@ function ProductsPageInner() {
 
       <div className="mb-4 flex flex-col gap-3">
         <div className="flex items-center gap-2">
-          <div className="relative flex-1 min-w-0 md:max-w-sm">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="제품명/브랜드/소분류 검색"
-              className="pl-8 h-9 text-sm"
-            />
-          </div>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="제품명/브랜드/소분류 검색"
+            size="md"
+            className="md:max-w-sm"
+          />
           <Button
             size="sm"
             className={`${PAGE_ACTION_BUTTON} shrink-0`}

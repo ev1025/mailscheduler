@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, MapPin, Search } from "lucide-react";
+import SearchInput from "@/components/ui/search-input";
+import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, MapPin } from "lucide-react";
 import PageHeader from "@/components/layout/page-header";
 import {
   useWeatherLocation,
@@ -162,15 +163,12 @@ export default function SettingsPage() {
               <div className="rounded-md bg-muted/40 px-3 py-2.5 text-sm">
                 <span className="font-medium">{currentLocation.name}</span>
               </div>
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={locQuery}
-                  onChange={(e) => setLocQuery(e.target.value)}
-                  placeholder="지역 변경 (예: 서울, 부산, Tokyo)"
-                  className="pl-8 h-9 text-sm"
-                />
-              </div>
+              <SearchInput
+                value={locQuery}
+                onChange={setLocQuery}
+                placeholder="지역 변경 (예: 서울, 부산, Tokyo)"
+                size="md"
+              />
               {locQuery.trim() && (
                 <div className="rounded-md border max-h-60 overflow-y-auto">
                   {locSearching ? (

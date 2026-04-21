@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { Search, Star, ChevronRight, FileText, Folder, Trash2, CheckSquare, Square, ArrowLeft, Pencil, FolderInput } from "lucide-react";
+import { Star, ChevronRight, FileText, Folder, Trash2, CheckSquare, Square, ArrowLeft, Pencil, FolderInput } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import SearchInput from "@/components/ui/search-input";
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
 } from "@dnd-kit/core";
@@ -364,10 +365,7 @@ export default function KnowledgeDashboard({
 
       <div className="flex flex-col gap-3 p-4 overflow-y-auto flex-1">
         {!selectMode && (
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input value={searchQuery} onChange={(e) => onSearch(e.target.value)} placeholder="노트 검색..." className="pl-8 h-9 text-sm" />
-          </div>
+          <SearchInput value={searchQuery} onChange={onSearch} placeholder="노트 검색..." size="md" />
         )}
 
         {searchQuery.trim() && !selectMode ? (

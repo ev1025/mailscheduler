@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { Search, ArrowUp, ArrowDown, Filter, X } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { ArrowUp, ArrowDown, Filter, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import FilterPanel from "@/components/ui/filter-panel";
+import SearchInput from "@/components/ui/search-input";
 import WeatherIcon from "./weather-icon";
 import type { CalendarEvent, EventTag, WeatherData } from "@/types";
 import { format } from "date-fns";
@@ -166,10 +166,7 @@ export default function DatabaseView({
       {/* 검색 + 태그 필터 */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <div className="relative flex-1 min-w-0">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="검색..." className="pl-8 h-9 text-sm" />
-          </div>
+          <SearchInput value={search} onChange={setSearch} size="md" />
           {allTags.length > 0 && (
             <div
               className={`flex items-center shrink-0 rounded-md border h-9 text-xs transition-colors ${

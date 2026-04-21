@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, GripVertical, Filter, X, Route } from "lucide-react";
+import { Plus, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, GripVertical, Filter, X, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import FilterPanel from "@/components/ui/filter-panel";
+import SearchInput from "@/components/ui/search-input";
 import TravelForm from "./travel-form";
 import TravelToCalendarDialog from "./travel-to-calendar-dialog";
 import AddToPlanDialog from "./add-to-plan-dialog";
@@ -408,10 +408,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
     <div className="flex flex-col gap-3">
       {/* 상단: 검색 + 추가 버튼 같은 행 */}
       <div className="flex items-center gap-2">
-        <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="검색..." className="pl-8 h-8 text-xs" />
-        </div>
+        <SearchInput value={search} onChange={setSearch} />
         <Button size="sm" className="h-8 shrink-0" onClick={() => { setEditing(null); setFormOpen(true); }}>
           <Plus className="mr-1 h-3.5 w-3.5" />
           추가

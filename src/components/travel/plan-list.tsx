@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Search, Trash2 } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Calendar, Trash2 } from "lucide-react";
+import SearchInput from "@/components/ui/search-input";
 import PromptDialog from "@/components/ui/prompt-dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useTravelPlans } from "@/hooks/use-travel-plans";
@@ -186,15 +186,11 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
     <div className="flex flex-col h-full md:h-auto">
       {/* 상단 검색 — sticky */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur p-3 border-b">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="계획 제목·날짜 검색"
-            className="pl-8 h-9 text-xs"
-          />
-        </div>
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="계획 제목·날짜 검색"
+        />
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 md:flex-none md:overflow-visible">
