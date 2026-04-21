@@ -1,16 +1,21 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 import type { TransitSegment } from "@/lib/travel/providers";
-import { busColor, subwayBadgeLabel, subwayLineColor } from "@/lib/travel/kr-transit-colors";
+import {
+  busColor,
+  cleanStopName,
+  subwayBadgeLabel,
+  subwayLineColor,
+} from "@/lib/travel/kr-transit-colors";
 
-// 대중교통 구간 체인 표시 — 각 segment 는 세로로 한 줄 차지.
-// 한 줄 구성: [호선/버스번호 배지]  출발역  →  도착역
-// 환승이면 줄이 n 개 이어짐. 역명은 잘리지 않고 전체 표시 (wrap 가능).
-//
-// filterKinds 로 지하철 모드에선 버스 segment 만 들어와도 걸러낼 수 있음.
-// Google transit_mode=subway|train|rail 가 hard filter 가 아니라 선호만이라
-// 프런트에서 보조 필터 필요.
+// 대중교통 구간 체인 — 각 segment 를 세로 블록으로 표시.
+// 한 segment 블록:
+//   [배지] 출발역
+//         ↓ (작은 화살표)
+//         도착역
+// 환승 구간은 다음 블록이 이어짐.
+// 역명은 cleanStopName 으로 Google 이 붙이는 "." 랜드마크·호선 prefix 제거해 정리.
 
 function SubwayBadge({ name }: { name: string | null }) {
   const color = subwayLineColor(name);
@@ -46,12 +51,6 @@ function SegmentBadge({ segment }: { segment: TransitSegment }) {
 
 interface Props {
   segments: TransitSegment[] | undefined;
-  /**
-   * 표시할 segment 종류 제한.
-   *  - "bus": 버스 구간만 (버스 모드)
-   *  - "rail": 지하철·기차·트램 (지하철 모드)
-   *  - undefined: 제한 없음
-   */
   filterKinds?: "bus" | "rail";
 }
 
@@ -68,22 +67,25 @@ export default function TransitSegmentChain({ segments, filterKinds }: Props) {
   if (filtered.length === 0) return null;
 
   return (
-    // 각 segment 한 줄. 줄 사이 간격 넉넉하게.
-    <div className="flex flex-col gap-1 w-full">
-      {filtered.map((s, i) => (
-        <div key={i} className="flex items-center gap-1.5 text-[11px] text-foreground">
-          <SegmentBadge segment={s} />
-          {s.fromStop && (
-            <span className="break-all">{s.fromStop}</span>
-          )}
-          {s.toStop && (
-            <>
-              <ChevronRight className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-              <span className="break-all">{s.toStop}</span>
-            </>
-          )}
-        </div>
-      ))}
+    <div className="flex flex-col gap-1.5 w-full">
+      {filtered.map((s, i) => {
+        const from = cleanStopName(s.fromStop);
+        const to = cleanStopName(s.toStop);
+        return (
+          <div key={i} className="flex items-start gap-2 text-[11px] leading-tight">
+            <SegmentBadge segment={s} />
+            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+              {from && <span className="text-foreground break-keep">{from}</span>}
+              {to && (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <ArrowDown className="h-2.5 w-2.5 shrink-0" />
+                  <span className="text-foreground break-keep">{to}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
