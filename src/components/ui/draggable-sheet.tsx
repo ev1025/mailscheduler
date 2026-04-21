@@ -72,6 +72,12 @@ export default function DraggableSheet({
   const snapIdxRef = useRef(snapIdx);
   useEffect(() => { snapIdxRef.current = snapIdx; });
 
+  // onOpenChange 를 ref 로 고정 — 상위가 매 렌더 새 함수를 넘겨도 drag effect 가
+  // 재실행 돼 listener 가 re-register 되지 않게. 재등록 사이에 진행 중이던
+  // 드래그가 끊기던 것이 "드래그 안 되는" 주원인.
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => { onOpenChangeRef.current = onOpenChange; });
+
   // 공용 drag 로직 — handle / content 양쪽에서 호출
   const start = (clientY: number) => {
     dragging.current = true;
@@ -100,7 +106,7 @@ export default function DraggableSheet({
 
     const lowestHeightPx = snaps[0] * vh;
     if (currentHeightPx < lowestHeightPx - closeThreshold) {
-      onOpenChange(false);
+      onOpenChangeRef.current(false);
       setDragOffset(0);
       return;
     }
@@ -161,7 +167,7 @@ export default function DraggableSheet({
       el.removeEventListener("touchcancel", onTouchEnd);
       el.removeEventListener("mousedown", onMouseDown);
     };
-  }, [open, snaps, closeThreshold, onOpenChange]);
+  }, [open, snaps, closeThreshold]);
 
   // 본문 영역 리스너 — 내부 스크롤과 공존. 제스처 시작 시 scroll 상태 + 방향으로
   // "sheet drag" vs "content scroll" 모드 결정.
@@ -259,7 +265,7 @@ export default function DraggableSheet({
       el.removeEventListener("touchcancel", onTouchEnd);
       el.removeEventListener("mousedown", onMouseDown);
     };
-  }, [open, snaps, maxIdx, closeThreshold, onOpenChange]);
+  }, [open, snaps, maxIdx, closeThreshold]);
 
   // 입력칸 포커스 시 키보드로 가려지지 않도록 자동 스크롤.
   // overlays-content 모드에선 layout viewport 가 변하지 않아 브라우저 기본
