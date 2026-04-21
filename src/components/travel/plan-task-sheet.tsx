@@ -478,11 +478,9 @@ export default function PlanTaskSheet({
       <DialogContent
         showBackButton
         onBack={handleCancel}
-        // 키보드 올라오면 height 축소(kb-offset 만큼) 로 입력칸이 가려지지 않음.
-        // 데스크탑은 80dvh 고정 (keyboard 영향 없음).
-        style={{
-          height: "calc(100dvh - var(--kb-offset, 0px))",
-        }}
+        initialFocus={false}
+        // 키보드 올라오면 height 축소로 입력칸 가려지지 않음
+        style={{ height: "calc(100dvh - var(--kb-offset, 0px))" }}
         className="
           !max-w-none !w-full !top-0 !left-0
           !translate-x-0 !translate-y-0 !rounded-none !p-0

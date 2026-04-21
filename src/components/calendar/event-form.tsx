@@ -198,23 +198,34 @@ export default function EventForm({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="sm:max-w-md max-h-[90vh] overflow-y-auto"
         initialFocus={false}
         onBack={
           onBack && event
             ? () => { onOpenChange(false); onBack(); }
-            : undefined
+            : () => onOpenChange(false)
         }
+        // 모바일: 전체화면. 데스크탑: 중앙 모달(max-w-lg).
+        // 키보드 올라오면 height 축소로 입력칸 안 가려짐.
+        style={{ height: "calc(100dvh - var(--kb-offset, 0px))" }}
+        className="
+          !max-w-none !w-full !top-0 !left-0
+          !translate-x-0 !translate-y-0 !rounded-none !p-0
+          !gap-0 flex flex-col
+          md:!max-w-lg md:!w-auto md:!max-h-[85dvh]
+          md:!top-1/2 md:!left-1/2 md:!-translate-x-1/2 md:!-translate-y-1/2
+          md:!rounded-xl
+        "
       >
-        <DialogHeader>
+        <DialogHeader className="px-3 pt-3 pb-2 border-b shrink-0">
           <div className="flex items-center justify-between">
-            <DialogTitle>{event ? "일정 수정" : "새 일정"}</DialogTitle>
+            <DialogTitle className="text-base">{event ? "일정 수정" : "새 일정"}</DialogTitle>
             {weatherMap && startDate && weatherMap[startDate] && (
               <WeatherIcon weather={weatherMap[startDate]} showRange />
             )}
           </div>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 py-3 flex flex-col gap-4">
           {/* 제목 */}
           <Input
             value={title}
@@ -352,12 +363,13 @@ export default function EventForm({
             />
           </div>
 
-          {/* 버튼 */}
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          </div>
+          {/* 버튼 — 하단 고정 footer */}
+          <div className="flex items-center justify-end gap-2 px-4 py-3 border-t shrink-0 bg-background">
+            <Button type="button" variant="outline" size="sm" onClick={() => onOpenChange(false)}>
               취소
             </Button>
-            <Button type="submit" disabled={!title.trim() || !startDate || saving}>
+            <Button type="submit" size="sm" disabled={!title.trim() || !startDate || saving}>
               {saving ? "저장 중..." : "저장"}
             </Button>
           </div>
