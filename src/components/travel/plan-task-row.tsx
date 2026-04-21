@@ -1,12 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { GripVertical, Trash2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatMinutes } from "@/lib/travel/providers";
 import type { TravelPlanTask } from "@/types";
 
-// 일정 한 행 — 2단 레이아웃.
-// Row 1: [출발시간 ~ 도착시간]  📍 장소명
-// Row 2: (체류시간)             🏞️ 분류 · 주소
+// 일정 한 행 — 3열 레이아웃으로 시간·장소 컬럼 분리.
+// [드래그바] [시간 컬럼 고정폭] [장소·주소 flex]
+// Row 1:  [시간범위]   📍 장소명
+// Row 2:  (체류시간)        주소/내용
+// 삭제는 휴지통 아이콘 대신 드래그바 탭 → Popover 메뉴로 제공.
+// (여행 목록의 TravelRow 와 동일한 UX 패턴)
 
 interface Props {
   task: TravelPlanTask;
@@ -37,9 +42,9 @@ export default function PlanTaskRow({
   dragAttributes,
   expectedTime,
 }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const time = formatTime(task.start_time);
   const arrivalTime = time || expectedTime || null;
-  // 출발 시간 = 도착시간 + 체류시간
   const leaveTime =
     arrivalTime && task.stay_minutes > 0
       ? addMinutes(arrivalTime, task.stay_minutes)
@@ -56,24 +61,48 @@ export default function PlanTaskRow({
           onClick();
         }
       }}
-      className="group flex items-start gap-2 rounded-md border bg-card px-2.5 py-2 hover:bg-accent/40 transition-colors cursor-pointer select-none"
+      className="group flex items-stretch gap-1 rounded-md border bg-card hover:bg-accent/40 transition-colors cursor-pointer select-none"
     >
+      {/* 드래그바 — 탭하면 Popover 메뉴 (삭제 등), 드래그하면 이동.
+          여행목록의 TravelRow 와 동일 패턴. */}
       {dragListeners !== undefined && (
-        <button
-          type="button"
-          {...dragAttributes}
-          {...dragListeners}
+        <div
           onClick={(e) => e.stopPropagation()}
-          aria-label="드래그로 순서 변경"
-          className="p-0.5 mt-1 text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing touch-none"
+          className="flex items-start pt-1.5 pl-0.5"
         >
-          <GripVertical className="h-3.5 w-3.5" />
-        </button>
+          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+            <PopoverTrigger
+              {...dragAttributes}
+              {...dragListeners}
+              className="rounded p-0.5 text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
+              title="드래그로 이동 / 탭하면 메뉴"
+            >
+              <GripVertical className="h-3.5 w-3.5" />
+            </PopoverTrigger>
+            <PopoverContent className="w-32 p-1" align="start" side="right">
+              {onDelete && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onDelete();
+                  }}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  삭제
+                </button>
+              )}
+            </PopoverContent>
+          </Popover>
+        </div>
       )}
 
-      <div className="flex-1 min-w-0 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
-        {/* Row 1: 시간범위 | 장소 — 시간 col 은 content-fit (불필요한 좌측 여백 제거) */}
-        <div className="flex items-center gap-1 shrink-0 tabular-nums text-xs font-semibold">
+      {/* 본문 — grid 3 컬럼 (시간 고정 | 장소·주소 flex).
+          grid-cols-[auto_1fr] 로 시간 열은 content-fit, 장소는 flex. */}
+      <div className="flex-1 min-w-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 px-2 py-2">
+        {/* 시간 열 — content-fit. justify-start 로 좌측 정렬해 체류시간과 가로 축 일치. */}
+        <div className="flex items-center gap-1 shrink-0 tabular-nums text-xs font-semibold justify-start">
           {arrivalTime ? (
             <>
               <span>{arrivalTime}</span>
@@ -88,13 +117,10 @@ export default function PlanTaskRow({
             <span className="text-muted-foreground font-normal">--:--</span>
           )}
         </div>
+
+        {/* 장소 열 */}
         <div className="flex items-center gap-1.5 min-w-0">
-          {/* 빨간 마커 핀 — lucide MapPin 은 안쪽에 원형 구멍이 기본 포함.
-              fill-current 과 stroke-current 양쪽 빨강 + className 으로 구멍이
-              배경색(흰색) 유지되도록. (lucide 의 MapPin 은 두 path 로 구성: 외곽
-              물방울 + 안쪽 원. 안쪽 원은 fill 적용 시 같이 채워져 안 보이니
-              fill-red-500 이고 안쪽 원이 stroke-white 로 남도록 처리하기 위해
-              별도 SVG 사용) */}
+          {/* 빨간 물방울 + 안쪽 흰 구멍 마커 */}
           <svg
             viewBox="0 0 24 24"
             className="h-3.5 w-3.5 shrink-0"
@@ -112,10 +138,11 @@ export default function PlanTaskRow({
           </span>
         </div>
 
-        {/* Row 2: 체류시간(시간범위 ~ 아래 중앙) | 주소·내용 */}
-        <div className="text-[10px] text-muted-foreground shrink-0 text-center">
+        {/* 체류시간 열 — 시간 컬럼 바로 아래. 시간 범위 중앙("~" 위치) 에 오도록 center. */}
+        <div className="text-[10px] text-muted-foreground shrink-0 text-center self-start">
           {task.stay_minutes > 0 ? `(${formatMinutes(task.stay_minutes)})` : ""}
         </div>
+        {/* 주소·내용 열 */}
         <div className="flex items-start gap-1.5 flex-wrap text-[10px] text-muted-foreground min-w-0">
           {(task.content || task.place_address) && (
             <span className="flex-1 min-w-0 break-words line-clamp-2 leading-snug">
@@ -124,22 +151,6 @@ export default function PlanTaskRow({
           )}
         </div>
       </div>
-
-      {onDelete && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          aria-label="일정 삭제"
-          // 모바일: 아이콘 작게(h-3) + 우측 margin 축소(-mr-1) 로 끝에 바짝
-          // 데스크탑: 평소대로 + hover 시만 노출
-          className="shrink-0 p-1 -mr-1 md:p-1.5 md:mr-0 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-opacity md:opacity-0 md:group-hover:opacity-100"
-        >
-          <Trash2 className="h-3 w-3 md:h-3.5 md:w-3.5" />
-        </button>
-      )}
     </div>
   );
 }

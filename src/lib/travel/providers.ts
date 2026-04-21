@@ -4,9 +4,19 @@ import { haversineKm } from "@/lib/travel/stations";
 // 구간 소요시간·경로 조회 provider.
 // 자가용 = NCP Directions, 대중교통·기차 = ODsay(추후), 택시 = 자가용 재사용.
 
+export interface TransitSegment {
+  kind: "bus" | "subway" | "train" | "tram" | "other";
+  name: string | null;       // "2호선", "472번", "KTX"
+  fromStop: string | null;
+  toStop: string | null;
+  numStops: number | null;
+}
+
 export interface RouteResult {
   durationSec: number;
   path?: [number, number][]; // [[lng, lat], ...]
+  /** 대중교통(버스/지하철/기차) 구간 상세 — Google transit_details 에서 파싱 */
+  segments?: TransitSegment[];
 }
 
 // 자가용: NCP Directions 서버 프록시 호출
@@ -48,7 +58,7 @@ async function getBusDuration(
     if (!res.ok) return null;
     const j = await res.json();
     if (typeof j.durationSec !== "number") return null;
-    return { durationSec: j.durationSec, path: j.path };
+    return { durationSec: j.durationSec, path: j.path, segments: j.segments };
   } catch {
     return null;
   }
@@ -106,7 +116,7 @@ async function getTrainDuration(
     if (res.ok) {
       const j = await res.json();
       if (typeof j.durationSec === "number") {
-        return { durationSec: j.durationSec, path: j.path };
+        return { durationSec: j.durationSec, path: j.path, segments: j.segments };
       }
     }
   } catch {

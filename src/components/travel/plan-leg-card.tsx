@@ -22,8 +22,8 @@ const MODE_ICON: Record<TransportMode, { emoji: string; label: string }> = {
   car: { emoji: "🚗", label: "승용차" },
   walk: { emoji: "🚶", label: "도보" },
   bus: { emoji: "🚌", label: "버스" },
-  train: { emoji: "🚆", label: "기차" },
-  taxi: { emoji: "🚗", label: "승용차" }, // 하위호환 — taxi 저장된 경우도 승용차로
+  train: { emoji: "🚇", label: "지하철" },
+  taxi: { emoji: "🚗", label: "승용차" }, // 하위호환
 };
 
 interface Props {

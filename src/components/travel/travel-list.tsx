@@ -108,7 +108,8 @@ function TravelRow({
             >
               <GripVertical className="h-3.5 w-3.5" />
             </PopoverTrigger>
-            <PopoverContent className="w-40 p-1" align="start" side="right">
+            {/* 컨텐츠 크기에 맞추기 — 고정 w-40 → w-auto + min/max 제한 */}
+            <PopoverContent className="w-auto min-w-[6rem] max-w-[14rem] p-1" align="start" side="right">
               <button
                 type="button"
                 className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent ${item.visited ? "text-green-600" : ""}`}

@@ -6,19 +6,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DeviceDialog from "@/components/ui/device-dialog";
-import { formatDuration } from "@/lib/travel/providers";
+import { formatDuration, type TransitSegment } from "@/lib/travel/providers";
 import { useRouteDurations } from "@/hooks/use-route-data";
 import type { TransportMode } from "@/types";
 import { useEffect, useState } from "react";
 
 // 이동수단 선택 모달 — 모바일 바텀시트 / 데스크탑 Dialog (DeviceDialog 자동 전환).
 // useRouteDurations 훅으로 4수단 동시 fetch + 모듈 레벨 캐시.
+// 기차는 실사용상 지하철/기차 통합이므로 라벨 "지하철" 로 통일.
 
 const MODES: { value: TransportMode; label: string; emoji: string }[] = [
   { value: "walk", label: "도보", emoji: "🚶" },
   { value: "car", label: "승용차", emoji: "🚗" },
   { value: "bus", label: "버스", emoji: "🚌" },
-  { value: "train", label: "기차", emoji: "🚆" },
+  { value: "train", label: "지하철", emoji: "🚇" },
 ];
 
 interface Props {
@@ -39,6 +40,31 @@ function addMinutes(hhmm: string, addMin: number): string {
   return `${String(Math.floor(w / 60)).padStart(2, "0")}:${String(w % 60).padStart(2, "0")}`;
 }
 
+// 세그먼트 요약 — 환승·중간역 나열. "N7020번 → 2호선(시청역→강남역)" 형태.
+// 한 구간만 있으면 "2호선 시청→강남". 여러 구간이면 "·" 로 연결.
+export function summarizeSegments(segments: TransitSegment[] | undefined): string | null {
+  if (!segments || segments.length === 0) return null;
+  const parts: string[] = [];
+  for (const s of segments) {
+    if (!s.name && !s.fromStop) continue;
+    const labelPrefix =
+      s.kind === "bus"
+        ? (s.name ? `${s.name}번` : "버스")
+        : s.kind === "subway"
+          ? (s.name ?? "지하철")
+          : s.kind === "train"
+            ? (s.name ?? "기차")
+            : (s.name ?? "");
+    const route =
+      s.fromStop && s.toStop
+        ? `${s.fromStop}→${s.toStop}`
+        : s.fromStop ?? s.toStop ?? "";
+    parts.push(route ? `${labelPrefix} ${route}` : labelPrefix);
+  }
+  if (parts.length === 0) return null;
+  return parts.join(" · ");
+}
+
 export default function PlanTransportPicker({
   open,
   onOpenChange,
@@ -49,7 +75,7 @@ export default function PlanTransportPicker({
   onSelect,
   onSelectManual,
 }: Props) {
-  const durations = useRouteDurations(from, to, open);
+  const { durations, results } = useRouteDurations(from, to, open);
 
   const fastestMode = useMemo(() => {
     let best: TransportMode | null = null;
@@ -70,6 +96,8 @@ export default function PlanTransportPicker({
       onOpenChange={onOpenChange}
       title="이동수단 선택"
       desktopMaxWidth="max-w-sm"
+      snapPoints={[0.5, 0.9]}
+      defaultSnapIndex={0}
     >
       <div className="flex flex-col gap-1 px-1 py-2">
         {legDeparture && (
@@ -90,6 +118,12 @@ export default function PlanTransportPicker({
             d === null ? "계산 실패" :
             formatDuration(d);
 
+          // 버스·지하철만 세그먼트 라벨 표시 (구체적 노선 번호·역명)
+          const segmentsLabel =
+            (m.value === "bus" || m.value === "train")
+              ? summarizeSegments(results[m.value]?.segments)
+              : null;
+
           return (
             <button
               key={m.value}
@@ -102,8 +136,13 @@ export default function PlanTransportPicker({
             >
               <span className="text-2xl shrink-0">{m.emoji}</span>
               <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-medium text-sm">{m.label}</span>
+                  {segmentsLabel && (
+                    <span className="text-[11px] text-muted-foreground truncate">
+                      {segmentsLabel}
+                    </span>
+                  )}
                   {isFastest && (
                     <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-600">
                       <Zap className="h-2.5 w-2.5 fill-amber-500 stroke-amber-600" />

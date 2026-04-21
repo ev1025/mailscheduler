@@ -20,12 +20,24 @@ function nextWeekdayMorning9(): number {
   return Math.floor(d.getTime() / 1000);
 }
 
+interface TransitLine {
+  name?: string;
+  short_name?: string;
+  vehicle?: { type?: string; name?: string };
+}
+interface TransitDetails {
+  line?: TransitLine;
+  departure_stop?: { name?: string };
+  arrival_stop?: { name?: string };
+  num_stops?: number;
+}
+interface GoogleStep {
+  travel_mode?: string;
+  transit_details?: TransitDetails;
+}
 interface GoogleLeg {
   duration?: { value?: number };
-  // transit 모드에서 실제 출발·도착 시각 (Unix epoch seconds). 이 차이가
-  // 도보+대기+승차 모두 반영한 체감 소요시간 — duration.value 보다 정확.
-  arrival_time?: { value?: number };
-  departure_time?: { value?: number };
+  steps?: GoogleStep[];
 }
 interface GoogleRoute {
   legs?: GoogleLeg[];
@@ -151,16 +163,50 @@ export async function GET(req: NextRequest) {
 
   const best = data.routes?.[0];
   const leg = best?.legs?.[0];
-  // transit 은 arrival_time - departure_time 이 실제 체감 시간(도보+환승+대기 포함).
-  // driving/walking 은 departure_time/arrival_time 없으므로 duration.value 사용.
-  const realDurationSec =
-    leg?.arrival_time?.value != null && leg?.departure_time?.value != null
-      ? leg.arrival_time.value - leg.departure_time.value
-      : leg?.duration?.value;
+  // Google Maps 앱 UI 와 동일한 "이동 소요시간" = duration.value.
+  // (arrival_time - departure_time 은 첫 차 대기시간까지 포함 → 실제보다 5~10분 길게 나옴)
+  const realDurationSec = leg?.duration?.value;
   if (!realDurationSec || realDurationSec <= 0) {
     return NextResponse.json({ error: "경로 없음" }, { status: 404 });
   }
+
+  // transit_details 를 steps[] 에서 모아 반환 — UI 에서 버스번호·지하철 호선·역명 표시.
+  // 여러 환승이면 모두 배열로. walking step 은 제외.
+  interface TransitSegment {
+    kind: "bus" | "subway" | "train" | "tram" | "other";
+    name: string | null;          // "2호선", "472번", "KTX"
+    fromStop: string | null;
+    toStop: string | null;
+    numStops: number | null;
+  }
+  const segments: TransitSegment[] = [];
+  for (const step of leg?.steps ?? []) {
+    if (step.travel_mode !== "TRANSIT") continue;
+    const td = step.transit_details;
+    if (!td) continue;
+    const vtype = (td.line?.vehicle?.type ?? "").toUpperCase();
+    const kind: TransitSegment["kind"] =
+      vtype === "BUS" || vtype === "TROLLEYBUS" || vtype === "INTERCITY_BUS"
+        ? "bus"
+        : vtype === "SUBWAY" || vtype === "METRO_RAIL"
+          ? "subway"
+          : vtype === "HEAVY_RAIL" || vtype === "RAIL" || vtype === "LONG_DISTANCE_TRAIN" || vtype === "HIGH_SPEED_TRAIN"
+            ? "train"
+            : vtype === "TRAM" || vtype === "COMMUTER_TRAIN"
+              ? "tram"
+              : "other";
+    // 버스 번호는 보통 short_name, 지하철 호선은 name 또는 short_name.
+    const label = td.line?.short_name ?? td.line?.name ?? null;
+    segments.push({
+      kind,
+      name: label,
+      fromStop: td.departure_stop?.name ?? null,
+      toStop: td.arrival_stop?.name ?? null,
+      numStops: td.num_stops ?? null,
+    });
+  }
+
   const poly = best?.overview_polyline?.points;
   const path = poly ? decodePolyline(poly) : [];
-  return NextResponse.json({ durationSec: realDurationSec, path });
+  return NextResponse.json({ durationSec: realDurationSec, path, segments });
 }

@@ -5,11 +5,19 @@ import { supabase } from "@/lib/supabase";
 import { useCurrentUserId } from "@/lib/current-user";
 import type { TravelPlan } from "@/types";
 
-// 여행 계획(travel_plans) CRUD 훅. 개인 앱이지만 user_id 필드로 향후 공유 대비.
-export function useTravelPlans() {
+/**
+ * visibleUserIds: 달력 탭에서 선택한 "볼 사용자들"
+ *  - 전달 시 해당 사용자들의 계획 조회 (공유된 계획 포함)
+ *  - 생략 시 내 계획만
+ *
+ * 공유된 계획도 수정 가능 (RLS 정책에서 owner + accepted share 모두 허용).
+ */
+export function useTravelPlans(visibleUserIds?: string[]) {
   const userId = useCurrentUserId();
   const [plans, setPlans] = useState<TravelPlan[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const visibleKey = visibleUserIds?.join(",") ?? "";
 
   const fetchPlans = useCallback(async () => {
     setLoading(true);
@@ -17,10 +25,14 @@ export function useTravelPlans() {
       .from("travel_plans")
       .select("*")
       .order("updated_at", { ascending: false });
-    if (userId) query = query.in("user_id", [userId]);
+    const filterIds =
+      visibleUserIds && visibleUserIds.length > 0
+        ? visibleUserIds
+        : (userId ? [userId] : []);
+    if (filterIds.length > 0) query = query.in("user_id", filterIds);
     const { data, error } = await query;
     if (error) {
-      // user_id 컬럼이 없는 구버전 대비
+      // user_id 컬럼 미존재 구버전 대비
       const fallback = await supabase
         .from("travel_plans")
         .select("*")
@@ -30,16 +42,33 @@ export function useTravelPlans() {
       setPlans(data);
     }
     setLoading(false);
-  }, [userId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, visibleKey]);
 
   useEffect(() => {
     fetchPlans();
   }, [fetchPlans]);
 
+  // 앱이 다시 포그라운드로 올라올 때 재조회 —
+  // 공유자가 업데이트한 내용이 세션 중에 갱신되도록. auth 토큰 refresh 후
+  // 또는 백그라운드→포그라운드 복귀 타이밍에 stale 데이터 제거.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchPlans();
+    };
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") fetchPlans();
+    });
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      sub.subscription.unsubscribe();
+    };
+  }, [fetchPlans]);
+
   const addPlan = async (
     input: Pick<TravelPlan, "title"> & Partial<Pick<TravelPlan, "start_date" | "end_date" | "notes">>
   ) => {
-    // 1차 시도: user_id 포함
     const payload = { ...input, user_id: userId };
     const first = await supabase
       .from("travel_plans")
@@ -50,7 +79,6 @@ export function useTravelPlans() {
       await fetchPlans();
       return { data: first.data, error: null };
     }
-    // 2차 fallback: user_id 없이 (FK / 컬럼 미존재 케이스 대비)
     const retry = await supabase
       .from("travel_plans")
       .insert(input)

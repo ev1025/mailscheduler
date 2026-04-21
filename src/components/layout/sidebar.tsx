@@ -39,8 +39,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   return (
     <aside
+      // 데스크탑: fixed 로 화면 왼쪽에 상주. document-level 스크롤과 독립.
+      // bg-background 로 콘텐츠가 뒤에 비치지 않게.
       className={cn(
-        "hidden md:sticky md:top-0 md:flex md:flex-col md:border-r transition-all duration-200 md:h-dvh",
+        "hidden md:fixed md:left-0 md:top-0 md:z-30 md:flex md:flex-col md:border-r md:bg-background transition-all duration-200 md:h-dvh",
         collapsed ? "md:w-14" : "md:w-52"
       )}
     >

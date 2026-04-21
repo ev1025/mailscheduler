@@ -634,13 +634,6 @@ export default function PlanDetail({ planId, onBack }: Props) {
             });
           }
         }}
-        onDelete={
-          sheetTask
-            ? async () => {
-                await deleteTask(sheetTask.id);
-              }
-            : undefined
-        }
       />
     </div>
   );

@@ -323,14 +323,14 @@ function CalendarPageInner() {
           </div>
         }
       />}
-    {/* 여행계획 상세(hideTopHeader=true) 는 자체 스크롤 없이 main 에 위임.
-        wrapper 가 overflow-hidden+h-full 이면 content 가 잘려 main 이 overflow
-        감지 못 함 → 스크롤 불가. hideTopHeader 때는 height/overflow 모두 해제해
-        콘텐츠가 자연스럽게 main 에 흘러가고 main.overflow-y-auto 가 스크롤. */}
+    {/* 래퍼 — 모바일은 main 이 fixed h-dvh 내부스크롤이므로 h-[calc(100%-3.5rem)]
+        로 헤더 제외 영역을 차지하고 내부 overflow-hidden.
+        데스크탑은 document 스크롤이므로 h/overflow 없이 자연 흐름 + padding 만.
+        hideTopHeader(여행계획 상세) 는 자체 헤더가 있으므로 wrapper 역할 최소화. */}
     <div className={`flex flex-col min-h-0 ${
       hideTopHeader
         ? ""
-        : "h-[calc(100%-3.5rem)] overflow-hidden px-2 py-2 md:p-6"
+        : "h-[calc(100%-3.5rem)] overflow-hidden px-2 py-2 md:h-auto md:overflow-visible md:min-h-0 md:p-6"
     }`}>
 
       {/* MonthPicker: 달력/일정목록에서만 (여행·여행계획은 월 개념 없음) */}
@@ -388,6 +388,7 @@ function CalendarPageInner() {
         <PlanList
           onSelectPlan={(id) => setView("travel-plan", { planId: id })}
           newSignal={newPlanSignal}
+          visibleUserIds={visibleUserIds}
         />
       ) : view === "travel-plan" && planIdParam ? (
         <PlanDetail

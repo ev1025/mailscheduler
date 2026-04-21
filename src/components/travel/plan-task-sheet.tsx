@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapPin } from "lucide-react";
 import DeviceDialog from "@/components/ui/device-dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -34,7 +33,6 @@ interface Props {
   onSave: (
     updates: Partial<Omit<TravelPlanTask, "id" | "plan_id" | "created_at">>
   ) => Promise<void>;
-  onDelete?: () => Promise<void>;
   // 작성 세션 draft 를 구분할 키 (보통 planId). 같은 task/신규 슬롯에 대해
   // 시트 닫았다 다시 열어도 로컬에 저장된 입력 값을 복원.
   planId: string;
@@ -95,7 +93,6 @@ export default function PlanTaskSheet({
   formatDayLabel,
   onAddNewDay,
   onSave,
-  onDelete,
   planId,
 }: Props) {
   const draftKey = draftKeyFor(planId, task, defaultDayIndex);
@@ -120,7 +117,6 @@ export default function PlanTaskSheet({
   const [category, setCategory] = useState<string>("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [content, setContent] = useState("");
-  const [saving, setSaving] = useState(false);
 
   // open 될 때마다 state 초기화 — DB 값이 기준, 단 localStorage draft 가 있으면 덮어씀
   useEffect(() => {
@@ -247,30 +243,70 @@ export default function PlanTaskSheet({
     }
   };
 
-  // DB 저장용 분 단위 환산
-  const stayMinutesForSave = (): number => {
-    const n = parseFloat(stayMinutes);
-    if (!Number.isFinite(n) || n <= 0) return 0;
-    return stayUnit === "hour" ? Math.round(n * 60) : Math.floor(n);
+  // 최신 상태를 ref 로도 보관 — onOpenChange(false) 콜백 시점에 최신 값 사용
+  const stateRef = useRef({
+    dayIndex,
+    startTime,
+    stayMinutes,
+    stayUnit,
+    placeName,
+    placeAddress,
+    placeLat,
+    placeLng,
+    category,
+    selectedTags,
+    content,
+  });
+  useEffect(() => {
+    stateRef.current = {
+      dayIndex,
+      startTime,
+      stayMinutes,
+      stayUnit,
+      placeName,
+      placeAddress,
+      placeLat,
+      placeLng,
+      category,
+      selectedTags,
+      content,
+    };
+  });
+
+  // 자동 저장: 시트가 닫힐 때 호출. 장소가 비어있으면 저장 스킵(신규 빈 일정 방지).
+  const autoSave = async () => {
+    const s = stateRef.current;
+    if (!s.placeName.trim()) {
+      clearDraft(draftKey);
+      return;
+    }
+    const mins =
+      (() => {
+        const n = parseFloat(s.stayMinutes);
+        if (!Number.isFinite(n) || n <= 0) return 0;
+        return s.stayUnit === "hour" ? Math.round(n * 60) : Math.floor(n);
+      })();
+    await onSave({
+      day_index: s.dayIndex,
+      start_time: s.startTime || null,
+      place_name: s.placeName,
+      place_address: s.placeAddress,
+      place_lat: s.placeLat,
+      place_lng: s.placeLng,
+      tag: s.selectedTags.length > 0 ? s.selectedTags.join(",") : null,
+      category: s.category.trim() || null,
+      content: s.content.trim() || null,
+      stay_minutes: mins,
+    });
+    clearDraft(draftKey);
   };
 
-  const handleSubmit = async () => {
-    setSaving(true);
-    await onSave({
-      day_index: dayIndex,
-      start_time: startTime || null,
-      place_name: placeName,
-      place_address: placeAddress,
-      place_lat: placeLat,
-      place_lng: placeLng,
-      tag: selectedTags.length > 0 ? selectedTags.join(",") : null,
-      category: category.trim() || null,
-      content: content.trim() || null,
-      stay_minutes: stayMinutesForSave(),
-    });
-    setSaving(false);
-    clearDraft(draftKey); // 저장 완료 → draft 폐기
-    onOpenChange(false);
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      // 닫힘 → 자동 저장 (비동기 — 사용자 기다리지 않음)
+      void autoSave();
+    }
+    onOpenChange(next);
   };
 
   // 폼 본문 — Sheet(모바일)·Dialog(데스크탑) 공통. 드래그 핸들은 모바일만.
@@ -431,23 +467,11 @@ export default function PlanTaskSheet({
             />
           </div>
 
-          {/* 버튼 — 삭제는 메인 목록 행의 휴지통에서 */}
-          <div className="flex items-center justify-end gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-            >
-              취소
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving || !placeName.trim()}
-            >
-              {saving ? "저장 중..." : "저장"}
-            </Button>
-          </div>
+          {/* 자동 저장 — 시트를 내리거나 배경을 누르면 자동 저장됨.
+              장소가 비어 있으면 저장 스킵(빈 일정 방지). */}
+          <p className="text-[10px] text-muted-foreground text-center pt-1">
+            아래로 내리거나 배경을 누르면 자동 저장됩니다.
+          </p>
         </div>
     </>
   );
@@ -455,7 +479,14 @@ export default function PlanTaskSheet({
   const title = task ? "일정 수정" : "새 일정";
 
   return (
-    <DeviceDialog open={open} onOpenChange={onOpenChange} title={title} desktopMaxWidth="max-w-lg">
+    <DeviceDialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={title}
+      desktopMaxWidth="max-w-lg"
+      snapPoints={[0.5, 0.9]}
+      defaultSnapIndex={1}
+    >
       {renderForm()}
     </DeviceDialog>
   );

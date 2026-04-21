@@ -52,15 +52,41 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const allowClose = !!authUser && !!currentUser;
 
+  // 레이아웃 전략:
+  //  - 모바일: 전체 화면 고정(fixed inset-0 h-dvh) + main 내부 스크롤.
+  //    바텀네비가 절대/고정이라 document 스크롤은 회피.
+  //  - 데스크탑: document-level 자연 스크롤. Sidebar 는 md:fixed 로 left-0
+  //    고정 + main 은 sidebar 너비만큼 padding-left. 내부 스크롤 컨테이너
+  //    없음 → 자식 페이지 어디를 휠해도 body 가 스크롤됨.
+  //
+  // 이전엔 데스크탑에서도 main 에 overflow-y-auto 를 걸어 내부 스크롤 방식
+  // (overflow-hidden parent + 내부 scroll container) 이었는데, 이 구조가
+  //  - 중간에 overflow-hidden 을 가진 자식이 있으면 scroll event 가 격리
+  //  - flex / min-h-0 체인이 한 곳에서 끊기면 스크롤 불가
+  //  - 특정 child (지도·DnD) 가 wheel 을 먹으면 main 까지 전달 안 됨
+  // 모두 발생시켜 여러 PR 에서도 해결 못했음. document-level 스크롤로
+  // 한 번에 해소.
+  const sidebarPadding = collapsed ? "md:pl-14" : "md:pl-52";
+
   return (
-    <div className="flex h-dvh overflow-hidden fixed inset-0 md:static md:h-dvh">
+    <>
+      {/* Sidebar: 데스크탑에선 fixed, 모바일에선 hidden (Sidebar 내부에서 hidden md:flex 처리) */}
       <Sidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed(!collapsed)}
       />
-      <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden overscroll-none pt-safe pb-safe-nav md:pb-0 md:pt-0">
+
+      {/* Main: 모바일=화면 고정 내부스크롤 / 데스크탑=document 스크롤 */}
+      <main
+        className={`
+          fixed inset-0 overflow-y-auto overflow-x-hidden overscroll-none pt-safe pb-safe-nav
+          md:static md:inset-auto md:overflow-visible md:overflow-x-visible md:overscroll-auto md:pt-0 md:pb-0
+          ${sidebarPadding}
+        `}
+      >
         {children}
       </main>
+
       <BottomNav />
 
       <UserSwitcher
@@ -71,6 +97,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }}
         allowClose={allowClose}
       />
-    </div>
+    </>
   );
 }

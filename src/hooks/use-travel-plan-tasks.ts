@@ -33,6 +33,21 @@ export function useTravelPlanTasks(planId: string | null) {
     fetchTasks();
   }, [fetchTasks]);
 
+  // 포그라운드 복귀 / 세션 refresh 시 재조회 — 공유자 수정 내용 갱신.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchTasks();
+    };
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") fetchTasks();
+    });
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      sub.subscription.unsubscribe();
+    };
+  }, [fetchTasks]);
+
   const addTask = async (input: Omit<TravelPlanTask, "id" | "created_at">) => {
     const { data, error } = await supabase
       .from("travel_plan_tasks")

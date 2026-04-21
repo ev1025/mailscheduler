@@ -49,6 +49,21 @@ export function useTravelItems(visibleUserIds?: string[]) {
     fetchItems();
   }, [fetchItems]);
 
+  // 포그라운드 복귀·세션 refresh 시 재조회 — 공유자 변경사항 안정적 반영.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchItems();
+    };
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") fetchItems();
+    });
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      sub.subscription.unsubscribe();
+    };
+  }, [fetchItems]);
+
   // month/color/visited_dates 컬럼이 없을 수 있어 fallback 처리
   const addItem = async (item: Omit<TravelItem, "id" | "created_at" | "updated_at">) => {
     const { error } = await supabase

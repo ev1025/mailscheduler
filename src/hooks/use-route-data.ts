@@ -76,17 +76,28 @@ export function invalidateRouteData(
 }
 
 // 4개 수단 병렬 fetch. picker 오픈 시 한 번에 로드용.
+// durations(숫자|"loading"|null) 와 results(RouteResult|null) 를 함께 제공 —
+// UI 는 duration 만 필요하면 간단하게, segments(버스번호·호선) 가 필요하면
+// results 에서 꺼내 쓴다.
+export interface RouteResultsMap {
+  durations: Record<TransportMode, number | null | "loading">;
+  results: Partial<Record<TransportMode, RouteResult | null>>;
+}
+
 export function useRouteDurations(
   from: { lat: number; lng: number } | null,
   to: { lat: number; lng: number } | null,
   enabled: boolean
-) {
-  const [durations, setDurations] = useState<Record<TransportMode, number | null | "loading">>(() => ({
-    walk: "loading",
-    car: "loading",
-    bus: "loading",
-    train: "loading",
-    taxi: null,
+): RouteResultsMap {
+  const [state, setState] = useState<RouteResultsMap>(() => ({
+    durations: {
+      walk: "loading",
+      car: "loading",
+      bus: "loading",
+      train: "loading",
+      taxi: null,
+    },
+    results: {},
   }));
 
   useEffect(() => {
@@ -95,36 +106,45 @@ export function useRouteDurations(
 
     // 이미 캐시된 것 먼저 반영, 나머지만 fetch
     const modes: TransportMode[] = ["walk", "car", "bus", "train"];
-    const initial: Partial<Record<TransportMode, number | null | "loading">> = {};
+    const initialDur: Partial<Record<TransportMode, number | null | "loading">> = {};
+    const initialRes: Partial<Record<TransportMode, RouteResult | null>> = {};
     for (const m of modes) {
       const key = keyOf(from, to, m);
       const hit = cache.get(key);
       if (hit && hit.expiresAt > Date.now()) {
-        initial[m] = hit.result?.durationSec ?? null;
+        initialDur[m] = hit.result?.durationSec ?? null;
+        initialRes[m] = hit.result;
       } else {
-        initial[m] = "loading";
+        initialDur[m] = "loading";
       }
     }
-    setDurations((prev) => ({ ...prev, ...initial, taxi: null }));
+    setState((prev) => ({
+      durations: { ...prev.durations, ...initialDur, taxi: null },
+      results: { ...prev.results, ...initialRes },
+    }));
 
     (async () => {
       const results = await Promise.all(
         modes.map((m) =>
           getRouteData(from, to, m)
-            .then((r) => [m, r?.durationSec ?? null] as const)
+            .then((r) => [m, r] as const)
             .catch(() => [m, null] as const)
         )
       );
       if (cancelled) return;
-      setDurations((prev) => {
-        const next = { ...prev };
-        for (const [m, sec] of results) next[m] = sec;
-        return next;
+      setState((prev) => {
+        const nextDur = { ...prev.durations };
+        const nextRes = { ...prev.results };
+        for (const [m, r] of results) {
+          nextDur[m] = r?.durationSec ?? null;
+          nextRes[m] = r;
+        }
+        return { durations: nextDur, results: nextRes };
       });
     })();
 
     return () => { cancelled = true; };
   }, [enabled, from?.lat, from?.lng, to?.lat, to?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  return durations;
+  return state;
 }

@@ -4,9 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import DraggableSheet from "@/components/ui/draggable-sheet";
 import { useMediaQuery } from "@/lib/use-media-query";
 
-// 모바일(<768px) = 바텀시트(드래그 닫기) / 데스크탑(>=768px) = 중앙 Dialog.
-// plan-task-sheet · plan-transport-picker 에 반복되던 device-branch 를
-// 한 곳에서 관리. 소비자는 DeviceDialog 만 쓰면 자동으로 적절한 모달이 선택됨.
+// 모바일(<768px) = 바텀시트(스냅 드래그) / 데스크탑(>=768px) = 중앙 Dialog.
 
 interface Props {
   open: boolean;
@@ -14,8 +12,10 @@ interface Props {
   title: string;
   /** 데스크탑 Dialog 의 max-width 클래스. 기본 "max-w-lg" */
   desktopMaxWidth?: string;
-  /** 바텀시트 높이 (모바일) */
-  mobileMaxHeight?: string;
+  /** 모바일 스냅 지점 (뷰포트 높이 비율). 기본 [0.5, 0.9] */
+  snapPoints?: number[];
+  /** 초기 스냅 인덱스. 기본 최대치(닫기 직전 90% 등) */
+  defaultSnapIndex?: number;
   /** 내부 스크롤 래퍼 여부 */
   scrollable?: boolean;
   children: React.ReactNode;
@@ -26,7 +26,8 @@ export default function DeviceDialog({
   onOpenChange,
   title,
   desktopMaxWidth = "max-w-lg",
-  mobileMaxHeight = "90dvh",
+  snapPoints = [0.5, 0.9],
+  defaultSnapIndex,
   scrollable = true,
   children,
 }: Props) {
@@ -56,7 +57,8 @@ export default function DeviceDialog({
       open={open}
       onOpenChange={onOpenChange}
       title={title}
-      maxHeight={mobileMaxHeight}
+      snapPoints={snapPoints}
+      defaultSnapIndex={defaultSnapIndex}
       scrollable={scrollable}
     >
       {children}
