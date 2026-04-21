@@ -6,8 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import DeviceDialog from "@/components/ui/device-dialog";
-import { formatDuration, type TransitSegment } from "@/lib/travel/providers";
+import { formatDuration } from "@/lib/travel/providers";
 import { useRouteDurations } from "@/hooks/use-route-data";
+import TransitSegmentChain from "@/components/travel/transit-segment-chain";
 import type { TransportMode } from "@/types";
 import { useEffect, useState } from "react";
 
@@ -38,31 +39,6 @@ function addMinutes(hhmm: string, addMin: number): string {
   const total = h * 60 + m + addMin;
   const w = ((total % (24 * 60)) + 24 * 60) % (24 * 60);
   return `${String(Math.floor(w / 60)).padStart(2, "0")}:${String(w % 60).padStart(2, "0")}`;
-}
-
-// 세그먼트 요약 — 환승·중간역 나열. "N7020번 → 2호선(시청역→강남역)" 형태.
-// 한 구간만 있으면 "2호선 시청→강남". 여러 구간이면 "·" 로 연결.
-export function summarizeSegments(segments: TransitSegment[] | undefined): string | null {
-  if (!segments || segments.length === 0) return null;
-  const parts: string[] = [];
-  for (const s of segments) {
-    if (!s.name && !s.fromStop) continue;
-    const labelPrefix =
-      s.kind === "bus"
-        ? (s.name ? `${s.name}번` : "버스")
-        : s.kind === "subway"
-          ? (s.name ?? "지하철")
-          : s.kind === "train"
-            ? (s.name ?? "기차")
-            : (s.name ?? "");
-    const route =
-      s.fromStop && s.toStop
-        ? `${s.fromStop}→${s.toStop}`
-        : s.fromStop ?? s.toStop ?? "";
-    parts.push(route ? `${labelPrefix} ${route}` : labelPrefix);
-  }
-  if (parts.length === 0) return null;
-  return parts.join(" · ");
 }
 
 export default function PlanTransportPicker({
@@ -118,11 +94,8 @@ export default function PlanTransportPicker({
             d === null ? "계산 실패" :
             formatDuration(d);
 
-          // 버스·지하철만 세그먼트 라벨 표시 (구체적 노선 번호·역명)
-          const segmentsLabel =
-            (m.value === "bus" || m.value === "train")
-              ? summarizeSegments(results[m.value]?.segments)
-              : null;
+          // 버스·지하철만 세그먼트 체인 표시 (호선 배지 + 역 이름)
+          const showSegments = (m.value === "bus" || m.value === "train") && !!results[m.value]?.segments?.length;
 
           return (
             <button
@@ -130,7 +103,7 @@ export default function PlanTransportPicker({
               type="button"
               onClick={() => onSelect(m.value, typeof d === "number" ? d : null)}
               disabled={d === "loading"}
-              className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors disabled:opacity-60 ${
+              className={`flex items-start gap-3 rounded-md px-3 py-2.5 text-left transition-colors disabled:opacity-60 ${
                 selected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-accent"
               }`}
             >
@@ -138,11 +111,6 @@ export default function PlanTransportPicker({
               <div className="flex-1 min-w-0 flex flex-col gap-0.5">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="font-medium text-sm">{m.label}</span>
-                  {segmentsLabel && (
-                    <span className="text-[11px] text-muted-foreground truncate">
-                      {segmentsLabel}
-                    </span>
-                  )}
                   {isFastest && (
                     <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-600">
                       <Zap className="h-2.5 w-2.5 fill-amber-500 stroke-amber-600" />
@@ -159,8 +127,13 @@ export default function PlanTransportPicker({
                     </>
                   )}
                 </div>
+                {showSegments && (
+                  <div className="mt-1">
+                    <TransitSegmentChain segments={results[m.value]!.segments} />
+                  </div>
+                )}
               </div>
-              {selected && <Check className="h-4 w-4 shrink-0 text-primary" />}
+              {selected && <Check className="h-4 w-4 shrink-0 text-primary mt-1" />}
             </button>
           );
         })}

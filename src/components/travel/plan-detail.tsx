@@ -521,7 +521,14 @@ export default function PlanDetail({ planId, onBack }: Props) {
                                 task={t}
                                 onClick={() => openEditSheet(t)}
                                 onDelete={() => deleteTask(t.id)}
-                                expectedTime={expectedTimes[t.id]?.predicted ? expectedTimes[t.id]?.time : null}
+                                // predicted=true (체인 계산값) 일 때만 expectedTime 전달 —
+                                // row 는 expectedTime 이 있으면 stored start_time 무시하므로
+                                // 첫 task (predicted=false) 는 null 로 보내 stored 값 사용
+                                expectedTime={
+                                  expectedTimes[t.id]?.predicted
+                                    ? expectedTimes[t.id]?.time ?? null
+                                    : null
+                                }
                               />
                               {leg && (
                                 <PlanLegCard

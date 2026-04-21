@@ -43,8 +43,11 @@ export default function PlanTaskRow({
   expectedTime,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // expectedTime 은 체인 계산 결과 (중간 task) 또는 null (첫 task).
+  // 체인 계산이 있으면 그걸 우선 — 잔류 start_time 이 있어도 무시해 교통수단
+  // 변경 시 자동 반영. 첫 task 는 expectedTime=null 이라 stored start_time 사용.
   const time = formatTime(task.start_time);
-  const arrivalTime = time || expectedTime || null;
+  const arrivalTime = expectedTime || time || null;
   const leaveTime =
     arrivalTime && task.stay_minutes > 0
       ? addMinutes(arrivalTime, task.stay_minutes)

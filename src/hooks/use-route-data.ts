@@ -52,7 +52,12 @@ export async function getRouteData(
 
   const p = fetchRouteDuration(from, to, mode)
     .then((result) => {
-      cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
+      // 성공 결과만 캐시. null(실패) 은 다음 호출에 즉시 재시도 가능하도록
+      // 캐시하지 않음 — 이전엔 실패도 2분간 남아 "한 번 실패 → 계속 실패"
+      // 스티키 버그 발생.
+      if (result) {
+        cache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
+      }
       return result;
     })
     .finally(() => {

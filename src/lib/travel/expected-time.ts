@@ -1,17 +1,22 @@
 import type { TravelPlanTask } from "@/types";
 
 // 정렬된 task 들에 대해 각 task 의 "예상 도착 시각"을 계산.
-// 규칙:
-//  - 직접 입력된 start_time 이 있으면 그 값이 최우선(실제 시간)
-//  - 없으면 이전 task 의 [실제 or 예상 시간] + 이전 task 의 체류(분) + 이 구간 이동(초)
-//  - 이전 task 의 시간을 전혀 알 수 없으면(null) 이 task 도 null
-// 일자가 바뀌면 누적이 끊기므로 day_index 별로 독립 계산.
+// 규칙 (변경됨 — 자동 조절 강화):
+//  - 각 일자의 **첫 task** 만 start_time 을 anchor 로 사용 (있으면 고정 시간)
+//  - 이후 task 들은 start_time 이 설정돼 있어도 무시하고 체인 계산값 사용
+//    → 이전 arrival + 이전 stay + 현재 구간 이동시간
+//  - anchor 가 없거나 체인이 끊기면 null
+//  - 일자 바뀌면 누적 초기화
+//
+// 기존엔 중간 task 의 start_time 이 anchor 가 되어 교통수단·체류 변경해도
+// 반영되지 않는 문제 발생. 이제 중간 task 에 "잔류 start_time" 이 있어도
+// 체인 계산이 항상 우선.
 //
 // 반환: { taskId → { time: "HH:MM" | null, predicted: boolean } }
 
 export interface ExpectedTimeInfo {
   time: string | null;   // HH:MM
-  predicted: boolean;    // 사용자가 직접 입력한 값이 아니라 계산된 값인지
+  predicted: boolean;    // 첫 task 는 false, 체인 계산된 건 true
 }
 
 function toMinutes(hhmm: string): number {
@@ -35,41 +40,32 @@ export function computeExpectedTimes(
   let prevTime: string | null = null;
 
   for (const t of sorted) {
-    // 일자가 바뀌면 누적 초기화
+    // 일자가 바뀌면 누적 초기화 — 이 task 가 해당 일자 첫 task
     if (!prevTask || prevTask.day_index !== t.day_index) {
       prevTask = t;
       const actual = t.start_time ? t.start_time.slice(0, 5) : null;
+      // 첫 task: predicted=false (사용자 anchor 또는 미설정)
       result[t.id] = { time: actual, predicted: false };
       prevTime = actual;
       continue;
     }
 
-    // 사용자가 직접 입력한 시간이 있으면 그 값 사용
-    if (t.start_time) {
-      const actual = t.start_time.slice(0, 5);
-      result[t.id] = { time: actual, predicted: false };
-      prevTime = actual;
+    // 중간 task: 체인 계산이 가능하면 항상 계산값 사용 (start_time 있어도 무시)
+    if (prevTime != null) {
+      const stay = prevTask.stay_minutes ?? 0;
+      const moveSec = t.transport_duration_sec ?? 0;
+      const moveMin = Math.round(moveSec / 60);
+      const next = fromMinutes(toMinutes(prevTime) + stay + moveMin);
+      result[t.id] = { time: next, predicted: true };
+      prevTime = next;
       prevTask = t;
       continue;
     }
 
-    // 예상 계산: prevTime + prevTask.stay_minutes + leg.transport_duration_sec/60
-    if (prevTime) {
-      const stay = prevTask.stay_minutes ?? 0;
-      const moveSec = t.transport_duration_sec ?? 0;
-      const moveMin = Math.round(moveSec / 60);
-      if (moveSec > 0 || stay > 0) {
-        const next = fromMinutes(toMinutes(prevTime) + stay + moveMin);
-        result[t.id] = { time: next, predicted: true };
-        prevTime = next;
-        prevTask = t;
-        continue;
-      }
-    }
-
-    // 계산할 근거가 없음
-    result[t.id] = { time: null, predicted: false };
-    prevTime = null;
+    // 체인 끊김 (첫 task 에 anchor 없었음) — stored start_time 이라도 표시
+    const fallback = t.start_time ? t.start_time.slice(0, 5) : null;
+    result[t.id] = { time: fallback, predicted: false };
+    prevTime = fallback;
     prevTask = t;
   }
   return result;
