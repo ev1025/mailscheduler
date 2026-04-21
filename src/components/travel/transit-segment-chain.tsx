@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { TransitSegment } from "@/lib/travel/providers";
 import {
   busColor,
@@ -9,13 +9,9 @@ import {
   subwayLineColor,
 } from "@/lib/travel/kr-transit-colors";
 
-// 대중교통 구간 체인 — 각 segment 를 세로 블록으로 표시.
-// 한 segment 블록:
-//   [배지] 출발역
-//         ↓ (작은 화살표)
-//         도착역
-// 환승 구간은 다음 블록이 이어짐.
-// 역명은 cleanStopName 으로 Google 이 붙이는 "." 랜드마크·호선 prefix 제거해 정리.
+// 대중교통 구간 체인 — 각 segment 한 줄: [배지] 출발역 → 도착역
+// 환승이면 줄이 이어짐. 역명은 cleanStopName 으로 "." 랜드마크·호선 prefix 제거.
+// 너비가 좁으면 역명이 wrap 될 수 있으나 화살표와 순서 관계는 가로(→) 로 유지.
 
 function SubwayBadge({ name }: { name: string | null }) {
   const color = subwayLineColor(name);
@@ -67,22 +63,23 @@ export default function TransitSegmentChain({ segments, filterKinds }: Props) {
   if (filtered.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-1.5 w-full">
+    <div className="flex flex-col gap-1 w-full">
       {filtered.map((s, i) => {
         const from = cleanStopName(s.fromStop);
         const to = cleanStopName(s.toStop);
         return (
-          <div key={i} className="flex items-start gap-2 text-[11px] leading-tight">
+          <div
+            key={i}
+            className="flex items-center gap-1.5 text-[11px] leading-tight text-foreground"
+          >
             <SegmentBadge segment={s} />
-            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-              {from && <span className="text-foreground break-keep">{from}</span>}
-              {to && (
-                <div className="flex items-center gap-1 text-muted-foreground">
-                  <ArrowDown className="h-2.5 w-2.5 shrink-0" />
-                  <span className="text-foreground break-keep">{to}</span>
-                </div>
-              )}
-            </div>
+            {from && <span className="break-keep">{from}</span>}
+            {to && (
+              <>
+                <ArrowRight className="h-3 w-3 text-muted-foreground/70 shrink-0" />
+                <span className="break-keep">{to}</span>
+              </>
+            )}
           </div>
         );
       })}

@@ -97,10 +97,14 @@ export function cleanStopName(raw: string | null | undefined): string {
   // 괄호로 부연설명 있는 경우 앞만 — "장승배기역(7호선)" → "장승배기역"
   const pIdx = s.search(/[(（]/);
   if (pIdx > 0) s = s.slice(0, pIdx).trim();
-  // "1호선 " ~ "9호선 " prefix + 한글 호선명 prefix 제거
-  s = s.replace(/^[1-9]호선\s+/, "");
-  s = s.replace(/^(KTX|SRT|공항철도|신분당선|분당선|수인분당선|경의중앙선|경춘선|신림선|우이신설선|의정부경전철|용인경전철|인천[12]호선|김포골드라인|GTX[-\s]?[A-D]?)\s+/, "");
-  return s;
+  // "1호선" ~ "9호선" prefix 제거 (공백 있든 없든, 배지가 이미 호선 표시하므로 중복)
+  s = s.replace(/^[1-9]호선\s*/, "");
+  // 한글 호선명 prefix 제거 ("신분당선 강남역" 또는 "신분당선강남역")
+  s = s.replace(
+    /^(KTX|SRT|공항철도|신분당선|분당선|수인분당선|경의중앙선|경춘선|신림선|우이신설선|의정부경전철|용인경전철|인천[12]호선|김포골드라인|GTX[-\s]?[A-D]?)\s*/,
+    ""
+  );
+  return s.trim();
 }
 
 // 서울 버스 체계 분류 → 컬러. number 가 정확한 정수 번호일 때만 구분.
