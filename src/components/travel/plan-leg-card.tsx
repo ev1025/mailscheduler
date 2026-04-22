@@ -154,10 +154,13 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
         className="flex flex-col ml-6 pl-2 border-l-2 border-primary/30 py-1.5 gap-1.5 text-left hover:bg-accent/40 rounded-r-md transition-colors"
         title="이동수단 변경"
       >
-        <div className="flex items-center gap-1 text-xs min-w-0">
-          <span>{icon?.emoji}</span>
-          <span className="text-primary font-medium">{icon?.label}</span>
-          <span className="text-foreground">{formatDuration(durationSec)}</span>
+        <div className="flex items-baseline gap-1.5 min-w-0">
+          {/* transit 모드는 이모지 없이 라벨 + 시간만. 다른 모드는 이모지 유지. */}
+          {mode !== "transit" && icon && <span className="text-sm">{icon.emoji}</span>}
+          {/* 라벨(대중교통·승용차 등): bold, 기본 크기 */}
+          <span className="text-sm text-primary font-bold">{icon?.label}</span>
+          {/* 소요시간: 연한 회색, 살짝 작게 */}
+          <span className="text-xs text-muted-foreground">{formatDuration(durationSec)}</span>
           {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
         </div>
         {/* 대중교통 조합(transit) — 각 step:
@@ -179,8 +182,8 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
                 const to = normalizeStopName(s.toStop, s.kind);
                 return (
                   <div key={i} className="flex flex-col gap-0.5 min-w-0">
-                    {/* 타이틀: 출발역 ➔ 도착역 (기본 text-xs, 볼드 없음) */}
-                    <div className="text-xs break-keep">
+                    {/* 타이틀: 출발역 ➔ 도착역 — 헤더보다 2px 작게 */}
+                    <div className="text-[10px] break-keep">
                       {from}
                       {to && <span className="mx-1">➔</span>}
                       {to}

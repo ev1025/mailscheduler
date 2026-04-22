@@ -20,7 +20,7 @@ import { useRouteDurations } from "@/hooks/use-route-data";
 import { addMinutes } from "@/lib/travel/time";
 import {
   busColor,
-  subwayBadgeLabel,
+  cleanStopName,
   subwayLineColor,
 } from "@/lib/travel/kr-transit-colors";
 import type { TransportMode, TransportRouteStep } from "@/types";
@@ -495,79 +495,79 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
   );
 }
 
-// 정류장 · 경로 상세 — 연속된 transit step 에서 공유 정류장은 한 번만 표시.
+// 정류장 · 경로 상세 — 여행계획 상세페이지(plan-leg-card) 의 transit 렌더와 동일 포맷.
+// 도보 step 은 생략, 각 transit step 을 "출발역 ➔ 도착역" + "[풀네임 배지들]" 2줄로.
 function RouteStepsDetail({ steps }: { steps: TransportRouteStep[] }) {
-  const rendered: React.ReactNode[] = [];
-  let lastStop: string | null = null;
-  for (let i = 0; i < steps.length; i++) {
-    const s = steps[i];
-    if (s.kind === "walk") {
-      rendered.push(
-        <div key={`w${i}`} className="text-[11px] text-muted-foreground">
-          도보 {Math.max(1, Math.round(s.durationSec / 60))}분
-        </div>
-      );
-      continue;
-    }
-    const names =
-      s.alternateNames && s.alternateNames.length > 0
-        ? s.alternateNames
-        : s.name
-          ? [s.name]
-          : [];
-    if (s.fromStop && s.fromStop !== lastStop) {
-      rendered.push(
-        <div key={`from${i}`} className="text-[11px] text-foreground font-medium">
-          {s.fromStop}
-        </div>
-      );
-    }
-    rendered.push(
-      <div key={`seg${i}`} className="flex items-center gap-1 flex-wrap pl-2">
-        {names.map((name, j) =>
-          s.kind === "bus" ? (
-            <BusBadge key={j} name={name} />
-          ) : (
-            <SubwayBadge key={j} name={name} />
-          )
-        )}
-        <span className="text-[11px] text-muted-foreground tabular-nums">
-          {Math.max(1, Math.round(s.durationSec / 60))}분
-        </span>
-      </div>
-    );
-    if (s.toStop) {
-      rendered.push(
-        <div key={`to${i}`} className="text-[11px] text-foreground font-medium">
-          {s.toStop}
-        </div>
-      );
-      lastStop = s.toStop;
-    } else {
-      lastStop = null;
-    }
-  }
-  return <div className="flex flex-col gap-0.5 text-xs">{rendered}</div>;
+  return (
+    <div className="flex flex-col gap-2">
+      {steps
+        .filter((s) => s.kind !== "walk")
+        .map((s, i) => {
+          const names =
+            s.alternateNames && s.alternateNames.length > 0
+              ? s.alternateNames
+              : s.name
+                ? [s.name]
+                : [];
+          const from = normalizeStopName(s.fromStop, s.kind);
+          const to = normalizeStopName(s.toStop, s.kind);
+          return (
+            <div key={i} className="flex flex-col gap-0.5 min-w-0">
+              <div className="text-xs break-keep">
+                {from}
+                {to && <span className="mx-1">➔</span>}
+                {to}
+              </div>
+              <div className="flex items-center gap-1 flex-wrap">
+                {names.map((name, j) =>
+                  s.kind === "bus" ? (
+                    <BusBadgeFull key={j} name={name} />
+                  ) : (
+                    <SubwayBadgeFull key={j} name={name} />
+                  )
+                )}
+              </div>
+            </div>
+          );
+        })}
+    </div>
+  );
 }
 
-function BusBadge({ name }: { name: string }) {
+// 지하철/기차/트램 정류장은 '역' 접미사가 빠지는 경우 보정. 버스는 그대로.
+function normalizeStopName(
+  raw: string | null | undefined,
+  kind: TransportRouteStep["kind"]
+): string {
+  const cleaned = cleanStopName(raw);
+  if (!cleaned) return "";
+  if (
+    (kind === "subway" || kind === "train" || kind === "tram") &&
+    !cleaned.endsWith("역")
+  ) {
+    return cleaned + "역";
+  }
+  return cleaned;
+}
+
+function SubwayBadgeFull({ name }: { name: string }) {
   return (
     <span
-      className="inline-flex items-center h-5 px-1.5 rounded text-[10px] font-bold text-white"
-      style={{ backgroundColor: busColor(name) }}
+      className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-semibold text-white"
+      style={{ backgroundColor: subwayLineColor(name) }}
     >
       {name}
     </span>
   );
 }
 
-function SubwayBadge({ name }: { name: string }) {
+function BusBadgeFull({ name }: { name: string }) {
   return (
     <span
-      className="inline-flex items-center justify-center h-5 min-w-5 rounded-full px-1 text-[10px] font-bold text-white"
-      style={{ backgroundColor: subwayLineColor(name) }}
+      className="inline-flex items-center h-5 px-2 rounded text-[11px] font-semibold text-white"
+      style={{ backgroundColor: busColor(name) }}
     >
-      {subwayBadgeLabel(name)}
+      {name}
     </span>
   );
 }
