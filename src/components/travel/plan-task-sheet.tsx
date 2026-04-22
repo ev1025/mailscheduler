@@ -283,34 +283,24 @@ export default function PlanTaskSheet({
   const renderForm = () => (
     <>
         <div className="flex flex-col gap-3">
-          {/* 일자 · 시간 · 체류 — 라벨 + 입력 두 줄 구조 */}
-          <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground">
-            <span className="w-[5.5rem] text-center">일자</span>
-            <span className="flex-1 min-w-0 text-center">시간</span>
-            <span className="text-center">체류시간</span>
-          </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
+          {/* 일자 · 시간 · 체류 — grid 로 라벨·입력 컬럼 정렬 */}
+          <div className="grid grid-cols-[5.5rem_1fr_auto] gap-1.5 items-center">
+            {/* 라벨 행 */}
+            <span className="text-[11px] text-muted-foreground text-center">일자</span>
+            <span className="text-[11px] text-muted-foreground text-center">시간</span>
+            <span className="text-[11px] text-muted-foreground text-center">체류시간</span>
+            {/* 입력 행 */}
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
-              {/* 트리거·드롭다운 동일 폭(w-[5.5rem]) — 체크 아이콘 없어 텍스트만. */}
               <SelectTrigger className="h-8 text-xs w-[5.5rem] px-2">
                 {formatDayLabel(dayIndex)}
               </SelectTrigger>
               <SelectContent className="w-[5.5rem] min-w-[5.5rem]">
                 {availableDays.map((d) => (
-                  <SelectItem
-                    key={d}
-                    value={String(d)}
-                    hideIndicator
-                    className="text-xs"
-                  >
+                  <SelectItem key={d} value={String(d)} hideIndicator className="text-xs">
                     {formatDayLabel(d)}
                   </SelectItem>
                 ))}
-                <SelectItem
-                  value="__new__"
-                  hideIndicator
-                  className="text-xs text-neutral-600"
-                >
+                <SelectItem value="__new__" hideIndicator className="text-xs text-neutral-600">
                   + 새 일자
                 </SelectItem>
               </SelectContent>
@@ -319,19 +309,18 @@ export default function PlanTaskSheet({
             <TimePicker
               value={startTime}
               onChange={setStartTime}
-              className="h-8 text-xs px-2"
+              className="h-8 text-xs px-2 w-full"
             />
 
-            {/* 체류시간: 분/시간 토글 + 입력 — 다른 두 개와 같은 h-8·text-xs */}
+            {/* 체류시간: 분/시간 토글 + 입력 */}
             <div className="flex items-center h-8 rounded-md border bg-transparent overflow-hidden">
               <Input
-                // type="text" + inputMode 로 브라우저 기본 up/down spinner 아이콘 제거
                 type="text"
                 inputMode={stayUnit === "hour" ? "decimal" : "numeric"}
                 value={stayMinutes}
                 onChange={(e) => handleStayChange(e.target.value)}
-                placeholder={stayUnit === "hour" ? "체류(시간)" : "체류(분)"}
-                className="h-full text-xs w-14 border-0 rounded-none focus-visible:ring-0 px-2 placeholder:text-[10px]"
+                placeholder={stayUnit === "hour" ? "시간" : "분"}
+                className="h-full text-xs w-12 border-0 rounded-none focus-visible:ring-0 px-2 placeholder:text-[10px]"
               />
               <button
                 type="button"

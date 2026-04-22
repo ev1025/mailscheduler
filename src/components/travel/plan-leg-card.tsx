@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { TaskLeg } from "@/lib/travel/legs";
 import type { TransportMode } from "@/types";
-import { formatDuration } from "@/lib/travel/providers";
+import { formatDuration, type TransitSegment } from "@/lib/travel/providers";
+import { getRouteData } from "@/hooks/use-route-data";
 import PlanTransportPicker from "@/components/travel/plan-transport-picker";
+import TransitSegmentChain from "@/components/travel/transit-segment-chain";
 
 // Leg 카드 (2-line compact).
 // Unselected:   [ 이동수단 선택 ▾ ]
@@ -48,6 +50,34 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
   const icon = mode ? MODE_ICON[mode] : null;
   const initialManualMinutes =
     isManual && durationSec ? Math.round(durationSec / 60) : undefined;
+
+  // 버스·지하철 선택됐으면 segments 상세도 목록에 표시 — 캐시에서 가져옴
+  const [segments, setSegments] = useState<TransitSegment[] | undefined>(undefined);
+  useEffect(() => {
+    if (!hasCoords || !mode || (mode !== "bus" && mode !== "train")) {
+      setSegments(undefined);
+      return;
+    }
+    let cancelled = false;
+    getRouteData(
+      { lat: fromTask.place_lat!, lng: fromTask.place_lng! },
+      { lat: toTask.place_lat!, lng: toTask.place_lng! },
+      mode
+    ).then((r) => {
+      if (!cancelled) setSegments(r?.segments);
+    });
+    return () => { cancelled = true; };
+  }, [
+    hasCoords,
+    mode,
+    fromTask.place_lat,
+    fromTask.place_lng,
+    toTask.place_lat,
+    toTask.place_lng,
+  ]);
+
+  const filterKinds: "bus" | "rail" | undefined =
+    mode === "bus" ? "bus" : mode === "train" ? "rail" : undefined;
 
   const handleSelect = (
     selectedMode: TransportMode,
@@ -106,21 +136,29 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
 
   return (
     <>
-      <div className="flex items-center ml-6 pl-2 border-l-2 border-primary/30 py-1 gap-2">
-        <div className="flex items-center gap-1 text-xs flex-1 min-w-0">
-          <span>{icon?.emoji}</span>
-          <span className="text-primary font-medium">{icon?.label}</span>
-          <span className="text-foreground">{formatDuration(durationSec)}</span>
-          {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
+      <div className="flex flex-col ml-6 pl-2 border-l-2 border-primary/30 py-1 gap-0.5">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 text-xs flex-1 min-w-0">
+            <span>{icon?.emoji}</span>
+            <span className="text-primary font-medium">{icon?.label}</span>
+            <span className="text-foreground">{formatDuration(durationSec)}</span>
+            {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
+          </div>
+          {/* 연한 회색 · 밑줄 "변경" — 누르면 picker 재오픈 */}
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="text-[11px] text-muted-foreground/70 underline underline-offset-2 hover:text-muted-foreground shrink-0"
+          >
+            변경
+          </button>
         </div>
-        {/* 연한 회색 · 밑줄 "변경" — 누르면 picker 재오픈 */}
-        <button
-          type="button"
-          onClick={() => setPickerOpen(true)}
-          className="text-[11px] text-muted-foreground/70 underline underline-offset-2 hover:text-muted-foreground shrink-0"
-        >
-          변경
-        </button>
+        {/* 버스·지하철 selected 상태에서 세그먼트 상세(배지+역명) 표시 */}
+        {!isManual && segments && segments.length > 0 && (
+          <div className="pl-1">
+            <TransitSegmentChain segments={segments} filterKinds={filterKinds} />
+          </div>
+        )}
       </div>
       {hasCoords && (
         <PlanTransportPicker
