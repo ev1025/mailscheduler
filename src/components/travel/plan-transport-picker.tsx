@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Zap } from "lucide-react";
+import { Bus, Check, TramFront, Zap } from "lucide-react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -440,8 +440,10 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
     cumulative += (s.durationSec / totalSec) * 100;
   }
 
-  // 바 크기 2/3 로 축소 (h-6 → h-4). 마커는 바보다 약간 크게 얹어 뱃지처럼 돋보이게.
-  // 아이콘 대신 한글 한 글자 라벨 ("버"/"지") 로 분별 명확화.
+  // 바: flex-grow 비율 기반 (durationSec) 으로 세그먼트 분배 → 끝까지 정확히 채워져
+  // 마지막 transit step 도 바의 rounded-full 우측에 맞게 잘리며 색상 유지.
+  // 마커: 전환 지점의 오른쪽(=transit segment 시작 쪽)에 배치 — -translate-x-1/2
+  // 제거해 walk 세그먼트의 분 라벨을 가리지 않음. 테두리 border-2 → border.
   return (
     <div className="relative h-5 flex items-center">
       <div className="flex h-4 w-full rounded-full overflow-hidden bg-muted">
@@ -457,10 +459,6 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
                   ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
                   : "#64748b";
           const textColor = s.kind === "walk" ? "#475569" : "#ffffff";
-          // 도보 세그먼트는 짧아서 라벨이 잘려도 분 수는 반드시 표시.
-          //   - min-width 로 최소 폭 확보 (텍스트 '1분' 맞춤 ~22px)
-          //   - overflow: visible 로 혹시 넘쳐도 보이게
-          // 다른 교통수단 세그먼트는 기존 8% 임계값 유지.
           const isWalk = s.kind === "walk";
           const showLabel = isWalk || pct >= 8;
           return (
@@ -470,7 +468,7 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
                 isWalk ? "" : "overflow-hidden"
               }`}
               style={{
-                width: `${pct}%`,
+                flex: `${s.durationSec} 1 0`,
                 minWidth: isWalk ? "22px" : undefined,
                 backgroundColor: bg,
                 color: textColor,
@@ -484,11 +482,15 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
       {markers.map((m, i) => (
         <div
           key={i}
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center h-5 w-5 rounded-full border-2 border-white shadow text-white text-[10px] font-extrabold"
+          className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center h-5 w-5 rounded-full border border-white shadow"
           style={{ left: `${m.left}%`, backgroundColor: m.color }}
           aria-hidden="true"
         >
-          {m.kind === "bus" ? "버" : "지"}
+          {m.kind === "bus" ? (
+            <Bus className="h-3 w-3 text-white" strokeWidth={2.5} />
+          ) : (
+            <TramFront className="h-3 w-3 text-white" strokeWidth={2.5} />
+          )}
         </div>
       ))}
     </div>
