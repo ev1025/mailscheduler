@@ -69,6 +69,11 @@ function endpointFor(mode: TransportMode): RouteEndpointSpec | null {
       return { endpoint: "/api/google-transit", googleMode: "bus", isGoogle: true };
     case "train":
       return { endpoint: "/api/google-transit", googleMode: "train|subway|rail", isGoogle: true };
+    case "transit":
+      // 조합 경로(도보+버스+지하철 혼합). transit_mode 제한 없이 Google 이 최적
+      // 조합을 고르게 함. 단일 경로만 반환 (alternatives 아님) — 지도에 그릴
+      // polyline 용도.
+      return { endpoint: "/api/google-transit", googleMode: "any", isGoogle: true };
     default:
       return null;
   }

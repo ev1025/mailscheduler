@@ -119,6 +119,10 @@ export async function GET(req: NextRequest) {
     url.searchParams.set("alternatives", "true");
   } else if (mode === "walking" || mode === "driving" || mode === "bicycling") {
     url.searchParams.set("mode", mode);
+  } else if (mode === "any") {
+    // 'any' = transit 조합 (도보+버스+지하철 혼합) 단일 최적 경로.
+    // 폴리라인(path) 용도 — 저장된 transit 모드의 지도 렌더 지원.
+    url.searchParams.set("mode", "transit");
   } else {
     url.searchParams.set("mode", "transit");
     url.searchParams.set("transit_mode", mode);
