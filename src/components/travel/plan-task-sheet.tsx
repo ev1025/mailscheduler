@@ -284,8 +284,9 @@ export default function PlanTaskSheet({
     <>
         <div className="flex flex-col gap-3">
           {/* 일자 · 시간 · 체류 — grid 로 라벨·입력 컬럼 정렬.
-              라벨은 아래 장소/분류/태그 섹션과 동일하게 Label 컴포넌트 + 좌측정렬. */}
-          <div className="grid grid-cols-[5.5rem_1fr_auto] gap-1.5 items-center">
+              라벨은 아래 장소/분류/태그 섹션과 동일하게 Label 컴포넌트 + 좌측정렬.
+              w-fit + auto 컬럼으로 입력박스가 컨텐츠 너비에 맞게 렌더 (화면 전체 폭 X). */}
+          <div className="grid grid-cols-[5.5rem_auto_auto] gap-1.5 items-center w-fit">
             {/* 라벨 행 */}
             <Label className="text-[11px] text-muted-foreground">일자</Label>
             <Label className="text-[11px] text-muted-foreground">시간</Label>
@@ -310,7 +311,7 @@ export default function PlanTaskSheet({
             <TimePicker
               value={startTime}
               onChange={setStartTime}
-              className="h-8 text-xs px-2 w-full"
+              className="h-8 text-xs px-2"
             />
 
             {/* 체류시간: 분/시간 토글 + 입력 */}
