@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 import type { TaskLeg } from "@/lib/travel/legs";
 import type { TransportMode, TransportRouteStep } from "@/types";
 import {
   busColor,
+  cleanStopName,
   subwayBadgeLabel,
   subwayLineColor,
 } from "@/lib/travel/kr-transit-colors";
@@ -160,37 +161,40 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
           <span className="text-foreground">{formatDuration(durationSec)}</span>
           {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
         </div>
-        {/* 대중교통 조합(transit) — 저장된 route step 을 미니 형태로 렌더 */}
+        {/* 대중교통 조합(transit) — 네이버 지도 스타일: [배지] 출발역 → [배지] 도착역
+            각 transit step 을 한 줄씩. 도보는 생략. */}
         {mode === "transit" && toTask.transport_route && toTask.transport_route.length > 0 && (
-          <div className="pl-1 pointer-events-none flex flex-wrap items-center gap-1">
-            {toTask.transport_route.map((s, i) => {
-              if (s.kind === "walk") return null; // 도보는 생략, transit 배지만 체인 표시
-              const names =
-                s.alternateNames && s.alternateNames.length > 0 ? s.alternateNames : (s.name ? [s.name] : []);
-              return (
-                <div key={i} className="flex items-center gap-0.5 flex-wrap">
-                  {names.map((n, j) =>
-                    s.kind === "bus" ? (
-                      <span
-                        key={j}
-                        className="inline-flex items-center h-4 px-1 rounded text-[9px] font-bold text-white"
-                        style={{ backgroundColor: busColor(n) }}
-                      >
-                        {n}
-                      </span>
-                    ) : (
-                      <span
-                        key={j}
-                        className="inline-flex items-center justify-center h-4 min-w-4 rounded-full px-0.5 text-[9px] font-bold text-white"
-                        style={{ backgroundColor: subwayLineColor(n) }}
-                      >
-                        {subwayBadgeLabel(n)}
-                      </span>
-                    )
-                  )}
-                </div>
-              );
-            })}
+          <div className="flex flex-col gap-1 pl-1 pointer-events-none">
+            {toTask.transport_route
+              .filter((s) => s.kind !== "walk")
+              .map((s, i) => {
+                const names =
+                  s.alternateNames && s.alternateNames.length > 0
+                    ? s.alternateNames
+                    : s.name
+                      ? [s.name]
+                      : [];
+                const from = cleanStopName(s.fromStop);
+                const to = cleanStopName(s.toStop);
+                // 지하철·기차·트램은 도착 쪽에도 호선 배지 반복
+                const repeatBadge = s.kind !== "bus";
+                return (
+                  <div
+                    key={i}
+                    className="flex items-center gap-1 text-[11px] leading-snug flex-wrap"
+                  >
+                    <BadgeGroup kind={s.kind} names={names} />
+                    {from && <span className="break-keep">{from}</span>}
+                    {to && (
+                      <>
+                        <ArrowRight className="h-3 w-3 text-muted-foreground/70 shrink-0" />
+                        {repeatBadge && <BadgeGroup kind={s.kind} names={names} />}
+                        <span className="break-keep">{to}</span>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         )}
         {/* 단일 버스·지하철 selected 상태에서 세그먼트 상세(배지+역명) 표시 */}
@@ -214,5 +218,39 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
         />
       )}
     </>
+  );
+}
+
+// transit 경로의 한 구간 배지 묶음 — 여러 대안 노선이 있으면 가로로 나열.
+function BadgeGroup({
+  kind,
+  names,
+}: {
+  kind: TransportRouteStep["kind"];
+  names: string[];
+}) {
+  if (names.length === 0) return null;
+  return (
+    <span className="inline-flex items-center gap-0.5 shrink-0">
+      {names.map((name, i) =>
+        kind === "bus" ? (
+          <span
+            key={i}
+            className="inline-flex items-center h-4 px-1 rounded text-[9px] font-bold text-white"
+            style={{ backgroundColor: busColor(name) }}
+          >
+            {name}
+          </span>
+        ) : (
+          <span
+            key={i}
+            className="inline-flex items-center justify-center h-4 min-w-4 rounded-full px-0.5 text-[9px] font-bold text-white"
+            style={{ backgroundColor: subwayLineColor(name) }}
+          >
+            {subwayBadgeLabel(name)}
+          </span>
+        )
+      )}
+    </span>
   );
 }

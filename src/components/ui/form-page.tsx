@@ -30,7 +30,7 @@ interface FormPageProps {
   onSubmit?: () => void | Promise<void>;
   onCancel?: () => void;
   onBack?: () => void;
-  /** 데스크탑 max-w 클래스 (기본 md:max-w-lg) */
+  /** 데스크탑 max-w 클래스 (기본 md:max-w-2xl = 672px) */
   desktopMaxWidth?: string;
   headerExtra?: React.ReactNode;
   footerStart?: React.ReactNode;
@@ -50,7 +50,7 @@ export default function FormPage({
   onSubmit,
   onCancel,
   onBack,
-  desktopMaxWidth = "md:max-w-xl",
+  desktopMaxWidth = "md:max-w-2xl",
   headerExtra,
   footerStart,
   hideFooter = false,
