@@ -56,7 +56,7 @@ export default function PlanTaskRow({
           onClick();
         }
       }}
-      className="group flex items-stretch gap-1 rounded-md border bg-card hover:bg-accent/40 transition-colors cursor-pointer select-none"
+      className="group flex items-stretch gap-0 rounded-md border bg-card hover:bg-accent/40 transition-colors cursor-pointer select-none"
     >
       {/* 드래그바 — 탭하면 Popover 메뉴 (삭제 등), 드래그하면 이동.
           1행·2행 사이(수직 중앙)에 위치시켜 카드 대칭감 확보. */}
@@ -97,7 +97,7 @@ export default function PlanTaskRow({
           [왼쪽: 시간·체류시간 세로] [오른쪽: 장소·주소 세로]
           왼쪽은 items-center 로 내부 모두 중앙정렬 → "~" 아래 "(체류시간)" 자동 정렬.
           왼쪽 컨테이너 고정 너비(5.5rem) 로 마커 x 위치 일정. */}
-      <div className="flex-1 min-w-0 flex items-start gap-2 px-2 py-2">
+      <div className="flex-1 min-w-0 flex items-start gap-2 pl-1 pr-2 py-2">
         {/* 왼쪽: 시간 위, 체류시간 아래 */}
         <div className="shrink-0 flex flex-col items-center w-[5.5rem]">
           <div className="flex items-center gap-1 tabular-nums text-xs font-semibold">
@@ -127,7 +127,7 @@ export default function PlanTaskRow({
           <div className="flex items-center gap-1.5 min-w-0">
             {task.category && (
               <span
-                className="text-[10px] shrink-0 px-1.5 py-0.5 rounded-md border"
+                className="text-[9px] shrink-0 px-1 py-0 rounded border leading-4"
                 style={
                   categoryColor
                     ? {

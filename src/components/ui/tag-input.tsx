@@ -591,8 +591,18 @@ export default function TagInput({
                 )}
 
                 {/* 리스트 — 꾹누르고 드래그로 순서 변경 (400ms delay).
-                    onMouseDown preventDefault로 input 포커스 유지 → 키보드 깜박임 방지 */}
-                <div className="flex flex-col overflow-y-auto overscroll-contain flex-1 -mx-1 px-1" data-sheet-scroll>
+                    onMouseDown preventDefault로 input 포커스 유지 → 키보드 깜박임 방지.
+                    모바일 half 상태에서는 overflow-hidden 으로 내부 스크롤 차단 →
+                    스와이프가 항상 시트 드래그로만 해석됨. full(90%) 상태에서만
+                    overflow-auto 로 내부 스크롤 허용. */}
+                <div
+                  className={`flex flex-col flex-1 -mx-1 px-1 ${
+                    !isDesktop && snap === "half"
+                      ? "overflow-hidden"
+                      : "overflow-y-auto overscroll-contain"
+                  }`}
+                  data-sheet-scroll
+                >
                   {dragEnabled ? (
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                       <SortableContext items={filtered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -691,7 +701,14 @@ export default function TagInput({
                 </button>
               </div>
 
-              <div className="flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0 overflow-y-auto overscroll-contain" data-sheet-scroll>
+              <div
+                className={`flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0 ${
+                  !isDesktop && snap === "half"
+                    ? "overflow-hidden"
+                    : "overflow-y-auto overscroll-contain"
+                }`}
+                data-sheet-scroll
+              >
                 {/* 이름 변경 — 현재 API 한계로 UI만 노출하되 저장은 색상만.
                     후에 onRenameTag 콜백 추가 시 자연스럽게 확장 */}
                 <input
