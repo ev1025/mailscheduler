@@ -5,6 +5,7 @@ import { GripVertical, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatMinutes } from "@/lib/travel/providers";
 import { addMinutes, formatTime } from "@/lib/travel/time";
+import { useTravelCategories } from "@/hooks/use-travel-categories";
 import type { TravelPlanTask } from "@/types";
 
 // 일정 한 행 — 3열 레이아웃으로 시간·장소 컬럼 분리.
@@ -32,6 +33,8 @@ export default function PlanTaskRow({
   expectedTime,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { colors: categoryColors } = useTravelCategories();
+  const categoryColor = task.category ? categoryColors[task.category] : undefined;
   // expectedTime 은 체인 계산 결과 (중간 task) 또는 null (첫 task).
   // 체인 계산이 있으면 그걸 우선 — 잔류 start_time 이 있어도 무시해 교통수단
   // 변경 시 자동 반영. 첫 task 는 expectedTime=null 이라 stored start_time 사용.
@@ -123,7 +126,18 @@ export default function PlanTaskRow({
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5 min-w-0">
             {task.category && (
-              <span className="text-[10px] text-muted-foreground shrink-0 px-1.5 py-0.5 rounded-md bg-muted">
+              <span
+                className="text-[10px] shrink-0 px-1.5 py-0.5 rounded-md border"
+                style={
+                  categoryColor
+                    ? {
+                        backgroundColor: categoryColor + "20",
+                        color: categoryColor,
+                        borderColor: categoryColor + "40",
+                      }
+                    : undefined
+                }
+              >
                 {task.category}
               </span>
             )}
