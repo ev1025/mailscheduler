@@ -426,7 +426,7 @@ function RouteCard({
 // 마커를 absolute 로 '%' 위치 계산하던 기존 방식은 짧은 세그먼트·연속 transit
 // 에서 위치 오정렬이 잦았음. 이제 마커가 flex 흐름 안에서 shrink-0 + 음의
 // margin 으로 각 transit 세그먼트 '시작 경계' 에 브릿지로 걸침.
-function SegmentBar({ steps, totalSec: _totalSec }: { steps: TransportRouteStep[]; totalSec: number }) {
+export function SegmentBar({ steps, totalSec: _totalSec }: { steps: TransportRouteStep[]; totalSec: number }) {
   return (
     <div className="flex h-5 items-center w-full">
       {steps.map((s, i) => {

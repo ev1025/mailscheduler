@@ -11,8 +11,9 @@ import {
 } from "@/lib/travel/kr-transit-colors";
 import { formatDuration, type TransitSegment } from "@/lib/travel/providers";
 import { getRouteData } from "@/hooks/use-route-data";
-import PlanTransportPicker from "@/components/travel/plan-transport-picker";
+import PlanTransportPicker, { SegmentBar } from "@/components/travel/plan-transport-picker";
 import TransitSegmentChain from "@/components/travel/transit-segment-chain";
+import { addMinutes } from "@/lib/travel/time";
 
 // Leg 카드 (2-line compact).
 // Unselected:   [ 이동수단 선택 ▾ ]
@@ -154,53 +155,75 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
         className="flex flex-col ml-6 pl-2 border-l-2 border-primary/30 py-1.5 gap-1.5 text-left hover:bg-accent/40 rounded-r-md transition-colors"
         title="이동수단 변경"
       >
-        <div className="flex items-baseline gap-1.5 min-w-0">
-          {/* transit 모드는 이모지 없이 라벨 + 시간만. 다른 모드는 이모지 유지. */}
-          {mode !== "transit" && icon && <span className="text-xs">{icon.emoji}</span>}
-          {/* 라벨(대중교통·승용차 등): bold, 살짝 강조 */}
-          <span className="text-xs text-primary font-bold">{icon?.label}</span>
-          {/* 소요시간: 연한 회색, 살짝 작게 */}
-          <span className="text-[10px] text-muted-foreground">{formatDuration(durationSec)}</span>
-          {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
-        </div>
-        {/* 대중교통 조합(transit) — 각 step:
-            출발역 ➔ 도착역   (기본 크기, 볼드 없음)
-            [풀네임 배지들]    (이모지 생략)
-            도보 step 은 생략. 지하철·기차·트램은 '역' 접미사 보정. */}
-        {mode === "transit" && toTask.transport_route && toTask.transport_route.length > 0 && (
-          <div className="flex flex-col gap-2 pl-1 pointer-events-none">
-            {toTask.transport_route
-              .filter((s) => s.kind !== "walk")
-              .map((s, i) => {
-                const names =
-                  s.alternateNames && s.alternateNames.length > 0
-                    ? s.alternateNames
-                    : s.name
-                      ? [s.name]
-                      : [];
-                const from = normalizeStopName(s.fromStop, s.kind);
-                const to = normalizeStopName(s.toStop, s.kind);
-                return (
-                  <div key={i} className="flex flex-col gap-1 min-w-0">
-                    {/* 타이틀: 출발역 → 도착역 (화살표도 일반 weight) */}
-                    <div className="text-[10px] font-normal break-keep">
-                      {from}
-                      {to && <span className="mx-1 font-normal">→</span>}
-                      {to}
-                    </div>
-                    {/* 배지만 — 이모지 제거 */}
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {names.map((name, j) =>
-                        s.kind === "bus" ? (
-                          <BusBadgeFull key={j} name={name} />
-                        ) : (
-                          <SubwayBadgeFull key={j} name={name} />
-                        )
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+        {/* transit 모드는 picker RouteCard 와 동일한 풀 레이아웃.
+            (소요시간 · 도착 · 도보 / 진행바 / 정류장·배지 상세) */}
+        {mode === "transit" && toTask.transport_route && toTask.transport_route.length > 0 ? (
+          (() => {
+            const route = toTask.transport_route!;
+            const walkingSec = route
+              .filter((s) => s.kind === "walk")
+              .reduce((acc, s) => acc + s.durationSec, 0);
+            const arrival = legDeparture
+              ? addMinutes(legDeparture, Math.max(1, Math.round(durationSec / 60)))
+              : null;
+            const walkMin = Math.round(walkingSec / 60);
+            return (
+              <div className="flex flex-col gap-2 min-w-0">
+                {/* 헤더: 총 소요 · 도착 · 도보 */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs text-primary font-bold">
+                    {formatDuration(durationSec)}
+                  </span>
+                  {arrival && (
+                    <span className="text-[10px] text-muted-foreground">· 도착 {arrival}</span>
+                  )}
+                  <span className="text-[10px] text-muted-foreground">· 도보 {walkMin}분</span>
+                  {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
+                </div>
+                {/* 진행바 — picker 와 동일 컴포넌트 */}
+                <SegmentBar steps={route} totalSec={durationSec} />
+                {/* 정류장 · 배지 상세 */}
+                <div className="flex flex-col gap-2 pl-1 pointer-events-none">
+                  {route
+                    .filter((s) => s.kind !== "walk")
+                    .map((s, i) => {
+                      const names =
+                        s.alternateNames && s.alternateNames.length > 0
+                          ? s.alternateNames
+                          : s.name
+                            ? [s.name]
+                            : [];
+                      const from = normalizeStopName(s.fromStop, s.kind);
+                      const to = normalizeStopName(s.toStop, s.kind);
+                      return (
+                        <div key={i} className="flex flex-col gap-1 min-w-0">
+                          <div className="text-[10px] font-normal break-keep">
+                            {from}
+                            {to && <span className="mx-1 font-normal">→</span>}
+                            {to}
+                          </div>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {names.map((name, j) =>
+                              s.kind === "bus" ? (
+                                <BusBadgeFull key={j} name={name} />
+                              ) : (
+                                <SubwayBadgeFull key={j} name={name} />
+                              )
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            );
+          })()
+        ) : (
+          <div className="flex items-baseline gap-1.5 min-w-0">
+            {icon && <span className="text-xs">{icon.emoji}</span>}
+            <span className="text-xs text-primary font-bold">{icon?.label}</span>
+            <span className="text-[10px] text-muted-foreground">{formatDuration(durationSec)}</span>
+            {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
           </div>
         )}
         {/* 단일 버스·지하철 selected 상태에서 세그먼트 상세(배지+역명) 표시 */}
