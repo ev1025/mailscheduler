@@ -84,12 +84,13 @@ export default function DraggableSheet({
     if (dragStartY.current === null || dragCanceled.current) return;
     const dy = e.touches[0].clientY - dragStartY.current;
 
-    // 스크롤 vs 드래그 우선순위 (drag 확정 전에만 판단):
-    //  - full 상태(90% 등) OR 단일 스냅(60%·90% 등): 컨텐츠 스크롤이 우선.
-    //    scrollTop>0 에서 아래로 드래그 = 스크롤, scrollTop=0 에서만 아래로
+    // 스크롤 vs 드래그 우선순위 — 시트 높이 기준 (단일·이중 스냅 공통):
+    //  - 현재 스냅이 0.85(85%) 이상 → "full-size" 로 간주. 컨텐츠 스크롤 우선.
+    //    scrollTop>0 에서 아래로 드래그 = 스크롤. scrollTop=0 에서만 아래로
     //    드래그 시 시트 내림. 위로 드래그는 항상 스크롤.
-    //  - two-snap 의 half 상태: 무조건 시트 드래그 (컨텐츠 스크롤 무시)
-    const scrollPriority = isSingleSnap || dragStartSnap.current === "full";
+    //  - 0.85 미만 (60%, 50% 등) → 무조건 시트 드래그 (컨텐츠 스크롤 무시)
+    const currentVh = dragStartSnap.current === "full" ? fullVh : halfVh;
+    const scrollPriority = currentVh >= 0.85;
     if (!dragActive.current && scrollPriority && dragScrollEl.current) {
       const scrollTop = dragScrollEl.current.scrollTop;
       if (dy > 0 && scrollTop > 0) {
