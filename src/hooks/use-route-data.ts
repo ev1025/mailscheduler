@@ -14,8 +14,8 @@ import type { TransportMode } from "@/types";
 
 const MEM_TTL_MS = 5 * 60 * 1000;               // 메모리 5분
 const LS_TTL_MS = 24 * 60 * 60 * 1000;          // 로컬 24시간
-// v3: walkingEstimate 에 path 폴백 추가 — 구버전 캐시(path 없음) 무효화.
-const LS_VERSION = "v3";
+// v4: 도보에 Routes API v2 도입 — 구버전 캐시(직선 or NCP 자동차 path) 무효화.
+const LS_VERSION = "v4";
 const LS_PREFIX = `rtc:${LS_VERSION}:`;
 
 interface CacheEntry {
