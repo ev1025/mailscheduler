@@ -17,7 +17,7 @@ import { tasksToLegs } from "@/lib/travel/legs";
 import { invalidateRouteData } from "@/hooks/use-route-data";
 import { computeExpectedTimes } from "@/lib/travel/expected-time";
 import { addMinutes } from "@/lib/travel/time";
-import { useLegPaths } from "@/components/travel/use-leg-paths";
+import { useLegPaths, legPathKey } from "@/components/travel/use-leg-paths";
 import { createPlanDragEndHandler } from "@/components/travel/use-plan-drag-and-drop";
 import type { TravelPlanTask } from "@/types";
 import {
@@ -199,9 +199,22 @@ export default function PlanDetail({ planId, onBack }: Props) {
       legsForMap.push({
         fromIdx,
         toIdx,
-        path: l.toTask.transport_mode
-          ? legPaths[`${l.fromTaskId}-${l.toTaskId}-${l.toTask.transport_mode}`]
-          : undefined,
+        path:
+          l.toTask.transport_mode &&
+          l.fromTask.place_lat != null &&
+          l.fromTask.place_lng != null &&
+          l.toTask.place_lat != null &&
+          l.toTask.place_lng != null
+            ? legPaths[
+                legPathKey(
+                  l.fromTask.place_lat,
+                  l.fromTask.place_lng,
+                  l.toTask.place_lat,
+                  l.toTask.place_lng,
+                  l.toTask.transport_mode
+                )
+              ]
+            : undefined,
       });
     }
 

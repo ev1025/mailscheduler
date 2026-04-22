@@ -50,9 +50,8 @@ export default function PlanRouteMap({
   // map 생성 완료를 state 로 노출해 pins/legs 이펙트 재실행 보장.
   const [mapReady, setMapReady] = useState(false);
 
-  // 지도 상호작용 활성 여부. 비활성 시 투명 오버레이가 이벤트를 흡수 →
-  // 네이티브 스크롤/줌이 그대로 작동. 지도 클릭하면 활성화되어 패닝·줌 가능.
-  const [isMapActive, setIsMapActive] = useState(false);
+  // 지도 인터렉션은 기본 활성 — 드래그 pan / pinch zoom / ctrl+wheel zoom 가능.
+  // scrollWheel=false 로 일반 스크롤 캡처만 막음 → 페이지 스크롤 자연스러움.
 
   // 지도 1회만 생성. pins/legs 변경 시 오버레이만 교체 → 지도 깜빡임 제거.
   useEffect(() => {
@@ -195,28 +194,12 @@ export default function PlanRouteMap({
         src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`}
         strategy="afterInteractive"
       />
-      <div
-        className={`naver-map-host relative ${className || ""}`}
-        onMouseLeave={() => setIsMapActive(false)}
-      >
+      <div className={`naver-map-host relative ${className || ""}`}>
         <div
           ref={containerRef}
           className="rounded-md overflow-hidden"
           style={{ height }}
         />
-        {/* 투명 오버레이 — 지도 비활성 시 모든 이벤트(wheel 포함) 흡수.
-            페이지 스크롤/브라우저 줌이 네이티브 그대로 동작.
-            클릭하면 오버레이 걷어내고 지도 조작 모드로 전환. 영역 벗어나면
-            onMouseLeave 로 다시 비활성. */}
-        {!isMapActive && (
-          <button
-            type="button"
-            onClick={() => setIsMapActive(true)}
-            aria-label="지도 조작 활성화"
-            className="absolute inset-0 z-10 cursor-pointer bg-transparent rounded-md"
-            style={{ height }}
-          />
-        )}
       </div>
     </>
   );
