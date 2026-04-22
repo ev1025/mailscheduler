@@ -131,27 +131,28 @@ export default function FormPage({
         className={`bg-background flex flex-col w-full h-[100dvh] ${desktopMaxWidth} md:h-auto md:max-h-[85dvh] md:w-auto md:rounded-xl md:shadow-xl md:ring-1 md:ring-foreground/10`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 헤더: ← 뒤로가기 + 제목 + headerExtra */}
-        <div className="flex items-center gap-2 border-b px-3 py-2.5 shrink-0">
+        {/* 헤더: ← 뒤로가기 + 제목 + headerExtra.
+            PageHeader(일반 페이지 헤더)와 동일한 규격(h-14, text-lg font-bold,
+            h-9 w-9 뒤로가기)으로 맞춰 폼 페이지와 일반 페이지 간 일관성 확보. */}
+        <div className="flex h-14 items-center gap-2 border-b px-3 shrink-0">
           <button
             type="button"
             onClick={handleBack}
             aria-label="뒤로"
-            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0 -ml-1.5"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors shrink-0 -ml-1"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
           </button>
-          <h2 className="font-heading text-base font-medium text-foreground flex-1 min-w-0 truncate">
+          <h2 className="text-lg font-bold leading-tight text-foreground flex-1 min-w-0 truncate">
             {title}
           </h2>
           {headerExtra}
         </div>
 
         {/* 본문: flex-1 overflow-y-auto + 빈 영역 탭 시 blur.
-            pt-1 로 헤더(드래그바·타이틀) 와 컨텐츠 첫 요소 간격을 기존 pt-3(12px) 대비
-            약 1/3(4px) 수준으로 축소. */}
+            헤더 구분선과 첫 컨텐츠 사이에 pt-4(16px) 여백 — 이전 pt-1(4px)은 너무 좁아 답답했음. */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto px-4 pt-1 pb-3"
+          className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               const active = document.activeElement;
