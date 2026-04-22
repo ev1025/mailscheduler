@@ -124,12 +124,7 @@ export default function FormPage({
       }}
     >
       <div
-        className={`
-          bg-background flex flex-col
-          w-full h-[100dvh]
-          ${desktopMaxWidth}
-          md:h-auto md:max-h-[85dvh] md:w-auto md:rounded-xl md:shadow-xl md:ring-1 md:ring-foreground/10
-        `}
+        className={`bg-background flex flex-col w-full h-[100dvh] ${desktopMaxWidth} md:h-auto md:max-h-[85dvh] md:w-auto md:rounded-xl md:shadow-xl md:ring-1 md:ring-foreground/10`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더: ← 뒤로가기 + 제목 + headerExtra */}
