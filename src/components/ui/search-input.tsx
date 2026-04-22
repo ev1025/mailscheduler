@@ -32,7 +32,11 @@ export default function SearchInput({
   const iconCls = size === "md" ? "left-3 h-4 w-4" : "left-2.5 h-3.5 w-3.5";
   const padCls = size === "md" ? "pl-9" : "pl-8";
   return (
-    <div className={cn("relative flex-1 min-w-0", className)}>
+    // 래퍼를 inline-flex + items-center 로 실제 아이콘·Input 높이만큼만 차지하게 함.
+    // 이전에는 flex-1 이라 flex-col 부모(예: 지식창고) 안에서 세로로 늘어나
+    // absolute-positioned Search 아이콘이 빈 공간 한가운데에 떠있던 버그가 있었음.
+    // 가로 flex 부모에서는 min-w-0 + w-full 로 자연스럽게 늘어남.
+    <div className={cn("relative w-full min-w-0", className)}>
       <Search className={cn("absolute top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none shrink-0", iconCls)} />
       <Input
         value={value}

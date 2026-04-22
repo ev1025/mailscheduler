@@ -94,7 +94,7 @@ function PlanCard({ plan, dragEnabled, onSelect, onDelete }: PlanCardProps) {
           e.stopPropagation();
           onDelete();
         }}
-        className="absolute top-2 right-2 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition md:opacity-0 md:group-hover:opacity-100"
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition md:opacity-0 md:group-hover:opacity-100"
         aria-label="계획 삭제"
       >
         <Trash2 className="h-3.5 w-3.5" />
