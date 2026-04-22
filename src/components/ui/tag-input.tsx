@@ -191,10 +191,12 @@ export default function TagInput({
   // (새로 열리는 시트가 이전 활성 시트를 자동으로 닫음)
   useExclusiveBottomSheet(!isDesktop && open, () => setOpen(false));
 
-  // half (50dvh) ↔ full (90dvh) 스냅 포인트
+  // half (50%) ↔ full (90%) 스냅 포인트. resizes-content 환경에서 dvh 를
+  // 쓰면 키보드 열릴 때 시트가 쪼그라드므로 열리는 시점의 innerHeight 를
+  // px 로 캡처해 고정.
   const [snap, setSnap] = useState<"half" | "full">("half");
+  const [baseHeight, setBaseHeight] = useState<number | null>(null);
   // 스냅 변경 시 250ms 동안만 transition-[height] 활성화
-  // → 사용자 조작(드래그)은 부드러운 모션, 키보드로 인한 dvh 재계산은 즉시 반영
   const [snapAnimating, setSnapAnimating] = useState(false);
   const isFirstSnap = useRef(true);
   useEffect(() => {
@@ -222,6 +224,7 @@ export default function TagInput({
       setView("list");
       setShowColorPicker(false);
       isFirstSnap.current = true; // 열 때마다 초기 스냅은 애니메이션 없이
+      if (typeof window !== "undefined") setBaseHeight(window.innerHeight);
     } else {
       setNewTagName("");
       setEditingTagId(null);
@@ -324,6 +327,10 @@ export default function TagInput({
     if (target?.closest("input, textarea, button")) {
       dragStartY.current = null;
       return;
+    }
+    // 드래그 시작 시 키보드 내림 — viewport 리사이즈로 인한 좌표계 교란 방지
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
     }
     const y = "touches" in e ? e.touches[0].clientY : e.clientY;
     dragStartY.current = y;
@@ -497,7 +504,12 @@ export default function TagInput({
               className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[70] ${
                 snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
               }`}
-              style={{ height: snap === "full" ? "90dvh" : "50dvh" }}
+              style={{
+                height:
+                  baseHeight != null
+                    ? `${Math.round((snap === "full" ? 0.9 : 0.5) * baseHeight)}px`
+                    : snap === "full" ? "90dvh" : "50dvh",
+              }}
               showBackButton={false}
               showCloseButton={false}
               initialFocus={false}

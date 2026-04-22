@@ -43,6 +43,18 @@ export default function DraggableSheet({
   );
   const [snapAnimating, setSnapAnimating] = useState(false);
 
+  // viewport interactiveWidget="resizes-content" 환경에선 dvh/vh 가 키보드에
+  // 따라 축소되어 시트가 쪼그라듦. 시트가 열릴 때 window.innerHeight 를 px 로
+  // 고정 캡처 → 키보드가 떠도 시트 높이 유지. orientationchange 시 재계산.
+  const [baseHeight, setBaseHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    setBaseHeight(window.innerHeight);
+    const onRotate = () => setBaseHeight(window.innerHeight);
+    window.addEventListener("orientationchange", onRotate);
+    return () => window.removeEventListener("orientationchange", onRotate);
+  }, [open]);
+
   useEffect(() => {
     if (open) setSnap(defaultSnapIndex === 0 ? "half" : "full");
   }, [open, defaultSnapIndex]);
@@ -72,6 +84,13 @@ export default function DraggableSheet({
     if (target?.closest("input, textarea, select")) {
       dragStartY.current = null;
       return;
+    }
+    // 드래그 시작 = "화면을 넓게 보겠다" 의도 → 키보드 즉시 내림.
+    // resizes-content 환경에서 키보드가 내려가면 viewport 가 원래대로 커지는데
+    // 드래그 도중 이벤트 좌표계가 갑자기 바뀌면 snap 계산이 꼬이므로
+    // 드래그 시작 시점에 미리 내려두는 게 안전.
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
     }
     dragStartY.current = e.touches[0].clientY;
     dragStartSnap.current = snap;
@@ -159,7 +178,14 @@ export default function DraggableSheet({
     }
   };
 
-  const height = snap === "full" ? `${fullVh * 100}dvh` : `${halfVh * 100}dvh`;
+  // 시트 높이: baseHeight(열릴 때 캡처한 px) * 비율. 없으면 dvh fallback
+  // (SSR·첫 프레임 대응). 키보드 떠도 height 가 px 로 고정돼 쪼그라들지 않음.
+  const height =
+    baseHeight != null
+      ? `${Math.round((snap === "full" ? fullVh : halfVh) * baseHeight)}px`
+      : snap === "full"
+        ? `${fullVh * 100}dvh`
+        : `${halfVh * 100}dvh`;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

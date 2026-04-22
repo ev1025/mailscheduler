@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/layout/app-shell";
-import KeyboardOffset from "@/components/layout/keyboard-offset";
 import { Toaster } from "@/components/ui/sonner";
 
 const geistSans = Geist({
@@ -26,10 +25,11 @@ export const viewport: Viewport = {
   maximumScale: 1,
   themeColor: "#0F172A",
   viewportFit: "cover",
-  // overlays-content: 키보드가 올라와도 layout viewport 크기는 유지
-  // → Dialog 등 가운데 고정 팝업이 제자리에 유지됨
-  // → 바텀 시트는 KeyboardOffset 컴포넌트가 --kb-offset CSS 변수로 보정
-  interactiveWidget: "overlays-content",
+  // resizes-content: 키보드가 올라오면 layout viewport 자체가 축소.
+  // 100dvh, 바텀시트 bottom:0 등이 자동으로 키보드 위에 맞춰짐 → JS 오프셋
+  // 계산 불필요. FormPage 는 100dvh 를 그대로 쓰고, 내부 flex-1 overflow-y-auto
+  // 가 자연스럽게 줄어 Textarea 가림 해소.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
@@ -43,7 +43,6 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <KeyboardOffset />
         <AppShell>{children}</AppShell>
         <Toaster richColors position="top-center" />
       </body>
