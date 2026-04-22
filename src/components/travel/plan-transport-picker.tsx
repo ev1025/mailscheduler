@@ -42,10 +42,15 @@ interface AggregatedRoute {
 function aggregateRoutes(routes: TransitRoute[]): AggregatedRoute[] {
   const groups = new Map<string, AggregatedRoute>();
   for (const route of routes) {
-    // 시그니처 = transit step 의 from→to 쌍만 연결. walking 소요는 비교 제외.
+    // 시그니처 = transit step 의 from→to 쌍 (cleanStopName 으로 정규화).
+    // '홍제역.인왕산' vs '홍제역' 처럼 부연 표기 차이가 있어도 동일 구간으로
+    // 취급해 같은 정류장 시퀀스의 버스 번호들을 하나의 경로로 묶음.
     const transitSig = route.steps
       .filter((s) => s.kind !== "walk")
-      .map((s) => `${s.kind}:${s.fromStop ?? ""}→${s.toStop ?? ""}`)
+      .map(
+        (s) =>
+          `${s.kind}:${cleanStopName(s.fromStop)}→${cleanStopName(s.toStop)}`
+      )
       .join("|");
     const key =
       transitSig || `walk-only:${Math.round(route.walkingSec / 60)}`;
@@ -547,10 +552,11 @@ function normalizeStopName(
   return cleaned;
 }
 
+// plan-leg-card 의 배지 크기(h-4 px-1.5 text-[10px])와 맞춰 통일.
 function SubwayBadgeFull({ name }: { name: string }) {
   return (
     <span
-      className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-semibold text-white"
+      className="inline-flex items-center h-4 px-1.5 rounded-full text-[10px] font-semibold text-white"
       style={{ backgroundColor: subwayLineColor(name) }}
     >
       {name}
@@ -561,7 +567,7 @@ function SubwayBadgeFull({ name }: { name: string }) {
 function BusBadgeFull({ name }: { name: string }) {
   return (
     <span
-      className="inline-flex items-center h-5 px-2 rounded text-[11px] font-semibold text-white"
+      className="inline-flex items-center h-4 px-1.5 rounded text-[10px] font-semibold text-white"
       style={{ backgroundColor: busColor(name) }}
     >
       {name}
