@@ -47,7 +47,7 @@ export default function FormPage({
   onSubmit,
   onCancel,
   onBack,
-  desktopMaxWidth = "md:max-w-lg",
+  desktopMaxWidth = "md:max-w-xl",
   headerExtra,
   footerStart,
   children,
@@ -143,7 +143,7 @@ export default function FormPage({
         {/* 본문: flex-1 overflow-y-auto + 빈 영역 탭 시 blur.
             헤더 구분선과 첫 컨텐츠 사이에 pt-4(16px) 여백 — 이전 pt-1(4px)은 너무 좁아 답답했음. */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3"
+          className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3 md:px-6 md:pt-6 md:pb-4"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               const active = document.activeElement;
@@ -166,7 +166,7 @@ export default function FormPage({
         </div>
 
         {/* 하단 footer */}
-        <div className="flex items-center justify-between gap-2 px-4 py-3 border-t shrink-0 bg-background">
+        <div className="flex items-center justify-between gap-2 px-4 py-3 md:px-6 md:py-4 border-t shrink-0 bg-background">
           <div>{footerStart}</div>
           <div className="flex items-center gap-2">
             <Button
