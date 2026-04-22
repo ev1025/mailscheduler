@@ -496,10 +496,13 @@ function RouteStepsDetail({ steps }: { steps: TransportRouteStep[] }) {
           const from = normalizeStopName(s.fromStop, s.kind);
           const to = normalizeStopName(s.toStop, s.kind);
           return (
-            <div key={i} className="flex flex-col gap-0.5 min-w-0">
-              <div className="text-xs break-keep">
+            <div key={i} className="flex flex-col gap-1 min-w-0">
+              {/* 타이틀: 출발역 → 도착역 — plan-leg-card 와 완전히 동일 규격
+                  (text-[10px] + font-normal + '→'). 화살표 문자도 일반 weight
+                  '→' 사용 ('➔' 은 heavy arrow 라 볼드로 보임). */}
+              <div className="text-[10px] font-normal break-keep">
                 {from}
-                {to && <span className="mx-1">➔</span>}
+                {to && <span className="mx-1 font-normal">→</span>}
                 {to}
               </div>
               <div className="flex items-center gap-1 flex-wrap">

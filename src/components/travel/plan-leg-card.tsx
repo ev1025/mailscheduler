@@ -181,11 +181,11 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
                 const from = normalizeStopName(s.fromStop, s.kind);
                 const to = normalizeStopName(s.toStop, s.kind);
                 return (
-                  <div key={i} className="flex flex-col gap-0.5 min-w-0">
-                    {/* 타이틀: 출발역 ➔ 도착역 — 헤더보다 2px 작게 */}
-                    <div className="text-[10px] break-keep">
+                  <div key={i} className="flex flex-col gap-1 min-w-0">
+                    {/* 타이틀: 출발역 → 도착역 (화살표도 일반 weight) */}
+                    <div className="text-[10px] font-normal break-keep">
                       {from}
-                      {to && <span className="mx-1">➔</span>}
+                      {to && <span className="mx-1 font-normal">→</span>}
                       {to}
                     </div>
                     {/* 배지만 — 이모지 제거 */}
