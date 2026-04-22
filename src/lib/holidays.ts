@@ -122,14 +122,20 @@ export function getHolidayMap(year: number): Record<string, string> {
   return map;
 }
 
-/** 리액티브 훅 — API 로딩 후 자동 재렌더 */
+/** 리액티브 훅 — API 로딩 후 자동 재렌더.
+ *  SSR 일관성: 서버·클라이언트 첫 렌더 모두 빈 맵 반환.
+ *  mount 후에야 실제 공휴일 채워서 hydration mismatch 방지
+ *  (localStorage 캐시가 있으면 클라가 fallback 보다 풍부해 서버와 달랐던 버그). */
 export function useHolidayMap(year: number): Record<string, string> {
+  const [mounted, setMounted] = useState(false);
   const [, setTick] = useState(0);
   useEffect(() => {
+    setMounted(true);
     const fn = () => setTick((t) => t + 1);
     listeners.add(fn);
     ensureData(year);
     return () => { listeners.delete(fn); };
   }, [year]);
+  if (!mounted) return {};
   return getHolidayMap(year);
 }
