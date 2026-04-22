@@ -106,14 +106,19 @@ function buildErrorMessage(
   return body.googleMessage ?? body.error ?? `HTTP ${httpStatus}`;
 }
 
-/** 도보 Google 실패 시 직선거리 기반 추정 폴백. 15km 초과는 null. */
+/** 도보 Google 실패 시 직선거리 기반 추정 폴백. 15km 초과는 null.
+ *  폴리라인은 from→to 직선 두 점으로 구성 → 지도에 최소한 선은 그려지게 함. */
 function walkingEstimate(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number }
 ): RouteResult | null {
   const km = haversineKm(from, to);
   if (km > 15) return null;
-  return { durationSec: Math.round((km * 1.3 / 4.5) * 3600) };
+  return {
+    durationSec: Math.round((km * 1.3 / 4.5) * 3600),
+    // [lng, lat] 순서 — providers 내 다른 path 포맷과 동일.
+    path: [[from.lng, from.lat], [to.lng, to.lat]],
+  };
 }
 
 /**
