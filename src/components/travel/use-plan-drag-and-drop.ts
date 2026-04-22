@@ -1,15 +1,17 @@
 "use client";
 
-import { arrayMove } from "@dnd-kit/sortable";
 import type { DragEndEvent } from "@dnd-kit/core";
 import type { TravelPlanTask } from "@/types";
 
 // 여행 계획 task DnD 핸들러. plan-detail 에서 재사용 가능하게 분리.
 //
 // 시나리오:
-//  1. task → task (같은 일자): 순서 재정렬
-//  2. task → task (다른 일자): 해당 task 앞에 끼워넣음 + day_index 변경
+//  1. task → task (같은 일자): 순서 재정렬 (드롭 위치가 대상 task 중심보다 위/아래)
+//  2. task → task (다른 일자): 드롭 위치에 따라 대상 task 앞/뒤에 끼워넣음 + day_index 변경
 //  3. task → "day-N" droppable: 해당 일자 맨 뒤로 이동
+//
+// 위/아래 판정: active 의 translated rect 중심이 over rect 중심보다 아래면 "after".
+// 이전에는 무조건 before 로 끼워넣어서 "일자 맨 아래"로 드롭할 수 없던 문제 해결.
 //
 // 순서·일자 변경 시 인접 leg 의 transport_* 필드 자동 리셋 (경로 재산정 유도).
 
@@ -24,6 +26,17 @@ const TRANSPORT_RESET = {
   transport_manual: false,
   transport_durations: null,
 } as const;
+
+// 드롭이 over task 의 "뒤"(아래) 쪽인지 판정.
+// active 의 translated rect 중심 Y 가 over rect 중심 Y 보다 크면 아래로 드롭 → after.
+function isDropAfter(e: DragEndEvent): boolean {
+  const activeRect = e.active.rect.current.translated;
+  const overRect = e.over?.rect;
+  if (!activeRect || !overRect) return false;
+  const activeCenterY = activeRect.top + activeRect.height / 2;
+  const overCenterY = overRect.top + overRect.height / 2;
+  return activeCenterY > overCenterY;
+}
 
 export function createPlanDragEndHandler({ sorted, updateTask }: Args) {
   const resetTransport = async (taskIds: Iterable<string>) => {
@@ -68,13 +81,16 @@ export function createPlanDragEndHandler({ sorted, updateTask }: Args) {
     const overTask = sorted.find((t) => t.id === overId);
     if (!overTask) return;
 
-    // 2) 다른 일자 task 로 드롭 — 앞에 끼워넣음
+    const after = isDropAfter(e);
+
+    // 2) 다른 일자 task 로 드롭 — 위/아래 판정으로 앞 또는 뒤에 끼워넣음
     if (activeTask.day_index !== overTask.day_index) {
       const targetDayTasks = sorted.filter(
         (t) => t.day_index === overTask.day_index && t.id !== activeTask.id
       );
       const overIdx = targetDayTasks.findIndex((t) => t.id === overTask.id);
-      targetDayTasks.splice(overIdx, 0, activeTask);
+      const insertIdx = after ? overIdx + 1 : overIdx;
+      targetDayTasks.splice(insertIdx, 0, activeTask);
       await updateTask(activeTask.id, { day_index: overTask.day_index });
       for (let i = 0; i < targetDayTasks.length; i++) {
         const t = targetDayTasks[i];
@@ -87,19 +103,20 @@ export function createPlanDragEndHandler({ sorted, updateTask }: Args) {
       return;
     }
 
-    // 3) 같은 일자 내 순서 변경
+    // 3) 같은 일자 내 순서 변경 — 위/아래 판정으로 앞 또는 뒤에 끼워넣음
     const dayTasks = sorted.filter((t) => t.day_index === activeTask.day_index);
-    const fromIdx = dayTasks.findIndex((t) => t.id === activeTask.id);
-    const toIdx = dayTasks.findIndex((t) => t.id === overTask.id);
-    if (fromIdx < 0 || toIdx < 0) return;
-    const reordered = arrayMove(dayTasks, fromIdx, toIdx);
-    for (let i = 0; i < reordered.length; i++) {
-      if (reordered[i].manual_order !== i) {
-        await updateTask(reordered[i].id, { manual_order: i });
+    const withoutActive = dayTasks.filter((t) => t.id !== activeTask.id);
+    const overIdx = withoutActive.findIndex((t) => t.id === overTask.id);
+    if (overIdx < 0) return;
+    const insertIdx = after ? overIdx + 1 : overIdx;
+    withoutActive.splice(insertIdx, 0, activeTask);
+    for (let i = 0; i < withoutActive.length; i++) {
+      if (withoutActive[i].manual_order !== i) {
+        await updateTask(withoutActive[i].id, { manual_order: i });
       }
     }
-    const newActiveIdx = reordered.findIndex((t) => t.id === activeTask.id);
-    const newNext = newActiveIdx >= 0 ? reordered[newActiveIdx + 1] : undefined;
+    const newActiveIdx = withoutActive.findIndex((t) => t.id === activeTask.id);
+    const newNext = newActiveIdx >= 0 ? withoutActive[newActiveIdx + 1] : undefined;
     if (newNext) affected.add(newNext.id);
     await resetTransport(affected);
   };
