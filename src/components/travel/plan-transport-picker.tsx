@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Zap } from "lucide-react";
+import { Bus, Check, TrainFront, Zap } from "lucide-react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -419,33 +419,67 @@ function RouteCard({
 }
 
 function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec: number }) {
-  // 네이버 지도 스타일 — 각 세그먼트 안에 흰색 볼드로 "N분" 직접 표기.
-  // 너무 좁은 세그먼트(<8%)는 라벨 생략하여 겹침/잘림 방지.
+  // 네이버 지도 스타일:
+  // 1) 색상 바 안에 흰색 볼드로 "N분" 직접 표기. <8% 세그먼트는 라벨 생략.
+  // 2) transit 시작 지점(cumulative>0)에 동그란 마커 + 버스/지하철 아이콘.
+  //    (cumulative=0 은 바 맨 왼쪽이라 마커가 잘려 나가서 생략)
+  let cumulative = 0;
+  const markers: {
+    left: number;
+    kind: TransportRouteStep["kind"];
+    color: string;
+  }[] = [];
+  for (const s of steps) {
+    if (s.kind !== "walk" && cumulative > 0) {
+      const color =
+        s.kind === "bus"
+          ? busColor(s.alternateNames?.[0] ?? s.name)
+          : subwayLineColor(s.alternateNames?.[0] ?? s.name);
+      markers.push({ left: cumulative, kind: s.kind, color });
+    }
+    cumulative += (s.durationSec / totalSec) * 100;
+  }
+
   return (
-    <div className="flex h-6 rounded-full overflow-hidden bg-muted">
-      {steps.map((s, i) => {
-        const pct = (s.durationSec / totalSec) * 100;
-        const min = Math.max(1, Math.round(s.durationSec / 60));
-        const bg =
-          s.kind === "walk"
-            ? "#cbd5e1"
-            : s.kind === "bus"
-              ? busColor(s.alternateNames?.[0] ?? s.name)
-              : s.kind === "subway" || s.kind === "train" || s.kind === "tram"
-                ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
-                : "#64748b";
-        // 도보 세그먼트는 회색 배경 → 어두운 텍스트, 나머지는 컬러 배경 → 흰 텍스트
-        const textColor = s.kind === "walk" ? "#475569" : "#ffffff";
-        return (
-          <div
-            key={i}
-            className="flex items-center justify-center text-[10px] font-bold tabular-nums overflow-hidden"
-            style={{ width: `${pct}%`, backgroundColor: bg, color: textColor }}
-          >
-            {pct >= 8 ? `${min}분` : ""}
-          </div>
-        );
-      })}
+    <div className="relative h-6">
+      <div className="flex h-full rounded-full overflow-hidden bg-muted">
+        {steps.map((s, i) => {
+          const pct = (s.durationSec / totalSec) * 100;
+          const min = Math.max(1, Math.round(s.durationSec / 60));
+          const bg =
+            s.kind === "walk"
+              ? "#cbd5e1"
+              : s.kind === "bus"
+                ? busColor(s.alternateNames?.[0] ?? s.name)
+                : s.kind === "subway" || s.kind === "train" || s.kind === "tram"
+                  ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
+                  : "#64748b";
+          const textColor = s.kind === "walk" ? "#475569" : "#ffffff";
+          return (
+            <div
+              key={i}
+              className="flex items-center justify-center text-[10px] font-bold tabular-nums overflow-hidden"
+              style={{ width: `${pct}%`, backgroundColor: bg, color: textColor }}
+            >
+              {pct >= 8 ? `${min}분` : ""}
+            </div>
+          );
+        })}
+      </div>
+      {markers.map((m, i) => (
+        <div
+          key={i}
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center h-5 w-5 rounded-full border-2 border-white shadow-sm"
+          style={{ left: `${m.left}%`, backgroundColor: m.color }}
+          aria-hidden="true"
+        >
+          {m.kind === "bus" ? (
+            <Bus className="h-2.5 w-2.5 text-white" strokeWidth={2.5} />
+          ) : (
+            <TrainFront className="h-2.5 w-2.5 text-white" strokeWidth={2.5} />
+          )}
+        </div>
+      ))}
     </div>
   );
 }
