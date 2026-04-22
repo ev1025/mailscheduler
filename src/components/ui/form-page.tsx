@@ -157,8 +157,11 @@ export default function FormPage({
           }}
         >
           {children}
-          {/* Bottom bumper — 키보드/안전영역 아래 여유공간 */}
+          {/* Bottom bumper — 안전영역 + 모바일 키보드 높이만큼 스크롤 여유공간.
+              --kb-offset 은 KeyboardOffset 컴포넌트가 visualViewport 로 실시간 갱신.
+              키보드 뜰 때 마지막 필드(Textarea)가 가려지지 않게 함. */}
           <div className="h-[env(safe-area-inset-bottom,0px)]" />
+          <div style={{ height: "var(--kb-offset, 0px)" }} />
           <div className="h-4" />
         </div>
 
