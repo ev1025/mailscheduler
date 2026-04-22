@@ -392,15 +392,15 @@ function RouteCard({
       onClick={onClick}
       className="flex flex-col gap-2 rounded-md border p-3 text-left hover:bg-accent/40 transition-colors"
     >
-      {/* 헤더: 총 소요 + 도착 + 최속 배지 */}
-      <div className="flex items-baseline gap-2 flex-wrap">
+      {/* 헤더: 총 소요 + 도착 + 도보합계 + 최속 배지 */}
+      <div className="flex items-center gap-2 flex-wrap">
         <span className="text-base font-semibold">
           {formatDuration(route.durationSec)}
         </span>
         {arrival && (
           <span className="text-xs text-muted-foreground">· 도착 {arrival}</span>
         )}
-        <span className="text-[10px] text-muted-foreground">· 도보 {walkMin}분</span>
+        <span className="text-xs text-muted-foreground">· 도보 {walkMin}분</span>
         {isFastest && (
           <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-600 ml-auto">
             <Zap className="h-2.5 w-2.5 fill-amber-500 stroke-amber-600" />
@@ -409,10 +409,10 @@ function RouteCard({
         )}
       </div>
 
-      {/* 진행 바 — step 별 비율 */}
+      {/* 진행 바 — 구간별 소요분 라벨 위, 색상 바 아래 */}
       <SegmentBar steps={route.steps} totalSec={route.durationSec} />
 
-      {/* 상세 — 정류장 · 노선 배지 */}
+      {/* 상세 — 정류장 · 노선 배지 (이모지 없이 깔끔하게) */}
       <RouteStepsDetail steps={route.steps} />
     </button>
   );
@@ -420,63 +420,91 @@ function RouteCard({
 
 function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec: number }) {
   return (
-    <div className="flex h-2 rounded-full overflow-hidden bg-muted">
-      {steps.map((s, i) => {
-        const width = `${(s.durationSec / totalSec) * 100}%`;
-        const bg =
-          s.kind === "walk"
-            ? "#cbd5e1"
-            : s.kind === "bus"
-              ? busColor(s.alternateNames?.[0] ?? s.name)
-              : s.kind === "subway" || s.kind === "train" || s.kind === "tram"
-                ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
-                : "#64748b";
-        return <div key={i} style={{ width, backgroundColor: bg }} />;
-      })}
+    <div className="flex flex-col gap-1">
+      {/* 각 구간 소요분 라벨 */}
+      <div className="flex text-[10px] text-muted-foreground tabular-nums">
+        {steps.map((s, i) => {
+          const width = `${(s.durationSec / totalSec) * 100}%`;
+          const min = Math.max(1, Math.round(s.durationSec / 60));
+          return (
+            <span key={i} className="text-center truncate" style={{ width }}>
+              {min}분
+            </span>
+          );
+        })}
+      </div>
+      {/* 색상 바 */}
+      <div className="flex h-2 rounded-full overflow-hidden bg-muted">
+        {steps.map((s, i) => {
+          const width = `${(s.durationSec / totalSec) * 100}%`;
+          const bg =
+            s.kind === "walk"
+              ? "#cbd5e1"
+              : s.kind === "bus"
+                ? busColor(s.alternateNames?.[0] ?? s.name)
+                : s.kind === "subway" || s.kind === "train" || s.kind === "tram"
+                  ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
+                  : "#64748b";
+          return <div key={i} style={{ width, backgroundColor: bg }} />;
+        })}
+      </div>
     </div>
   );
 }
 
+// 정류장 · 경로 상세 — 연속된 transit step 에서 공유 정류장은 한 번만 표시.
 function RouteStepsDetail({ steps }: { steps: TransportRouteStep[] }) {
-  // walking step 은 "🚶 N분" 한 줄. transit step 은 정류장 + 배지들.
-  return (
-    <div className="flex flex-col gap-0.5 text-xs">
-      {steps.map((s, i) => {
-        if (s.kind === "walk") {
-          return (
-            <div key={i} className="flex items-center gap-1.5 text-muted-foreground">
-              <span>🚶</span>
-              <span>도보 {Math.max(1, Math.round(s.durationSec / 60))}분</span>
-            </div>
-          );
-        }
-        const names = s.alternateNames && s.alternateNames.length > 0 ? s.alternateNames : (s.name ? [s.name] : []);
-        return (
-          <div key={i} className="flex flex-col gap-0.5">
-            {s.fromStop && (
-              <div className="text-[11px] text-foreground">{s.fromStop}</div>
-            )}
-            <div className="flex items-center gap-1 flex-wrap pl-3">
-              <span aria-hidden="true">{s.kind === "bus" ? "🚌" : "🚈"}</span>
-              {names.map((name, j) =>
-                s.kind === "bus" ? (
-                  <BusBadge key={j} name={name} />
-                ) : (
-                  <SubwayBadge key={j} name={name} />
-                )
-              )}
-              <span className="text-[10px] text-muted-foreground">
-                {Math.max(1, Math.round(s.durationSec / 60))}분
-              </span>
-            </div>
-            {s.toStop && (
-              <div className="text-[11px] text-foreground">{s.toStop}</div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
+  const rendered: React.ReactNode[] = [];
+  let lastStop: string | null = null;
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    if (s.kind === "walk") {
+      rendered.push(
+        <div key={`w${i}`} className="text-[11px] text-muted-foreground">
+          도보 {Math.max(1, Math.round(s.durationSec / 60))}분
+        </div>
+      );
+      continue;
+    }
+    const names =
+      s.alternateNames && s.alternateNames.length > 0
+        ? s.alternateNames
+        : s.name
+          ? [s.name]
+          : [];
+    if (s.fromStop && s.fromStop !== lastStop) {
+      rendered.push(
+        <div key={`from${i}`} className="text-[11px] text-foreground font-medium">
+          {s.fromStop}
+        </div>
+      );
+    }
+    rendered.push(
+      <div key={`seg${i}`} className="flex items-center gap-1 flex-wrap pl-2">
+        {names.map((name, j) =>
+          s.kind === "bus" ? (
+            <BusBadge key={j} name={name} />
+          ) : (
+            <SubwayBadge key={j} name={name} />
+          )
+        )}
+        <span className="text-[11px] text-muted-foreground tabular-nums">
+          {Math.max(1, Math.round(s.durationSec / 60))}분
+        </span>
+      </div>
+    );
+    if (s.toStop) {
+      rendered.push(
+        <div key={`to${i}`} className="text-[11px] text-foreground font-medium">
+          {s.toStop}
+        </div>
+      );
+      lastStop = s.toStop;
+    } else {
+      lastStop = null;
+    }
+  }
+  return <div className="flex flex-col gap-0.5 text-xs">{rendered}</div>;
 }
 
 function BusBadge({ name }: { name: string }) {
@@ -590,23 +618,32 @@ function DirectTab({
             type="button"
             onClick={() => onPick(m.value, typeof d === "number" ? d : null)}
             disabled={d === "loading"}
-            className={`flex items-center gap-2 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-60 ${
+            className={`grid grid-cols-[2.25rem_1fr_auto] gap-x-2 gap-y-0.5 items-center rounded-md px-3 py-2 text-left transition-colors disabled:opacity-60 ${
               selected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-accent"
             }`}
           >
-            <span className="text-xl shrink-0" aria-hidden="true">
+            {/* Row 1: 이모지 | 소요시간·도착 | check */}
+            <span className="text-xl text-center row-start-1 col-start-1" aria-hidden="true">
               {m.emoji}
             </span>
-            <span className="font-medium text-sm shrink-0">{m.label}</span>
-            <span
-              className={`text-xs ${d === null ? "text-muted-foreground" : "text-foreground"} tabular-nums`}
-            >
-              {label}
+            <div className="row-start-1 col-start-2 flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0">
+              <span className={d === null ? "" : "font-medium text-foreground text-sm"}>
+                {label}
+              </span>
+              {arrival && (
+                <>
+                  <span>·</span>
+                  <span>도착 {arrival}</span>
+                </>
+              )}
+            </div>
+            <span className="row-start-1 col-start-3 row-span-2 flex items-center justify-center w-4">
+              {selected && <Check className="h-4 w-4 text-primary" />}
             </span>
-            {arrival && (
-              <span className="text-xs text-muted-foreground">· 도착 {arrival}</span>
-            )}
-            {selected && <Check className="h-4 w-4 text-primary ml-auto" />}
+            {/* Row 2: 수단 라벨 */}
+            <span className="row-start-2 col-start-1 text-[11px] text-muted-foreground text-center">
+              {m.label}
+            </span>
           </button>
         );
       })}
