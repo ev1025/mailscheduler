@@ -128,7 +128,10 @@ export default function FormPage({
       }}
     >
       <div
-        className={`bg-background flex flex-col w-full h-[100dvh] ${desktopMaxWidth} md:h-auto md:max-h-[85dvh] md:w-auto md:rounded-xl md:shadow-xl md:ring-1 md:ring-foreground/10`}
+        // 모바일 높이를 100dvh - 키보드높이 로 줄여서 키보드가 올라오면
+        // 팝업 자체가 위로 축소됨 → 하단 Textarea 가 자동으로 키보드 위에 보임.
+        // md: 에서는 h-auto 로 덮여서 데스크탑은 영향 없음.
+        className={`bg-background flex flex-col w-full h-[calc(100dvh_-_var(--kb-offset,0px))] ${desktopMaxWidth} md:h-auto md:max-h-[85dvh] md:w-auto md:rounded-xl md:shadow-xl md:ring-1 md:ring-foreground/10`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더: 공용 PageHeader 재사용 (sticky·bell 은 모달 내부에서 불필요). */}
@@ -157,11 +160,9 @@ export default function FormPage({
           }}
         >
           {children}
-          {/* Bottom bumper — 안전영역 + 모바일 키보드 높이만큼 스크롤 여유공간.
-              --kb-offset 은 KeyboardOffset 컴포넌트가 visualViewport 로 실시간 갱신.
-              키보드 뜰 때 마지막 필드(Textarea)가 가려지지 않게 함. */}
+          {/* Bottom bumper — 안전영역 여유공간. 키보드 대응은 컨테이너 height
+              (calc(100dvh - --kb-offset)) 가 담당. */}
           <div className="h-[env(safe-area-inset-bottom,0px)]" />
-          <div style={{ height: "var(--kb-offset, 0px)" }} />
           <div className="h-4" />
         </div>
 
