@@ -56,13 +56,13 @@ def main(in_path, out_path):
     lines.append("-- ('공연' '데이트' 등 v2 카테고리가 원래 제약에 없으므로)")
     lines.append("ALTER TABLE travel_items DROP CONSTRAINT IF EXISTS travel_items_category_check;")
     lines.append("")
-    lines.append("DO $$")
-    lines.append("DECLARE uid UUID;")
-    lines.append("BEGIN")
-    lines.append("  SELECT id INTO uid FROM app_users WHERE name = '나' LIMIT 1;")
-    lines.append("  IF uid IS NULL THEN RAISE EXCEPTION 'app_users 에 name=나 없음'; END IF;")
-    lines.append("")
+    lines.append("-- 단일 INSERT + VALUES 리스트 + WHERE NOT EXISTS 로 일괄 중복제거 등록")
+    lines.append("WITH uid AS (SELECT id FROM app_users WHERE name = '나' LIMIT 1)")
+    lines.append("INSERT INTO travel_items (title, category, region, month, visited, user_id)")
+    lines.append("SELECT v.title, v.category, v.region, v.month, v.visited, (SELECT id FROM uid)")
+    lines.append("FROM (VALUES")
 
+    value_rows = []
     for r in rows:
         title = (r.get("뭐 할래?") or "").strip()
         if not title:
@@ -74,18 +74,19 @@ def main(in_path, out_path):
         month = parse_month(r.get("제철") or "")
         visited = (r.get("했음") or "").strip().lower() == "yes"
 
-        lines.append("  INSERT INTO travel_items (title, category, region, month, visited, user_id)")
-        lines.append(
-            f"  SELECT {sql_escape(title)}, {sql_escape(category)}, {sql_escape(region)}, "
-            f"{'NULL' if month is None else month}, {str(visited).upper()}, uid"
-        )
-        lines.append(
-            f"  WHERE NOT EXISTS (SELECT 1 FROM travel_items WHERE title = {sql_escape(title)} AND user_id = uid);"
+        value_rows.append(
+            f"  ({sql_escape(title)}, {sql_escape(category)}, {sql_escape(region)}::TEXT, "
+            f"{'NULL::INT' if month is None else f'{month}::INT'}, {str(visited).upper()})"
         )
         inserted.append((title, raw_kind, category))
 
-    lines.append("")
-    lines.append("END $$;")
+    lines.append(",\n".join(value_rows))
+    lines.append(") AS v(title, category, region, month, visited)")
+    lines.append("WHERE (SELECT id FROM uid) IS NOT NULL")
+    lines.append("  AND NOT EXISTS (")
+    lines.append("    SELECT 1 FROM travel_items t")
+    lines.append("    WHERE t.title = v.title AND t.user_id = (SELECT id FROM uid)")
+    lines.append("  );")
     lines.append("")
     lines.append(f"-- 포함: {len(inserted)} 건")
     for t, k, c in inserted:
