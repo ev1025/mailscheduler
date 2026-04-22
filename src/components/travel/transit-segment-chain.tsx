@@ -63,7 +63,7 @@ export default function TransitSegmentChain({ segments, filterKinds }: Props) {
   if (filtered.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-1 w-full">
+    <div className="flex flex-col gap-1.5 w-full">
       {filtered.map((s, i) => {
         const from = cleanStopName(s.fromStop);
         const to = cleanStopName(s.toStop);
@@ -73,7 +73,7 @@ export default function TransitSegmentChain({ segments, filterKinds }: Props) {
         return (
           <div
             key={i}
-            className="flex items-center gap-1.5 text-[11px] leading-tight text-foreground flex-wrap"
+            className="flex items-center gap-1.5 text-[11px] leading-snug text-foreground flex-wrap"
           >
             <SegmentBadge segment={s} />
             {from && <span className="break-keep">{from}</span>}

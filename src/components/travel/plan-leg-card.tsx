@@ -140,7 +140,7 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
       <button
         type="button"
         onClick={() => setPickerOpen(true)}
-        className="flex flex-col ml-6 pl-2 border-l-2 border-primary/30 py-1 gap-0.5 text-left hover:bg-accent/40 rounded-r-md transition-colors"
+        className="flex flex-col ml-6 pl-2 border-l-2 border-primary/30 py-1.5 gap-1.5 text-left hover:bg-accent/40 rounded-r-md transition-colors"
         title="이동수단 변경"
       >
         <div className="flex items-center gap-1 text-xs min-w-0">
