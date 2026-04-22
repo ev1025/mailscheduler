@@ -424,9 +424,10 @@ function RouteCard({
 }
 
 function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec: number }) {
-  // 각 transit 세그먼트의 '중간점' 에 마커 — 보더(transition) 에 붙이면
-  // 연속된 같은색 버스 마커가 인접해 겹쳐 보이는 문제 발생. 중간점 배치하면
-  // 세그먼트 안 쪽에 각자 독립적으로 보여 구분 명확.
+  // 각 transit 세그먼트의 '시작 지점' 에 마커. 마커 왼쪽 edge 가 cumulative% 에
+  // 오도록 위치 — 세그먼트 안 쪽 시작 위치에 자리해 "여기서부터 이 교통수단"
+  // 의미가 명확. min-width 32px + gap-0.5 덕분에 연속된 transit 이어도 마커끼리
+  // 최소 34px 떨어져 겹치지 않음.
   let cumulative = 0;
   const markers: {
     left: number;
@@ -440,7 +441,7 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
         s.kind === "bus"
           ? busColor(s.alternateNames?.[0] ?? s.name)
           : subwayLineColor(s.alternateNames?.[0] ?? s.name);
-      markers.push({ left: cumulative + pct / 2, kind: s.kind, color });
+      markers.push({ left: cumulative, kind: s.kind, color });
     }
     cumulative += pct;
   }
@@ -482,7 +483,7 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
       {markers.map((m, i) => (
         <div
           key={i}
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center h-5 w-5 rounded-full border border-white shadow"
+          className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center h-5 w-5 rounded-full border border-white shadow"
           style={{ left: `${m.left}%`, backgroundColor: m.color }}
           aria-hidden="true"
         >
