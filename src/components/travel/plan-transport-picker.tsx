@@ -440,15 +440,14 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
     cumulative += (s.durationSec / totalSec) * 100;
   }
 
-  // 바: flex-grow 비율 기반 (durationSec) 으로 세그먼트 분배 → 끝까지 정확히 채워져
-  // 마지막 transit step 도 바의 rounded-full 우측에 맞게 잘리며 색상 유지.
-  // 마커: 전환 지점의 오른쪽(=transit segment 시작 쪽)에 배치 — -translate-x-1/2
-  // 제거해 walk 세그먼트의 분 라벨을 가리지 않음. 테두리 border-2 → border.
+  // 바: 각 세그먼트가 독립된 둥근(pill) 모양. 세그먼트 간 0.5 gap 으로 분리 감 있게.
+  //  - flex-grow: durationSec 으로 비율 분배
+  //  - min-width 32px: "99분"(3글자) 기준 최소 폭 확보 → 모든 세그먼트에서 라벨 보장
+  //  - 세그먼트 자체 rounded-full → 내부 값들도 둥글게
   return (
     <div className="relative h-5 flex items-center">
-      <div className="flex h-4 w-full rounded-full overflow-hidden bg-muted">
+      <div className="flex h-4 w-full gap-0.5 items-stretch">
         {steps.map((s, i) => {
-          const pct = (s.durationSec / totalSec) * 100;
           const min = Math.max(1, Math.round(s.durationSec / 60));
           const bg =
             s.kind === "walk"
@@ -459,22 +458,18 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
                   ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
                   : "#64748b";
           const textColor = s.kind === "walk" ? "#475569" : "#ffffff";
-          const isWalk = s.kind === "walk";
-          const showLabel = isWalk || pct >= 8;
           return (
             <div
               key={i}
-              className={`flex items-center justify-center text-[9px] font-bold tabular-nums ${
-                isWalk ? "" : "overflow-hidden"
-              }`}
+              className="flex items-center justify-center text-[9px] font-bold tabular-nums rounded-full"
               style={{
                 flex: `${s.durationSec} 1 0`,
-                minWidth: isWalk ? "22px" : undefined,
+                minWidth: "32px",
                 backgroundColor: bg,
                 color: textColor,
               }}
             >
-              {showLabel ? `${min}분` : ""}
+              {`${min}분`}
             </div>
           );
         })}
