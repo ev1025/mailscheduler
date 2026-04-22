@@ -30,7 +30,7 @@ interface FormPageProps {
   onSubmit?: () => void | Promise<void>;
   onCancel?: () => void;
   onBack?: () => void;
-  /** 데스크탑 max-w 클래스 (기본 md:max-w-3xl = 768px) */
+  /** 데스크탑 max-w 클래스 (기본 md:max-w-lg = 512px) */
   desktopMaxWidth?: string;
   headerExtra?: React.ReactNode;
   footerStart?: React.ReactNode;
@@ -50,7 +50,7 @@ export default function FormPage({
   onSubmit,
   onCancel,
   onBack,
-  desktopMaxWidth = "md:max-w-3xl",
+  desktopMaxWidth = "md:max-w-lg",
   headerExtra,
   footerStart,
   hideFooter = false,
@@ -137,8 +137,9 @@ export default function FormPage({
     >
       <div
         // 모바일: 100dvh — resizes-content 덕분에 키보드 뜰 때 자동 축소.
-        // md: 에서는 h-auto 로 덮여 데스크탑은 컨테이너 크기 유연.
-        className={`bg-background flex flex-col w-full h-[100dvh] ${desktopMaxWidth} md:h-auto md:max-h-[85dvh] md:w-auto md:rounded-xl md:shadow-xl md:ring-1 md:ring-foreground/10`}
+        // md: h-auto + w-full 로 max-w 까지 실제로 확장 (이전 md:w-auto 는
+        // content 너비로 축소되어 max-w 가 무의미했음).
+        className={`bg-background flex flex-col w-full h-[100dvh] ${desktopMaxWidth} md:h-auto md:max-h-[85dvh] md:w-full md:rounded-xl md:shadow-xl md:ring-1 md:ring-foreground/10`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더: 공용 PageHeader 재사용 (sticky·bell 은 모달 내부에서 불필요). */}
