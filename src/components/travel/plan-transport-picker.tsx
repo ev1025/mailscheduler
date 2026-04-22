@@ -419,10 +419,9 @@ function RouteCard({
 }
 
 function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec: number }) {
-  // 네이버 지도 스타일:
-  // 1) 색상 바 안에 흰색 볼드로 "N분" 직접 표기. <8% 세그먼트는 라벨 생략.
-  // 2) transit 시작 지점(cumulative>0)에 동그란 마커 + 버스/지하철 아이콘.
-  //    (cumulative=0 은 바 맨 왼쪽이라 마커가 잘려 나가서 생략)
+  // 각 transit 세그먼트의 '중간점' 에 마커 — 보더(transition) 에 붙이면
+  // 연속된 같은색 버스 마커가 인접해 겹쳐 보이는 문제 발생. 중간점 배치하면
+  // 세그먼트 안 쪽에 각자 독립적으로 보여 구분 명확.
   let cumulative = 0;
   const markers: {
     left: number;
@@ -430,14 +429,15 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
     color: string;
   }[] = [];
   for (const s of steps) {
-    if (s.kind !== "walk" && cumulative > 0) {
+    const pct = (s.durationSec / totalSec) * 100;
+    if (s.kind !== "walk") {
       const color =
         s.kind === "bus"
           ? busColor(s.alternateNames?.[0] ?? s.name)
           : subwayLineColor(s.alternateNames?.[0] ?? s.name);
-      markers.push({ left: cumulative, kind: s.kind, color });
+      markers.push({ left: cumulative + pct / 2, kind: s.kind, color });
     }
-    cumulative += (s.durationSec / totalSec) * 100;
+    cumulative += pct;
   }
 
   // 바: 각 세그먼트가 독립된 둥근(pill) 모양. 세그먼트 간 0.5 gap 으로 분리 감 있게.
@@ -477,7 +477,7 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
       {markers.map((m, i) => (
         <div
           key={i}
-          className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center h-5 w-5 rounded-full border border-white shadow"
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center h-5 w-5 rounded-full border border-white shadow"
           style={{ left: `${m.left}%`, backgroundColor: m.color }}
           aria-hidden="true"
         >
