@@ -535,7 +535,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
                 <col style={{ width: "1%" }} />
                 <col style={{ width: "1%" }} />
               </colgroup>
-              <thead className="sticky top-0 z-10 bg-muted/40 text-xs text-muted-foreground">
+              <thead className="sticky top-0 z-10 bg-muted text-xs text-muted-foreground">
                 <tr>
                   {columns.map((col) => (
                     <th
