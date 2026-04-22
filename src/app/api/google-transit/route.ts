@@ -81,6 +81,69 @@ function decodePolyline(encoded: string): [number, number][] {
   return out;
 }
 
+/**
+ * Google Routes API v2 로 도보 경로 조회.
+ * Directions API(v1) 보다 보행자 데이터가 풍부해 ZERO_RESULTS 드뭄.
+ *
+ * POST https://routes.googleapis.com/directions/v2:computeRoutes
+ * 헤더: X-Goog-Api-Key, X-Goog-FieldMask (반환 필드 명시 필수)
+ *
+ * 동일한 GOOGLE_MAPS_API_KEY 로 동작 — 단, Google Cloud Console 에서 'Routes API'
+ * 가 활성화되어 있어야 함. 비활성이면 REQUEST_DENIED 로 null 반환 → Directions
+ * API 폴백.
+ */
+async function fetchRoutesV2Walking(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+  apiKey: string
+): Promise<{ durationSec: number; path: [number, number][] } | null> {
+  const body = {
+    origin: { location: { latLng: { latitude: from.lat, longitude: from.lng } } },
+    destination: { location: { latLng: { latitude: to.lat, longitude: to.lng } } },
+    travelMode: "WALK",
+    polylineQuality: "OVERVIEW",
+    polylineEncoding: "ENCODED_POLYLINE",
+    languageCode: "ko",
+    regionCode: "kr",
+  };
+  try {
+    const res = await fetch(
+      "https://routes.googleapis.com/directions/v2:computeRoutes",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Goog-Api-Key": apiKey,
+          // 필드 마스크 — 반환받을 필드만 명시 (v2 필수).
+          "X-Goog-FieldMask":
+            "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline",
+        },
+        body: JSON.stringify(body),
+        cache: "no-store",
+      }
+    );
+    if (!res.ok) {
+      const text = await res.text();
+      console.warn(`[routes-v2 walking] HTTP ${res.status}:`, text.slice(0, 300));
+      return null;
+    }
+    const data = await res.json();
+    const route = data.routes?.[0];
+    if (!route) return null;
+    const encoded = route.polyline?.encodedPolyline;
+    if (!encoded) return null;
+    // duration 은 "1234s" 문자열. 초 단위 정수 추출.
+    const durStr = String(route.duration ?? "0s");
+    const durationSec = parseInt(durStr.replace(/s$/, ""), 10) || 0;
+    const path = decodePolyline(encoded);
+    if (durationSec <= 0 || path.length < 2) return null;
+    return { durationSec, path };
+  } catch (e) {
+    console.warn(`[routes-v2 walking] error:`, e);
+    return null;
+  }
+}
+
 export async function GET(req: NextRequest) {
   const fromLat = req.nextUrl.searchParams.get("fromLat");
   const fromLng = req.nextUrl.searchParams.get("fromLng");
@@ -108,6 +171,26 @@ export async function GET(req: NextRequest) {
       { error: "GOOGLE_MAPS_API_KEY 가 설정되지 않았습니다." },
       { status: 503 }
     );
+  }
+
+  // mode=walking 은 Routes API v2 (신규) 사용 — Directions API 보다 보행자
+  // 네트워크가 훨씬 촘촘해 ZERO_RESULTS 가 드물고 실제 도로 따라 감.
+  // 실패 시 Directions API v1 로 폴백.
+  if (mode === "walking" && !wantAlternatives) {
+    const v2 = await fetchRoutesV2Walking(
+      { lat: +fromLat, lng: +fromLng },
+      { lat: +toLat, lng: +toLng },
+      apiKey
+    );
+    if (v2) {
+      console.log(`[routes-v2 walking] duration=${v2.durationSec}s points=${v2.path.length}`);
+      return NextResponse.json({
+        durationSec: v2.durationSec,
+        path: v2.path,
+        segments: [],
+      });
+    }
+    console.log(`[routes-v2 walking] 실패 → Directions API v1 폴백`);
   }
 
   const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
