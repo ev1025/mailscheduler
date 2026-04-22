@@ -129,9 +129,15 @@ async function fetchRoutesV2Walking(
     }
     const data = await res.json();
     const route = data.routes?.[0];
-    if (!route) return null;
+    if (!route) {
+      console.warn(`[routes-v2 walking] routes empty:`, JSON.stringify(data).slice(0, 200));
+      return null;
+    }
     const encoded = route.polyline?.encodedPolyline;
-    if (!encoded) return null;
+    if (!encoded) {
+      console.warn(`[routes-v2 walking] polyline missing:`, JSON.stringify(route).slice(0, 200));
+      return null;
+    }
     // duration 은 "1234s" 문자열. 초 단위 정수 추출.
     const durStr = String(route.duration ?? "0s");
     const durationSec = parseInt(durStr.replace(/s$/, ""), 10) || 0;
@@ -177,20 +183,21 @@ export async function GET(req: NextRequest) {
   // 네트워크가 훨씬 촘촘해 ZERO_RESULTS 가 드물고 실제 도로 따라 감.
   // 실패 시 Directions API v1 로 폴백.
   if (mode === "walking" && !wantAlternatives) {
+    console.log(`[routes-v2 walking] 시도 — (${fromLat},${fromLng})→(${toLat},${toLng})`);
     const v2 = await fetchRoutesV2Walking(
       { lat: +fromLat, lng: +fromLng },
       { lat: +toLat, lng: +toLng },
       apiKey
     );
     if (v2) {
-      console.log(`[routes-v2 walking] duration=${v2.durationSec}s points=${v2.path.length}`);
+      console.log(`[routes-v2 walking] 성공 duration=${v2.durationSec}s points=${v2.path.length}`);
       return NextResponse.json({
         durationSec: v2.durationSec,
         path: v2.path,
         segments: [],
       });
     }
-    console.log(`[routes-v2 walking] 실패 → Directions API v1 폴백`);
+    console.log(`[routes-v2 walking] null 반환 → Directions API v1 폴백`);
   }
 
   const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
