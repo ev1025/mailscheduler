@@ -464,7 +464,7 @@ export function SegmentBar({ steps, totalSec: _totalSec }: { steps: TransportRou
             <div
               style={{
                 flex: `${s.durationSec} 1 0`,
-                minWidth: "32px",
+                minWidth: "44px",
                 backgroundColor: bg,
                 color: textColor,
               }}
