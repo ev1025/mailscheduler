@@ -81,29 +81,30 @@ export default function DraggableSheet({
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (dragStartY.current === null || dragCanceled.current) return;
-    const dy = e.touches[0].clientY - dragStartY.current;
+    if (dragStartY.current === null) return;
+    const y = e.touches[0].clientY;
 
-    // 스크롤 vs 드래그 우선순위 — 시트 높이 기준 (단일·이중 스냅 공통):
-    //  - 현재 스냅이 0.85(85%) 이상 → "full-size" 로 간주. 컨텐츠 스크롤 우선.
-    //    scrollTop>0 에서 아래로 드래그 = 스크롤. scrollTop=0 에서만 아래로
-    //    드래그 시 시트 내림. 위로 드래그는 항상 스크롤.
-    //  - 0.85 미만 (60%, 50% 등) → 무조건 시트 드래그 (컨텐츠 스크롤 무시)
+    // 스크롤 vs 드래그 우선순위 — 시트 높이 기준:
+    //  - 0.85(85%) 이상 → 컨텐츠 스크롤 우선. scrollTop>0 또는 위로 스와이프는
+    //    스크롤로 처리하고 dragStartY 를 현재 위치로 "재anchor". 이렇게 해야
+    //    scrollTop 가 0 에 도달한 이후부터의 드래그 거리만 측정됨.
+    //  - 0.85 미만 → 스크롤 무시, 항상 시트 드래그
     const currentVh = dragStartSnap.current === "full" ? fullVh : halfVh;
     const scrollPriority = currentVh >= 0.85;
-    if (!dragActive.current && scrollPriority && dragScrollEl.current) {
+    if (scrollPriority && dragScrollEl.current && !dragActive.current) {
       const scrollTop = dragScrollEl.current.scrollTop;
-      if (dy > 0 && scrollTop > 0) {
-        dragCanceled.current = true;
+      const dy = y - dragStartY.current;
+      // (a) scrollTop>0: 컨텐츠가 스크롤 가능 영역 → 네이티브 스크롤 처리, anchor 재설정
+      // (b) scrollTop=0 이어도 위로 스와이프(dy<0): 컨텐츠 더 스크롤 다운 가능 → anchor 재설정
+      if (scrollTop > 0 || dy < 0) {
+        dragStartY.current = y;
         return;
       }
-      if (dy < 0) {
-        dragCanceled.current = true;
-        return;
-      }
+      // scrollTop=0 + 아래로 스와이프: 이제부터 시트 드래그로 간주
     }
 
-    // 8px 넘으면 drag 로 확정 (이후 touchend 에서 합성 click 차단)
+    const dy = y - dragStartY.current;
+    // 8px 넘으면 drag 로 확정 (touchend 에서 합성 click 차단)
     if (!dragActive.current && Math.abs(dy) > MOVE_LOCK_PX) {
       dragActive.current = true;
     }
