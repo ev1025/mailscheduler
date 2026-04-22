@@ -208,14 +208,14 @@ export default function TravelForm({
           </div>
 
           {/* 색상 */}
-          <div className="flex items-center gap-3">
-            <Label className="text-xs text-muted-foreground shrink-0">색상</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">색상</Label>
             <ColorPickerRow color={color} onChange={setColor} />
           </div>
 
           {/* 시기 | 드롭다운 | 가봄 토글 — 한 행 */}
-          <div className="flex items-center gap-3">
-            <Label className="text-xs text-muted-foreground shrink-0">시기</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className="text-xs text-muted-foreground">시기</Label>
             <Select
               value={month != null ? String(month) : "none"}
               onValueChange={(v) => setMonth(!v || v === "none" ? null : parseInt(v))}

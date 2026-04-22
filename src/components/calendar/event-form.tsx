@@ -231,8 +231,8 @@ export default function EventForm({
           </div>
 
           {/* 색상 */}
-          <div className="flex items-center gap-2">
-            <Label className={`w-12 shrink-0 ${FORM_LABEL}`}>색상</Label>
+          <div className="flex flex-col gap-1.5">
+            <Label className={FORM_LABEL}>색상</Label>
             <div className="flex items-center gap-1.5">
               {COLORS.map((c) => (
                 <button
@@ -251,9 +251,9 @@ export default function EventForm({
           </div>
 
           {/* 날짜 */}
-          <div className="flex items-center gap-2">
-            <Label className={`w-12 shrink-0 ${FORM_LABEL}`}>날짜</Label>
-            <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
+          <div className="flex flex-col gap-1.5">
+            <Label className={FORM_LABEL}>날짜</Label>
+            <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 min-w-0">
               <DatePicker value={startDate} onChange={setStartDate} className={`${FORM_INPUT_COMPACT} min-w-0`} />
               <span className="text-xs text-muted-foreground">~</span>
               {showEndDate ? (
@@ -274,9 +274,9 @@ export default function EventForm({
           </div>
 
           {/* 시간 */}
-          <div className="flex items-center gap-2">
-            <Label className={`w-12 shrink-0 ${FORM_LABEL}`}>시간</Label>
-            <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 flex-1 min-w-0">
+          <div className="flex flex-col gap-1.5">
+            <Label className={FORM_LABEL}>시간</Label>
+            <div className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-1 min-w-0">
               <TimePicker value={startTime} onChange={setStartTime} className={`${FORM_INPUT_COMPACT} min-w-0`} />
               <span className="text-xs text-muted-foreground">~</span>
               {showEndTime ? (
@@ -297,9 +297,9 @@ export default function EventForm({
           </div>
 
           {/* 반복 — Select 는 컨텐츠 크기에 맞게 축소 */}
-          <div className="flex items-center gap-2">
-            <Label className={`w-12 shrink-0 ${FORM_LABEL}`}>반복</Label>
-            <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex flex-col gap-1.5">
+            <Label className={FORM_LABEL}>반복</Label>
+            <div className="flex items-center gap-2 min-w-0">
               <Select value={repeat} onValueChange={(v) => {
                 if (v) setRepeat(v as RepeatType);
               }}>
