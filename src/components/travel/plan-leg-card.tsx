@@ -136,30 +136,26 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
 
   return (
     <>
-      <div className="flex flex-col ml-6 pl-2 border-l-2 border-primary/30 py-1 gap-0.5">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-xs flex-1 min-w-0">
-            <span>{icon?.emoji}</span>
-            <span className="text-primary font-medium">{icon?.label}</span>
-            <span className="text-foreground">{formatDuration(durationSec)}</span>
-            {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
-          </div>
-          {/* 연한 회색 · 밑줄 "변경" — 누르면 picker 재오픈 */}
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            className="text-[11px] text-muted-foreground/70 underline underline-offset-2 hover:text-muted-foreground shrink-0"
-          >
-            변경
-          </button>
+      {/* 전체 블록 클릭 시 picker 재오픈 — 별도 "변경" 버튼 없음 */}
+      <button
+        type="button"
+        onClick={() => setPickerOpen(true)}
+        className="flex flex-col ml-6 pl-2 border-l-2 border-primary/30 py-1 gap-0.5 text-left hover:bg-accent/40 rounded-r-md transition-colors"
+        title="이동수단 변경"
+      >
+        <div className="flex items-center gap-1 text-xs min-w-0">
+          <span>{icon?.emoji}</span>
+          <span className="text-primary font-medium">{icon?.label}</span>
+          <span className="text-foreground">{formatDuration(durationSec)}</span>
+          {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
         </div>
         {/* 버스·지하철 selected 상태에서 세그먼트 상세(배지+역명) 표시 */}
         {!isManual && segments && segments.length > 0 && (
-          <div className="pl-1">
+          <div className="pl-1 pointer-events-none">
             <TransitSegmentChain segments={segments} filterKinds={filterKinds} />
           </div>
         )}
-      </div>
+      </button>
       {hasCoords && (
         <PlanTransportPicker
           open={pickerOpen}
