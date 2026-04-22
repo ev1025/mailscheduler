@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -111,8 +112,11 @@ export default function FormPage({
   }, [open]);
 
   if (!open) return null;
+  if (typeof document === "undefined") return null;
 
-  return (
+  // document.body 에 포털 렌더 — AppShell main 의 stacking context 탈출.
+  // 그래야 BottomNav(z-50) 보다 FormPage(z-[70]) 가 실제로 위에 올라옴.
+  return createPortal(
     <div
       className="fixed inset-0 z-[70] flex md:items-center md:justify-center md:bg-black/50 md:backdrop-blur-sm"
       role="dialog"
@@ -193,6 +197,7 @@ export default function FormPage({
 
       {/* 초기 mount 트리거 용 — 리렌더 없이 mounted flag 유지 */}
       {!mounted && <span className="hidden" aria-hidden="true" />}
-    </div>
+    </div>,
+    document.body
   );
 }
