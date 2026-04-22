@@ -457,13 +457,26 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
                   ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
                   : "#64748b";
           const textColor = s.kind === "walk" ? "#475569" : "#ffffff";
+          // 도보 세그먼트는 짧아서 라벨이 잘려도 분 수는 반드시 표시.
+          //   - min-width 로 최소 폭 확보 (텍스트 '1분' 맞춤 ~22px)
+          //   - overflow: visible 로 혹시 넘쳐도 보이게
+          // 다른 교통수단 세그먼트는 기존 8% 임계값 유지.
+          const isWalk = s.kind === "walk";
+          const showLabel = isWalk || pct >= 8;
           return (
             <div
               key={i}
-              className="flex items-center justify-center text-[9px] font-bold tabular-nums overflow-hidden"
-              style={{ width: `${pct}%`, backgroundColor: bg, color: textColor }}
+              className={`flex items-center justify-center text-[9px] font-bold tabular-nums ${
+                isWalk ? "" : "overflow-hidden"
+              }`}
+              style={{
+                width: `${pct}%`,
+                minWidth: isWalk ? "22px" : undefined,
+                backgroundColor: bg,
+                color: textColor,
+              }}
             >
-              {pct >= 8 ? `${min}분` : ""}
+              {showLabel ? `${min}분` : ""}
             </div>
           );
         })}
