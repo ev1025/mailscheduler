@@ -156,11 +156,11 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
       >
         <div className="flex items-baseline gap-1.5 min-w-0">
           {/* transit 모드는 이모지 없이 라벨 + 시간만. 다른 모드는 이모지 유지. */}
-          {mode !== "transit" && icon && <span className="text-sm">{icon.emoji}</span>}
-          {/* 라벨(대중교통·승용차 등): bold, 기본 크기 */}
-          <span className="text-sm text-primary font-bold">{icon?.label}</span>
+          {mode !== "transit" && icon && <span className="text-xs">{icon.emoji}</span>}
+          {/* 라벨(대중교통·승용차 등): bold, 살짝 강조 */}
+          <span className="text-xs text-primary font-bold">{icon?.label}</span>
           {/* 소요시간: 연한 회색, 살짝 작게 */}
-          <span className="text-xs text-muted-foreground">{formatDuration(durationSec)}</span>
+          <span className="text-[10px] text-muted-foreground">{formatDuration(durationSec)}</span>
           {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
         </div>
         {/* 대중교통 조합(transit) — 각 step:
@@ -245,10 +245,11 @@ function normalizeStopName(
 }
 
 // transit 구간 배지 (풀 라벨) — "3호선" "KTX" "704" 등 이름 그대로 표시.
+// plan-leg-card(여행계획 상세) 전용 컴팩트 사이즈. picker 쪽은 원래 크기 유지.
 function SubwayBadgeFull({ name }: { name: string }) {
   return (
     <span
-      className="inline-flex items-center h-5 px-2 rounded-full text-[11px] font-semibold text-white"
+      className="inline-flex items-center h-4 px-1.5 rounded-full text-[10px] font-semibold text-white"
       style={{ backgroundColor: subwayLineColor(name) }}
     >
       {name}
@@ -259,7 +260,7 @@ function SubwayBadgeFull({ name }: { name: string }) {
 function BusBadgeFull({ name }: { name: string }) {
   return (
     <span
-      className="inline-flex items-center h-5 px-2 rounded text-[11px] font-semibold text-white"
+      className="inline-flex items-center h-4 px-1.5 rounded text-[10px] font-semibold text-white"
       style={{ backgroundColor: busColor(name) }}
     >
       {name}
