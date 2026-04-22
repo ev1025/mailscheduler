@@ -196,12 +196,16 @@ export default function TravelForm({
     >
         <div className="flex flex-col gap-4">
           {/* 제목 */}
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="제목 * (예: 진해 군항제)"
-            className="h-9 text-sm"
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="travel-title" className="text-xs text-muted-foreground">제목</Label>
+            <Input
+              id="travel-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="제목 * (예: 진해 군항제)"
+              className="h-9 text-sm"
+            />
+          </div>
 
           {/* 색상 */}
           <div className="flex items-center gap-3">

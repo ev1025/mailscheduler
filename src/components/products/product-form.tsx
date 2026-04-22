@@ -272,12 +272,16 @@ export default function ProductForm({
       }
     >
         <div className="flex flex-col gap-4">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="제품명 * (예: 오메가3)"
-            className={FORM_INPUT_PRIMARY}
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="product-name" className={FORM_LABEL}>제품명</Label>
+            <Input
+              id="product-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="제품명 * (예: 오메가3)"
+              className={FORM_INPUT_PRIMARY}
+            />
+          </div>
 
           {/* 분류 · 세부분류 — 항상 같은 행 (2열) */}
           <div className="grid grid-cols-2 gap-2">
