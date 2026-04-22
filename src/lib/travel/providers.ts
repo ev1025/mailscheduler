@@ -23,6 +23,27 @@ export interface RouteResult {
 }
 
 /**
+ * 조합 경로(도보+버스+지하철 혼합) 의 한 스텝.
+ * 대중교통 alternatives 모드에서 도보 step 도 포함해 full sequence 표현.
+ */
+export interface RouteStep {
+  kind: "walk" | "bus" | "subway" | "train" | "tram" | "other";
+  durationSec: number;
+  name: string | null;
+  fromStop: string | null;
+  toStop: string | null;
+  numStops: number | null;
+}
+
+/** 대중교통 조합 경로 한 후보 (도보+버스+지하철 혼합). */
+export interface TransitRoute {
+  durationSec: number;        // 총 소요
+  walkingSec: number;         // 도보 구간 합
+  path?: [number, number][];
+  steps: RouteStep[];
+}
+
+/**
  * 실패 원인 상세. "계산 실패" 만 보였던 UX 를 "어떤 이유로 실패" 까지 노출.
  */
 export interface RouteError {
@@ -136,6 +157,44 @@ export async function fetchRouteDetailed(
     return { result: { durationSec: j.durationSec, path: j.path, segments: j.segments } };
   } catch (e) {
     return { result: null, error: { code: "NETWORK", message: String(e) } };
+  }
+}
+
+/**
+ * 대중교통 조합 경로 여러 개 fetch — Google Directions alternatives=true.
+ * 실패 원인 포함 반환.
+ */
+export async function fetchTransitAlternatives(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): Promise<{ routes: TransitRoute[] | null; error?: RouteError }> {
+  const params = new URLSearchParams({
+    fromLat: String(from.lat),
+    fromLng: String(from.lng),
+    toLat: String(to.lat),
+    toLng: String(to.lng),
+    alternatives: "1",
+  });
+  try {
+    const res = await fetch(`/api/google-transit?${params.toString()}`);
+    if (!res.ok) {
+      let body: GoogleFailureBody = {};
+      try {
+        body = await res.json();
+      } catch {
+        /* non-JSON */
+      }
+      const code = body.googleStatus ?? `HTTP_${res.status}`;
+      const message = buildErrorMessage(body, res.status, true);
+      return { routes: null, error: { code, message } };
+    }
+    const j = await res.json();
+    if (!Array.isArray(j.routes)) {
+      return { routes: null, error: { code: "NO_ROUTES", message: "응답에 경로 목록 없음" } };
+    }
+    return { routes: j.routes as TransitRoute[] };
+  } catch (e) {
+    return { routes: null, error: { code: "NETWORK", message: String(e) } };
   }
 }
 

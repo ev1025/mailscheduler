@@ -34,6 +34,7 @@ interface TransitDetails {
 interface GoogleStep {
   travel_mode?: string;
   transit_details?: TransitDetails;
+  duration?: { value?: number };
 }
 interface GoogleLeg {
   duration?: { value?: number };
@@ -85,11 +86,14 @@ export async function GET(req: NextRequest) {
   const fromLng = req.nextUrl.searchParams.get("fromLng");
   const toLat = req.nextUrl.searchParams.get("toLat");
   const toLng = req.nextUrl.searchParams.get("toLng");
-  // mode: bus | rail | subway (→ transit_mode) | walking | driving
+  // mode: bus | rail | subway (→ transit_mode) | walking | driving | transit(all)
   const mode = req.nextUrl.searchParams.get("mode") ?? "bus";
   // 선택적 출발시각 Unix epoch sec. 미지정 시 "다음 평일 오전 9시" —
   // 현재 시각으로 보내면 심야·주말 스케줄에 잡혀 양방향 결과 편차 큼.
   const departureTimeParam = req.nextUrl.searchParams.get("departure_time");
+  // alternatives=1 → Google alternatives=true + transit_mode 제한 없음
+  // → { routes: TransitRoute[] } (조합 경로 여러 개) 반환
+  const wantAlternatives = req.nextUrl.searchParams.get("alternatives") === "1";
 
   if (!fromLat || !fromLng || !toLat || !toLng) {
     return NextResponse.json(
@@ -109,9 +113,11 @@ export async function GET(req: NextRequest) {
   const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
   url.searchParams.set("origin", `${fromLat},${fromLng}`);
   url.searchParams.set("destination", `${toLat},${toLng}`);
-  // walking · driving 은 Google 의 최상위 mode 로 직접 전달.
-  // bus · rail · subway · train 및 파이프(|) 결합은 transit 하위 transit_mode.
-  if (mode === "walking" || mode === "driving" || mode === "bicycling") {
+  if (wantAlternatives) {
+    // 조합 경로: transit_mode 제한 안 걸어서 버스+지하철 혼합 자유.
+    url.searchParams.set("mode", "transit");
+    url.searchParams.set("alternatives", "true");
+  } else if (mode === "walking" || mode === "driving" || mode === "bicycling") {
     url.searchParams.set("mode", mode);
   } else {
     url.searchParams.set("mode", "transit");
@@ -161,6 +167,77 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // 공용 step 추출 헬퍼 — 한 route 의 legs[0].steps 를 RouteStep[] 로 변환.
+  // WALKING step 도 포함 (alternatives 모드에서 "도보 X분" 세그먼트 표시용).
+  // 반환 shape 은 alternatives 유무와 무관하게 동일.
+  type StepKind = "walk" | "bus" | "subway" | "train" | "tram" | "other";
+  interface RouteStep {
+    kind: StepKind;
+    durationSec: number;
+    name: string | null;
+    fromStop: string | null;
+    toStop: string | null;
+    numStops: number | null;
+  }
+  function extractSteps(leg: GoogleLeg | undefined): RouteStep[] {
+    const steps: RouteStep[] = [];
+    for (const step of leg?.steps ?? []) {
+      const dur = step.duration?.value ?? 0;
+      if (step.travel_mode === "WALKING") {
+        if (dur > 0) {
+          steps.push({ kind: "walk", durationSec: dur, name: null, fromStop: null, toStop: null, numStops: null });
+        }
+        continue;
+      }
+      if (step.travel_mode !== "TRANSIT") continue;
+      const td = step.transit_details;
+      if (!td) continue;
+      const vtype = (td.line?.vehicle?.type ?? "").toUpperCase();
+      const kind: StepKind =
+        vtype === "BUS" || vtype === "TROLLEYBUS" || vtype === "INTERCITY_BUS"
+          ? "bus"
+          : vtype === "SUBWAY" || vtype === "METRO_RAIL"
+            ? "subway"
+            : vtype === "HEAVY_RAIL" || vtype === "RAIL" || vtype === "LONG_DISTANCE_TRAIN" || vtype === "HIGH_SPEED_TRAIN"
+              ? "train"
+              : vtype === "TRAM" || vtype === "COMMUTER_TRAIN"
+                ? "tram"
+                : "other";
+      const label = td.line?.short_name ?? td.line?.name ?? null;
+      steps.push({
+        kind,
+        durationSec: dur,
+        name: label,
+        fromStop: td.departure_stop?.name ?? null,
+        toStop: td.arrival_stop?.name ?? null,
+        numStops: td.num_stops ?? null,
+      });
+    }
+    return steps;
+  }
+
+  // alternatives 모드 — 조합 경로 여러 개 반환
+  if (wantAlternatives) {
+    const routes = (data.routes ?? []).map((r) => {
+      const l = r.legs?.[0];
+      const steps = extractSteps(l);
+      const walkingSec = steps
+        .filter((s) => s.kind === "walk")
+        .reduce((acc, s) => acc + s.durationSec, 0);
+      const poly = r.overview_polyline?.points;
+      return {
+        durationSec: l?.duration?.value ?? 0,
+        walkingSec,
+        path: poly ? decodePolyline(poly) : [],
+        steps,
+      };
+    }).filter((r) => r.durationSec > 0);
+    if (routes.length === 0) {
+      return NextResponse.json({ error: "경로 없음" }, { status: 404 });
+    }
+    return NextResponse.json({ routes });
+  }
+
   const best = data.routes?.[0];
   const leg = best?.legs?.[0];
   // Google Maps 앱 UI 와 동일한 "이동 소요시간" = duration.value.
@@ -170,41 +247,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "경로 없음" }, { status: 404 });
   }
 
-  // transit_details 를 steps[] 에서 모아 반환 — UI 에서 버스번호·지하철 호선·역명 표시.
-  // 여러 환승이면 모두 배열로. walking step 은 제외.
-  interface TransitSegment {
-    kind: "bus" | "subway" | "train" | "tram" | "other";
-    name: string | null;          // "2호선", "472번", "KTX"
-    fromStop: string | null;
-    toStop: string | null;
-    numStops: number | null;
-  }
-  const segments: TransitSegment[] = [];
-  for (const step of leg?.steps ?? []) {
-    if (step.travel_mode !== "TRANSIT") continue;
-    const td = step.transit_details;
-    if (!td) continue;
-    const vtype = (td.line?.vehicle?.type ?? "").toUpperCase();
-    const kind: TransitSegment["kind"] =
-      vtype === "BUS" || vtype === "TROLLEYBUS" || vtype === "INTERCITY_BUS"
-        ? "bus"
-        : vtype === "SUBWAY" || vtype === "METRO_RAIL"
-          ? "subway"
-          : vtype === "HEAVY_RAIL" || vtype === "RAIL" || vtype === "LONG_DISTANCE_TRAIN" || vtype === "HIGH_SPEED_TRAIN"
-            ? "train"
-            : vtype === "TRAM" || vtype === "COMMUTER_TRAIN"
-              ? "tram"
-              : "other";
-    // 버스 번호는 보통 short_name, 지하철 호선은 name 또는 short_name.
-    const label = td.line?.short_name ?? td.line?.name ?? null;
-    segments.push({
-      kind,
-      name: label,
-      fromStop: td.departure_stop?.name ?? null,
-      toStop: td.arrival_stop?.name ?? null,
-      numStops: td.num_stops ?? null,
-    });
-  }
+  // 기존 호환 — 단일 경로의 transit-only segments 반환 (walking 제외).
+  const allSteps = extractSteps(leg);
+  const segments = allSteps
+    .filter((s) => s.kind !== "walk")
+    .map((s) => ({
+      kind: s.kind,
+      name: s.name,
+      fromStop: s.fromStop,
+      toStop: s.toStop,
+      numStops: s.numStops,
+    }));
 
   const poly = best?.overview_polyline?.points;
   const path = poly ? decodePolyline(poly) : [];
