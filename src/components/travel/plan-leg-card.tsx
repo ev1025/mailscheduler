@@ -161,9 +161,9 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
           {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
         </div>
         {/* 대중교통 조합(transit) — 각 step:
-            [출발역 ➔ 도착역]  (bold, 큰 폰트)
-            [🚌|🚇 풀네임 배지들]
-            도보 step 은 생략. */}
+            출발역 ➔ 도착역   (기본 크기, 볼드 없음)
+            [풀네임 배지들]    (이모지 생략)
+            도보 step 은 생략. 지하철·기차·트램은 '역' 접미사 보정. */}
         {mode === "transit" && toTask.transport_route && toTask.transport_route.length > 0 && (
           <div className="flex flex-col gap-2 pl-1 pointer-events-none">
             {toTask.transport_route
@@ -175,21 +175,18 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
                     : s.name
                       ? [s.name]
                       : [];
-                const from = cleanStopName(s.fromStop);
-                const to = cleanStopName(s.toStop);
+                const from = normalizeStopName(s.fromStop, s.kind);
+                const to = normalizeStopName(s.toStop, s.kind);
                 return (
                   <div key={i} className="flex flex-col gap-0.5 min-w-0">
-                    {/* 타이틀: 출발역 ➔ 도착역 */}
-                    <div className="text-sm font-bold break-keep">
+                    {/* 타이틀: 출발역 ➔ 도착역 (기본 text-xs, 볼드 없음) */}
+                    <div className="text-xs break-keep">
                       {from}
                       {to && <span className="mx-1">➔</span>}
                       {to}
                     </div>
-                    {/* 서브: 이모지 + 풀네임 배지 */}
+                    {/* 배지만 — 이모지 제거 */}
                     <div className="flex items-center gap-1 flex-wrap">
-                      <span aria-hidden="true" className="text-sm">
-                        {s.kind === "bus" ? "🚌" : "🚇"}
-                      </span>
                       {names.map((name, j) =>
                         s.kind === "bus" ? (
                           <BusBadgeFull key={j} name={name} />
@@ -225,6 +222,23 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
       )}
     </>
   );
+}
+
+// 지하철/기차/트램 정류장은 '역' 접미사가 빠지는 경우 보정.
+// 버스는 정류장 이름에 '역' 붙이지 않음 (예: "홍제삼거리").
+function normalizeStopName(
+  raw: string | null | undefined,
+  kind: TransportRouteStep["kind"]
+): string {
+  const cleaned = cleanStopName(raw);
+  if (!cleaned) return "";
+  if (
+    (kind === "subway" || kind === "train" || kind === "tram") &&
+    !cleaned.endsWith("역")
+  ) {
+    return cleaned + "역";
+  }
+  return cleaned;
 }
 
 // transit 구간 배지 (풀 라벨) — "3호선" "KTX" "704" 등 이름 그대로 표시.
