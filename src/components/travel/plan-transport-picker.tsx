@@ -446,12 +446,26 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
     cumulative += pct;
   }
 
-  // 바: 각 세그먼트가 독립된 둥근(pill) 모양. 세그먼트 간 0.5 gap 으로 분리 감 있게.
-  //  - flex-grow: durationSec 으로 비율 분배
-  //  - min-width 32px: "99분"(3글자) 기준 최소 폭 확보 → 모든 세그먼트에서 라벨 보장
-  //  - 세그먼트 자체 rounded-full → 내부 값들도 둥글게
+  // 레이아웃:
+  //   [ 마커 row (h-5, 절대 위치로 각 transit 시작점 위에 얹힘) ]
+  //   [ 바 row (h-4 pill 들, flex-grow=duration 으로 비율 분배) ]
+  // 마커를 바 안에 겹치지 않고 위쪽에 별도 배치 → 분(N분) 라벨과 충돌 없음.
   return (
-    <div className="relative h-5 flex items-center">
+    <div className="relative pt-5">
+      {markers.map((m, i) => (
+        <div
+          key={i}
+          className="absolute top-0 flex items-center justify-center h-5 w-5 rounded-full border border-white shadow"
+          style={{ left: `${m.left}%`, backgroundColor: m.color }}
+          aria-hidden="true"
+        >
+          {m.kind === "bus" ? (
+            <Bus className="h-3 w-3 text-white" strokeWidth={2.5} />
+          ) : (
+            <TramFront className="h-3 w-3 text-white" strokeWidth={2.5} />
+          )}
+        </div>
+      ))}
       <div className="flex h-4 w-full gap-0.5 items-stretch">
         {steps.map((s, i) => {
           const min = Math.max(1, Math.round(s.durationSec / 60));
@@ -480,20 +494,6 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
           );
         })}
       </div>
-      {markers.map((m, i) => (
-        <div
-          key={i}
-          className="absolute top-1/2 -translate-y-1/2 flex items-center justify-center h-5 w-5 rounded-full border border-white shadow"
-          style={{ left: `${m.left}%`, backgroundColor: m.color }}
-          aria-hidden="true"
-        >
-          {m.kind === "bus" ? (
-            <Bus className="h-3 w-3 text-white" strokeWidth={2.5} />
-          ) : (
-            <TramFront className="h-3 w-3 text-white" strokeWidth={2.5} />
-          )}
-        </div>
-      ))}
     </div>
   );
 }
