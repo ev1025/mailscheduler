@@ -419,35 +419,33 @@ function RouteCard({
 }
 
 function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec: number }) {
+  // 네이버 지도 스타일 — 각 세그먼트 안에 흰색 볼드로 "N분" 직접 표기.
+  // 너무 좁은 세그먼트(<8%)는 라벨 생략하여 겹침/잘림 방지.
   return (
-    <div className="flex flex-col gap-1">
-      {/* 각 구간 소요분 라벨 */}
-      <div className="flex text-[10px] text-muted-foreground tabular-nums">
-        {steps.map((s, i) => {
-          const width = `${(s.durationSec / totalSec) * 100}%`;
-          const min = Math.max(1, Math.round(s.durationSec / 60));
-          return (
-            <span key={i} className="text-center truncate" style={{ width }}>
-              {min}분
-            </span>
-          );
-        })}
-      </div>
-      {/* 색상 바 */}
-      <div className="flex h-2 rounded-full overflow-hidden bg-muted">
-        {steps.map((s, i) => {
-          const width = `${(s.durationSec / totalSec) * 100}%`;
-          const bg =
-            s.kind === "walk"
-              ? "#cbd5e1"
-              : s.kind === "bus"
-                ? busColor(s.alternateNames?.[0] ?? s.name)
-                : s.kind === "subway" || s.kind === "train" || s.kind === "tram"
-                  ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
-                  : "#64748b";
-          return <div key={i} style={{ width, backgroundColor: bg }} />;
-        })}
-      </div>
+    <div className="flex h-6 rounded-full overflow-hidden bg-muted">
+      {steps.map((s, i) => {
+        const pct = (s.durationSec / totalSec) * 100;
+        const min = Math.max(1, Math.round(s.durationSec / 60));
+        const bg =
+          s.kind === "walk"
+            ? "#cbd5e1"
+            : s.kind === "bus"
+              ? busColor(s.alternateNames?.[0] ?? s.name)
+              : s.kind === "subway" || s.kind === "train" || s.kind === "tram"
+                ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
+                : "#64748b";
+        // 도보 세그먼트는 회색 배경 → 어두운 텍스트, 나머지는 컬러 배경 → 흰 텍스트
+        const textColor = s.kind === "walk" ? "#475569" : "#ffffff";
+        return (
+          <div
+            key={i}
+            className="flex items-center justify-center text-[10px] font-bold tabular-nums overflow-hidden"
+            style={{ width: `${pct}%`, backgroundColor: bg, color: textColor }}
+          >
+            {pct >= 8 ? `${min}분` : ""}
+          </div>
+        );
+      })}
     </div>
   );
 }
