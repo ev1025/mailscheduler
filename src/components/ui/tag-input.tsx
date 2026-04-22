@@ -3,7 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import DraggableSheet from "@/components/ui/draggable-sheet";
+import {
+  Sheet,
+  SheetContent,
+} from "@/components/ui/sheet";
 import {
   Popover,
   PopoverContent,
@@ -76,7 +79,7 @@ function SortableTagRow({
       style={style}
       {...attributes}
       {...listeners}
-      className="flex items-center justify-between px-2 py-2 hover:bg-accent rounded cursor-grab active:cursor-grabbing"
+      className="flex items-center justify-between px-2 py-2 hover:bg-accent rounded cursor-grab active:cursor-grabbing touch-none"
       onMouseDown={(e) => { if (isInputFocused()) e.preventDefault(); }}
       onClick={onSelect}
     >
@@ -188,6 +191,22 @@ export default function TagInput({
   // (새로 열리는 시트가 이전 활성 시트를 자동으로 닫음)
   useExclusiveBottomSheet(!isDesktop && open, () => setOpen(false));
 
+  // half (50dvh) ↔ full (95dvh) 스냅 포인트
+  const [snap, setSnap] = useState<"half" | "full">("half");
+  // 스냅 변경 시 250ms 동안만 transition-[height] 활성화
+  // → 사용자 조작(드래그)은 부드러운 모션, 키보드로 인한 dvh 재계산은 즉시 반영
+  const [snapAnimating, setSnapAnimating] = useState(false);
+  const isFirstSnap = useRef(true);
+  useEffect(() => {
+    if (isFirstSnap.current) {
+      isFirstSnap.current = false;
+      return;
+    }
+    setSnapAnimating(true);
+    const t = setTimeout(() => setSnapAnimating(false), 260);
+    return () => clearTimeout(t);
+  }, [snap]);
+
   // 뷰 전환: 목록 ↔ 개별 태그 편집
   const [view, setView] = useState<"list" | "edit">("list");
   const [editingTagId, setEditingTagId] = useState<string | null>(null);
@@ -199,8 +218,10 @@ export default function TagInput({
 
   useEffect(() => {
     if (open) {
+      setSnap("half");
       setView("list");
       setShowColorPicker(false);
+      isFirstSnap.current = true; // 열 때마다 초기 스냅은 애니메이션 없이
     } else {
       setNewTagName("");
       setEditingTagId(null);
@@ -287,6 +308,72 @@ export default function TagInput({
   );
   // 검색 중일 때는 드래그 순서 변경 비활성화 (의미가 없고 혼란 방지)
   const dragEnabled = !!orderKey && !newTagName.trim();
+
+  // ── 드래그: half ↔ full, 아래로 크게 끌면 close ──────────────
+  //    이제는 시트 아무데서나 위/아래로 밀면 동작.
+  //    단, 스크롤 영역 안에서 스크롤이 맨 위가 아닌데 아래로 밀면 → 스크롤 우선
+  //    입력창(input/textarea) 위에서는 드래그 비활성화
+  const dragStartY = useRef<number | null>(null);
+  const dragStartSnap = useRef<"half" | "full">("half");
+  const dragScrollEl = useRef<HTMLElement | null>(null);
+  const dragCanceled = useRef(false);
+
+  const onDragStart = (e: React.TouchEvent | React.PointerEvent) => {
+    const target = (e.target as HTMLElement) || null;
+    // 텍스트 입력 요소/버튼에선 드래그 시작 안 함
+    if (target?.closest("input, textarea, button")) {
+      dragStartY.current = null;
+      return;
+    }
+    const y = "touches" in e ? e.touches[0].clientY : e.clientY;
+    dragStartY.current = y;
+    dragStartSnap.current = snap;
+    dragCanceled.current = false;
+    dragScrollEl.current = target?.closest("[data-sheet-scroll]") as HTMLElement | null;
+  };
+
+  const onDragMove = (e: React.TouchEvent | React.PointerEvent) => {
+    if (dragStartY.current === null || dragCanceled.current) return;
+    const y = "touches" in e ? e.touches[0].clientY : e.clientY;
+    const dy = y - dragStartY.current;
+    // 스크롤 영역에서 아래로 끌고 있는데 스크롤이 위가 아니면 → 스크롤 우선 (드래그 취소)
+    if (dragScrollEl.current && dy > 0 && dragScrollEl.current.scrollTop > 0) {
+      dragCanceled.current = true;
+      return;
+    }
+    // full 상태에서 위로는 더 이상 올라갈 공간 없음 → 스크롤 허용을 위해 취소
+    if (dragStartSnap.current === "full" && dy < 0 && dragScrollEl.current) {
+      dragCanceled.current = true;
+      return;
+    }
+  };
+
+  const onDragEnd = (e: React.TouchEvent | React.PointerEvent) => {
+    const canceled = dragCanceled.current;
+    dragCanceled.current = false;
+    dragScrollEl.current = null;
+    if (dragStartY.current === null || canceled) {
+      dragStartY.current = null;
+      return;
+    }
+    const y =
+      "changedTouches" in e
+        ? e.changedTouches[0].clientY
+        : e.clientY;
+    const dy = y - dragStartY.current;
+    dragStartY.current = null;
+    const T = 60;
+    if (dragStartSnap.current === "half") {
+      if (dy < -T) setSnap("full");
+      else if (dy > T) setOpen(false);
+    } else {
+      // full
+      if (dy > T * 3) setOpen(false);
+      else if (dy > T) setSnap("half");
+    }
+  };
+
+  // 시트 바깥에서 탭/스와이프로도 닫을 수 있게 — onOpenChange가 이를 처리함
 
   // 트리거 내부에 들어갈 컨텐츠 (모바일 button / 데스크탑 PopoverTrigger 공통)
   const triggerContent =
@@ -395,7 +482,7 @@ export default function TagInput({
           </PopoverContent>
         </Popover>
       ) : (
-        /* ── 모바일: DraggableSheet (half 50dvh ↔ full 90dvh) ── */
+        /* ── 모바일: 바텀시트 ── */
         <>
           <button
             type="button"
@@ -404,22 +491,21 @@ export default function TagInput({
           >
             {triggerContent}
           </button>
-          <DraggableSheet
-            open={open}
-            onOpenChange={setOpen}
-            snapPoints={[0.5, 0.9]}
-            defaultSnapIndex={0}
-            scrollable={false}
-            title={
-              view === "list"
-                ? placeholder === "검색"
-                  ? "태그"
-                  : placeholder.replace(/\s*\*\s*$/, "")
-                : undefined
-            }
-          >
-            {renderBody()}
-          </DraggableSheet>
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetContent
+              side="bottom"
+              className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[70] ${
+                snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
+              }`}
+              style={{ height: snap === "full" ? "95dvh" : "50dvh" }}
+              showBackButton={false}
+              showCloseButton={false}
+              initialFocus={false}
+              finalFocus={false}
+            >
+              {renderBody()}
+            </SheetContent>
+          </Sheet>
         </>
       )}
     </div>
@@ -432,11 +518,23 @@ export default function TagInput({
       <>
           {view === "list" ? (
             <div
-              // 모바일: flex-1 min-h-0 로 DraggableSheet 안에서 남은 공간 채움.
-              // 데스크탑: 내용 크기에 맞춤(Popover).
-              className={`flex flex-col min-h-0 ${isDesktop ? "" : "flex-1"}`}
+              // 모바일: h-full 로 바텀시트 전체를 채움. 데스크탑: 내용 크기에 맞춤.
+              className={`flex flex-col min-h-0 ${isDesktop ? "" : "h-full"}`}
+              onTouchStart={isDesktop ? undefined : onDragStart}
+              onTouchMove={isDesktop ? undefined : onDragMove}
+              onTouchEnd={isDesktop ? undefined : onDragEnd}
             >
-              <div className={`flex flex-col gap-2 px-3 pb-3 flex-1 min-h-0 ${isDesktop ? "pt-3" : "pt-1"}`}>
+              {/* 드래그 영역 — 모바일 바텀시트 전용(데스크탑 Popover 에선 생략) */}
+              {!isDesktop && (
+                <div className="flex flex-col items-center pt-3 pb-2 touch-none shrink-0">
+                  <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
+                  <div className="text-base font-semibold text-center">
+                    {placeholder === "검색" ? "태그" : placeholder}
+                  </div>
+                </div>
+              )}
+
+              <div className={`flex flex-col gap-2 px-3 pb-3 flex-1 min-h-0 ${isDesktop ? "pt-3" : ""}`}>
                 {/* 입력창 — 모바일 전용. 데스크탑은 트리거가 input 이므로 여기선 생략 */}
                 {!isDesktop && (
                   <div
@@ -494,7 +592,7 @@ export default function TagInput({
 
                 {/* 리스트 — 꾹누르고 드래그로 순서 변경 (400ms delay).
                     onMouseDown preventDefault로 input 포커스 유지 → 키보드 깜박임 방지 */}
-                <div className="flex flex-col overflow-y-auto overscroll-contain flex-1 -mx-1 px-1" data-sheet-scroll>
+                <div className="flex flex-col overflow-y-auto flex-1 -mx-1 px-1" data-sheet-scroll>
                   {dragEnabled ? (
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                       <SortableContext items={filtered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -555,8 +653,19 @@ export default function TagInput({
             </div>
           ) : (
             /* ───────── 편집 뷰 (같은 시트에서 내용만 교체) ───────── */
-            <div className={`flex flex-col min-h-0 ${isDesktop ? "" : "flex-1"}`}>
-              <div className="flex items-center justify-between px-3 pt-1 pb-2 shrink-0">
+            <div
+              className="flex flex-col h-full min-h-0"
+              onTouchStart={isDesktop ? undefined : onDragStart}
+              onTouchMove={isDesktop ? undefined : onDragMove}
+              onTouchEnd={isDesktop ? undefined : onDragEnd}
+            >
+              {/* 드래그 바 — 모바일 바텀시트 전용 */}
+              {!isDesktop && (
+                <div className="flex flex-col items-center pt-2 shrink-0">
+                  <div className="h-1 w-10 rounded-full bg-muted-foreground/30 mb-2" />
+                </div>
+              )}
+              <div className="flex items-center justify-between px-3 pb-2 shrink-0">
                 <button
                   type="button"
                   onClick={exitEdit}
@@ -582,7 +691,7 @@ export default function TagInput({
                 </button>
               </div>
 
-              <div className="flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0 overflow-y-auto overscroll-contain" data-sheet-scroll>
+              <div className="flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0 overflow-y-auto" data-sheet-scroll>
                 {/* 이름 변경 — 현재 API 한계로 UI만 노출하되 저장은 색상만.
                     후에 onRenameTag 콜백 추가 시 자연스럽게 확장 */}
                 <input
