@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bus, Check, TrainFront, Zap } from "lucide-react";
+import { Check, Zap } from "lucide-react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -223,13 +223,13 @@ export default function PlanTransportPicker({
       title="이동수단 선택"
       hideFooter
     >
-      {/* 탭 버튼 */}
+      {/* 탭 버튼 — 이모지 없이 텍스트만 */}
       <div className="flex border-b -mx-4 md:-mx-6 mb-3">
         <TabBtn active={tab === "transit"} onClick={() => setTab("transit")}>
-          🚆 대중교통
+          대중교통
         </TabBtn>
         <TabBtn active={tab === "direct"} onClick={() => setTab("direct")}>
-          🚗 자동차·도보·수동
+          자동차·도보·수동
         </TabBtn>
       </div>
 
@@ -440,9 +440,11 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
     cumulative += (s.durationSec / totalSec) * 100;
   }
 
+  // 바 크기 2/3 로 축소 (h-6 → h-4). 마커는 바보다 약간 크게 얹어 뱃지처럼 돋보이게.
+  // 아이콘 대신 한글 한 글자 라벨 ("버"/"지") 로 분별 명확화.
   return (
-    <div className="relative h-6">
-      <div className="flex h-full rounded-full overflow-hidden bg-muted">
+    <div className="relative h-5 flex items-center">
+      <div className="flex h-4 w-full rounded-full overflow-hidden bg-muted">
         {steps.map((s, i) => {
           const pct = (s.durationSec / totalSec) * 100;
           const min = Math.max(1, Math.round(s.durationSec / 60));
@@ -458,7 +460,7 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
           return (
             <div
               key={i}
-              className="flex items-center justify-center text-[10px] font-bold tabular-nums overflow-hidden"
+              className="flex items-center justify-center text-[9px] font-bold tabular-nums overflow-hidden"
               style={{ width: `${pct}%`, backgroundColor: bg, color: textColor }}
             >
               {pct >= 8 ? `${min}분` : ""}
@@ -469,15 +471,11 @@ function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec
       {markers.map((m, i) => (
         <div
           key={i}
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center h-5 w-5 rounded-full border-2 border-white shadow-sm"
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center justify-center h-5 w-5 rounded-full border-2 border-white shadow text-white text-[10px] font-extrabold"
           style={{ left: `${m.left}%`, backgroundColor: m.color }}
           aria-hidden="true"
         >
-          {m.kind === "bus" ? (
-            <Bus className="h-2.5 w-2.5 text-white" strokeWidth={2.5} />
-          ) : (
-            <TrainFront className="h-2.5 w-2.5 text-white" strokeWidth={2.5} />
-          )}
+          {m.kind === "bus" ? "버" : "지"}
         </div>
       ))}
     </div>
@@ -590,40 +588,50 @@ function DirectTab({
   onCommitManual: () => void;
   onPick: (mode: TransportMode, durationSec: number | null) => void;
 }) {
+  // DirectTab 공용 grid — 수동 입력 row 와 자동차/도보 row 모두 같은 컬럼
+  // 구조로 정렬(이모지 2.5rem 고정 col + 본문 flex-1 col + 우측 액션 col).
+  // 이모지 세로 중앙 정렬 + 넉넉한 padding 으로 시각적 크기 확대.
   return (
     <div className="flex flex-col gap-1">
       {/* 수동 입력 */}
-      <div className="flex items-center gap-2 px-1 py-2">
-        <span className="text-xl shrink-0" aria-hidden="true">✏️</span>
-        <span className="font-medium text-sm shrink-0">수동 입력</span>
-        <div className="flex items-center h-8 rounded-md border bg-transparent overflow-hidden">
-          <Input
-            type="text"
-            inputMode={manualUnit === "hour" ? "decimal" : "numeric"}
-            value={manualValue}
-            onChange={(e) => onManualChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                onCommitManual();
-              }
-            }}
-            placeholder={manualUnit === "hour" ? "시간" : "분"}
-            className="h-full text-xs w-14 border-0 rounded-none focus-visible:ring-0 px-2 tabular-nums"
-          />
-          <button
-            type="button"
-            onClick={onToggleUnit}
-            className="h-full px-2 text-xs font-medium border-l bg-muted/50 hover:bg-muted text-muted-foreground"
-            title="분/시간 단위 전환"
-          >
-            {manualUnit === "hour" ? "시간" : "분"}
-          </button>
+      <div className="grid grid-cols-[2.5rem_1fr_auto] gap-x-3 items-center rounded-md px-3 py-3">
+        <span
+          className="text-2xl text-center shrink-0"
+          aria-hidden="true"
+        >
+          ✏️
+        </span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-medium text-sm shrink-0">수동 입력</span>
+          <div className="flex items-center h-9 rounded-md border bg-transparent overflow-hidden">
+            <Input
+              type="text"
+              inputMode={manualUnit === "hour" ? "decimal" : "numeric"}
+              value={manualValue}
+              onChange={(e) => onManualChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onCommitManual();
+                }
+              }}
+              placeholder={manualUnit === "hour" ? "시간" : "분"}
+              className="h-full text-sm w-16 border-0 rounded-none focus-visible:ring-0 px-2 tabular-nums"
+            />
+            <button
+              type="button"
+              onClick={onToggleUnit}
+              className="h-full px-2 text-xs font-medium border-l bg-muted/50 hover:bg-muted text-muted-foreground"
+              title="분/시간 단위 전환"
+            >
+              {manualUnit === "hour" ? "시간" : "분"}
+            </button>
+          </div>
         </div>
         <Button
           type="button"
           size="sm"
-          className="h-8 px-3 text-xs ml-auto"
+          className="h-9 px-4 text-sm"
           disabled={!manualValid}
           onClick={onCommitManual}
         >
@@ -650,16 +658,23 @@ function DirectTab({
             type="button"
             onClick={() => onPick(m.value, typeof d === "number" ? d : null)}
             disabled={d === "loading"}
-            className={`grid grid-cols-[2.25rem_1fr_auto] gap-x-2 gap-y-0.5 items-center rounded-md px-3 py-2 text-left transition-colors disabled:opacity-60 ${
+            className={`grid grid-cols-[2.5rem_1fr_auto] gap-x-3 gap-y-0.5 items-center rounded-md px-3 py-3 text-left transition-colors disabled:opacity-60 ${
               selected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-accent"
             }`}
           >
-            {/* Row 1: 이모지 | 소요시간·도착 | check */}
-            <span className="text-xl text-center row-start-1 col-start-1" aria-hidden="true">
+            {/* Row 1: 이모지 | 소요시간·도착 | check (이모지는 두 행 가운데) */}
+            <span
+              className="text-2xl text-center row-start-1 row-span-2 self-center"
+              aria-hidden="true"
+            >
               {m.emoji}
             </span>
-            <div className="row-start-1 col-start-2 flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0">
-              <span className={d === null ? "" : "font-medium text-foreground text-sm"}>
+            <div className="row-start-1 col-start-2 flex items-center gap-2 text-sm text-muted-foreground tabular-nums min-w-0">
+              <span
+                className={
+                  d === null ? "" : "font-semibold text-foreground text-base"
+                }
+              >
                 {label}
               </span>
               {arrival && (
@@ -670,10 +685,10 @@ function DirectTab({
               )}
             </div>
             <span className="row-start-1 col-start-3 row-span-2 flex items-center justify-center w-4">
-              {selected && <Check className="h-4 w-4 text-primary" />}
+              {selected && <Check className="h-5 w-5 text-primary" />}
             </span>
             {/* Row 2: 수단 라벨 */}
-            <span className="row-start-2 col-start-1 text-[11px] text-muted-foreground text-center">
+            <span className="row-start-2 col-start-2 text-xs text-muted-foreground">
               {m.label}
             </span>
           </button>
