@@ -83,6 +83,25 @@ export default function FormPage({
     };
   }, [open]);
 
+  // 모바일 visualViewport 높이 추적 — 키보드 가림 방지 핵심 로직.
+  // Android Chrome · iOS Safari 모두 visualViewport.height 가 키보드만큼 줄어듦.
+  // 그 값을 그대로 컨테이너 height 로 쓰면 키보드 위에 딱 맞게 팝업이 축소됨.
+  // 기본값 null → dvh 단위 fallback (처음 렌더 시 깜박임 방지).
+  const [vvHeight, setVvHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setVvHeight(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, [open]);
+
   // 포커스 진입 시 scrollIntoView — 일반 DOM 요소 안에선 브라우저 기본 스크롤이
   // 대부분 잘 작동하지만 혹시 모를 edge case 대응
   const [mounted, setMounted] = useState(false);
@@ -128,10 +147,16 @@ export default function FormPage({
       }}
     >
       <div
-        // 모바일 높이를 100dvh - 키보드높이 로 줄여서 키보드가 올라오면
-        // 팝업 자체가 위로 축소됨 → 하단 Textarea 가 자동으로 키보드 위에 보임.
-        // md: 에서는 h-auto 로 덮여서 데스크탑은 영향 없음.
-        className={`bg-background flex flex-col w-full h-[calc(100dvh_-_var(--kb-offset,0px))] ${desktopMaxWidth} md:h-auto md:max-h-[85dvh] md:w-auto md:rounded-xl md:shadow-xl md:ring-1 md:ring-foreground/10`}
+        // 모바일 높이 = visualViewport.height (키보드 제외 실제 보이는 영역).
+        // Android Chrome · iOS Safari 모두 동일하게 동작. vvHeight=null 이면
+        // dvh 단위 fallback (visualViewport 미지원 구형 브라우저 대응).
+        // md: 에서는 h-auto 로 덮여 데스크탑은 inline height 무시됨.
+        style={
+          isDesktop
+            ? undefined
+            : { height: vvHeight != null ? `${vvHeight}px` : "100dvh" }
+        }
+        className={`bg-background flex flex-col w-full ${desktopMaxWidth} md:h-auto md:max-h-[85dvh] md:w-auto md:rounded-xl md:shadow-xl md:ring-1 md:ring-foreground/10`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* 헤더: 공용 PageHeader 재사용 (sticky·bell 은 모달 내부에서 불필요). */}
