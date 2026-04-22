@@ -26,7 +26,7 @@ const MODE_ICON: Record<TransportMode, { emoji: string; label: string }> = {
   bus: { emoji: "🚌", label: "버스" },
   train: { emoji: "🚈", label: "지하철" },
   taxi: { emoji: "🚗", label: "승용차" }, // 하위호환
-  transit: { emoji: "🚆", label: "대중교통" }, // 조합 경로 (도보+버스+지하철)
+  transit: { emoji: "🚆", label: "소요시간" }, // 조합 경로 (도보+버스+지하철)
 };
 
 interface Props {
