@@ -79,7 +79,7 @@ function SortableTagRow({
       style={style}
       {...attributes}
       {...listeners}
-      className="flex items-center justify-between px-2 py-2 hover:bg-accent rounded cursor-grab active:cursor-grabbing touch-none"
+      className="flex items-center justify-between px-2 py-2 hover:bg-accent rounded cursor-grab active:cursor-grabbing"
       onMouseDown={(e) => { if (isInputFocused()) e.preventDefault(); }}
       onClick={onSelect}
     >
@@ -191,7 +191,7 @@ export default function TagInput({
   // (새로 열리는 시트가 이전 활성 시트를 자동으로 닫음)
   useExclusiveBottomSheet(!isDesktop && open, () => setOpen(false));
 
-  // half (50dvh) ↔ full (95dvh) 스냅 포인트
+  // half (50dvh) ↔ full (90dvh) 스냅 포인트
   const [snap, setSnap] = useState<"half" | "full">("half");
   // 스냅 변경 시 250ms 동안만 transition-[height] 활성화
   // → 사용자 조작(드래그)은 부드러운 모션, 키보드로 인한 dvh 재계산은 즉시 반영
@@ -497,7 +497,7 @@ export default function TagInput({
               className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[70] ${
                 snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
               }`}
-              style={{ height: snap === "full" ? "95dvh" : "50dvh" }}
+              style={{ height: snap === "full" ? "90dvh" : "50dvh" }}
               showBackButton={false}
               showCloseButton={false}
               initialFocus={false}
@@ -529,7 +529,7 @@ export default function TagInput({
                 <div className="flex flex-col items-center pt-3 pb-2 touch-none shrink-0">
                   <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
                   <div className="text-base font-semibold text-center">
-                    {placeholder === "검색" ? "태그" : placeholder}
+                    {placeholder === "검색" ? "태그" : placeholder.replace(/\s*\*\s*$/, "")}
                   </div>
                 </div>
               )}
@@ -592,7 +592,7 @@ export default function TagInput({
 
                 {/* 리스트 — 꾹누르고 드래그로 순서 변경 (400ms delay).
                     onMouseDown preventDefault로 input 포커스 유지 → 키보드 깜박임 방지 */}
-                <div className="flex flex-col overflow-y-auto flex-1 -mx-1 px-1" data-sheet-scroll>
+                <div className="flex flex-col overflow-y-auto overscroll-contain flex-1 -mx-1 px-1" data-sheet-scroll>
                   {dragEnabled ? (
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                       <SortableContext items={filtered.map((t) => t.id)} strategy={verticalListSortingStrategy}>
@@ -691,7 +691,7 @@ export default function TagInput({
                 </button>
               </div>
 
-              <div className="flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0 overflow-y-auto" data-sheet-scroll>
+              <div className="flex flex-col gap-3 px-4 pb-3 flex-1 min-h-0 overflow-y-auto overscroll-contain" data-sheet-scroll>
                 {/* 이름 변경 — 현재 API 한계로 UI만 노출하되 저장은 색상만.
                     후에 onRenameTag 콜백 추가 시 자연스럽게 확장 */}
                 <input
