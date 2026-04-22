@@ -106,17 +106,43 @@ function buildErrorMessage(
   return body.googleMessage ?? body.error ?? `HTTP ${httpStatus}`;
 }
 
-/** 도보 Google 실패 시 직선거리 기반 추정 폴백. 15km 초과는 null.
- *  폴리라인은 from→to 직선 두 점으로 구성 → 지도에 최소한 선은 그려지게 함. */
-function walkingEstimate(
+/** 도보 Google 실패 시 폴백:
+ *  1) NCP Directions(자동차) 를 호출해 도로 따라가는 path 를 최대한 확보.
+ *     - 서울·도심 단거리면 보행자가 거의 같은 도로를 걷기 때문에 근사치로 OK.
+ *     - 소요시간은 도보 기준(거리 × 1.3 / 4.5 km·h) 으로 계산.
+ *  2) NCP 도 실패하면 직선 2점.
+ *  3) 15km 초과는 null.
+ */
+async function walkingEstimate(
   from: { lat: number; lng: number },
   to: { lat: number; lng: number }
-): RouteResult | null {
+): Promise<RouteResult | null> {
   const km = haversineKm(from, to);
   if (km > 15) return null;
+  const durationSec = Math.round((km * 1.3 / 4.5) * 3600);
+
+  // 1) NCP 자동차 경로 → 도로 polyline 만 빌려옴.
+  try {
+    const params = new URLSearchParams({
+      fromLat: String(from.lat),
+      fromLng: String(from.lng),
+      toLat: String(to.lat),
+      toLng: String(to.lng),
+    });
+    const res = await fetch(`/api/naver/directions?${params.toString()}`);
+    if (res.ok) {
+      const j = await res.json();
+      if (Array.isArray(j.path) && j.path.length > 1) {
+        return { durationSec, path: j.path };
+      }
+    }
+  } catch {
+    /* NCP 실패 → 직선 폴백 */
+  }
+
+  // 2) 직선 2점 최소 폴백
   return {
-    durationSec: Math.round((km * 1.3 / 4.5) * 3600),
-    // [lng, lat] 순서 — providers 내 다른 path 포맷과 동일.
+    durationSec,
     path: [[from.lng, from.lat], [to.lng, to.lat]],
   };
 }
@@ -151,9 +177,9 @@ export async function fetchRouteDetailed(
       } catch {
         /* non-JSON body */
       }
-      // walk 는 Google 실패해도 거리 추정 폴백
+      // walk 는 Google 실패해도 NCP 도로 path → 직선 순으로 폴백
       if (mode === "walk") {
-        const est = walkingEstimate(from, to);
+        const est = await walkingEstimate(from, to);
         if (est) return { result: est };
       }
       const code = body.googleStatus ?? `HTTP_${res.status}`;
