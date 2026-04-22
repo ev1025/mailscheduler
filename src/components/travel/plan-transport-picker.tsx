@@ -2,27 +2,103 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, Zap } from "lucide-react";
+import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import DeviceDialog from "@/components/ui/device-dialog";
-import { formatDuration } from "@/lib/travel/providers";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import {
+  formatDuration,
+  fetchTransitAlternatives,
+  type TransitRoute,
+} from "@/lib/travel/providers";
 import { useRouteDurations } from "@/hooks/use-route-data";
-import TransitSegmentChain from "@/components/travel/transit-segment-chain";
 import { addMinutes } from "@/lib/travel/time";
-import type { TransportMode } from "@/types";
+import {
+  busColor,
+  subwayBadgeLabel,
+  subwayLineColor,
+} from "@/lib/travel/kr-transit-colors";
+import type { TransportMode, TransportRouteStep } from "@/types";
 
-// 이동수단 선택 모달 — 모바일 바텀시트 / 데스크탑 Dialog (DeviceDialog 자동 전환).
-// useRouteDurations 훅으로 4수단 동시 fetch + 모듈 레벨 캐시.
-// 기차는 실사용상 지하철/기차 통합이므로 라벨 "지하철" 로 통일.
+// 이동수단 선택 — FormPage 기반 2탭 구조.
+// 탭 1 "대중교통": Google Directions alternatives=true → 조합 경로 카드 목록
+// 탭 2 "자동차/도보/수동": 기존 단일 수단 리스트 + 수동 입력
 
-// 표시 순서 — 사용 빈도 기준: 버스·지하철 먼저, 도보·승용차는 아래.
-// 수동 입력은 별도로 맨 위에 배치 (picker 내부 렌더에서 처리).
-const MODES: { value: TransportMode; label: string; emoji: string }[] = [
-  { value: "bus", label: "버스", emoji: "🚌" },
-  { value: "train", label: "지하철", emoji: "🚈" },
-  { value: "walk", label: "도보", emoji: "🚶" },
-  { value: "car", label: "승용차", emoji: "🚗" },
-];
+type SortKey = "fastest" | "less-walk";
+type Tab = "transit" | "direct";
+
+// 같은 정류장 시퀀스를 공유하는 경로끼리 묶어 버스·지하철 노선을 집계.
+interface AggregatedRoute {
+  durationSec: number;
+  walkingSec: number;
+  steps: TransportRouteStep[];
+}
+
+function aggregateRoutes(routes: TransitRoute[]): AggregatedRoute[] {
+  const groups = new Map<string, AggregatedRoute>();
+  for (const route of routes) {
+    // 시그니처 = transit step 의 from→to 쌍만 연결. walking 소요는 비교 제외.
+    const transitSig = route.steps
+      .filter((s) => s.kind !== "walk")
+      .map((s) => `${s.kind}:${s.fromStop ?? ""}→${s.toStop ?? ""}`)
+      .join("|");
+    const key =
+      transitSig || `walk-only:${Math.round(route.walkingSec / 60)}`;
+
+    const existing = groups.get(key);
+    if (!existing) {
+      groups.set(key, {
+        durationSec: route.durationSec,
+        walkingSec: route.walkingSec,
+        steps: route.steps.map((s) => ({
+          kind: s.kind,
+          durationSec: s.durationSec,
+          name: s.name,
+          fromStop: s.fromStop,
+          toStop: s.toStop,
+          numStops: s.numStops,
+          alternateNames:
+            s.kind !== "walk" && s.name ? [s.name] : [],
+        })),
+      });
+    } else {
+      // 같은 시그니처 → transit step 의 name 을 alternateNames 에 누적
+      let ei = 0;
+      for (const sNew of route.steps) {
+        if (sNew.kind === "walk") continue;
+        while (ei < existing.steps.length && existing.steps[ei].kind === "walk") ei++;
+        if (ei >= existing.steps.length) break;
+        const target = existing.steps[ei];
+        if (sNew.name && target.alternateNames && !target.alternateNames.includes(sNew.name)) {
+          target.alternateNames.push(sNew.name);
+        }
+        ei++;
+      }
+    }
+  }
+  return Array.from(groups.values());
+}
+
+function sortRoutes(routes: AggregatedRoute[], by: SortKey): AggregatedRoute[] {
+  const TIE_SEC = 120; // ±2분 범위 = 유사
+  return [...routes].sort((a, b) => {
+    if (by === "less-walk") {
+      if (Math.abs(a.walkingSec - b.walkingSec) > 30) return a.walkingSec - b.walkingSec;
+      if (Math.abs(a.durationSec - b.durationSec) > TIE_SEC) return a.durationSec - b.durationSec;
+    } else {
+      if (Math.abs(a.durationSec - b.durationSec) > TIE_SEC) return a.durationSec - b.durationSec;
+    }
+    // tie → 버스 포함 > 지하철 전용 > 도보만
+    const score = (r: AggregatedRoute) =>
+      r.steps.some((s) => s.kind === "bus") ? 2 : r.steps.some((s) => s.kind !== "walk") ? 1 : 0;
+    return score(b) - score(a);
+  });
+}
 
 interface Props {
   open: boolean;
@@ -31,10 +107,13 @@ interface Props {
   to: { lat: number; lng: number };
   legDeparture: string | null;
   selectedMode: TransportMode | null;
-  onSelect: (mode: TransportMode, durationSec: number | null) => void;
-  /** 수동 입력 저장 — 분 단위 */
+  /** 선택 시 호출. transit 모드면 route step 배열도 함께 전달. */
+  onSelect: (
+    mode: TransportMode,
+    durationSec: number | null,
+    route?: TransportRouteStep[]
+  ) => void;
   onManualSave: (minutes: number) => void;
-  /** 수동 입력 초기값 (기존 수동값이 있으면) */
   initialManualMinutes?: number;
 }
 
@@ -49,14 +128,47 @@ export default function PlanTransportPicker({
   onManualSave,
   initialManualMinutes,
 }: Props) {
-  const { durations, results, errors } = useRouteDurations(from, to, open);
-  // 수동 입력 — 분/시간 토글. plan-task-sheet 의 체류시간 입력과 동일 패턴.
+  const [tab, setTab] = useState<Tab>(() =>
+    selectedMode === "car" || selectedMode === "taxi" || selectedMode === "walk"
+      ? "direct"
+      : "transit"
+  );
+  const [sort, setSort] = useState<SortKey>("fastest");
+
+  // 대중교통 alternatives
+  const [alternatives, setAlternatives] = useState<TransitRoute[] | null>(null);
+  const [altLoading, setAltLoading] = useState(false);
+  const [altError, setAltError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setAltLoading(true);
+    setAltError(null);
+    fetchTransitAlternatives(from, to).then(({ routes, error }) => {
+      if (cancelled) return;
+      if (routes && routes.length > 0) {
+        setAlternatives(routes);
+      } else {
+        setAlternatives([]);
+        setAltError(error?.message ?? "경로 없음");
+      }
+      setAltLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, from.lat, from.lng, to.lat, to.lng]);
+
+  // 자동차/도보 단일 모드
+  const { durations } = useRouteDurations(from, to, open && tab === "direct");
+
+  // 수동 입력 — 기존 로직 그대로
   const [manualValue, setManualValue] = useState(
     initialManualMinutes ? String(initialManualMinutes) : ""
   );
   const [manualUnit, setManualUnit] = useState<"min" | "hour">("min");
 
-  // open 될 때마다 초기값 리셋
   useEffect(() => {
     if (open) {
       setManualValue(initialManualMinutes ? String(initialManualMinutes) : "");
@@ -71,7 +183,6 @@ export default function PlanTransportPicker({
       setManualValue(v.replace(/[^0-9]/g, ""));
     }
   };
-
   const toggleManualUnit = () => {
     const n = parseFloat(manualValue);
     if (manualUnit === "min") {
@@ -87,7 +198,10 @@ export default function PlanTransportPicker({
       }
     }
   };
-
+  const manualValid = (() => {
+    const n = parseFloat(manualValue);
+    return Number.isFinite(n) && n > 0;
+  })();
   const commitManual = () => {
     const n = parseFloat(manualValue);
     if (!Number.isFinite(n) || n <= 0) return;
@@ -96,165 +210,406 @@ export default function PlanTransportPicker({
     onOpenChange(false);
   };
 
-  const manualValid = (() => {
-    const n = parseFloat(manualValue);
-    return Number.isFinite(n) && n > 0;
-  })();
-
-  const fastestMode = useMemo(() => {
-    let best: TransportMode | null = null;
-    let min = Infinity;
-    for (const m of MODES) {
-      const d = durations[m.value];
-      if (typeof d === "number" && d > 0 && d < min) {
-        min = d;
-        best = m.value;
-      }
-    }
-    return best;
-  }, [durations]);
+  const aggregated = useMemo(
+    () => (alternatives ? aggregateRoutes(alternatives) : []),
+    [alternatives]
+  );
+  const sortedRoutes = useMemo(() => sortRoutes(aggregated, sort), [aggregated, sort]);
 
   return (
-    <DeviceDialog
+    <FormPage
       open={open}
       onOpenChange={onOpenChange}
       title="이동수단 선택"
-      desktopMaxWidth="max-w-sm"
-      snapPoints={[0.6]}
-      defaultSnapIndex={0}
+      hideFooter
     >
-      <div className="flex flex-col gap-1 px-1 py-2">
-        {legDeparture && (
-          <p className="px-3 pb-2 -mt-1 text-[11px] text-muted-foreground">
+      {/* 탭 버튼 */}
+      <div className="flex border-b -mx-4 md:-mx-6 mb-3">
+        <TabBtn active={tab === "transit"} onClick={() => setTab("transit")}>
+          🚆 대중교통
+        </TabBtn>
+        <TabBtn active={tab === "direct"} onClick={() => setTab("direct")}>
+          🚗 자동차·도보·수동
+        </TabBtn>
+      </div>
+
+      {/* 출발 + (대중교통 탭일 때만) 정렬 */}
+      <div className="flex items-center justify-between mb-2 min-h-7">
+        {legDeparture ? (
+          <p className="text-[11px] text-muted-foreground">
             출발{" "}
             <span className="font-semibold text-foreground tabular-nums">
               {legDeparture}
             </span>{" "}
             기준
           </p>
+        ) : (
+          <span />
         )}
-
-        {/* 수동 입력 — 최상단 · 1행. 일정수정의 체류시간 분/시간 토글 동일 패턴. */}
-        <div className="flex items-center gap-2 px-3 py-2">
-          <span className="text-xl shrink-0" aria-hidden="true">✏️</span>
-          <span className="font-medium text-sm shrink-0">수동 입력</span>
-          <div className="flex items-center h-8 rounded-md border bg-transparent overflow-hidden">
-            <Input
-              type="text"
-              inputMode={manualUnit === "hour" ? "decimal" : "numeric"}
-              value={manualValue}
-              onChange={(e) => handleManualChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commitManual();
-                }
-              }}
-              placeholder={manualUnit === "hour" ? "시간" : "분"}
-              className="h-full text-xs w-14 border-0 rounded-none focus-visible:ring-0 px-2 tabular-nums"
-            />
-            <button
-              type="button"
-              onClick={toggleManualUnit}
-              className="h-full px-2 text-xs font-medium border-l bg-muted/50 hover:bg-muted text-muted-foreground"
-              title="분/시간 단위 전환"
-            >
-              {manualUnit === "hour" ? "시간" : "분"}
-            </button>
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            className="h-8 px-3 text-xs ml-auto"
-            disabled={!manualValid}
-            onClick={commitManual}
-          >
-            저장
-          </Button>
-        </div>
-
-        {MODES.map((m) => {
-          const d = durations[m.value];
-          const selected = selectedMode === m.value;
-          const isFastest = fastestMode === m.value;
-          const arrival =
-            legDeparture && typeof d === "number"
-              ? addMinutes(legDeparture, Math.max(1, Math.round(d / 60)))
-              : null;
-          const err = errors[m.value];
-          // 지하철 모드에선 버스 segment 만 나오는 결과를 "지하철 경로 없음" 처리.
-          // Google transit_mode 가 강제 필터가 아니라 선호만이라 버스 경로가 반환될 수 있음.
-          const rawSegments = results[m.value]?.segments ?? [];
-          const railSegments = rawSegments.filter(
-            (s) => s.kind === "subway" || s.kind === "train" || s.kind === "tram"
-          );
-          const trainHasOnlyBus =
-            m.value === "train" && rawSegments.length > 0 && railSegments.length === 0;
-
-          const label =
-            d === "loading" ? "계산 중…" :
-            trainHasOnlyBus ? "지하철 경로 없음" :
-            d === null ? (err?.message ?? "계산 실패") :
-            formatDuration(d);
-
-          // 버스·지하철 세그먼트 체인 표시 (호선 배지 + 역 이름).
-          // 지하철 모드: rail 만. 버스 모드: bus 만.
-          const showSegments =
-            (m.value === "bus" || m.value === "train") && !trainHasOnlyBus && rawSegments.length > 0;
-          const filterKinds: "bus" | "rail" | undefined =
-            m.value === "bus" ? "bus" : m.value === "train" ? "rail" : undefined;
-
-          return (
-            <button
-              key={m.value}
-              type="button"
-              onClick={() => onSelect(m.value, typeof d === "number" ? d : null)}
-              disabled={d === "loading"}
-              className={`grid grid-cols-[2.25rem_1fr_auto] gap-x-2 gap-y-0.5 items-center rounded-md px-3 py-2 text-left transition-colors disabled:opacity-60 ${
-                selected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-accent"
-              }`}
-            >
-              {/* Row 1: 이모지 | 소요시간 | check */}
-              <span className="text-xl text-center row-start-1 col-start-1" aria-hidden="true">
-                {m.emoji}
-              </span>
-              <div className="row-start-1 col-start-2 flex items-center gap-2 text-xs text-muted-foreground tabular-nums min-w-0">
-                <span className={d === null ? "" : "font-medium text-foreground text-sm"}>{label}</span>
-                {arrival && (
-                  <>
-                    <span>·</span>
-                    <span>도착 {arrival}</span>
-                  </>
-                )}
-                {isFastest && (
-                  <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-600">
-                    <Zap className="h-2.5 w-2.5 fill-amber-500 stroke-amber-600" />
-                    최속
-                  </span>
-                )}
-              </div>
-              <span className="row-start-1 col-start-3 row-span-2 flex items-center justify-center w-4">
-                {selected && <Check className="h-4 w-4 text-primary" />}
-              </span>
-
-              {/* Row 2: 수단 | 경로 */}
-              <span className="row-start-2 col-start-1 text-[11px] text-muted-foreground text-center">
-                {m.label}
-              </span>
-              <div className="row-start-2 col-start-2 min-w-0">
-                {showSegments ? (
-                  <TransitSegmentChain
-                    segments={results[m.value]!.segments}
-                    filterKinds={filterKinds}
-                  />
-                ) : null}
-              </div>
-            </button>
-          );
-        })}
-
+        {tab === "transit" && (
+          <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+            <SelectTrigger className="h-7 w-[110px] text-xs">
+              {sort === "fastest" ? "최단 경로순" : "도보 적은 순"}
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fastest" className="text-xs" hideIndicator>
+                최단 경로순
+              </SelectItem>
+              <SelectItem value="less-walk" className="text-xs" hideIndicator>
+                도보 적은 순
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
-    </DeviceDialog>
+
+      {/* 본문 — 탭별 분기 */}
+      {tab === "transit" ? (
+        <TransitTab
+          routes={sortedRoutes}
+          loading={altLoading}
+          error={altError}
+          legDeparture={legDeparture}
+          onPick={(route) => {
+            onSelect("transit", route.durationSec, route.steps);
+            onOpenChange(false);
+          }}
+        />
+      ) : (
+        <DirectTab
+          durations={durations}
+          selectedMode={selectedMode}
+          legDeparture={legDeparture}
+          manualValue={manualValue}
+          manualUnit={manualUnit}
+          manualValid={manualValid}
+          onManualChange={handleManualChange}
+          onToggleUnit={toggleManualUnit}
+          onCommitManual={commitManual}
+          onPick={(mode, dur) => {
+            onSelect(mode, dur);
+            onOpenChange(false);
+          }}
+        />
+      )}
+    </FormPage>
   );
 }
 
+function TabBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+        active
+          ? "border-b-2 border-primary text-foreground"
+          : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ── 대중교통 탭 ──────────────────────────────────────────
+function TransitTab({
+  routes,
+  loading,
+  error,
+  legDeparture,
+  onPick,
+}: {
+  routes: AggregatedRoute[];
+  loading: boolean;
+  error: string | null;
+  legDeparture: string | null;
+  onPick: (route: AggregatedRoute) => void;
+}) {
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+        경로 계산 중…
+      </div>
+    );
+  }
+  if (error || routes.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-1">
+        <p className="text-sm text-muted-foreground">
+          {error ?? "대중교통 경로가 없습니다"}
+        </p>
+      </div>
+    );
+  }
+  const fastest = routes.reduce(
+    (min, r) => (r.durationSec < min ? r.durationSec : min),
+    Infinity
+  );
+  return (
+    <div className="flex flex-col gap-2">
+      {routes.map((r, i) => (
+        <RouteCard
+          key={i}
+          route={r}
+          isFastest={r.durationSec === fastest}
+          legDeparture={legDeparture}
+          onClick={() => onPick(r)}
+        />
+      ))}
+    </div>
+  );
+}
+
+function RouteCard({
+  route,
+  isFastest,
+  legDeparture,
+  onClick,
+}: {
+  route: AggregatedRoute;
+  isFastest: boolean;
+  legDeparture: string | null;
+  onClick: () => void;
+}) {
+  const arrival =
+    legDeparture != null
+      ? addMinutes(legDeparture, Math.max(1, Math.round(route.durationSec / 60)))
+      : null;
+  const walkMin = Math.round(route.walkingSec / 60);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col gap-2 rounded-md border p-3 text-left hover:bg-accent/40 transition-colors"
+    >
+      {/* 헤더: 총 소요 + 도착 + 최속 배지 */}
+      <div className="flex items-baseline gap-2 flex-wrap">
+        <span className="text-base font-semibold">
+          {formatDuration(route.durationSec)}
+        </span>
+        {arrival && (
+          <span className="text-xs text-muted-foreground">· 도착 {arrival}</span>
+        )}
+        <span className="text-[10px] text-muted-foreground">· 도보 {walkMin}분</span>
+        {isFastest && (
+          <span className="flex items-center gap-0.5 text-[10px] font-medium text-amber-600 ml-auto">
+            <Zap className="h-2.5 w-2.5 fill-amber-500 stroke-amber-600" />
+            최속
+          </span>
+        )}
+      </div>
+
+      {/* 진행 바 — step 별 비율 */}
+      <SegmentBar steps={route.steps} totalSec={route.durationSec} />
+
+      {/* 상세 — 정류장 · 노선 배지 */}
+      <RouteStepsDetail steps={route.steps} />
+    </button>
+  );
+}
+
+function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec: number }) {
+  return (
+    <div className="flex h-2 rounded-full overflow-hidden bg-muted">
+      {steps.map((s, i) => {
+        const width = `${(s.durationSec / totalSec) * 100}%`;
+        const bg =
+          s.kind === "walk"
+            ? "#cbd5e1"
+            : s.kind === "bus"
+              ? busColor(s.alternateNames?.[0] ?? s.name)
+              : s.kind === "subway" || s.kind === "train" || s.kind === "tram"
+                ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
+                : "#64748b";
+        return <div key={i} style={{ width, backgroundColor: bg }} />;
+      })}
+    </div>
+  );
+}
+
+function RouteStepsDetail({ steps }: { steps: TransportRouteStep[] }) {
+  // walking step 은 "🚶 N분" 한 줄. transit step 은 정류장 + 배지들.
+  return (
+    <div className="flex flex-col gap-0.5 text-xs">
+      {steps.map((s, i) => {
+        if (s.kind === "walk") {
+          return (
+            <div key={i} className="flex items-center gap-1.5 text-muted-foreground">
+              <span>🚶</span>
+              <span>도보 {Math.max(1, Math.round(s.durationSec / 60))}분</span>
+            </div>
+          );
+        }
+        const names = s.alternateNames && s.alternateNames.length > 0 ? s.alternateNames : (s.name ? [s.name] : []);
+        return (
+          <div key={i} className="flex flex-col gap-0.5">
+            {s.fromStop && (
+              <div className="text-[11px] text-foreground">{s.fromStop}</div>
+            )}
+            <div className="flex items-center gap-1 flex-wrap pl-3">
+              <span aria-hidden="true">{s.kind === "bus" ? "🚌" : "🚈"}</span>
+              {names.map((name, j) =>
+                s.kind === "bus" ? (
+                  <BusBadge key={j} name={name} />
+                ) : (
+                  <SubwayBadge key={j} name={name} />
+                )
+              )}
+              <span className="text-[10px] text-muted-foreground">
+                {Math.max(1, Math.round(s.durationSec / 60))}분
+              </span>
+            </div>
+            {s.toStop && (
+              <div className="text-[11px] text-foreground">{s.toStop}</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function BusBadge({ name }: { name: string }) {
+  return (
+    <span
+      className="inline-flex items-center h-5 px-1.5 rounded text-[10px] font-bold text-white"
+      style={{ backgroundColor: busColor(name) }}
+    >
+      {name}
+    </span>
+  );
+}
+
+function SubwayBadge({ name }: { name: string }) {
+  return (
+    <span
+      className="inline-flex items-center justify-center h-5 min-w-5 rounded-full px-1 text-[10px] font-bold text-white"
+      style={{ backgroundColor: subwayLineColor(name) }}
+    >
+      {subwayBadgeLabel(name)}
+    </span>
+  );
+}
+
+// ── 자동차 · 도보 · 수동 탭 ─────────────────────────────────
+const DIRECT_MODES: { value: TransportMode; label: string; emoji: string }[] = [
+  { value: "car", label: "자동차", emoji: "🚗" },
+  { value: "walk", label: "도보", emoji: "🚶" },
+];
+
+function DirectTab({
+  durations,
+  selectedMode,
+  legDeparture,
+  manualValue,
+  manualUnit,
+  manualValid,
+  onManualChange,
+  onToggleUnit,
+  onCommitManual,
+  onPick,
+}: {
+  durations: Record<TransportMode, number | "loading" | null>;
+  selectedMode: TransportMode | null;
+  legDeparture: string | null;
+  manualValue: string;
+  manualUnit: "min" | "hour";
+  manualValid: boolean;
+  onManualChange: (v: string) => void;
+  onToggleUnit: () => void;
+  onCommitManual: () => void;
+  onPick: (mode: TransportMode, durationSec: number | null) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      {/* 수동 입력 */}
+      <div className="flex items-center gap-2 px-1 py-2">
+        <span className="text-xl shrink-0" aria-hidden="true">✏️</span>
+        <span className="font-medium text-sm shrink-0">수동 입력</span>
+        <div className="flex items-center h-8 rounded-md border bg-transparent overflow-hidden">
+          <Input
+            type="text"
+            inputMode={manualUnit === "hour" ? "decimal" : "numeric"}
+            value={manualValue}
+            onChange={(e) => onManualChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onCommitManual();
+              }
+            }}
+            placeholder={manualUnit === "hour" ? "시간" : "분"}
+            className="h-full text-xs w-14 border-0 rounded-none focus-visible:ring-0 px-2 tabular-nums"
+          />
+          <button
+            type="button"
+            onClick={onToggleUnit}
+            className="h-full px-2 text-xs font-medium border-l bg-muted/50 hover:bg-muted text-muted-foreground"
+            title="분/시간 단위 전환"
+          >
+            {manualUnit === "hour" ? "시간" : "분"}
+          </button>
+        </div>
+        <Button
+          type="button"
+          size="sm"
+          className="h-8 px-3 text-xs ml-auto"
+          disabled={!manualValid}
+          onClick={onCommitManual}
+        >
+          저장
+        </Button>
+      </div>
+
+      {DIRECT_MODES.map((m) => {
+        const d = durations[m.value];
+        const selected = selectedMode === m.value;
+        const arrival =
+          legDeparture && typeof d === "number"
+            ? addMinutes(legDeparture, Math.max(1, Math.round(d / 60)))
+            : null;
+        const label =
+          d === "loading"
+            ? "계산 중…"
+            : d === null
+              ? "계산 실패"
+              : formatDuration(d);
+        return (
+          <button
+            key={m.value}
+            type="button"
+            onClick={() => onPick(m.value, typeof d === "number" ? d : null)}
+            disabled={d === "loading"}
+            className={`flex items-center gap-2 rounded-md px-3 py-2 text-left transition-colors disabled:opacity-60 ${
+              selected ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-accent"
+            }`}
+          >
+            <span className="text-xl shrink-0" aria-hidden="true">
+              {m.emoji}
+            </span>
+            <span className="font-medium text-sm shrink-0">{m.label}</span>
+            <span
+              className={`text-xs ${d === null ? "text-muted-foreground" : "text-foreground"} tabular-nums`}
+            >
+              {label}
+            </span>
+            {arrival && (
+              <span className="text-xs text-muted-foreground">· 도착 {arrival}</span>
+            )}
+            {selected && <Check className="h-4 w-4 text-primary ml-auto" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

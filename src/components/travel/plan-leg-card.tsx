@@ -3,7 +3,12 @@
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { TaskLeg } from "@/lib/travel/legs";
-import type { TransportMode } from "@/types";
+import type { TransportMode, TransportRouteStep } from "@/types";
+import {
+  busColor,
+  subwayBadgeLabel,
+  subwayLineColor,
+} from "@/lib/travel/kr-transit-colors";
 import { formatDuration, type TransitSegment } from "@/lib/travel/providers";
 import { getRouteData } from "@/hooks/use-route-data";
 import PlanTransportPicker from "@/components/travel/plan-transport-picker";
@@ -21,6 +26,7 @@ const MODE_ICON: Record<TransportMode, { emoji: string; label: string }> = {
   bus: { emoji: "🚌", label: "버스" },
   train: { emoji: "🚈", label: "지하철" },
   taxi: { emoji: "🚗", label: "승용차" }, // 하위호환
+  transit: { emoji: "🚆", label: "대중교통" }, // 조합 경로 (도보+버스+지하철)
 };
 
 interface Props {
@@ -31,6 +37,7 @@ interface Props {
     transport_duration_sec: number | null;
     transport_manual: boolean;
     transport_durations: Partial<Record<TransportMode, number | null>> | null;
+    transport_route: TransportRouteStep[] | null;
   }>) => void;
 }
 
@@ -81,12 +88,15 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
 
   const handleSelect = (
     selectedMode: TransportMode,
-    selectedDurationSec: number | null
+    selectedDurationSec: number | null,
+    route?: TransportRouteStep[]
   ) => {
     onUpdateTask(toTask.id, {
       transport_mode: selectedMode,
       transport_duration_sec: selectedDurationSec,
       transport_manual: false,
+      // transit 이면 route step 저장, 아니면 null 로 덮어써서 이전 잔해 제거
+      transport_route: selectedMode === "transit" ? (route ?? null) : null,
     });
     setPickerOpen(false);
   };
@@ -97,6 +107,7 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
       transport_manual: true,
       // mode 는 직전 것 유지 (없으면 "car" 기본)
       transport_mode: toTask.transport_mode ?? "car",
+      transport_route: null,
     });
   };
 
@@ -149,8 +160,41 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
           <span className="text-foreground">{formatDuration(durationSec)}</span>
           {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
         </div>
-        {/* 버스·지하철 selected 상태에서 세그먼트 상세(배지+역명) 표시 */}
-        {!isManual && segments && segments.length > 0 && (
+        {/* 대중교통 조합(transit) — 저장된 route step 을 미니 형태로 렌더 */}
+        {mode === "transit" && toTask.transport_route && toTask.transport_route.length > 0 && (
+          <div className="pl-1 pointer-events-none flex flex-wrap items-center gap-1">
+            {toTask.transport_route.map((s, i) => {
+              if (s.kind === "walk") return null; // 도보는 생략, transit 배지만 체인 표시
+              const names =
+                s.alternateNames && s.alternateNames.length > 0 ? s.alternateNames : (s.name ? [s.name] : []);
+              return (
+                <div key={i} className="flex items-center gap-0.5 flex-wrap">
+                  {names.map((n, j) =>
+                    s.kind === "bus" ? (
+                      <span
+                        key={j}
+                        className="inline-flex items-center h-4 px-1 rounded text-[9px] font-bold text-white"
+                        style={{ backgroundColor: busColor(n) }}
+                      >
+                        {n}
+                      </span>
+                    ) : (
+                      <span
+                        key={j}
+                        className="inline-flex items-center justify-center h-4 min-w-4 rounded-full px-0.5 text-[9px] font-bold text-white"
+                        style={{ backgroundColor: subwayLineColor(n) }}
+                      >
+                        {subwayBadgeLabel(n)}
+                      </span>
+                    )
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {/* 단일 버스·지하철 selected 상태에서 세그먼트 상세(배지+역명) 표시 */}
+        {!isManual && mode !== "transit" && segments && segments.length > 0 && (
           <div className="pl-1 pointer-events-none">
             <TransitSegmentChain segments={segments} filterKinds={filterKinds} />
           </div>

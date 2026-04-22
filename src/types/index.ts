@@ -149,7 +149,8 @@ export interface PlaceInfo {
 
 // 여행 계획 (travel_plans + travel_plan_tasks)
 // taxi 는 UI 에선 '승용차' 로 car 와 통합 표시되나 하위호환 위해 타입 유지.
-export type TransportMode = "car" | "walk" | "bus" | "taxi" | "train";
+// transit = 도보+버스+지하철 혼합 조합 경로 (picker 대중교통 탭에서 선택).
+export type TransportMode = "car" | "walk" | "bus" | "taxi" | "train" | "transit";
 
 export interface TravelPlan {
   id: string;
@@ -183,7 +184,23 @@ export interface TravelPlanTask {
   // 실행 후부터 채워짐. 옵셔널 유지하여 컬럼 없는 구 DB 에서도 동작.
   // 예: { car: 3900, bus: 7200, taxi: 3900, train: null }
   transport_durations?: Partial<Record<TransportMode, number | null>> | null;
+  // transit 모드로 선택된 조합 경로의 상세 (도보·버스·지하철 혼합 step 배열).
+  // 사용자가 picker 대중교통 탭에서 특정 경로를 고르면 여기 저장.
+  // SQL: supabase-travel-transport-route.sql 실행 후 활성.
+  transport_route?: TransportRouteStep[] | null;
   created_at: string;
+}
+
+/** transport_route JSONB 저장 형식 — lib/travel/providers RouteStep 과 동일. */
+export interface TransportRouteStep {
+  kind: "walk" | "bus" | "subway" | "train" | "tram" | "other";
+  durationSec: number;
+  name: string | null;
+  fromStop: string | null;
+  toStop: string | null;
+  numStops: number | null;
+  /** 집계된 대안 노선 번호들 (예: ["702A","720","705"]). 없으면 name 단독. */
+  alternateNames?: string[];
 }
 
 export interface TravelTag {

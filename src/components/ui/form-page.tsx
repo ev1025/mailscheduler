@@ -26,13 +26,16 @@ interface FormPageProps {
   cancelLabel?: string;
   submitDisabled?: boolean;
   saving?: boolean;
-  onSubmit: () => void | Promise<void>;
+  /** hideFooter=true 일 때는 onSubmit 호출 경로가 없으므로 optional. */
+  onSubmit?: () => void | Promise<void>;
   onCancel?: () => void;
   onBack?: () => void;
   /** 데스크탑 max-w 클래스 (기본 md:max-w-lg) */
   desktopMaxWidth?: string;
   headerExtra?: React.ReactNode;
   footerStart?: React.ReactNode;
+  /** 저장/취소 푸터 숨김 — 옵션 선택 후 바로 닫히는 picker 류 사용. */
+  hideFooter?: boolean;
   children: React.ReactNode;
 }
 
@@ -50,6 +53,7 @@ export default function FormPage({
   desktopMaxWidth = "md:max-w-xl",
   headerExtra,
   footerStart,
+  hideFooter = false,
   children,
 }: FormPageProps) {
   const handleCancel = onCancel ?? (() => onOpenChange(false));
@@ -169,29 +173,31 @@ export default function FormPage({
           <div className="h-4" />
         </div>
 
-        {/* 하단 footer */}
-        <div className="flex items-center justify-between gap-2 px-4 py-3 md:px-6 md:py-4 border-t shrink-0 bg-background">
-          <div>{footerStart}</div>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleCancel}
-              disabled={saving}
-            >
-              {cancelLabel}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => { void onSubmit(); }}
-              disabled={saving || submitDisabled}
-            >
-              {saving ? "저장 중…" : submitLabel}
-            </Button>
+        {/* 하단 footer — hideFooter=true 시 생략 (picker 류 사용) */}
+        {!hideFooter && (
+          <div className="flex items-center justify-between gap-2 px-4 py-3 md:px-6 md:py-4 border-t shrink-0 bg-background">
+            <div>{footerStart}</div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCancel}
+                disabled={saving}
+              >
+                {cancelLabel}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => { if (onSubmit) void onSubmit(); }}
+                disabled={saving || submitDisabled || !onSubmit}
+              >
+                {saving ? "저장 중…" : submitLabel}
+              </Button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* 초기 mount 트리거 용 — 리렌더 없이 mounted flag 유지 */}

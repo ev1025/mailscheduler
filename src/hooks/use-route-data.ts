@@ -187,6 +187,7 @@ export function useRouteDurations(
       bus: "loading",
       train: "loading",
       taxi: null,
+      transit: null,  // 단일 모드 훅 대상 아님 — alternatives 전용
     },
     results: {},
     errors: {},
