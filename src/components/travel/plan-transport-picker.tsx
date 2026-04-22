@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Bus, Check, TramFront, Zap } from "lucide-react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
@@ -42,15 +42,14 @@ interface AggregatedRoute {
 function aggregateRoutes(routes: TransitRoute[]): AggregatedRoute[] {
   const groups = new Map<string, AggregatedRoute>();
   for (const route of routes) {
-    // 시그니처 = transit step 의 from→to 쌍 (cleanStopName 으로 정규화).
-    // '홍제역.인왕산' vs '홍제역' 처럼 부연 표기 차이가 있어도 동일 구간으로
-    // 취급해 같은 정류장 시퀀스의 버스 번호들을 하나의 경로로 묶음.
+    // 시그니처 = transit step 의 정규화된 출발점만. '홍제삼거리(A)' 와
+    // '홍제삼거리.인왕산...' 처럼 부연 표기가 달라도 cleanStopName 이 같은
+    // '홍제삼거리' 로 정규화해주므로 같은 정류장의 여러 버스가 한 AggregatedRoute
+    // 의 alternateNames 에 누적됨. (이전엔 from→to 두 쌍을 비교해 중간 정류장이
+    // 살짝 달라지면 병합 실패하던 문제 있었음.)
     const transitSig = route.steps
       .filter((s) => s.kind !== "walk")
-      .map(
-        (s) =>
-          `${s.kind}:${cleanStopName(s.fromStop)}→${cleanStopName(s.toStop)}`
-      )
+      .map((s) => `${s.kind}:${cleanStopName(s.fromStop)}`)
       .join("|");
     const key =
       transitSig || `walk-only:${Math.round(route.walkingSec / 60)}`;
@@ -423,77 +422,59 @@ function RouteCard({
   );
 }
 
-function SegmentBar({ steps, totalSec }: { steps: TransportRouteStep[]; totalSec: number }) {
-  // 각 transit 세그먼트의 '시작 지점' 에 마커. 마커 왼쪽 edge 가 cumulative% 에
-  // 오도록 위치 — 세그먼트 안 쪽 시작 위치에 자리해 "여기서부터 이 교통수단"
-  // 의미가 명확. min-width 32px + gap-0.5 덕분에 연속된 transit 이어도 마커끼리
-  // 최소 34px 떨어져 겹치지 않음.
-  let cumulative = 0;
-  const markers: {
-    left: number;
-    kind: TransportRouteStep["kind"];
-    color: string;
-  }[] = [];
-  for (const s of steps) {
-    const pct = (s.durationSec / totalSec) * 100;
-    if (s.kind !== "walk") {
-      const color =
-        s.kind === "bus"
-          ? busColor(s.alternateNames?.[0] ?? s.name)
-          : subwayLineColor(s.alternateNames?.[0] ?? s.name);
-      markers.push({ left: cumulative, kind: s.kind, color });
-    }
-    cumulative += pct;
-  }
-
-  // 레이아웃:
-  //   [ 마커 row (h-5, 절대 위치로 각 transit 시작점 위에 얹힘) ]
-  //   [ 바 row (h-4 pill 들, flex-grow=duration 으로 비율 분배) ]
-  // 마커를 바 안에 겹치지 않고 위쪽에 별도 배치 → 분(N분) 라벨과 충돌 없음.
+// 진행바 — Gemini 제안(Method 1) 기반 inline-flex 구조.
+// 마커를 absolute 로 '%' 위치 계산하던 기존 방식은 짧은 세그먼트·연속 transit
+// 에서 위치 오정렬이 잦았음. 이제 마커가 flex 흐름 안에서 shrink-0 + 음의
+// margin 으로 각 transit 세그먼트 '시작 경계' 에 브릿지로 걸침.
+function SegmentBar({ steps, totalSec: _totalSec }: { steps: TransportRouteStep[]; totalSec: number }) {
   return (
-    <div className="relative pt-5">
-      {markers.map((m, i) => (
-        <div
-          key={i}
-          className="absolute top-0 flex items-center justify-center h-5 w-5 rounded-full border border-white shadow"
-          style={{ left: `${m.left}%`, backgroundColor: m.color }}
-          aria-hidden="true"
-        >
-          {m.kind === "bus" ? (
-            <Bus className="h-3 w-3 text-white" strokeWidth={2.5} />
-          ) : (
-            <TramFront className="h-3 w-3 text-white" strokeWidth={2.5} />
-          )}
-        </div>
-      ))}
-      <div className="flex h-4 w-full gap-0.5 items-stretch">
-        {steps.map((s, i) => {
-          const min = Math.max(1, Math.round(s.durationSec / 60));
-          const bg =
-            s.kind === "walk"
-              ? "#cbd5e1"
-              : s.kind === "bus"
-                ? busColor(s.alternateNames?.[0] ?? s.name)
-                : s.kind === "subway" || s.kind === "train" || s.kind === "tram"
-                  ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
-                  : "#64748b";
-          const textColor = s.kind === "walk" ? "#475569" : "#ffffff";
-          return (
+    <div className="flex h-5 items-center w-full">
+      {steps.map((s, i) => {
+        const min = Math.max(1, Math.round(s.durationSec / 60));
+        const bg =
+          s.kind === "walk"
+            ? "#cbd5e1"
+            : s.kind === "bus"
+              ? busColor(s.alternateNames?.[0] ?? s.name)
+              : s.kind === "subway" || s.kind === "train" || s.kind === "tram"
+                ? subwayLineColor(s.alternateNames?.[0] ?? s.name)
+                : "#64748b";
+        const textColor = s.kind === "walk" ? "#475569" : "#ffffff";
+        const isTransit = s.kind !== "walk";
+        return (
+          <React.Fragment key={i}>
+            {/* transit 세그먼트 앞에 마커 — 첫 스텝이면 ml 0, 아니면 -ml-2 로
+                이전 세그먼트 우측과 브릿지. -mr-2 로 뒤 세그먼트 좌측과도 브릿지.
+                shrink-0 으로 공간 부족해도 찌그러지지 않음. z-10 으로 위에 얹힘. */}
+            {isTransit && (
+              <div
+                className={`relative z-10 shrink-0 flex items-center justify-center h-5 w-5 rounded-full border border-white shadow -mr-2 ${
+                  i > 0 ? "-ml-2" : ""
+                }`}
+                style={{ backgroundColor: bg }}
+                aria-hidden="true"
+              >
+                {s.kind === "bus" ? (
+                  <Bus className="h-3 w-3 text-white" strokeWidth={2.5} />
+                ) : (
+                  <TramFront className="h-3 w-3 text-white" strokeWidth={2.5} />
+                )}
+              </div>
+            )}
             <div
-              key={i}
-              className="flex items-center justify-center text-[9px] font-bold tabular-nums rounded-full"
               style={{
                 flex: `${s.durationSec} 1 0`,
                 minWidth: "32px",
                 backgroundColor: bg,
                 color: textColor,
               }}
+              className="h-4 flex items-center justify-center text-[9px] font-bold tabular-nums rounded-full"
             >
               {`${min}분`}
             </div>
-          );
-        })}
-      </div>
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }
