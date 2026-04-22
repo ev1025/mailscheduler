@@ -119,17 +119,14 @@ export default function PlanTaskRow({
           )}
         </div>
 
-        {/* 오른쪽: 장소 위, 주소 아래 */}
+        {/* 오른쪽: 장소 위, 주소 아래. 장소명 왼쪽엔 분류 텍스트(있을 때) */}
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">
           <div className="flex items-center gap-1.5 min-w-0">
-            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
-              <path
-                d="M12 22s7-7.5 7-13a7 7 0 10-14 0c0 5.5 7 13 7 13z"
-                className="fill-red-500 stroke-red-600"
-                strokeWidth={1.5}
-              />
-              <circle cx="12" cy="9" r="2.5" className="fill-white" />
-            </svg>
+            {task.category && (
+              <span className="text-[10px] text-muted-foreground shrink-0 px-1.5 py-0.5 rounded-md bg-muted">
+                {task.category}
+              </span>
+            )}
             <span className="text-xs md:text-sm font-medium truncate">
               {task.place_name || "(장소 미입력)"}
             </span>

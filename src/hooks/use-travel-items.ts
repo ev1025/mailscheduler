@@ -66,18 +66,31 @@ export function useTravelItems(visibleUserIds?: string[]) {
 
   // month/color/visited_dates 컬럼이 없을 수 있어 fallback 처리
   const addItem = async (item: Omit<TravelItem, "id" | "created_at" | "updated_at">) => {
+    // 세션 없거나 프로필 미생성 → RLS 위반 전에 명확한 에러
+    if (!userId) {
+      console.warn("[travel_items add] no currentUserId — session/profile not ready");
+      return { error: { message: "로그인 정보가 없습니다. 새로고침 후 다시 시도하세요." } };
+    }
     const { error } = await supabase
       .from("travel_items")
       .insert({ ...item, user_id: userId });
-    if (error) {
-      const { month, color, visited_dates, place_name, address, lat, lng, places, ...rest } = item;
-      void month; void color; void visited_dates; void place_name; void address; void lat; void lng; void places;
-      const { error: retry } = await supabase.from("travel_items").insert(rest);
-      if (!retry) await fetchItems();
-      return { error: retry };
+    if (!error) {
+      await fetchItems();
+      return { error: null };
     }
-    await fetchItems();
-    return { error: null };
+    console.warn("[travel_items add] 1차 실패:", error.message, error.code);
+    // 컬럼 미존재(구버전 스키마) 대비 retry — user_id 는 반드시 유지해야 RLS 통과
+    const { month, color, visited_dates, place_name, address, lat, lng, places, ...rest } = item;
+    void month; void color; void visited_dates; void place_name; void address; void lat; void lng; void places;
+    const { error: retry } = await supabase
+      .from("travel_items")
+      .insert({ ...rest, user_id: userId });
+    if (retry) {
+      console.warn("[travel_items add] 2차 실패:", retry.message, retry.code);
+    } else {
+      await fetchItems();
+    }
+    return { error: retry };
   };
 
   const updateItem = async (id: string, updates: Partial<Omit<TravelItem, "id" | "created_at">>) => {

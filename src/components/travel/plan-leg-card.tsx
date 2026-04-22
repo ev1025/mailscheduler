@@ -106,18 +106,20 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
 
   return (
     <>
-      <div className="flex items-center ml-6 pl-2 border-l-2 border-primary/30 py-1">
-        <button
-          type="button"
-          onClick={() => setPickerOpen(true)}
-          className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs hover:bg-primary/20 transition-colors"
-          title="수단 변경"
-        >
+      <div className="flex items-center ml-6 pl-2 border-l-2 border-primary/30 py-1 gap-2">
+        <div className="flex items-center gap-1 text-xs flex-1 min-w-0">
           <span>{icon?.emoji}</span>
           <span className="text-primary font-medium">{icon?.label}</span>
           <span className="text-foreground">{formatDuration(durationSec)}</span>
           {isManual && <span className="text-[10px] text-muted-foreground">(수동)</span>}
-          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+        </div>
+        {/* 연한 회색 · 밑줄 "변경" — 누르면 picker 재오픈 */}
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="text-[11px] text-muted-foreground/70 underline underline-offset-2 hover:text-muted-foreground shrink-0"
+        >
+          변경
         </button>
       </div>
       {hasCoords && (

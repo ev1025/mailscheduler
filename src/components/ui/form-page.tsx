@@ -148,9 +148,11 @@ export default function FormPage({
           {headerExtra}
         </div>
 
-        {/* 본문: flex-1 overflow-y-auto + 빈 영역 탭 시 blur */}
+        {/* 본문: flex-1 overflow-y-auto + 빈 영역 탭 시 blur.
+            pt-1 로 헤더(드래그바·타이틀) 와 컨텐츠 첫 요소 간격을 기존 pt-3(12px) 대비
+            약 1/3(4px) 수준으로 축소. */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto px-4 py-3"
+          className="flex-1 min-h-0 overflow-y-auto px-4 pt-1 pb-3"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               const active = document.activeElement;

@@ -283,7 +283,12 @@ export default function PlanTaskSheet({
   const renderForm = () => (
     <>
         <div className="flex flex-col gap-3">
-          {/* 일자 · 시간 · 체류 — h-8·text-xs 로 통일 (높이·폰트 일치) */}
+          {/* 일자 · 시간 · 체류 — 라벨 + 입력 두 줄 구조 */}
+          <div className="flex items-center gap-1.5 flex-wrap text-[11px] text-muted-foreground">
+            <span className="w-[5.5rem] text-center">일자</span>
+            <span className="flex-1 min-w-0 text-center">시간</span>
+            <span className="text-center">체류시간</span>
+          </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
               {/* 트리거·드롭다운 동일 폭(w-[5.5rem]) — 체크 아이콘 없어 텍스트만. */}
