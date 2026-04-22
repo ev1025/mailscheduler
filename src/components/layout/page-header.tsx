@@ -8,14 +8,18 @@ import NotificationsPanel from "./notifications-panel";
 
 interface Props {
   title: React.ReactNode;
-  /** 타이틀 왼쪽에 뒤로가기 ← 버튼 표시 (router.back()) */
+  /** 타이틀 왼쪽에 뒤로가기 ← 버튼 표시 (기본 router.back()) */
   showBack?: boolean;
+  /** showBack=true 일 때 클릭 핸들러 오버라이드 — 지정 안 하면 router.back() */
+  onBack?: () => void;
   /** 타이틀 아래에 부제/서브텍스트 */
   subtitle?: React.ReactNode;
   /** 타이틀과 bell 사이에 페이지별 액션 (예: + 추가 버튼) */
   actions?: React.ReactNode;
   /** 기본값 true — 우측 끝에 알림 벨 표시 */
   showBell?: boolean;
+  /** 기본값 true — sticky/backdrop. 모달(FormPage) 안에서는 false 로. */
+  sticky?: boolean;
 }
 
 /**
@@ -27,21 +31,28 @@ interface Props {
 export default function PageHeader({
   title,
   showBack,
+  onBack,
   subtitle,
   actions,
   showBell = false,
+  sticky = true,
 }: Props) {
   const router = useRouter();
   const [notiOpen, setNotiOpen] = useState(false);
   const { unreadCount } = useNotifications();
 
+  const handleBack = onBack ?? (() => router.back());
+  const stickyCls = sticky
+    ? "sticky top-0 z-30 bg-background/95 backdrop-blur-sm"
+    : "";
+
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3">
+      <header className={`${stickyCls} flex h-14 shrink-0 items-center gap-2 border-b px-3`}>
         {showBack && (
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={handleBack}
             aria-label="뒤로"
             className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent -ml-1"
           >

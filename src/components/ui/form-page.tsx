@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import PageHeader from "@/components/layout/page-header";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { useDialogStackEntry } from "@/lib/dialog-stack";
 
@@ -131,23 +131,14 @@ export default function FormPage({
         className={`bg-background flex flex-col w-full h-[100dvh] ${desktopMaxWidth} md:h-auto md:max-h-[85dvh] md:w-auto md:rounded-xl md:shadow-xl md:ring-1 md:ring-foreground/10`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 헤더: ← 뒤로가기 + 제목 + headerExtra.
-            PageHeader(일반 페이지 헤더)와 동일한 규격(h-14, text-lg font-bold,
-            h-9 w-9 뒤로가기)으로 맞춰 폼 페이지와 일반 페이지 간 일관성 확보. */}
-        <div className="flex h-14 items-center gap-2 border-b px-3 shrink-0">
-          <button
-            type="button"
-            onClick={handleBack}
-            aria-label="뒤로"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent transition-colors shrink-0 -ml-1"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h2 className="text-lg font-bold leading-tight text-foreground flex-1 min-w-0 truncate">
-            {title}
-          </h2>
-          {headerExtra}
-        </div>
+        {/* 헤더: 공용 PageHeader 재사용 (sticky·bell 은 모달 내부에서 불필요). */}
+        <PageHeader
+          title={title}
+          showBack
+          onBack={handleBack}
+          actions={headerExtra}
+          sticky={false}
+        />
 
         {/* 본문: flex-1 overflow-y-auto + 빈 영역 탭 시 blur.
             헤더 구분선과 첫 컨텐츠 사이에 pt-4(16px) 여백 — 이전 pt-1(4px)은 너무 좁아 답답했음. */}
