@@ -522,17 +522,13 @@ function RouteStepsDetail({ steps }: { steps: TransportRouteStep[] }) {
 }
 
 // 지하철/기차/트램 정류장은 '역' 접미사가 빠지는 경우 보정. 버스는 그대로.
-// Google 이 일부 역 이름을 영어 로마자로 반환하는 경우(예: "Noryangjin")
-// 에는 '역' 접미가 어색하므로 한글 이름일 때만 적용.
 function normalizeStopName(
   raw: string | null | undefined,
   kind: TransportRouteStep["kind"]
 ): string {
   const cleaned = cleanStopName(raw);
   if (!cleaned) return "";
-  const hasKorean = /[가-힣]/.test(cleaned);
   if (
-    hasKorean &&
     (kind === "subway" || kind === "train" || kind === "tram") &&
     !cleaned.endsWith("역")
   ) {

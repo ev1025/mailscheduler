@@ -229,17 +229,13 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
 
 // 지하철/기차/트램 정류장은 '역' 접미사가 빠지는 경우 보정.
 // 버스는 정류장 이름에 '역' 붙이지 않음 (예: "홍제삼거리").
-// Google 이 간혹 영어 로마자 ("Noryangjin") 로 반환하는 경우가 있는데,
-// 그럴 땐 '역'을 붙이면 "Noryangjin역" 같이 어색하므로 한글 이름일 때만 접미.
 function normalizeStopName(
   raw: string | null | undefined,
   kind: TransportRouteStep["kind"]
 ): string {
   const cleaned = cleanStopName(raw);
   if (!cleaned) return "";
-  const hasKorean = /[가-힣]/.test(cleaned);
   if (
-    hasKorean &&
     (kind === "subway" || kind === "train" || kind === "tram") &&
     !cleaned.endsWith("역")
   ) {
