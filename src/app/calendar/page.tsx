@@ -402,10 +402,9 @@ function CalendarPageInner() {
         <PlanDetail
           planId={planIdParam}
           onBack={() => {
-            // history 엔트리가 있으면 pop (브라우저 뒤로가기와 동일 동작),
-            // 없으면(직접 URL 진입 등) 목록 뷰로 명시 이동.
-            if (window.history.length > 1) router.back();
-            else setView("travel-plans", undefined, { replace: true });
+            // 명시적으로 계획 목록 뷰로. router.back() 을 쓰면 이전 히스토리가
+            // 여행 메인(view=travel) 일 때 엉뚱한 곳으로 이동하는 문제 있음.
+            setView("travel-plans", undefined, { replace: true });
           }}
         />
       ) : view === "travel" ? (
