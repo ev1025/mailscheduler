@@ -145,6 +145,7 @@ export function FolderTreeRow({
   onToggleFolderFavorite: (id: string) => void;
 }) {
   const subFolders = allFolders.filter((f) => f.parent_id === folder.id);
+  // 토글 내부엔 하위 폴더만 노출. 파일은 해당 폴더 진입 시 보이는 방식으로.
   const hasChildren = subFolders.length > 0;
   const isOpen = expanded.has(folder.id);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -192,22 +193,12 @@ export function FolderTreeRow({
         ) : (
           <span className="flex-1 text-sm font-medium text-left truncate">{folder.name}</span>
         )}
-        {!selectMode && (
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); onToggleFolderFavorite(folder.id); }}
-            className="shrink-0 p-1 rounded hover:bg-accent"
-            aria-label={isFolderFavorite(folder.id) ? "즐겨찾기 해제" : "즐겨찾기"}
-          >
-            <Star className={`h-3.5 w-3.5 ${isFolderFavorite(folder.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`} />
-          </button>
-        )}
+        {/* 폴더는 즐겨찾기 대상이 아님 — 글 전용 정책 → 별 버튼 제거. */}
       </div>
 
-      {/* 하위 콘텐츠 (토글 열림 시) */}
+      {/* 하위 콘텐츠 (토글 열림 시) — 하위 폴더만 재귀 렌더. 파일은 폴더 진입 시 노출. */}
       {isOpen && hasChildren && (
         <div>
-          {/* 하위 폴더 — 재귀 */}
           {subFolders.map((sf) => (
             <FolderTreeRow
               key={sf.id}

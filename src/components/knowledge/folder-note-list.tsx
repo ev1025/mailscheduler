@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import SearchInput from "@/components/ui/search-input";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
-import { useKnowledgeFavorites } from "@/lib/knowledge-favorites";
 import MoveTargetTree from "@/components/knowledge/move-target-tree";
 import KnowledgeBreadcrumb from "@/components/knowledge/breadcrumb";
 import KnowledgeEmptyState from "@/components/knowledge/empty-state";
@@ -39,7 +38,6 @@ export default function FolderNoteList({
   onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onMoveItems, onMoveFolders,
   onSelectModeChange, onTogglePinItem, searchQuery, onSearch, hideBreadcrumb,
 }: Props) {
-  const { toggleFolder: toggleFolderFav, isFolderFav } = useKnowledgeFavorites();
   const folderId = folder?.id ?? null;
   const subFolders = folders.filter((f) => f.parent_id === folderId);
   const folderItems = items
@@ -210,16 +208,7 @@ export default function FolderNoteList({
                 ) : (
                   <span className="flex-1 text-sm font-medium text-left truncate">{sf.name}</span>
                 )}
-                {!selectMode && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); toggleFolderFav(sf.id); }}
-                    className="shrink-0 p-1 rounded hover:bg-accent"
-                    aria-label={isFolderFav(sf.id) ? "즐겨찾기 해제" : "즐겨찾기"}
-                  >
-                    <Star className={`h-3.5 w-3.5 ${isFolderFav(sf.id) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`} />
-                  </button>
-                )}
+                {/* 폴더는 즐겨찾기 대상 아님 — 글 전용 정책. */}
                 {!selectMode && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
               </div>
             ))}
