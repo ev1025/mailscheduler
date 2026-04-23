@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "./sidebar";
 import BottomNav from "./bottom-nav";
 import UserSwitcher from "./user-switcher";
@@ -14,6 +14,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [gateOpen, setGateOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
+
+  // 지식창고 진입 시 앱 사이드바 자동 접기 — 내부 탐색기 사이드바와 공간 중복 방지.
+  // pathname 변경될 때만 트리거 → 사용자가 지식창고 안에서 수동으로 펼치면 유지됨.
+  useEffect(() => {
+    if (pathname?.startsWith("/knowledge")) {
+      setCollapsed(true);
+    }
+  }, [pathname]);
 
   const { user: authUser, loading: authLoading } = useSupabaseAuth();
   const { loading: usersLoading } = useAppUsers();

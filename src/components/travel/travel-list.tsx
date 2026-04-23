@@ -99,7 +99,7 @@ function TravelRow({
       onClick={onEdit}
     >
       {/* 왼쪽 드래그 핸들 + 액션 팝오버 (드래그하면 이동, 탭하면 메뉴) */}
-      <td className="px-1 py-2.5 border-r whitespace-nowrap w-6" onClick={(e) => e.stopPropagation()}>
+      <td className="px-1 py-1.5 md:py-2.5 border-r whitespace-nowrap w-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center" {...(dragEnabled ? { ...attributes, ...listeners } : {})}>
           <Popover open={menuOpen} onOpenChange={setMenuOpen}>
             <PopoverTrigger
@@ -147,25 +147,25 @@ function TravelRow({
         </div>
       </td>
       {/* 제목 */}
-      <td className="px-2 py-2 border-r overflow-hidden">
+      <td className="px-2 py-1 md:py-2 border-r overflow-hidden">
         <span className="text-xs font-medium truncate block">{item.title}</span>
       </td>
       {/* 분류 */}
-      <td className="px-2 py-2 border-r whitespace-nowrap">
+      <td className="px-2 py-1 md:py-2 border-r whitespace-nowrap">
         <Badge variant="outline" className="text-[10px] h-4 px-1.5" style={{ borderColor: color + "60", color }}>
           {item.category}
         </Badge>
       </td>
       {/* 시기 */}
-      <td className="px-2 py-2 border-r text-xs text-muted-foreground whitespace-nowrap">
+      <td className="px-2 py-1 md:py-2 border-r text-xs text-muted-foreground whitespace-nowrap">
         {item.month ? `${item.month}월` : "-"}
       </td>
       {/* 위치 — place_name 있으면 우선, 없으면 region */}
-      <td className="px-2 py-2 border-r text-xs text-muted-foreground whitespace-nowrap">
+      <td className="px-2 py-1 md:py-2 border-r text-xs text-muted-foreground whitespace-nowrap">
         {item.place_name || item.region || "-"}
       </td>
       {/* 태그 */}
-      <td className="px-2 py-2 whitespace-nowrap">
+      <td className="px-2 py-1 md:py-2 whitespace-nowrap">
         <div className="flex gap-1">
           {item.tag ? item.tag.split(",").map((t) => {
             const tc = tagColorMap[t] || "#6B7280";
@@ -405,7 +405,9 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
   ];
 
   return (
-    <div className="flex flex-col gap-3">
+    // 데스크톱에서 테이블이 화면 끝까지 뻗어 제목 열이 과하게 길어지는 걸 막기 위해
+    // md+ 에서 최대 너비 제한 + 가운데 정렬. 모바일은 w-full 로 그대로.
+    <div className="flex flex-col gap-3 w-full md:max-w-5xl md:mx-auto">
       {/* 상단: 검색 + 추가 버튼 같은 행 */}
       <div className="flex items-center gap-2">
         <SearchInput value={search} onChange={setSearch} />
@@ -529,11 +531,12 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
             <table className="w-full border-collapse">
               <colgroup>
                 <col style={{ width: "1%" }} />
+                {/* 제목: 40%. 남는 공간은 태그 열(width 미지정) 이 자동 흡수. */}
+                <col style={{ width: "40%" }} />
+                <col style={{ width: "1%" }} />
+                <col style={{ width: "1%" }} />
+                <col style={{ width: "1%" }} />
                 <col />
-                <col style={{ width: "1%" }} />
-                <col style={{ width: "1%" }} />
-                <col style={{ width: "1%" }} />
-                <col style={{ width: "1%" }} />
               </colgroup>
               <thead className="sticky top-0 z-10 bg-muted text-xs text-muted-foreground">
                 <tr>

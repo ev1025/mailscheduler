@@ -18,6 +18,7 @@ interface MapLeg {
   fromIdx: number;  // pins 배열 내 출발 핀 인덱스
   toIdx: number;    // pins 배열 내 도착 핀 인덱스
   path?: [number, number][]; // 있으면 실선, 없으면 점선 fallback
+  strokeColor?: string;      // 모드·지하철 호선별 색상 (없으면 기본 파랑)
 }
 
 interface Props {
@@ -25,6 +26,9 @@ interface Props {
   // 각 leg 별 경로 정보. 없으면 인접 핀 점선 연결 안 함.
   legs?: MapLeg[];
   height?: number;
+  // Tailwind 클래스로 반응형 높이 지정 시 사용(예: "h-60 md:h-[28rem]").
+  // 지정되면 height prop 보다 우선.
+  heightClass?: string;
   className?: string;
 }
 
@@ -41,6 +45,7 @@ export default function PlanRouteMap({
   pins,
   legs,
   height = 240,
+  heightClass,
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -49,6 +54,8 @@ export default function PlanRouteMap({
   const mapRef = useRef<any>(null);
   // map 생성 완료를 state 로 노출해 pins/legs 이펙트 재실행 보장.
   const [mapReady, setMapReady] = useState(false);
+  // Alt+휠 리스너 해제용
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   // 지도 인터렉션은 기본 활성 — 드래그 pan / pinch zoom / ctrl+wheel zoom 가능.
   // scrollWheel=false 로 일반 스크롤 캡처만 막음 → 페이지 스크롤 자연스러움.
@@ -78,8 +85,22 @@ export default function PlanRouteMap({
         mapDataControl: false,
         logoControl: false,
         scrollWheel: false,
+        // 모바일 두 손가락 핀치 줌(기본값이지만 명시).
+        pinchZoom: true,
       });
       setMapReady(true);
+      // 데스크톱: Alt/Ctrl/⌘+휠로 줌. 일반 휠은 페이지 스크롤 유지.
+      const map = mapRef.current;
+      const onWheel = (e: WheelEvent) => {
+        if (!e.altKey && !e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        const step = e.deltaY < 0 ? 1 : -1;
+        const next = Math.min(21, Math.max(6, map.getZoom() + step));
+        map.setZoom(next, true);
+      };
+      const wheelEl = containerRef.current;
+      wheelEl.addEventListener("wheel", onWheel, { passive: false });
+      cleanupRef.current = () => wheelEl.removeEventListener("wheel", onWheel);
       // NAVER 로고 DOM 제거 (지도 생성 직후·200ms·800ms 3중 보험)
       const killLogos = () => {
         if (!containerRef.current) return;
@@ -97,6 +118,8 @@ export default function PlanRouteMap({
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      cleanupRef.current?.();
+      cleanupRef.current = null;
     };
   }, []); // 지도는 1회만 생성
 
@@ -147,10 +170,11 @@ export default function PlanRouteMap({
       const to = pins[leg.toIdx];
       if (!from || !to) continue;
       const hasPath = leg.path && leg.path.length > 1;
+      const solidColor = leg.strokeColor ?? "#3b82f6";
       const line = hasPath
         ? new naver.maps.Polyline({
             path: leg.path!.map((pt) => new naver.maps.LatLng(pt[1], pt[0])),
-            strokeColor: "#3b82f6",
+            strokeColor: solidColor,
             strokeOpacity: 0.9,
             strokeWeight: 4,
             map,
@@ -180,8 +204,8 @@ export default function PlanRouteMap({
   if (!CLIENT_ID) {
     return (
       <div
-        className={`flex items-center justify-center rounded-md bg-muted/40 text-xs text-muted-foreground ${className || ""}`}
-        style={{ height }}
+        className={`flex items-center justify-center rounded-md bg-muted/40 text-xs text-muted-foreground ${heightClass ?? ""} ${className || ""}`}
+        style={heightClass ? undefined : { height }}
       >
         NEXT_PUBLIC_NCP_MAP_CLIENT_ID 미설정
       </div>
@@ -197,8 +221,8 @@ export default function PlanRouteMap({
       <div className={`naver-map-host relative ${className || ""}`}>
         <div
           ref={containerRef}
-          className="rounded-md overflow-hidden"
-          style={{ height }}
+          className={`rounded-md overflow-hidden ${heightClass ?? ""}`}
+          style={heightClass ? undefined : { height }}
         />
       </div>
     </>

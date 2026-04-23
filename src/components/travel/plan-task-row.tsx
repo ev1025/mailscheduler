@@ -9,11 +9,10 @@ import { useTravelCategories } from "@/hooks/use-travel-categories";
 import type { TravelPlanTask } from "@/types";
 
 // 일정 한 행 — 3열 레이아웃으로 시간·장소 컬럼 분리.
-// [드래그바] [시간 컬럼 고정폭] [장소·주소 flex]
+// [드래그바] [시간 컬럼 고정폭] [장소·주소 flex] [hover 시 휴지통(md+)]
 // Row 1:  [시간범위]   📍 장소명
 // Row 2:  (체류시간)        주소/내용
-// 삭제는 휴지통 아이콘 대신 드래그바 탭 → Popover 메뉴로 제공.
-// (여행 목록의 TravelRow 와 동일한 UX 패턴)
+// 삭제 UX: md 이상 데스크톱은 행 hover 시 우측 휴지통 표시, 모바일은 드래그바 탭 → Popover.
 
 interface Props {
   task: TravelPlanTask;
@@ -151,6 +150,22 @@ export default function PlanTaskRow({
             </div>
           )}
         </div>
+
+        {/* 데스크톱 전용 hover 휴지통 — 모바일은 드래그바 Popover 로 대체.
+            shrink-0 로 본문 내용 압박하지 않음. opacity-0 → group-hover:opacity-100. */}
+        {onDelete && (
+          <button
+            type="button"
+            aria-label="일정 삭제"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="hidden md:flex shrink-0 items-center justify-center h-7 w-7 rounded text-muted-foreground/40 opacity-0 transition-opacity hover:text-destructive hover:bg-destructive/10 group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );

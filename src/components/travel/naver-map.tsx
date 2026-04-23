@@ -34,6 +34,8 @@ export default function NaverMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   // 지도 조작 활성 state — 투명 오버레이 패턴
   const [isMapActive, setIsMapActive] = useState(false);
+  // Alt+휠 리스너 해제용
+  const cleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     if (!CLIENT_ID) return;
@@ -57,11 +59,24 @@ export default function NaverMap({
         scaleControl: false,
         mapDataControl: false,
         logoControl: false,
-        // 마우스 휠은 페이지 스크롤에 양보 — 지도 위 휠이 지도를 줌하느라
-        // 페이지가 안 움직이는 문제 방지.
+        // 일반 휠은 페이지 스크롤. Alt/Ctrl+휠 은 수동 핸들러로 줌 처리(아래).
         scrollWheel: false,
+        // 모바일 두 손가락 핀치 줌 활성 (기본값이지만 명시).
+        pinchZoom: true,
       });
       new naver.maps.Marker({ position, map });
+
+      // 데스크톱: Alt/Ctrl + 휠로 줌인/아웃. 일반 휠은 페이지 스크롤 유지.
+      const onWheel = (e: WheelEvent) => {
+        if (!e.altKey && !e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        const step = e.deltaY < 0 ? 1 : -1;
+        const next = Math.min(21, Math.max(6, map.getZoom() + step));
+        map.setZoom(next, true);
+      };
+      const wheelEl = containerRef.current;
+      wheelEl.addEventListener("wheel", onWheel, { passive: false });
+      cleanupRef.current = () => wheelEl.removeEventListener("wheel", onWheel);
 
       // NAVER 로고 DOM 직접 숨김 (3중 보험)
       const killLogos = () => {
@@ -79,6 +94,8 @@ export default function NaverMap({
     return () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
+      cleanupRef.current?.();
+      cleanupRef.current = null;
     };
   }, [lat, lng, zoom]);
 

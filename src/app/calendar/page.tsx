@@ -440,8 +440,11 @@ function CalendarPageInner() {
           }}
         />
       ) : view === "calendar" ? (
+        // 데스크톱은 document 스크롤이라 부모가 h-auto → flex-1 이 0 이 되어 달력이 쪼그라듦.
+        // calendar-md-height 는 globals.css 에 직접 정의된 @media (min-width:768px) 규칙으로
+        // md+ 에서 height: 80vh 를 강제함. Tailwind arbitrary value 캐시 문제 회피.
         <div
-          className="flex-1 min-h-0 flex flex-col"
+          className="calendar-md-height"
           onTouchStart={(e) => {
             const t = e.touches[0];
             (e.currentTarget as HTMLDivElement & { _sx?: number; _sy?: number })._sx = t.clientX;

@@ -16,6 +16,8 @@ interface Props {
   onSave: () => void;
   onSaveDraft: () => void;
   onExit: () => void | Promise<void>;
+  /** 취소 — 저장 없이 메인으로 이탈. onExit 는 모바일 뒤로(읽기 모드)와 다름. */
+  onCancel?: () => void | Promise<void>;
   dirty: boolean;
   autoSavedAt: string | null;
   drafts: KnowledgeDraft[];
@@ -33,6 +35,7 @@ export default function NoteEditorView({
   onSave,
   onSaveDraft,
   onExit,
+  onCancel,
   dirty,
   autoSavedAt,
   drafts,
@@ -43,46 +46,46 @@ export default function NoteEditorView({
 }: Props) {
   return (
     <>
-      <div className="border-b flex flex-col shrink-0">
-        <div className="flex items-center gap-2 px-3 h-14">
-          <button
-            type="button"
-            onClick={onExit}
-            className="md:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground -ml-1"
-            title="보기로 돌아가기"
-            aria-label="뒤로"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          {autoSavedAt && (
-            <span className="text-[11px] text-muted-foreground truncate">
-              자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
-          <div className="flex-1" />
-          <div className="flex items-center gap-1 shrink-0">
-            <DraftsPopover
-              open={draftsOpen}
-              onOpenChange={onDraftsOpenChange}
-              drafts={drafts}
-              onLoad={onLoadDraft}
-              onDelete={onDeleteDraft}
-            />
-            <Button size="sm" variant="outline" onClick={onSaveDraft} className="h-8 text-xs px-2.5">
-              임시저장
-            </Button>
-            <Button size="sm" onClick={onSave} disabled={!dirty} className="h-8 text-xs px-2.5">
-              저장
-            </Button>
-          </div>
-        </div>
-        <div className="px-3 pb-3">
-          <Input
-            value={title}
-            onChange={(e) => onTitleChange(e.target.value)}
-            className="w-full h-10 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
-            placeholder="새 노트 제목..."
+      {/* 에디터 헤더 — 한 줄에 뒤로(모바일)·제목입력·임시저장보관함·임시저장·저장 배치.
+          자동저장 표시는 제목 입력 placeholder 옆 작은 배지로 옮겨 공간 절약. */}
+      <div className="border-b flex items-center gap-2 px-3 h-14 shrink-0">
+        <button
+          type="button"
+          onClick={onExit}
+          className="md:hidden flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground -ml-1"
+          title="보기로 돌아가기"
+          aria-label="뒤로"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <Input
+          value={title}
+          onChange={(e) => onTitleChange(e.target.value)}
+          className="flex-1 h-10 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
+          placeholder="새 노트 제목..."
+        />
+        {autoSavedAt && (
+          <span className="hidden md:inline text-[10px] text-muted-foreground shrink-0 whitespace-nowrap">
+            자동저장 {new Date(autoSavedAt).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}
+          </span>
+        )}
+        <div className="flex items-center gap-1 shrink-0">
+          <DraftsPopover
+            open={draftsOpen}
+            onOpenChange={onDraftsOpenChange}
+            drafts={drafts}
+            onLoad={onLoadDraft}
+            onDelete={onDeleteDraft}
           />
+          <Button size="sm" variant="outline" onClick={onSaveDraft} className="h-8 text-xs px-2.5">
+            임시저장
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onCancel ?? onExit} className="h-8 text-xs px-2.5">
+            취소
+          </Button>
+          <Button size="sm" onClick={onSave} disabled={!dirty} className="h-8 text-xs px-2.5">
+            저장
+          </Button>
         </div>
       </div>
       <div className="flex-1 overflow-hidden">

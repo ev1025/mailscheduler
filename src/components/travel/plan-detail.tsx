@@ -18,6 +18,7 @@ import { invalidateRouteData } from "@/hooks/use-route-data";
 import { computeExpectedTimes } from "@/lib/travel/expected-time";
 import { addMinutes } from "@/lib/travel/time";
 import { useLegPaths, legPathKey } from "@/components/travel/use-leg-paths";
+import { colorForLeg } from "@/lib/travel/transit-colors";
 import { createPlanDragEndHandler } from "@/components/travel/use-plan-drag-and-drop";
 import type { TravelPlanTask } from "@/types";
 import {
@@ -136,13 +137,16 @@ export default function PlanDetail({ planId, onBack }: Props) {
       ),
     [legs]
   );
+  // 날짜 범위가 지정돼 있으면 그 범위를 엄격히 따라 [0, totalDays-1] 만 노출.
+  // 범위 밖 day_index 를 가진 task(orphan) 는 tasksByDay 에서 마지막 날로 clamp
+  // 해 시각적으로 누락되지 않게. 범위가 없으면 task 가 쓰는 day_index 합집합.
   const days = useMemo(() => {
-    const set = new Set<number>();
-    for (const t of sorted) set.add(t.day_index);
     if (plan?.start_date && plan?.end_date) {
       const total = daysBetween(plan.start_date, plan.end_date);
-      for (let i = 0; i <= total; i++) set.add(i);
+      return Array.from({ length: total + 1 }, (_, i) => i);
     }
+    const set = new Set<number>();
+    for (const t of sorted) set.add(t.day_index);
     if (set.size === 0) set.add(0);
     return Array.from(set).sort((a, b) => a - b);
   }, [sorted, plan?.start_date, plan?.end_date]);
@@ -190,7 +194,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
     }[];
 
     const taskIdToIdx = new Map(shownPinsAll.map((p, i) => [p.taskId, i]));
-    type MapLegSpec = { fromIdx: number; toIdx: number; path?: [number, number][] };
+    type MapLegSpec = { fromIdx: number; toIdx: number; path?: [number, number][]; strokeColor?: string };
     const legsForMap: MapLegSpec[] = [];
     for (const l of visibleLegs) {
       const fromIdx = taskIdToIdx.get(l.fromTaskId);
@@ -199,6 +203,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
       legsForMap.push({
         fromIdx,
         toIdx,
+        strokeColor: colorForLeg(l.toTask.transport_mode, l.toTask.transport_route),
         path:
           l.toTask.transport_mode &&
           l.fromTask.place_lat != null &&
@@ -233,13 +238,16 @@ export default function PlanDetail({ planId, onBack }: Props) {
     [sorted, updateTask]
   );
 
-  // 일자별 task 그룹핑 — 훅 의존성 없는 순수 계산
+  // 일자별 task 그룹핑 — 범위 밖 day_index 는 마지막 날로 clamp 해 표시.
+  // (날짜 범위 축소 시 task 소실 방지. DB 의 day_index 는 그대로 — 범위 늘리면 원위치 복구.)
   const tasksByDay: Record<number, TravelPlanTask[]> = useMemo(() => {
     const map: Record<number, TravelPlanTask[]> = {};
     for (const d of days) map[d] = [];
+    const lastDay = days[days.length - 1] ?? 0;
     for (const t of sorted) {
-      if (!map[t.day_index]) map[t.day_index] = [];
-      map[t.day_index].push(t);
+      const displayDay = t.day_index > lastDay ? lastDay : t.day_index;
+      if (!map[displayDay]) map[displayDay] = [];
+      map[displayDay].push(t);
     }
     return map;
   }, [days, sorted]);
@@ -339,7 +347,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
       />
 
       <div>
-        <div className="mx-auto w-full max-w-3xl">
+        <div className="mx-auto w-full max-w-2xl">
           <PlanDateRange
             startDate={plan.start_date}
             endDate={plan.end_date}
@@ -356,15 +364,37 @@ export default function PlanDetail({ planId, onBack }: Props) {
               days={days}
               legs={legsWithCoords}
             />
-            <PlanRouteMap pins={pins} legs={mapLegs} height={240} />
+            <PlanRouteMap pins={pins} legs={mapLegs} heightClass="h-60 md:h-[28rem]" />
           </div>
 
           {/* 일자별 섹션 — 전체를 하나의 DndContext 로 감싸 일자 간 이동도 지원 */}
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={sorted.map((t) => t.id)} strategy={verticalListSortingStrategy}>
               <div className="flex flex-col gap-3 p-3">
-                {days.map((day) => {
-                  const dayTasks = tasksByDay[day] ?? [];
+                {days
+                  .filter((day) => {
+                    // 일자별: 선택 일자만.
+                    if (segment.mode === "day") return day === segment.dayIndex;
+                    // 경로별: 선택 leg 의 day 만 (leg 은 한 일자 안에서 성립).
+                    if (segment.mode === "leg") {
+                      const leg = legsWithCoords[segment.legIndex];
+                      return leg ? day === leg.dayIndex : false;
+                    }
+                    return true;
+                  })
+                  .map((day) => {
+                  const rawDayTasks = tasksByDay[day] ?? [];
+                  // 경로별 선택 시: 해당 leg 의 출발·도착 task 만 노출.
+                  const dayTasks =
+                    segment.mode === "leg"
+                      ? (() => {
+                          const leg = legsWithCoords[segment.legIndex];
+                          if (!leg) return [];
+                          return rawDayTasks.filter(
+                            (t) => t.id === leg.fromTaskId || t.id === leg.toTaskId
+                          );
+                        })()
+                      : rawDayTasks;
                   return (
                     <section key={day} className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">

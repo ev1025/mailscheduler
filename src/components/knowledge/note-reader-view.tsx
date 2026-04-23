@@ -68,17 +68,18 @@ export default function NoteReaderView({ item, onEdit, onExit }: Props) {
             ))}
           </div>
         )}
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>
-            {item.updated_at
-              ? `수정 ${new Date(item.updated_at).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}`
-              : ""}
-          </span>
-          <span>
-            {item.created_at
-              ? `생성 ${new Date(item.created_at).toLocaleString("ko-KR", { month: "short", day: "numeric" })}`
-              : ""}
-          </span>
+        {/* 수정·생성 정보 — 컨텐츠 폭만큼만 차지 (full-width 스트레치 금지). */}
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          {item.updated_at && (
+            <span>
+              수정 {new Date(item.updated_at).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          {item.created_at && (
+            <span>
+              생성 {new Date(item.created_at).toLocaleString("ko-KR", { month: "short", day: "numeric" })}
+            </span>
+          )}
         </div>
       </div>
     </>

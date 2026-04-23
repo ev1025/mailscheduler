@@ -386,3 +386,20 @@
   display: none !important;
   visibility: hidden !important;
 }
+
+/* 캘린더 달력뷰: 데스크톱에서 문서 스크롤이라 flex-1 이 0 높이로 쪼그라짐.
+   md+ 에서 뷰포트 높이에서 상단 chrome(헤더·MonthPicker·padding 등 ≈ 13rem)
+   를 뺀 만큼 고정 → 한 화면에 깔끔히 맞음, 문서 스크롤 없음.
+   flex: none 로 flex-basis 가 height 를 덮지 않게. */
+.calendar-md-height {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0%;
+}
+@media (min-width: 768px) {
+  .calendar-md-height {
+    flex: none !important;
+    height: calc(100vh - 13rem) !important;
+  }
+}

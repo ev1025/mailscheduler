@@ -4,8 +4,9 @@ import { haversineKm } from "@/lib/travel/stations";
 // 구간 소요시간·경로 조회 provider.
 // 통합 진입점: fetchRouteDetailed — {result, error} 반환.
 // - 자가용/택시 → /api/naver/directions (NCP Directions 5)
-// - 도보/버스/지하철 → /api/google-transit (Google Maps Directions)
-// - 도보는 Google 실패 시 직선거리×1.3/4.5km·h 폴백 (한국 도보 데이터 불완전)
+// - 도보 → /api/tmap/pedestrian 우선 → Google Routes v2/v1 → NCP 자동차 path 대체
+//         (TMAP 이 한국 보행자 데이터 제일 촘촘. Google 둘 다 ZERO_RESULTS 나는 골목도 TMAP 은 잡음)
+// - 버스/지하철 → /api/google-transit (Google Maps Directions)
 
 export interface TransitSegment {
   kind: "bus" | "subway" | "train" | "tram" | "other";
@@ -106,6 +107,30 @@ function buildErrorMessage(
   return body.googleMessage ?? body.error ?? `HTTP ${httpStatus}`;
 }
 
+/** TMAP 보행자 시도 — 한국 도보 데이터 최적. 실패(503/404/network) 면 null. */
+async function fetchTmapPedestrian(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number }
+): Promise<RouteResult | null> {
+  try {
+    const params = new URLSearchParams({
+      fromLat: String(from.lat),
+      fromLng: String(from.lng),
+      toLat: String(to.lat),
+      toLng: String(to.lng),
+    });
+    const res = await fetch(`/api/tmap/pedestrian?${params.toString()}`);
+    if (!res.ok) return null;
+    const j = await res.json();
+    if (typeof j.durationSec !== "number" || !Array.isArray(j.path) || j.path.length < 2) {
+      return null;
+    }
+    return { durationSec: j.durationSec, path: j.path };
+  } catch {
+    return null;
+  }
+}
+
 /** 도보 Google 실패 시 폴백:
  *  1) NCP Directions(자동차) 를 호출해 도로 따라가는 path 를 최대한 확보.
  *     - 서울·도심 단거리면 보행자가 거의 같은 도로를 걷기 때문에 근사치로 OK.
@@ -155,6 +180,12 @@ export async function fetchRouteDetailed(
   to: { lat: number; lng: number },
   mode: TransportMode
 ): Promise<{ result: RouteResult | null; error?: RouteError }> {
+  // 도보: TMAP 우선 시도 → 실패 시 기존 Google 체인(+NCP 폴백) 으로 내려감.
+  if (mode === "walk") {
+    const tmap = await fetchTmapPedestrian(from, to);
+    if (tmap) return { result: tmap };
+  }
+
   const spec = endpointFor(mode);
   if (!spec) {
     return { result: null, error: { code: "UNKNOWN_MODE", message: `지원하지 않는 수단: ${mode}` } };

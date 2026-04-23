@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { Pin, FileText, Trash2, CheckSquare, Square, Pencil, Folder, FolderInput, ArrowLeft, Star, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import SearchInput from "@/components/ui/search-input";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
 import { useKnowledgeFavorites } from "@/lib/knowledge-favorites";
 import MoveTargetTree from "@/components/knowledge/move-target-tree";
@@ -26,12 +27,17 @@ interface Props {
   onMoveFolders?: (ids: string[], targetFolderId: string | null) => void;
   onSelectModeChange?: (active: boolean) => void;
   onTogglePinItem?: (id: string, pinned: boolean) => Promise<void>;
+  /** 선택 프롭 — 주면 폴더 breadcrumb 위에 검색박스 표시. */
+  searchQuery?: string;
+  onSearch?: (q: string) => void;
+  /** true 면 내부 Breadcrumb 렌더 생략 — 부모가 상위에서 별도 breadcrumb 을 이미 표시하는 경우. */
+  hideBreadcrumb?: boolean;
 }
 
 export default function FolderNoteList({
   folder, folders, items, onSelectItem, onSelectFolder, onBack, onNavigateToFolder,
   onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onMoveItems, onMoveFolders,
-  onSelectModeChange, onTogglePinItem,
+  onSelectModeChange, onTogglePinItem, searchQuery, onSearch, hideBreadcrumb,
 }: Props) {
   const { toggleFolder: toggleFolderFav, isFolderFav } = useKnowledgeFavorites();
   const folderId = folder?.id ?? null;
@@ -135,12 +141,23 @@ export default function FolderNoteList({
             </div>
           </>
         ) : (
-          <div className="flex items-center flex-1 min-w-0">
-            <KnowledgeBreadcrumb
-              folder={folder}
-              folders={folders}
-              onNavigate={onNavigateToFolder}
-            />
+          <div className="flex flex-col flex-1 min-w-0 gap-2">
+            {/* 검색박스 — 주어졌을 때만 폴더 breadcrumb 위에 노출. */}
+            {onSearch && (
+              <SearchInput
+                value={searchQuery ?? ""}
+                onChange={onSearch}
+                placeholder="노트 검색..."
+                size="md"
+              />
+            )}
+            {!hideBreadcrumb && (
+              <KnowledgeBreadcrumb
+                folder={folder}
+                folders={folders}
+                onNavigate={onNavigateToFolder}
+              />
+            )}
           </div>
         )}
       </header>

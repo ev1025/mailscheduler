@@ -70,7 +70,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     >
       <div
         className={cn(
-          "flex h-12 items-center border-b",
+          // h-14 — PageHeader 와 같은 높이로 구분선 정렬.
+          "flex h-14 items-center border-b",
           collapsed ? "justify-center" : "justify-end px-2"
         )}
       >
@@ -95,11 +96,17 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       >
         {navItems.map((item) => {
           const active = isActive(item);
+          // 지식창고는 페이지 자체에 왼쪽 트리 탐색기가 있어 앱 사이드바가 열려있으면
+          // 세로 영역이 부족 → 클릭 시 앱 사이드바 자동 접기.
+          const autoCollapse = item.href.startsWith("/knowledge");
           return (
             <Link
               key={item.label}
               href={item.href}
               title={collapsed ? item.label : undefined}
+              onClick={() => {
+                if (autoCollapse && !collapsed) onToggle();
+              }}
               className={cn(
                 "flex items-center rounded-md transition-colors",
                 collapsed
