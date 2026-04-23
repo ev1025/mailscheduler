@@ -60,10 +60,10 @@ export function NoteTreeRow({ item, depth, selectMode, selected, onToggle, onCli
       onTouchMove={() => { if (timerRef.current) clearTimeout(timerRef.current); }}
       onContextMenu={(e) => { e.preventDefault(); onLongPress(); }}
       className={`flex items-center gap-1.5 rounded-lg py-2 pr-2 transition-colors select-none ${selected ? "bg-primary/10" : "hover:bg-accent/50"}`}
-      style={{ paddingLeft: 0 }}
+      style={{ paddingLeft: depth * 16 }}
     >
-      {/* 폴더 토글 화살표와 같은 크기의 placeholder — 노트 파일 아이콘을 폴더 아이콘과 수직 정렬. */}
-      <span className="h-4 w-4 shrink-0" />
+      {/* 폴더 토글 화살표와 같은 크기(h-5 w-5) placeholder — 파일·폴더 아이콘 수직 정렬. */}
+      <span className="h-5 w-5 shrink-0" />
       {selectMode && (selected ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
       {isRenaming ? (
@@ -163,10 +163,10 @@ export function FolderTreeRow({
         className={`flex items-center gap-1.5 rounded-lg py-2 pr-2 transition-colors select-none ${
           selFolders.has(folder.id) ? "bg-primary/10" : "hover:bg-accent/50"
         }`}
-        style={{ paddingLeft: 0 }}
+        style={{ paddingLeft: depth * 16 }}
       >
-        {/* 토글 화살표 — 하위 있을 때만. 없으면 자리도 차지하지 않음(들여쓰기 제거). */}
-        {hasChildren && !selectMode && (
+        {/* 토글 화살표 — 하위 있을 때만 실제 렌더. 없으면 같은 크기 placeholder 로 아이콘 정렬 유지. */}
+        {hasChildren && !selectMode ? (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggle(folder.id); }}
@@ -174,6 +174,8 @@ export function FolderTreeRow({
           >
             <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} />
           </button>
+        ) : (
+          <span className="h-5 w-5 shrink-0" />
         )}
         {selectMode && (selFolders.has(folder.id)
           ? <CheckSquare className="h-4 w-4 text-primary shrink-0" />
@@ -243,8 +245,8 @@ export default function KnowledgeDashboard({
 }: DashboardProps) {
   const { toggleFolder: toggleFolderFav, isFolderFav, favoriteFolderIds } = useKnowledgeFavorites();
   // 즐겨찾기 = DB pinned (items) + localStorage favorites (folders)
+  // 즐겨찾기는 글(파일) 전용 — 웹/모바일 통일.
   const favoriteItems = items.filter((i) => i.pinned);
-  const favoriteFolders = folders.filter((f) => favoriteFolderIds.includes(f.id));
   const rootFolders = folders.filter((f) => !f.parent_id);
   // 폴더에 속하지 않는 최상위 노트들 — 대시보드 하단에 플랫하게 노출해야 접근 가능.
   const rootItems = items
@@ -531,41 +533,18 @@ export default function KnowledgeDashboard({
         ) : (
           <>
             {/* 즐겨찾기 — 폴더 + 파일 모두. data-sel-exclude 로 드래그 선택 대상에서 제외. */}
-            {(favoriteFolders.length > 0 || favoriteItems.length > 0) && (
+            {favoriteItems.length > 0 && (
               <section data-sel-exclude className="flex flex-col gap-1">
                 <h3 className="text-xs font-semibold text-muted-foreground flex items-center gap-1 mb-0.5">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" /> 즐겨찾기
                 </h3>
-                {favoriteFolders.map((f) => (
-                  <div
-                    key={f.id} data-sel-id={f.id} data-sel-type="folder" role="button" tabIndex={0}
-                    onClick={() => selectMode ? toggleSelection(f.id, "folder") : onSelectFolder(f.id)}
-                    onContextMenu={(e) => { e.preventDefault(); handleLongPress(f.id, "folder"); }}
-                    className={`flex items-center gap-2 rounded-lg border p-2.5 text-left transition-colors select-none ${selFolders.has(f.id) ? "bg-primary/10 border-primary/30" : "hover:bg-accent/50"}`}
-                  >
-                    {selectMode && (selFolders.has(f.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
-                    <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm font-medium line-clamp-1 flex-1">{f.name}</span>
-                    {!selectMode && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); toggleFolderFav(f.id); }}
-                        className="shrink-0 p-1 rounded hover:bg-accent"
-                        aria-label="즐겨찾기 해제"
-                      >
-                        <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                {/* 즐겨찾기는 글(파일) 전용 — 웹과 통일. 폴더 즐겨찾기 기능 제거. */}
                 {favoriteItems.map((item) => (
                   <div
-                    key={item.id} data-sel-id={item.id} data-sel-type="item" role="button" tabIndex={0}
-                    onClick={() => selectMode ? toggleSelection(item.id, "item") : onSelectItem(item.id)}
-                    onContextMenu={(e) => { e.preventDefault(); handleLongPress(item.id, "item"); }}
-                    className={`flex items-center gap-2 rounded-lg border p-2.5 text-left transition-colors select-none ${selItems.has(item.id) ? "bg-primary/10 border-primary/30" : "hover:bg-accent/50"}`}
+                    key={item.id} role="button" tabIndex={0}
+                    onClick={() => onSelectItem(item.id)}
+                    className="flex items-center gap-2 rounded-lg border p-2.5 text-left transition-colors select-none hover:bg-accent/50"
                   >
-                    {selectMode && (selItems.has(item.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
                     <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span className="text-sm font-medium line-clamp-1 flex-1">{item.title || "(제목 없음)"}</span>
                     {!selectMode && onTogglePinItem && (
@@ -638,7 +617,7 @@ export default function KnowledgeDashboard({
               </section>
             )}
 
-            {favoriteItems.length === 0 && favoriteFolders.length === 0 && rootFolders.length === 0 && rootItems.length === 0 && !selectMode && (
+            {favoriteItems.length === 0 && rootFolders.length === 0 && rootItems.length === 0 && !selectMode && (
               <KnowledgeEmptyState variant="no-folders" />
             )}
           </>
