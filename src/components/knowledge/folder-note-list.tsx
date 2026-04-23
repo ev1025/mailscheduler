@@ -122,45 +122,45 @@ export default function FolderNoteList({
 
   return (
     <div className="flex flex-col h-full" onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-      {/* 헤더 — PageHeader와 동일 규격(h-14, h-10 w-10 버튼, h-[20px] 아이콘) */}
-      <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 min-w-0 overflow-hidden">
-        {selectMode ? (
-          <>
-            <button type="button" onClick={exitSelect} aria-label="선택 해제" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent -ml-1">
-              <ArrowLeft className="h-5 w-5" />
-            </button>
-            <h1 className="text-lg font-bold leading-tight truncate flex-1">{totalSel}개 선택</h1>
-            <div className="flex items-center gap-0.5 shrink-0">
-              {totalSel === 1 && (
-                <button type="button" onClick={startRename} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경" aria-label="이름 변경"><Pencil className="h-[20px] w-[20px]" strokeWidth={1.6} /></button>
-              )}
-              {totalSel > 0 && (
-                <button type="button" onClick={() => setMoveMode(true)} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동" aria-label="폴더 이동"><FolderInput className="h-[20px] w-[20px]" strokeWidth={1.6} /></button>
-              )}
-              <button type="button" onClick={handleDelete} disabled={totalSel === 0} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제" aria-label="삭제"><Trash2 className="h-[20px] w-[20px] text-destructive" strokeWidth={1.6} /></button>
-            </div>
-          </>
-        ) : (
-          <div className="flex flex-col flex-1 min-w-0 gap-2">
-            {/* 검색박스 — 주어졌을 때만 폴더 breadcrumb 위에 노출. */}
-            {onSearch && (
-              <SearchInput
-                value={searchQuery ?? ""}
-                onChange={onSearch}
-                placeholder="노트 검색..."
-                size="md"
-              />
+      {/* 선택 모드: PageHeader 규격의 고정 h-14 툴바. */}
+      {selectMode && (
+        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 min-w-0 overflow-hidden">
+          <button type="button" onClick={exitSelect} aria-label="선택 해제" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent -ml-1">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="text-lg font-bold leading-tight truncate flex-1">{totalSel}개 선택</h1>
+          <div className="flex items-center gap-0.5 shrink-0">
+            {totalSel === 1 && (
+              <button type="button" onClick={startRename} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경" aria-label="이름 변경"><Pencil className="h-[20px] w-[20px]" strokeWidth={1.6} /></button>
             )}
-            {!hideBreadcrumb && (
-              <KnowledgeBreadcrumb
-                folder={folder}
-                folders={folders}
-                onNavigate={onNavigateToFolder}
-              />
+            {totalSel > 0 && (
+              <button type="button" onClick={() => setMoveMode(true)} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동" aria-label="폴더 이동"><FolderInput className="h-[20px] w-[20px]" strokeWidth={1.6} /></button>
             )}
+            <button type="button" onClick={handleDelete} disabled={totalSel === 0} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제" aria-label="삭제"><Trash2 className="h-[20px] w-[20px] text-destructive" strokeWidth={1.6} /></button>
           </div>
-        )}
-      </header>
+        </header>
+      )}
+
+      {/* 일반 모드: 검색박스 + 브레드크럼. 고정 높이 제약 없이 실제 내용만큼 차지. */}
+      {!selectMode && (onSearch || !hideBreadcrumb) && (
+        <div className="flex flex-col gap-2 shrink-0 border-b bg-background px-3 py-3">
+          {onSearch && (
+            <SearchInput
+              value={searchQuery ?? ""}
+              onChange={onSearch}
+              placeholder="노트 검색..."
+              size="md"
+            />
+          )}
+          {!hideBreadcrumb && (
+            <KnowledgeBreadcrumb
+              folder={folder}
+              folders={folders}
+              onNavigate={onNavigateToFolder}
+            />
+          )}
+        </div>
+      )}
 
       {/* 폴더 이동 — 바텀시트 */}
       <Sheet open={moveMode} onOpenChange={setMoveMode}>

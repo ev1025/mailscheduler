@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 // 지식창고의 "선택된 노트 · 열람 중인 폴더" 상태를 URL(searchParams) 과 동기화.
 // /knowledge?item=...&folder=... 형태로 사용.
 // - 브라우저 뒤로가기 → state 자동 동기화
-// - setSelectedItemId / setViewFolderId 는 서로 배타적 (둘 다 설정되면 item 우선)
+// - item / folder 는 독립. 폴더 안에서 노트 열어도 폴더 컨텍스트 유지 → 탐색기가 루트로 점프 안 함.
 
 export function useKnowledgeRouter() {
   const router = useRouter();
@@ -29,12 +29,13 @@ export function useKnowledgeRouter() {
 
   const setSelectedItemId = (id: string | null) => {
     _setSelectedItemId(id);
-    _setViewFolderId(null);
-    pushUrl(id, null, !!id);
+    // 폴더 컨텍스트는 유지해 탐색기가 그대로. URL 엔 둘 다 있을 수 있음.
+    pushUrl(id, viewFolderId, !!id);
   };
 
   const setViewFolderId = (fid: string | null) => {
     _setViewFolderId(fid);
+    // 폴더 변경 시엔 열람 중 노트 해제해 메인을 "글을 선택해주세요" 로.
     _setSelectedItemId(null);
     pushUrl(null, fid, !!fid);
   };

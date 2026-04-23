@@ -13,6 +13,7 @@ import KnowledgeDashboard from "@/components/knowledge/knowledge-dashboard";
 import FolderNoteList from "@/components/knowledge/folder-note-list";
 import NoteEditorView from "@/components/knowledge/note-editor-view";
 import NoteReaderView from "@/components/knowledge/note-reader-view";
+import KnowledgeExplorer from "@/components/knowledge/knowledge-explorer";
 import KnowledgeSidebarTree from "@/components/knowledge/knowledge-sidebar-tree";
 import type { KnowledgeItem } from "@/types";
 import { toast } from "sonner";
@@ -308,10 +309,10 @@ function KnowledgePageInner() {
       <div
         className={`flex min-h-0 ${
           dashSelectMode || folderSelectMode
-            ? "h-full"
+            ? "h-full md:h-[calc(100vh-3.5rem)]"
             : hideHeaderOnMobile
-            ? "h-full md:h-[calc(100%-3.5rem)]"
-            : "h-[calc(100%-3.5rem)]"
+            ? "h-full md:h-[calc(100vh-3.5rem)]"
+            : "h-[calc(100%-3.5rem)] md:h-[calc(100vh-3.5rem)]"
         }`}
       >
         {/* 데스크톱 좌측 탐색기 — 항상 노출. 맨 위 검색박스는 폴더 진입 시에도 유지.
@@ -333,29 +334,27 @@ function KnowledgePageInner() {
             </div>
           )}
           <div className="flex-1 overflow-y-auto">
-          {viewFolderId ? (
-            <FolderNoteList
-              folder={
-                viewFolderId === "__unfiled__"
-                  ? null
-                  : folders.find((f) => f.id === viewFolderId) || null
+            {/* 데스크톱: Windows 스타일 통합 탐색기. 단일 클릭·Ctrl·Shift·더블클릭·우클릭·DnD. */}
+            <KnowledgeExplorer
+              folders={folders}
+              items={items}
+              rootFolderId={
+                viewFolderId && viewFolderId !== "__unfiled__" ? viewFolderId : null
               }
-              folders={folders}
-              items={items}
-              onSelectItem={(id) => setSelectedItemId(id)}
-              onSelectFolder={(fid) => setViewFolderId(fid)}
-              onBack={() => {
-                const current = folders.find((f) => f.id === viewFolderId);
-                if (current?.parent_id) setViewFolderId(current.parent_id);
-                else setViewFolderId(null);
-              }}
-              onNavigateToFolder={(fid) => setViewFolderId(fid)}
-              onDeleteItems={async (ids) => {
-                for (const id of ids) await handleDelete(id);
-              }}
-              onDeleteFolders={async (ids) => {
-                for (const id of ids) deleteFolder(id);
+              onOpenItem={(id) => setSelectedItemId(id)}
+              onNavigateFolder={(fid) => setViewFolderId(fid)}
+              onDelete={async (refs) => {
+                for (const r of refs) {
+                  if (r.kind === "item") await handleDelete(r.id);
+                  else deleteFolder(r.id);
+                }
                 refetch();
+              }}
+              onMove={async (refs, targetFolderId) => {
+                for (const r of refs) {
+                  if (r.kind === "item") await updateItem(r.id, { folder_id: targetFolderId });
+                  else await updateFolder(r.id, { parent_id: targetFolderId });
+                }
               }}
               onRenameFolder={async (id, name) => {
                 await updateFolder(id, { name });
@@ -363,58 +362,45 @@ function KnowledgePageInner() {
               onRenameItem={async (id, title) => {
                 await updateItem(id, { title });
               }}
-              onMoveItems={async (ids, targetFolderId) => {
-                for (const id of ids) await updateItem(id, { folder_id: targetFolderId });
-              }}
-              onMoveFolders={async (ids, targetFolderId) => {
-                for (const id of ids) await updateFolder(id, { parent_id: targetFolderId });
-              }}
-              onSelectModeChange={setFolderSelectMode}
               onTogglePinItem={async (id, pinned) => {
                 await updateItem(id, { pinned: !pinned });
               }}
-              hideBreadcrumb
-            />
-          ) : (
-            <KnowledgeDashboard
-              folders={folders}
-              items={items}
-              onSelectItem={(id) => setSelectedItemId(id)}
-              onSelectFolder={(fid) => setViewFolderId(fid)}
-              onSearch={setSearch}
-              searchQuery={search}
-              searchResults={searchResults}
-              onDeleteItems={async (ids) => {
-                for (const id of ids) await handleDelete(id);
-              }}
-              onDeleteFolders={async (ids) => {
-                for (const id of ids) deleteFolder(id);
-                refetch();
-              }}
-              onRenameFolder={async (id, name) => {
-                await updateFolder(id, { name });
-              }}
-              onRenameItem={async (id, title) => {
-                await updateItem(id, { title });
-              }}
-              onReorderFolders={async (ids) => {
-                for (let i = 0; i < ids.length; i++) await updateFolder(ids[i], { sort_order: i });
-              }}
-              onSelectModeChange={setDashSelectMode}
-              onMoveItems={async (ids, targetFolderId) => {
-                for (const id of ids) await updateItem(id, { folder_id: targetFolderId });
-              }}
-              onMoveFolders={async (ids, targetFolderId) => {
-                for (const id of ids) await updateFolder(id, { parent_id: targetFolderId });
-              }}
-              onTogglePinItem={async (id, pinned) => {
-                await updateItem(id, { pinned: !pinned });
-              }}
-              hideSearch
               pendingRenameFolderId={pendingRenameFolderId}
               onConsumeRename={() => setPendingRenameFolderId(null)}
+              onReorder={async (refs, target) => {
+                // 재정렬: 드래그 대상 item 들을 target.parentId 폴더의 beforeId 앞에 삽입.
+                // 동일 폴더의 나머지 item 들 sort_order 를 1부터 재번호.
+                const movedIds = new Set(refs.filter((r) => r.kind === "item").map((r) => r.id));
+                if (movedIds.size === 0) return;
+                // 해당 폴더의 기존 item 들 (정렬 순서대로)
+                const siblings = items
+                  .filter((i) => (i.folder_id ?? null) === target.parentId && !movedIds.has(i.id))
+                  .sort((a, b) => {
+                    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+                    const sa = a.sort_order ?? 0;
+                    const sb = b.sort_order ?? 0;
+                    if (sa !== sb) return sa - sb;
+                    return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+                  });
+                const movedItems = Array.from(movedIds)
+                  .map((id) => items.find((i) => i.id === id))
+                  .filter(Boolean) as typeof items;
+                // 삽입: beforeId 앞 위치 찾기
+                let insertAt = siblings.length;
+                if (target.beforeId) {
+                  const idx = siblings.findIndex((i) => i.id === target.beforeId);
+                  if (idx >= 0) insertAt = idx;
+                }
+                const next = [...siblings.slice(0, insertAt), ...movedItems, ...siblings.slice(insertAt)];
+                // 모든 형제의 sort_order + folder_id 업데이트 (1부터 증가)
+                for (let i = 0; i < next.length; i++) {
+                  const it = next[i];
+                  const patch: Record<string, unknown> = { sort_order: i + 1 };
+                  if ((it.folder_id ?? null) !== target.parentId) patch.folder_id = target.parentId;
+                  await updateItem(it.id, patch);
+                }
+              }}
             />
-          )}
           </div>
         </aside>
 

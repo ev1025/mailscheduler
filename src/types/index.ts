@@ -232,6 +232,8 @@ export interface KnowledgeItem {
   pinned: boolean;
   type: KnowledgeItemType;
   url: string | null;
+  /** 폴더 내에서 사용자 지정 순서. 낮을수록 위. 2026-04-24 추가된 컬럼. */
+  sort_order?: number;
   created_at: string;
   updated_at: string;
 }

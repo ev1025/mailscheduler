@@ -62,6 +62,8 @@ export function NoteTreeRow({ item, depth, selectMode, selected, onToggle, onCli
       className={`flex items-center gap-1.5 rounded-lg py-2 pr-2 transition-colors select-none ${selected ? "bg-primary/10" : "hover:bg-accent/50"}`}
       style={{ paddingLeft: 0 }}
     >
+      {/* 폴더 토글 화살표와 같은 크기의 placeholder — 노트 파일 아이콘을 폴더 아이콘과 수직 정렬. */}
+      <span className="h-4 w-4 shrink-0" />
       {selectMode && (selected ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
       {isRenaming ? (

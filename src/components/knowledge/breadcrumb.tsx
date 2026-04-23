@@ -27,6 +27,10 @@ function buildPath(folders: KnowledgeFolder[], leaf: KnowledgeFolder): Knowledge
   return path;
 }
 
+// 표시할 경로의 최대 개수. 이를 초과하면 중간을 "..." 으로 축약.
+// 표준 관례: 끝 2개(현재 + 부모)만 그대로 보이고 나머지는 접음.
+const MAX_VISIBLE_TAIL = 2;
+
 export default function KnowledgeBreadcrumb({
   folder,
   folders,
@@ -35,9 +39,19 @@ export default function KnowledgeBreadcrumb({
 }: Props) {
   const path = folder ? buildPath(folders, folder) : [];
 
+  // path 길이가 MAX_VISIBLE_TAIL 초과면 맨 앞쪽 부모들을 "..." 버튼 하나로 축약.
+  // "..." 클릭 시 축약된 가장 바깥 부모 폴더로 이동 (= 한 단계씩 위로 drill up 가능).
+  const collapse = path.length > MAX_VISIBLE_TAIL;
+  const visibleTail = collapse ? path.slice(-MAX_VISIBLE_TAIL) : path;
+  const hiddenSegment = collapse ? path.slice(0, -MAX_VISIBLE_TAIL) : [];
+  // "..." 클릭 시 이동할 대상 = 숨겨진 세그먼트의 가장 마지막(=보이는 첫 항목의 직전 부모)
+  const collapsedJumpTarget = hiddenSegment[hiddenSegment.length - 1];
+  // 접근성 aria-label 용 — 숨겨진 폴더 이름을 쉼표로
+  const hiddenNames = hiddenSegment.map((f) => f.name).join(" / ");
+
   return (
     <nav
-      className="flex items-center gap-1 text-xs text-muted-foreground min-w-0 overflow-x-auto scrollbar-none"
+      className="flex items-center gap-1 text-xs text-muted-foreground min-w-0 overflow-hidden"
       aria-label="경로"
     >
       <button
@@ -48,20 +62,34 @@ export default function KnowledgeBreadcrumb({
         <Home className="h-3 w-3" />
         <span>지식창고</span>
       </button>
-      {path.map((f, idx) => {
-        const isLast = idx === path.length - 1 && !trailingLabel;
+      {collapse && collapsedJumpTarget && (
+        <span className="flex items-center gap-1 shrink-0">
+          <ChevronRight className="h-3 w-3" />
+          <button
+            type="button"
+            onClick={() => onNavigate(collapsedJumpTarget.id)}
+            title={hiddenNames}
+            aria-label={`생략된 상위 폴더 (${hiddenNames})로 이동`}
+            className="px-1.5 py-0.5 rounded hover:bg-accent hover:text-foreground transition-colors"
+          >
+            …
+          </button>
+        </span>
+      )}
+      {visibleTail.map((f, idx) => {
+        const isLast = idx === visibleTail.length - 1 && !trailingLabel;
         return (
-          <span key={f.id} className="flex items-center gap-1 shrink-0">
-            <ChevronRight className="h-3 w-3" />
+          <span key={f.id} className="flex items-center gap-1 min-w-0">
+            <ChevronRight className="h-3 w-3 shrink-0" />
             {isLast ? (
-              <span className="px-1.5 py-0.5 font-medium text-foreground truncate max-w-[160px]">
+              <span className="px-1.5 py-0.5 font-medium text-foreground truncate">
                 {f.name}
               </span>
             ) : (
               <button
                 type="button"
                 onClick={() => onNavigate(f.id)}
-                className="px-1.5 py-0.5 rounded hover:bg-accent hover:text-foreground transition-colors truncate max-w-[160px]"
+                className="px-1.5 py-0.5 rounded hover:bg-accent hover:text-foreground transition-colors truncate max-w-[120px] shrink-0"
               >
                 {f.name}
               </button>
@@ -70,9 +98,9 @@ export default function KnowledgeBreadcrumb({
         );
       })}
       {trailingLabel && (
-        <span className="flex items-center gap-1 shrink-0">
-          <ChevronRight className="h-3 w-3" />
-          <span className="px-1.5 py-0.5 font-medium text-foreground truncate max-w-[200px]">
+        <span className="flex items-center gap-1 min-w-0">
+          <ChevronRight className="h-3 w-3 shrink-0" />
+          <span className="px-1.5 py-0.5 font-medium text-foreground truncate">
             {trailingLabel}
           </span>
         </span>
