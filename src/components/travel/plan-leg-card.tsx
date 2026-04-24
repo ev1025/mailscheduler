@@ -14,6 +14,9 @@ import { getRouteData } from "@/hooks/use-route-data";
 import PlanTransportPicker, { SegmentBar } from "@/components/travel/plan-transport-picker";
 import TransitSegmentChain from "@/components/travel/transit-segment-chain";
 import { addMinutes } from "@/lib/travel/time";
+import { openRouteInNaverMap } from "@/lib/travel/naver-map-link";
+
+const NAVER_MAP_ICON = "https://ssl.pstatic.net/static/maps/assets/icons/favicon-32x32.png";
 
 // Leg 카드 (2-line compact).
 // Unselected:   [ 이동수단 선택 ▾ ]
@@ -148,13 +151,23 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
 
   return (
     <>
-      {/* 전체 블록 클릭 시 picker 재오픈 — 별도 "변경" 버튼 없음 */}
-      <button
-        type="button"
+      {/* 전체 블록 클릭 시 picker 재오픈. 우측에 네이버지도 길찾기 아이콘 (stopPropagation).
+          외부는 <div role=button> — 내부에 실제 <button>(네이버 아이콘) 을 넣으려면
+          button 중첩을 피해야 해서 div 로 전환. */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setPickerOpen(true)}
-        className="flex flex-col ml-6 pl-2 border-l-2 border-primary/30 py-1.5 gap-1.5 text-left hover:bg-accent/50 rounded-r-md transition-colors"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setPickerOpen(true);
+          }
+        }}
+        className="flex items-start gap-2 ml-6 pl-2 pr-1.5 border-l-2 border-primary/30 py-1.5 text-left hover:bg-accent/50 rounded-r-md transition-colors cursor-pointer"
         title="이동수단 변경"
       >
+        <div className="flex-1 flex flex-col gap-1.5 min-w-0">
         {/* transit 모드는 picker RouteCard 와 동일한 풀 레이아웃.
             (소요시간 · 도착 · 도보 / 진행바 / 정류장·배지 상세) */}
         {mode === "transit" && toTask.transport_route && toTask.transport_route.length > 0 ? (
@@ -232,7 +245,36 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
             <TransitSegmentChain segments={segments} filterKinds={filterKinds} />
           </div>
         )}
-      </button>
+        </div>
+        {/* 네이버지도 길찾기 — 구간 A→B 를 현재 이동수단으로 네이버앱 호출 */}
+        {hasCoords && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              openRouteInNaverMap({
+                from: {
+                  lat: fromTask.place_lat!,
+                  lng: fromTask.place_lng!,
+                  name: fromTask.place_name,
+                },
+                to: {
+                  lat: toTask.place_lat!,
+                  lng: toTask.place_lng!,
+                  name: toTask.place_name,
+                },
+                mode,
+              });
+            }}
+            className="shrink-0 p-1 rounded hover:bg-accent transition-colors self-center"
+            title="네이버지도에서 길찾기"
+            aria-label="네이버지도에서 길찾기"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={NAVER_MAP_ICON} alt="" className="h-4 w-4" />
+          </button>
+        )}
+      </div>
       {hasCoords && (
         <PlanTransportPicker
           open={pickerOpen}

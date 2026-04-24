@@ -5,8 +5,11 @@ import { GripVertical, Trash2 } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { formatMinutes } from "@/lib/travel/providers";
 import { addMinutes, formatTime } from "@/lib/travel/time";
+import { openPlaceInNaverMap } from "@/lib/travel/naver-map-link";
 import { useTravelCategories } from "@/hooks/use-travel-categories";
 import type { TravelPlanTask } from "@/types";
+
+const NAVER_MAP_ICON = "https://ssl.pstatic.net/static/maps/assets/icons/favicon-32x32.png";
 
 // 일정 한 행 — 3열 레이아웃으로 시간·장소 컬럼 분리.
 // [드래그바] [시간 컬럼 고정폭] [장소·주소 flex] [hover 시 휴지통(md+)]
@@ -74,7 +77,24 @@ export default function PlanTaskRow({
             >
               <GripVertical className="h-4 w-4" />
             </PopoverTrigger>
-            <PopoverContent className="w-32 p-1" align="start" side="right">
+            <PopoverContent className="w-40 p-1" align="start" side="right">
+              {task.place_name && (
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    openPlaceInNaverMap(task.place_name, {
+                      lat: task.place_lat,
+                      lng: task.place_lng,
+                    });
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={NAVER_MAP_ICON} alt="네이버지도" className="h-3.5 w-3.5" />
+                  네이버지도 열기
+                </button>
+              )}
               {onDelete && (
                 <button
                   type="button"
