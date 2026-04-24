@@ -4,11 +4,13 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Calendar,
-  Plane,
+  AirplaneTilt,
   Wallet,
   BookOpen,
   User,
-} from "lucide-react";
+  type IconProps,
+} from "@phosphor-icons/react";
+import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 import { useCurrentUser } from "@/lib/current-user";
 import { useNotifications } from "@/hooks/use-notifications";
@@ -19,7 +21,7 @@ import { useNotifications } from "@/hooks/use-notifications";
 type NavItem = {
   href: string;
   label: string;
-  icon: React.ElementType;
+  icon: ComponentType<IconProps>;
   /** 추가 match path prefix */
   also?: string[];
   /** 추가 match view 쿼리값 목록 (/calendar 라우트에서 view 구분) */
@@ -38,7 +40,7 @@ const navItems: NavItem[] = [
   {
     href: "/calendar?view=travel",
     label: "여행",
-    icon: Plane,
+    icon: AirplaneTilt,
     views: ["travel", "travel-plans", "travel-plan"],
   },
   { href: "/finance", label: "가계부", icon: Wallet, also: ["/products"] },
@@ -80,11 +82,11 @@ export default function BottomNav() {
               key={item.label}
               href={item.href}
               className={cn(
-                "flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs transition-colors active:bg-accent/50",
-                active ? "text-foreground font-medium" : "text-muted-foreground"
+                "flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] transition-colors active:bg-accent/50",
+                active ? "text-foreground font-semibold" : "text-muted-foreground"
               )}
             >
-              <item.icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
+              <item.icon size={22} weight={active ? "fill" : "regular"} />
               <span>{item.label}</span>
             </Link>
           );
@@ -92,8 +94,8 @@ export default function BottomNav() {
         <Link
           href="/profile"
           className={cn(
-            "relative flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs transition-colors active:bg-accent/50",
-            profileActive ? "text-foreground font-medium" : "text-muted-foreground"
+            "relative flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] transition-colors active:bg-accent/50",
+            profileActive ? "text-foreground font-semibold" : "text-muted-foreground"
           )}
         >
           {unreadCount > 0 && (
@@ -101,7 +103,7 @@ export default function BottomNav() {
           )}
           {currentUser ? (
             <span
-              className="flex h-5 w-5 items-center justify-center rounded-full text-xs overflow-hidden"
+              className="flex h-[22px] w-[22px] items-center justify-center rounded-full text-[11px] overflow-hidden"
               style={
                 currentUser.avatar_url
                   ? { backgroundColor: "transparent" }
@@ -123,7 +125,7 @@ export default function BottomNav() {
               )}
             </span>
           ) : (
-            <User className="h-5 w-5" />
+            <User size={22} weight={profileActive ? "fill" : "regular"} />
           )}
           <span>프로필</span>
         </Link>
