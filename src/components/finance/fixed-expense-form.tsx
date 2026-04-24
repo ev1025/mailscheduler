@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import TagInput from "@/components/ui/tag-input";
 import { FORM_LABEL, FORM_INPUT_COMPACT, FORM_INPUT_PRIMARY } from "@/lib/form-classes";
@@ -17,6 +18,7 @@ interface Props {
   fixed: FixedExpense | null;
   categories: ExpenseCategory[];
   onSave: (data: {
+    title: string | null;
     amount: number;
     category_id: string;
     description: string | null;
@@ -48,6 +50,7 @@ export default function FixedExpenseForm({
     usePaymentMethods();
 
   const [type, setType] = useState<"income" | "expense">("expense");
+  const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
@@ -59,6 +62,7 @@ export default function FixedExpenseForm({
     if (!open) return;
     if (fixed) {
       setType(fixed.type);
+      setTitle(fixed.title || "");
       setAmount(String(fixed.amount));
       setCategoryId(fixed.category_id);
       setDescription(fixed.description || "");
@@ -66,6 +70,7 @@ export default function FixedExpenseForm({
       setPaymentMethod(fixed.payment_method || "");
     } else {
       setType("expense");
+      setTitle("");
       setAmount("");
       setCategoryId("");
       setDescription("");
@@ -80,6 +85,7 @@ export default function FixedExpenseForm({
     if (!amount || !categoryId) return;
     setSaving(true);
     const { error } = await onSave({
+      title: title.trim() || null,
       amount: parseInt(amount, 10),
       category_id: categoryId,
       description: description.trim() || null,
@@ -101,6 +107,21 @@ export default function FixedExpenseForm({
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
+        {/* 지출명 — 목록에서 제일 크게 보이는 제목 필드 (DB 컬럼: title). */}
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="fx-title" className={FORM_LABEL}>
+            지출명
+          </Label>
+          <Textarea
+            id="fx-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="예: 넷플릭스, 월세"
+            rows={2}
+            className="min-h-0 text-sm"
+          />
+        </div>
+
         {/* 수입/지출 세그먼트 */}
         <div className="flex gap-2">
           <button

@@ -7,8 +7,11 @@ import { useCurrentUserId } from "@/lib/current-user";
 
 export interface FixedExpense {
   id: string;
+  /** 지출명(제목) — 목록에서 가장 크게 표시. 없으면 description/카테고리명으로 폴백. */
+  title: string | null;
   amount: number;
   category_id: string;
+  /** 메모 — 폼에서만 보이는 상세 내용. */
   description: string | null;
   day_of_month: number;
   type: "income" | "expense";
@@ -59,7 +62,10 @@ export function useFixedExpenses() {
       .from("fixed_expenses")
       .insert({ ...item, user_id: userId });
     if (error) {
-      const retry = await supabase.from("fixed_expenses").insert(item);
+      // title/user_id 컬럼 없는 DB 대비 두 필드 제거 후 재시도.
+      const { title, ...rest } = item;
+      void title;
+      const retry = await supabase.from("fixed_expenses").insert(rest);
       if (!retry.error) await fetchFixed();
       return { error: retry.error };
     }
@@ -75,8 +81,18 @@ export function useFixedExpenses() {
       .from("fixed_expenses")
       .update(updates)
       .eq("id", id);
-    if (!error) await fetchFixed();
-    return { error };
+    if (error) {
+      const { title, ...rest } = updates;
+      void title;
+      const retry = await supabase
+        .from("fixed_expenses")
+        .update(rest)
+        .eq("id", id);
+      if (!retry.error) await fetchFixed();
+      return { error: retry.error };
+    }
+    await fetchFixed();
+    return { error: null };
   };
 
   const deleteFixed = async (id: string) => {
@@ -164,7 +180,10 @@ export function useFixedExpenses() {
       );
       if (exists) continue;
 
-      await supabase.from("expenses").insert({
+      // 고정비의 title/description 을 각각 expenses 의 같은 필드로 전달.
+      // title 컬럼 없는 DB 대비 에러 시 title 제거하고 재시도.
+      const payload = {
+        title: fx.title,
         amount: fx.amount,
         category_id: fx.category_id,
         description: fx.description,
@@ -172,7 +191,13 @@ export function useFixedExpenses() {
         type: fx.type,
         payment_method: fx.payment_method,
         user_id: userId,
-      });
+      };
+      const { error } = await supabase.from("expenses").insert(payload);
+      if (error) {
+        const { title, ...rest } = payload;
+        void title;
+        await supabase.from("expenses").insert(rest);
+      }
       count++;
     }
     return count;

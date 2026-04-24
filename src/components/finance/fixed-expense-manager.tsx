@@ -62,6 +62,7 @@ export default function FixedExpenseManager({
   };
 
   const handleSave = async (data: {
+    title: string | null;
     amount: number;
     category_id: string;
     description: string | null;
@@ -106,7 +107,11 @@ export default function FixedExpenseManager({
                   className="group flex items-center justify-between rounded-lg border p-2.5 cursor-pointer transition-colors hover:bg-accent/50 active:bg-accent"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 text-sm">
+                    {/* 지출명(title) 이 제일 크게. 없으면 description → 카테고리명 폴백. */}
+                    <p className="font-semibold text-sm truncate">
+                      {fx.title || fx.description || fx.category?.name || "미분류"}
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                       <span
                         className={
                           fx.type === "income"
@@ -117,14 +122,9 @@ export default function FixedExpenseManager({
                         {fx.type === "income" ? "+" : "-"}
                         {formatWon(fx.amount)}
                       </span>
-                      <span className="text-muted-foreground text-xs">
-                        매월 {fx.day_of_month}일
-                      </span>
+                      <span>매월 {fx.day_of_month}일</span>
+                      {fx.category?.name && <span className="truncate">· {fx.category.name}</span>}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate mt-0.5">
-                      {fx.category?.name}
-                      {fx.description && ` · ${fx.description}`}
-                    </p>
                   </div>
                   <button
                     type="button"
