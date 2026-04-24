@@ -175,13 +175,10 @@ export default function TravelForm({
   }, [placeQuery]);
 
 
-  const handleSubmit = async () => {
-    if (!title.trim() || !category) return;
-    setSaving(true);
-    // 호환 — 기존 단일 컬럼에도 places[0] 값을 같이 써둔다 (travel-list 등 아직
-    // 단일 값만 보는 뷰 대비).
+  // 입력값을 실제 payload 로 빌드. 저장/자동저장 양쪽에서 재사용.
+  const buildPayload = () => {
     const first = places[0] ?? null;
-    const { error } = await onSave({
+    return {
       title: title.trim(),
       in_season: false,
       region: region.trim() || null,
@@ -202,24 +199,58 @@ export default function TravelForm({
       lat: first?.lat ?? null,
       lng: first?.lng ?? null,
       places,
-    });
+    };
+  };
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !category) return;
+    setSaving(true);
+    const { error } = await onSave(buildPayload());
     setSaving(false);
     if (error) {
-      // 실제 Supabase 에러를 토스트에 노출해 원인 파악 용이 (컬럼 미존재·제약 위반 등)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const msg = (error as any)?.message ?? String(error);
       toast.error(`저장 실패: ${msg}`);
       console.error("[travel-form save]", error);
       return;
     }
-    clearDraft(); // 성공 저장 후 자동저장 드래프트 제거.
+    clearDraft();
+    onOpenChange(false);
+  };
+
+  // 닫기 인터셉트 — 유의미 입력이 있으면 자동 저장 후 닫기.
+  // "유의미" 기준: 최소한 title + category 가 채워진 상태.
+  // (일부만 채운 상태로 닫으면 드래프트는 로컬에 남아 재오픈 시 복원됨.)
+  const handleOpenChange = async (next: boolean) => {
+    if (next) {
+      onOpenChange(true);
+      return;
+    }
+    // 닫기 전환. 저장 조건 만족 시 자동 저장.
+    if (title.trim() && category) {
+      try {
+        setSaving(true);
+        const { error } = await onSave(buildPayload());
+        if (error) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const msg = (error as any)?.message ?? String(error);
+          toast.error(`자동 저장 실패: ${msg}`);
+          console.error("[travel-form auto-save]", error);
+          // 실패해도 닫기는 진행 — 드래프트 로컬에 남아있음.
+        } else {
+          clearDraft();
+        }
+      } finally {
+        setSaving(false);
+      }
+    }
     onOpenChange(false);
   };
 
   return (
     <FormPage
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       title={item ? "여행 항목 수정" : "여행 항목 추가"}
       submitDisabled={!title.trim() || !category}
       saving={saving}
