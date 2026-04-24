@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Calendar,
+  CalendarBlank,
   AirplaneTilt,
-  Wallet,
-  BookOpen,
+  PiggyBank,
+  Book,
   User,
   type IconProps,
 } from "@phosphor-icons/react";
@@ -26,11 +26,14 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { href: "/calendar", label: "캘린더", icon: Calendar },
+  { href: "/calendar", label: "캘린더", icon: CalendarBlank },
   { href: "/travel", label: "여행", icon: AirplaneTilt },
-  { href: "/finance", label: "가계부", icon: Wallet, also: ["/products"] },
-  { href: "/knowledge", label: "지식", icon: BookOpen },
+  { href: "/finance", label: "가계부", icon: PiggyBank, also: ["/products"] },
+  { href: "/knowledge", label: "지식", icon: Book },
 ];
+
+// 활성 탭 색상 — forest green (#219143).
+const ACTIVE_COLOR = "#219143";
 
 export default function BottomNav() {
   const pathname = usePathname();
@@ -53,9 +56,10 @@ export default function BottomNav() {
             <Link
               key={item.label}
               href={item.href}
+              style={active ? { color: ACTIVE_COLOR } : undefined}
               className={cn(
                 "flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] transition-colors active:bg-accent/50",
-                active ? "text-foreground font-semibold" : "text-muted-foreground"
+                active ? "font-semibold" : "text-muted-foreground"
               )}
             >
               <item.icon size={22} weight={active ? "fill" : "regular"} />
@@ -65,9 +69,10 @@ export default function BottomNav() {
         })}
         <Link
           href="/profile"
+          style={profileActive ? { color: ACTIVE_COLOR } : undefined}
           className={cn(
             "relative flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-[11px] transition-colors active:bg-accent/50",
-            profileActive ? "text-foreground font-semibold" : "text-muted-foreground"
+            profileActive ? "font-semibold" : "text-muted-foreground"
           )}
         >
           {unreadCount > 0 && (
