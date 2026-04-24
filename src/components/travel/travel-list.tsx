@@ -196,7 +196,7 @@ interface TravelListProps {
 }
 
 export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTagToCalendar, onDeleteCalendarEventsByTitleDate, visibleUserIds }: TravelListProps = {}) {
-  const { items, addItem, updateItem, deleteItem, toggleVisited } = useTravelItems(visibleUserIds);
+  const { items, loading, addItem, updateItem, deleteItem, toggleVisited } = useTravelItems(visibleUserIds);
   const { tags, addTag, deleteTag, updateTagColor } = useTravelTags();
   const { tags: eventTags, addTag: addEventTag, deleteTag: deleteEventTag, updateTagColor: updateEventTagColor, updateTagName: updateEventTagName, refetch: refetchEventTags } = useEventTags();
 
@@ -524,7 +524,9 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
         onClose={() => setOpenFilter(null)}
       />
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="py-20" aria-hidden />
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2">
           <p className="text-sm text-muted-foreground">
             {items.length === 0 ? "여행 항목이 없습니다" : "검색 결과가 없습니다"}

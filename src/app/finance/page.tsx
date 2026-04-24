@@ -46,7 +46,7 @@ export default function FinancePage() {
   };
 
   const {
-    transactions, categories,
+    transactions, categories, loading: txLoading,
     addTransaction, updateTransaction, deleteTransaction,
     addCategory, deleteCategory, updateCategoryColor,
     totalIncome, totalExpense, balance, expenseByCategory,
@@ -164,7 +164,9 @@ export default function FinancePage() {
             balance={balance}
           />
           <CategoryChart expenseByCategory={expenseByCategory} totalExpense={totalExpense} />
-          {allTransactions.length === 0 ? (
+          {txLoading ? (
+            <div className="py-12" aria-hidden />
+          ) : allTransactions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2">
               <p className="text-sm text-muted-foreground">이 달의 내역이 없습니다</p>
               <p className="text-xs text-muted-foreground/70">우상단 + 버튼으로 수입·지출을 기록해보세요</p>

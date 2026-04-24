@@ -14,6 +14,8 @@ interface DatabaseViewProps {
   events: CalendarEvent[];
   weatherMap: Record<string, WeatherData>;
   tags: EventTag[];
+  /** 첫 fetch 중일 때 true — empty state 플래시 방지. */
+  loading?: boolean;
   onEdit: (event: CalendarEvent) => void;
   onDelete: (id: string) => void;
 }
@@ -36,6 +38,7 @@ export default function DatabaseView({
   events,
   weatherMap,
   tags: tagList,
+  loading = false,
   onEdit,
   onDelete,
 }: DatabaseViewProps) {
@@ -212,7 +215,9 @@ export default function DatabaseView({
         />
       </div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="py-20" aria-hidden />
+      ) : filtered.length === 0 ? (
         <div className="flex items-center justify-center py-20">
           <p className="text-sm text-muted-foreground">{search || filterTags.length > 0 ? "검색 결과가 없습니다" : "이 달의 일정이 없습니다"}</p>
         </div>

@@ -79,6 +79,7 @@ function CalendarPageInner() {
 
   const {
     events,
+    loading: eventsLoading,
     addEvent,
     addEventsBulk,
     updateEvent,
@@ -344,6 +345,7 @@ function CalendarPageInner() {
           events={events}
           weatherMap={weatherMap}
           tags={tags}
+          loading={eventsLoading}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />

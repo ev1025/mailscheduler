@@ -10,7 +10,7 @@ import type { Memo } from "@/types";
 import PageHeader from "@/components/layout/page-header";
 
 export default function MemoPage() {
-  const { memos, addMemo, updateMemo, deleteMemo, togglePin } =
+  const { memos, loading, addMemo, updateMemo, deleteMemo, togglePin } =
     useMemos();
   const [formOpen, setFormOpen] = useState(false);
   const [editingMemo, setEditingMemo] = useState<Memo | null>(null);
@@ -56,7 +56,10 @@ export default function MemoPage() {
       />
     <div className="p-4 md:p-6">
 
-      {memos.length === 0 ? (
+      {/* 페이지 전환 시 첫 렌더는 loading=true → empty 문구 플래시 방지 */}
+      {loading ? (
+        <div className="py-20" aria-hidden />
+      ) : memos.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <p className="text-lg text-muted-foreground">메모가 없습니다</p>
           <p className="text-sm text-muted-foreground/60">
