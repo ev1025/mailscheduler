@@ -121,7 +121,7 @@ export default function FixedExpenseManager({
                     key={fx.id}
                     onClick={() => !showForm || isEditing ? startEdit(fx) : undefined}
                     className={`group flex items-center justify-between rounded-lg border p-2.5 cursor-pointer transition-colors ${
-                      isEditing ? "border-primary bg-primary/5" : "hover:bg-accent/40"
+                      isEditing ? "border-primary bg-primary/5" : "hover:bg-accent/50"
                     }`}
                   >
                     <div className="min-w-0">
@@ -148,14 +148,15 @@ export default function FixedExpenseManager({
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-7 w-7 text-destructive shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (editingId === fx.id) resetForm();
                         onDelete(fx.id);
                       }}
+                      aria-label="고정비 삭제"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 );

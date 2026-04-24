@@ -111,7 +111,7 @@ export default function ProductDetailDialog({
                     {prices.map((p) => {
                       const isMin = p.price === minPrice;
                       return (
-                        <tr key={p.id} className="border-t hover:bg-accent/40">
+                        <tr key={p.id} className="border-t hover:bg-accent/50">
                           <td
                             className={`px-3 py-2 text-right font-medium whitespace-nowrap ${
                               isMin ? "text-green-600" : ""

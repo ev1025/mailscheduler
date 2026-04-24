@@ -246,7 +246,7 @@ export default function AddToPlanDialog({ open, onOpenChange, travelItem, onDone
                   className={`rounded-md border px-3 py-2 text-left transition-colors ${
                     selectedPlanId === p.id
                       ? "border-primary bg-primary/10"
-                      : "hover:bg-accent/40"
+                      : "hover:bg-accent/50"
                   }`}
                 >
                   <div className="text-sm font-medium truncate">{p.title}</div>

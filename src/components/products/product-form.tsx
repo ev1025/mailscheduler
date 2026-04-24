@@ -387,7 +387,7 @@ export default function ProductForm({
                         key={originalIdx}
                         onClick={() => startEditPrice(originalIdx)}
                         className={`group flex items-center gap-3 px-3 py-2 text-xs cursor-pointer transition-colors ${
-                          isEditing ? "bg-primary/10" : "hover:bg-accent/40"
+                          isEditing ? "bg-primary/10" : "hover:bg-accent/50"
                         }`}
                       >
                         <span className="w-4 text-center text-yellow-500 shrink-0">

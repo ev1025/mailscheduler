@@ -394,7 +394,7 @@ function RouteCard({
     <button
       type="button"
       onClick={onClick}
-      className="flex flex-col gap-2 rounded-md border p-3 text-left hover:bg-accent/40 transition-colors"
+      className="flex flex-col gap-2 rounded-md border p-3 text-left hover:bg-accent/50 transition-colors"
     >
       {/* 헤더: 총 소요 + 도착 + 도보합계 + 최속 배지 */}
       <div className="flex items-center gap-2 flex-wrap">

@@ -193,9 +193,10 @@ export default function TagInput({
 
   // half (50%) ↔ full (90%) 스냅 포인트. resizes-content 환경에서 dvh 를
   // 쓰면 키보드 열릴 때 시트가 쪼그라드므로 열리는 시점의 innerHeight 를
-  // px 로 캡처해 고정.
+  // px 로 캡처해 고정. currentVh 는 visualViewport 추적 — full snap + 키보드 시 상한 적용.
   const [snap, setSnap] = useState<"half" | "full">("half");
   const [baseHeight, setBaseHeight] = useState<number | null>(null);
+  const [currentVh, setCurrentVh] = useState<number | null>(null);
   // 스냅 변경 시 250ms 동안만 transition-[height] 활성화
   const [snapAnimating, setSnapAnimating] = useState(false);
   const isFirstSnap = useRef(true);
@@ -224,8 +225,25 @@ export default function TagInput({
       setView("list");
       setShowColorPicker(false);
       isFirstSnap.current = true; // 열 때마다 초기 스냅은 애니메이션 없이
-      if (typeof window !== "undefined") setBaseHeight(window.innerHeight);
+      if (typeof window === "undefined") return;
+      // 시트 높이 추적 — baseHeight 는 관찰된 최대, currentVh 는 실시간.
+      const capture = () => {
+        const vv = window.visualViewport?.height;
+        const ih = window.innerHeight;
+        setCurrentVh(vv ?? ih);
+        const h = Math.max(ih, vv ?? 0);
+        setBaseHeight((prev) => (prev == null ? h : Math.max(prev, h)));
+      };
+      capture();
+      window.visualViewport?.addEventListener("resize", capture);
+      window.addEventListener("orientationchange", capture);
+      return () => {
+        window.visualViewport?.removeEventListener("resize", capture);
+        window.removeEventListener("orientationchange", capture);
+      };
     } else {
+      setBaseHeight(null);
+      setCurrentVh(null);
       setNewTagName("");
       setEditingTagId(null);
     }
@@ -505,10 +523,17 @@ export default function TagInput({
                 snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
               }`}
               style={{
-                height:
-                  baseHeight != null
-                    ? `${Math.round((snap === "full" ? 0.9 : 0.5) * baseHeight)}px`
-                    : snap === "full" ? "90dvh" : "50dvh",
+                height: (() => {
+                  if (baseHeight == null) return snap === "full" ? "90dvh" : "50dvh";
+                  const ratio = snap === "full" ? 0.9 : 0.5;
+                  const plannedPx = Math.round(ratio * baseHeight);
+                  // full snap 에서 키보드가 올라와 visualViewport 가 축소되면 그에 맞춰 축소
+                  // → 입력창이 뷰포트 밖으로 올라가 가려지던 현상 방지.
+                  if (snap === "full" && currentVh != null && currentVh < plannedPx) {
+                    return `${Math.round(currentVh)}px`;
+                  }
+                  return `${plannedPx}px`;
+                })(),
               }}
               showBackButton={false}
               showCloseButton={false}

@@ -79,7 +79,7 @@ function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate }: PlanCa
       style={style}
       {...dragBindings}
       onClick={onSelect}
-      className={`group relative rounded-lg border p-3 hover:bg-accent/40 transition-colors touch-none ${
+      className={`group relative rounded-lg border p-3 hover:bg-accent/50 transition-colors touch-none ${
         dragEnabled ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
       }`}
     >

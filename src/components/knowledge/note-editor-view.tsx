@@ -81,7 +81,7 @@ export default function NoteEditorView({
           <Input
             value={title}
             onChange={(e) => onTitleChange(e.target.value)}
-            className="w-full h-10 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
+            className="w-full h-10 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/70 placeholder:font-normal"
             placeholder="새 노트 제목..."
           />
         </div>
@@ -92,7 +92,7 @@ export default function NoteEditorView({
         <Input
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
-          className="flex-1 h-10 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/50 placeholder:font-normal"
+          className="flex-1 h-10 text-base font-semibold border-none bg-transparent focus-visible:ring-0 px-1 min-w-0 placeholder:text-muted-foreground/70 placeholder:font-normal"
           placeholder="새 노트 제목..."
         />
         {autoSavedAt && (

@@ -37,6 +37,12 @@ const COLORS = [
   "#A855F7", "#EC4899", "#06B6D4", "#6B7280",
 ];
 
+// 신규 이벤트 생성 시 색상을 랜덤 선택 — 매번 같은 기본값(파랑) 이 아닌
+// 다양한 색상으로 이벤트를 구분하기 쉽게.
+function randomEventColor(): string {
+  return COLORS[Math.floor(Math.random() * COLORS.length)];
+}
+
 const TAG_PALETTE = [
   "#EF4444", "#F97316", "#F59E0B", "#EAB308", "#84CC16",
   "#22C55E", "#10B981", "#14B8A6", "#06B6D4", "#0EA5E9",
@@ -112,7 +118,7 @@ export default function EventForm({
   const [endDate, setEndDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [color, setColor] = useState(COLORS[0]);
+  const [color, setColor] = useState(() => randomEventColor());
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [repeat, setRepeat] = useState<RepeatType>("none");
   const [repeatCount, setRepeatCount] = useState(-1);
@@ -154,7 +160,7 @@ export default function EventForm({
     setEndDate("");
     setStartTime("");
     setEndTime("");
-    setColor(COLORS[0]);
+    setColor(randomEventColor());
     setSelectedTags([]);
     setRepeat("none");
     setRepeatCount(-1);

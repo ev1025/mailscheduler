@@ -55,7 +55,7 @@ export default function PlanTaskRow({
           onClick();
         }
       }}
-      className="group flex items-stretch gap-0 rounded-md border bg-card hover:bg-accent/40 transition-colors cursor-pointer select-none"
+      className="group flex items-stretch gap-0 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer select-none"
     >
       {/* 드래그바 — 탭하면 Popover 메뉴 (삭제 등), 드래그하면 이동.
           1행·2행 사이(수직 중앙)에 위치시켜 카드 대칭감 확보. */}
@@ -68,10 +68,11 @@ export default function PlanTaskRow({
             <PopoverTrigger
               {...dragAttributes}
               {...dragListeners}
-              className="rounded p-0.5 text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
+              className="rounded p-1.5 text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
               title="드래그로 이동 / 탭하면 메뉴"
+              aria-label="작업 메뉴"
             >
-              <GripVertical className="h-3.5 w-3.5" />
+              <GripVertical className="h-4 w-4" />
             </PopoverTrigger>
             <PopoverContent className="w-32 p-1" align="start" side="right">
               {onDelete && (
@@ -161,7 +162,7 @@ export default function PlanTaskRow({
               e.stopPropagation();
               onDelete();
             }}
-            className="hidden md:flex shrink-0 items-center justify-center h-7 w-7 rounded text-muted-foreground/40 opacity-0 transition-opacity hover:text-destructive hover:bg-destructive/10 group-hover:opacity-100 focus-visible:opacity-100"
+            className="hidden md:flex shrink-0 items-center justify-center h-8 w-8 rounded text-destructive/60 opacity-0 transition-opacity hover:text-destructive hover:bg-destructive/10 group-hover:opacity-100 focus-visible:opacity-100"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>

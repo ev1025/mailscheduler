@@ -152,7 +152,7 @@ export default function PlanLegCard({ leg, legDeparture, onUpdateTask }: Props) 
       <button
         type="button"
         onClick={() => setPickerOpen(true)}
-        className="flex flex-col ml-6 pl-2 border-l-2 border-primary/30 py-1.5 gap-1.5 text-left hover:bg-accent/40 rounded-r-md transition-colors"
+        className="flex flex-col ml-6 pl-2 border-l-2 border-primary/30 py-1.5 gap-1.5 text-left hover:bg-accent/50 rounded-r-md transition-colors"
         title="이동수단 변경"
       >
         {/* transit 모드는 picker RouteCard 와 동일한 풀 레이아웃.

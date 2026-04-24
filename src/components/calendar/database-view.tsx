@@ -262,7 +262,7 @@ export default function DatabaseView({
               {filtered.map((ev) => (
                 <tr
                   key={ev.id}
-                  className="cursor-pointer hover:bg-accent/40 transition-colors border-b last:border-b-0"
+                  className="cursor-pointer hover:bg-accent/50 transition-colors border-b last:border-b-0"
                   onClick={() => onEdit(ev)}
                 >
                   {/* 날짜 — 4/15(수) ~ 4/17(금), 검정색 */}

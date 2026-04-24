@@ -81,22 +81,24 @@ export default function TransactionList({
                     {tx.type === "income" ? "+" : "-"}
                     {formatWon(tx.amount)}
                   </span>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex gap-0.5 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-7 w-7"
+                      className="h-8 w-8"
                       onClick={() => onEdit(tx)}
+                      aria-label="거래 수정"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       size="icon"
                       variant="ghost"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
                       onClick={() => onDelete(tx.id)}
+                      aria-label="거래 삭제"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>

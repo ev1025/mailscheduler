@@ -23,6 +23,15 @@ import type { TravelItem, TravelCategory, TravelTag, EventTag, PlaceInfo } from 
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 
+// 신규 항목 생성 시 기본 색상 랜덤 — 매번 같은 파랑 대신 다양한 색으로 구분 용이.
+const DEFAULT_COLORS = [
+  "#3B82F6", "#EF4444", "#22C55E", "#F59E0B",
+  "#A855F7", "#EC4899", "#06B6D4", "#6B7280",
+];
+function randomDefaultColor(): string {
+  return DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)];
+}
+
 interface TravelFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -47,7 +56,7 @@ export default function TravelForm({
   const { categories: midCategories, colors: categoryColors, addCategory, deleteCategory, updateCategoryColor, updateCategoryName } = useTravelCategories();
 
   const [title, setTitle] = useState("");
-  const [color, setColor] = useState("#3B82F6");
+  const [color, setColor] = useState(() => randomDefaultColor());
   const [region, setRegion] = useState("");
   // 여러 위치 태그
   const [places, setPlaces] = useState<PlaceInfo[]>([]);
@@ -107,7 +116,7 @@ export default function TravelForm({
       }
     } else {
       setTitle("");
-      setColor("#3B82F6");
+      setColor(randomDefaultColor());
       setRegion("");
       setCategory("");
       setMonth(null);
@@ -120,7 +129,7 @@ export default function TravelForm({
     const draft = loadDraft();
     if (draft) {
       setTitle(draft.title ?? "");
-      setColor(draft.color ?? "#3B82F6");
+      setColor(draft.color ?? randomDefaultColor());
       setRegion(draft.region ?? "");
       setCategory((draft.category as TravelCategory | "") ?? "");
       setMonth(draft.month ?? null);
