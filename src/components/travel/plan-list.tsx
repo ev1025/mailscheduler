@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, Trash2 } from "lucide-react";
+import { Calendar, MoreHorizontal, Trash2, Copy } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import SearchInput from "@/components/ui/search-input";
 import PromptDialog from "@/components/ui/prompt-dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -55,9 +56,10 @@ interface PlanCardProps {
   dragEnabled: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }
 
-function PlanCard({ plan, dragEnabled, onSelect, onDelete }: PlanCardProps) {
+function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate }: PlanCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: plan.id, disabled: !dragEnabled });
   const style = {
@@ -87,24 +89,46 @@ function PlanCard({ plan, dragEnabled, onSelect, onDelete }: PlanCardProps) {
           ? `${plan.start_date ?? "-"} ~ ${plan.end_date ?? "-"}`
           : "기간 미정"}
       </p>
-      <button
-        type="button"
-        onPointerDown={(e) => e.stopPropagation()}
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition md:opacity-0 md:group-hover:opacity-100"
-        aria-label="계획 삭제"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+      <Popover>
+        <PopoverTrigger
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition md:opacity-0 md:group-hover:opacity-100"
+          aria-label="계획 메뉴"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          side="bottom"
+          className="w-40 p-1"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => onDuplicate()}
+            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            복제
+          </button>
+          <button
+            type="button"
+            onClick={() => onDelete()}
+            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            삭제
+          </button>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }
 
 export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Props) {
-  const { plans, loading, addPlan, deletePlan } = useTravelPlans(visibleUserIds);
+  const { plans, loading, addPlan, deletePlan, duplicatePlan } = useTravelPlans(visibleUserIds);
   const [newOpen, setNewOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -220,6 +244,9 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
                     dragEnabled={dragEnabled}
                     onSelect={() => onSelectPlan(p.id)}
                     onDelete={() => setDeletingId(p.id)}
+                    onDuplicate={async () => {
+                      await duplicatePlan(p.id);
+                    }}
                   />
                 ))}
               </div>

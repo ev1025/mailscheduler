@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import Script from "next/script";
 
 // 네이버 Dynamic Map (JavaScript SDK) 임베드.
@@ -33,7 +33,6 @@ export default function NaverMap({
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   // 지도 조작 활성 state — 투명 오버레이 패턴
-  const [isMapActive, setIsMapActive] = useState(false);
   // Alt+휠 리스너 해제용
   const cleanupRef = useRef<(() => void) | null>(null);
 
@@ -118,24 +117,14 @@ export default function NaverMap({
         src={`https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${CLIENT_ID}`}
         strategy="afterInteractive"
       />
-      <div
-        className={`naver-map-host relative ${className || ""}`}
-        onMouseLeave={() => setIsMapActive(false)}
-      >
+      <div className={`naver-map-host relative ${className || ""}`}>
+        {/* 지도 위 오버레이 제거 — 바로 드래그 팬·핀치 줌 가능.
+            일반 휠 줌은 scrollWheel:false 로 끄고 Alt/Ctrl+휠만 처리해 페이지 스크롤 방해 없음. */}
         <div
           ref={containerRef}
           className="rounded-md overflow-hidden"
           style={{ height }}
         />
-        {!isMapActive && (
-          <button
-            type="button"
-            onClick={() => setIsMapActive(true)}
-            aria-label="지도 조작 활성화"
-            className="absolute inset-0 z-10 cursor-pointer bg-transparent rounded-md"
-            style={{ height }}
-          />
-        )}
       </div>
     </>
   );

@@ -46,13 +46,16 @@ export default function DraggableSheet({
   // 시트 높이 기준 — 키보드가 올라와도 축소되지 않도록 관찰된 최대 높이 유지.
   // 시트가 키보드 올라간 상태에서 열리면 작은 viewport 가 잡혀 20% 크기로 보이던 버그 방지.
   const [baseHeight, setBaseHeight] = useState<number | null>(null);
+  // 현재 visualViewport 높이 — 키보드 상태 추적용. full snap 에서 상한 조정.
+  const [currentVh, setCurrentVh] = useState<number | null>(null);
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
     const capture = () => {
       const vv = window.visualViewport?.height;
       const ih = window.innerHeight;
-      // visualViewport 는 키보드 반영 축소된 값, innerHeight 는 전체 viewport.
-      // 둘 중 큰 값을 사용해 키보드 상태와 무관한 안정적 높이 확보.
+      const nowVh = vv ?? ih;
+      setCurrentVh(nowVh);
+      // baseHeight 는 관찰된 최대값 유지(키보드 내려갔을 때의 큰 viewport).
       const h = Math.max(ih, vv ?? 0);
       setBaseHeight((prev) => (prev == null ? h : Math.max(prev, h)));
     };
@@ -66,7 +69,7 @@ export default function DraggableSheet({
   }, [open]);
   // 회전 시엔 최대값 리셋이 필요해 open 닫을 때 초기화.
   useEffect(() => {
-    if (!open) setBaseHeight(null);
+    if (!open) { setBaseHeight(null); setCurrentVh(null); }
   }, [open]);
 
   useEffect(() => {
@@ -192,14 +195,20 @@ export default function DraggableSheet({
     }
   };
 
-  // 시트 높이: baseHeight(열릴 때 캡처한 px) * 비율. 없으면 dvh fallback
-  // (SSR·첫 프레임 대응). 키보드 떠도 height 가 px 로 고정돼 쪼그라들지 않음.
-  const height =
-    baseHeight != null
-      ? `${Math.round((snap === "full" ? fullVh : halfVh) * baseHeight)}px`
-      : snap === "full"
-        ? `${fullVh * 100}dvh`
-        : `${halfVh * 100}dvh`;
+  // 시트 높이: baseHeight * 비율. 단 full snap 에서 키보드가 올라와 viewport 가
+  // 축소되면 상한을 visualViewport 로 제한 → 입력창이 뷰포트 밖으로 밀려 안 보이는
+  // 현상(사용자가 "90% 키보드 가림방지로 입력창 안 보임" 이라 함) 방지.
+  const height = (() => {
+    if (baseHeight == null) {
+      return snap === "full" ? `${fullVh * 100}dvh` : `${halfVh * 100}dvh`;
+    }
+    const ratio = snap === "full" ? fullVh : halfVh;
+    const plannedPx = Math.round(ratio * baseHeight);
+    if (snap === "full" && currentVh != null && currentVh < plannedPx) {
+      return `${Math.round(currentVh)}px`;
+    }
+    return `${plannedPx}px`;
+  })();
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

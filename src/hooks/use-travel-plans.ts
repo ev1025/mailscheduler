@@ -103,5 +103,34 @@ export function useTravelPlans(visibleUserIds?: string[]) {
     return { error };
   };
 
-  return { plans, loading, addPlan, updatePlan, deletePlan, refetch: fetchPlans };
+  // 계획 복제 — 메타 + 소속 tasks 전체를 새 plan 으로 복사. sort_order/day_index 유지.
+  const duplicatePlan = async (id: string) => {
+    const original = plans.find((p) => p.id === id);
+    if (!original) return { error: "원본 계획을 찾을 수 없습니다" };
+    const newPlan = await addPlan({
+      title: `${original.title} (복사본)`,
+      start_date: original.start_date ?? undefined,
+      end_date: original.end_date ?? undefined,
+      notes: original.notes ?? undefined,
+    });
+    if (newPlan.error || !newPlan.data) return { error: newPlan.error };
+    // tasks 조회 후 그대로 복제 (id 는 생성 후 자동 부여)
+    const { data: tasks, error: tErr } = await supabase
+      .from("travel_plan_tasks")
+      .select("*")
+      .eq("plan_id", id);
+    if (tErr) return { error: tErr };
+    if (tasks && tasks.length > 0) {
+      const cloned = tasks.map((t: Record<string, unknown>) => {
+        const { id: _omitId, created_at: _c, ...rest } = t as { id: string; created_at: string };
+        void _omitId; void _c;
+        return { ...rest, plan_id: newPlan.data!.id };
+      });
+      await supabase.from("travel_plan_tasks").insert(cloned);
+    }
+    await fetchPlans();
+    return { data: newPlan.data, error: null };
+  };
+
+  return { plans, loading, addPlan, updatePlan, deletePlan, duplicatePlan, refetch: fetchPlans };
 }
