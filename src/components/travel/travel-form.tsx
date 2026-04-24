@@ -18,6 +18,7 @@ import NaverMap from "@/components/travel/naver-map";
 import { X, MapPin, Search as SearchIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useTravelCategories, BUILTIN_TRAVEL_CATEGORIES } from "@/hooks/use-travel-categories";
+import { useFormDraft } from "@/hooks/use-form-draft";
 import type { TravelItem, TravelCategory, TravelTag, EventTag, PlaceInfo } from "@/types";
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -64,8 +65,25 @@ export default function TravelForm({
   const [visited, setVisited] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // 자동 저장 드래프트 — item 편집 시엔 id 별 키, 신규 생성 시엔 "new" 고정 키.
+  // 저장 안 누르고 모달 닫거나 탭 닫아도 입력값 복원됨.
+  const draftKey = item ? `travel-form:${item.id}` : "travel-form:new";
+  const draftValue = { title, color, region, category, month, selectedTags, notes, visited, places };
+  const { loadDraft, clearDraft } = useFormDraft(draftKey, draftValue, {
+    isEmpty: (v) =>
+      !v.title.trim() &&
+      !v.region.trim() &&
+      !v.notes.trim() &&
+      v.places.length === 0 &&
+      v.selectedTags.length === 0 &&
+      !v.category &&
+      v.month == null &&
+      !v.visited,
+  });
+
   useEffect(() => {
     if (!open) return;
+    // 1) item 기준으로 세팅
     if (item) {
       setTitle(item.title);
       setColor(item.color || categoryColors[item.category] || "#3B82F6");
@@ -75,8 +93,6 @@ export default function TravelForm({
       setSelectedTags(item.tag ? item.tag.split(",") : []);
       setNotes(item.notes || "");
       setVisited(item.visited);
-      // places 우선 사용. 구버전 단일 place_name 만 있는 행은 마이그레이션된 상태를
-      // places[0] 으로 읽도록 DB SQL 에서 처리했지만, 안전하게 클라에서도 fallback.
       if (item.places && item.places.length > 0) {
         setPlaces(item.places);
       } else if (item.place_name && item.lat != null && item.lng != null) {
@@ -100,9 +116,23 @@ export default function TravelForm({
       setVisited(false);
       setPlaces([]);
     }
+    // 2) 드래프트 있으면 우선 복원(자동) — 직전 세션 입력이 item 값보다 최신이므로.
+    const draft = loadDraft();
+    if (draft) {
+      setTitle(draft.title ?? "");
+      setColor(draft.color ?? "#3B82F6");
+      setRegion(draft.region ?? "");
+      setCategory((draft.category as TravelCategory | "") ?? "");
+      setMonth(draft.month ?? null);
+      setSelectedTags(draft.selectedTags ?? []);
+      setNotes(draft.notes ?? "");
+      setVisited(draft.visited ?? false);
+      setPlaces(draft.places ?? []);
+    }
     setPlaceQuery("");
     setPlaceResults([]);
     setExpandedPlaces(new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item, open]);
 
   // 위치 검색 — 350ms 디바운스
@@ -182,6 +212,7 @@ export default function TravelForm({
       console.error("[travel-form save]", error);
       return;
     }
+    clearDraft(); // 성공 저장 후 자동저장 드래프트 제거.
     onOpenChange(false);
   };
 
