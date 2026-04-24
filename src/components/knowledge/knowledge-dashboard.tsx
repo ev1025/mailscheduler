@@ -30,6 +30,8 @@ interface DashboardProps {
   onRenameFolder?: (id: string, name: string) => void;
   onRenameItem?: (id: string, title: string) => void;
   onReorderFolders?: (ids: string[]) => void;
+  /** 같은 parentId 에 속한 item 들의 순서 업데이트. 배열 순서 그대로 sort_order 재번호. */
+  onReorderItems?: (orderedIds: string[], parentId: string | null) => void | Promise<void>;
   onSelectModeChange?: (active: boolean) => void;
   onMoveItems?: (ids: string[], targetFolderId: string | null) => void;
   onMoveFolders?: (ids: string[], targetFolderId: string | null) => void;
@@ -96,6 +98,16 @@ function SortableFolderRow(props: Parameters<typeof FolderTreeRow>[0]) {
   return (
     <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }} {...attributes} {...listeners}>
       <FolderTreeRow {...props} />
+    </div>
+  );
+}
+
+// 노트(파일) 행도 드래그 재정렬 가능하게 래핑. item id 기준.
+function SortableNoteRow(props: Parameters<typeof NoteTreeRow>[0]) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.item.id });
+  return (
+    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }} {...attributes} {...listeners}>
+      <NoteTreeRow {...props} />
     </div>
   );
 }
@@ -232,7 +244,7 @@ export function FolderTreeRow({
 
 /* ── 메인 대시보드 ── */
 export default function KnowledgeDashboard({
-  folders, items, onSelectItem, onSelectFolder, onSearch, searchQuery, searchResults, onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onReorderFolders, onSelectModeChange, onMoveItems, onMoveFolders, onTogglePinItem, hideSearch, pendingRenameFolderId, onConsumeRename,
+  folders, items, onSelectItem, onSelectFolder, onSearch, searchQuery, searchResults, onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onReorderFolders, onReorderItems, onSelectModeChange, onMoveItems, onMoveFolders, onTogglePinItem, hideSearch, pendingRenameFolderId, onConsumeRename,
 }: DashboardProps) {
   const { toggleFolder: toggleFolderFav, isFolderFav, favoriteFolderIds } = useKnowledgeFavorites();
   // 즐겨찾기 = DB pinned (items) + localStorage favorites (folders)
@@ -248,13 +260,43 @@ export default function KnowledgeDashboard({
     });
 
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // 드래그 종료 — active 가 폴더 or item 인지 판별해 각각의 재정렬 훅에 위임.
   const handleDragEnd = (e: DragEndEvent) => {
-    if (!e.over || e.active.id === e.over.id || !onReorderFolders) return;
-    const oldIdx = rootFolders.findIndex((f) => f.id === e.active.id);
-    const newIdx = rootFolders.findIndex((f) => f.id === e.over!.id);
-    if (oldIdx === -1 || newIdx === -1) return;
-    const reordered = arrayMove(rootFolders, oldIdx, newIdx);
-    onReorderFolders(reordered.map((f) => f.id));
+    if (!e.over || e.active.id === e.over.id) return;
+    const activeId = String(e.active.id);
+    const overId = String(e.over.id);
+    // 폴더-폴더 재정렬 (루트)
+    const folderActive = rootFolders.find((f) => f.id === activeId);
+    const folderOver = rootFolders.find((f) => f.id === overId);
+    if (folderActive && folderOver && onReorderFolders) {
+      const oldIdx = rootFolders.findIndex((f) => f.id === activeId);
+      const newIdx = rootFolders.findIndex((f) => f.id === overId);
+      const reordered = arrayMove(rootFolders, oldIdx, newIdx);
+      onReorderFolders(reordered.map((f) => f.id));
+      return;
+    }
+    // 아이템-아이템 재정렬 — 같은 부모(folder_id) 기준.
+    const itemActive = items.find((i) => i.id === activeId);
+    const itemOver = items.find((i) => i.id === overId);
+    if (itemActive && itemOver && onReorderItems) {
+      const parentId = itemActive.folder_id ?? null;
+      if ((itemOver.folder_id ?? null) !== parentId) return; // 부모 다르면 순서 변경 취소(이동은 별도 UX)
+      // 해당 부모의 item 들을 현재 정렬 기준으로 나열.
+      const siblings = items
+        .filter((i) => (i.folder_id ?? null) === parentId)
+        .sort((a, b) => {
+          if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+          const sa = a.sort_order ?? 0;
+          const sb = b.sort_order ?? 0;
+          if (sa !== sb) return sa - sb;
+          return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+        });
+      const oldIdx = siblings.findIndex((i) => i.id === activeId);
+      const newIdx = siblings.findIndex((i) => i.id === overId);
+      if (oldIdx === -1 || newIdx === -1) return;
+      const reordered = arrayMove(siblings, oldIdx, newIdx);
+      onReorderItems(reordered.map((i) => i.id), parentId);
+    }
   };
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -553,7 +595,8 @@ export default function KnowledgeDashboard({
               </section>
             )}
 
-            {/* 폴더 트리 + 최상위 노트 — 한 섹션으로 묶어 중간 gap 없이 연속 렌더. */}
+            {/* 폴더 트리 + 최상위 노트 — 한 섹션 내 하나의 DndContext.
+                폴더·아이템 각각 SortableContext 로 분리해 중복 id 충돌 방지. */}
             {(rootFolders.length > 0 || rootItems.length > 0) && (
               <section className="flex flex-col">
                 <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -584,27 +627,29 @@ export default function KnowledgeDashboard({
                       />
                     ))}
                   </SortableContext>
+                  <SortableContext items={rootItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                    {rootItems.map((it) => (
+                      <SortableNoteRow
+                        key={it.id}
+                        item={it}
+                        depth={0}
+                        selectMode={selectMode}
+                        selected={selItems.has(it.id)}
+                        onToggle={() => toggleSelection(it.id, "item")}
+                        onClick={() => (selectMode ? toggleSelection(it.id, "item") : onSelectItem(it.id))}
+                        onLongPress={() => handleLongPress(it.id, "item")}
+                        renamingId={renamingId}
+                        renameValue={renameValue}
+                        onRenameChange={setRenameValue}
+                        onRenameSubmit={submitRename}
+                        isFavorite={it.pinned}
+                        onToggleFavorite={
+                          onTogglePinItem ? () => onTogglePinItem(it.id, it.pinned) : undefined
+                        }
+                      />
+                    ))}
+                  </SortableContext>
                 </DndContext>
-                {rootItems.map((it) => (
-                  <NoteTreeRow
-                    key={it.id}
-                    item={it}
-                    depth={0}
-                    selectMode={selectMode}
-                    selected={selItems.has(it.id)}
-                    onToggle={() => toggleSelection(it.id, "item")}
-                    onClick={() => (selectMode ? toggleSelection(it.id, "item") : onSelectItem(it.id))}
-                    onLongPress={() => handleLongPress(it.id, "item")}
-                    renamingId={renamingId}
-                    renameValue={renameValue}
-                    onRenameChange={setRenameValue}
-                    onRenameSubmit={submitRename}
-                    isFavorite={it.pinned}
-                    onToggleFavorite={
-                      onTogglePinItem ? () => onTogglePinItem(it.id, it.pinned) : undefined
-                    }
-                  />
-                ))}
               </section>
             )}
 

@@ -551,6 +551,10 @@ function KnowledgePageInner() {
                     onReorderFolders={async (ids) => {
                       for (let i = 0; i < ids.length; i++) await updateFolder(ids[i], { sort_order: i });
                     }}
+                    onReorderItems={async (ids) => {
+                      // 같은 parent 내 item 들의 sort_order 를 1부터 재번호.
+                      for (let i = 0; i < ids.length; i++) await updateItem(ids[i], { sort_order: i + 1 });
+                    }}
                     onSelectModeChange={setDashSelectMode}
                     onMoveItems={async (ids, targetFolderId) => {
                       for (const id of ids) await updateItem(id, { folder_id: targetFolderId });
