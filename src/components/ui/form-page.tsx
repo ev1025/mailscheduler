@@ -152,9 +152,11 @@ export default function FormPage({
         />
 
         {/* 본문: flex-1 overflow-y-auto + 빈 영역 탭 시 blur.
-            헤더 구분선과 첫 컨텐츠 사이에 pt-4(16px) 여백 — 이전 pt-1(4px)은 너무 좁아 답답했음. */}
+            헤더 구분선과 첫 컨텐츠 사이에 pt-4(16px) 여백 — 이전 pt-1(4px)은 너무 좁아 답답했음.
+            footer 를 스크롤 영역 안쪽 마지막 콘텐츠 아래에 배치 — 고정 풋터는
+            오히려 눈에 덜 띄고 긴 폼에서 버튼이 본문과 분리돼 보임. */}
         <div
-          className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-3 md:px-6 md:pt-6 md:pb-4"
+          className="flex-1 min-h-0 overflow-y-auto px-4 pt-4 pb-4 md:px-6 md:pt-6 md:pb-6"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               const active = document.activeElement;
@@ -168,37 +170,36 @@ export default function FormPage({
           }}
         >
           {children}
-          {/* Bottom bumper — 안전영역 여유공간. 키보드 대응은 컨테이너 height
-              (calc(100dvh - --kb-offset)) 가 담당. */}
+
+          {!hideFooter && (
+            <div className="mt-6 pt-4 md:mt-8 md:pt-5 border-t flex items-center justify-between gap-2">
+              <div>{footerStart}</div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancel}
+                  disabled={saving}
+                >
+                  {cancelLabel}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => { if (onSubmit) void onSubmit(); }}
+                  disabled={saving || submitDisabled || !onSubmit}
+                >
+                  {saving ? "저장 중…" : submitLabel}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Bottom bumper — 안전영역 여유공간. */}
           <div className="h-[env(safe-area-inset-bottom,0px)]" />
           <div className="h-4" />
         </div>
-
-        {/* 하단 footer — hideFooter=true 시 생략 (picker 류 사용) */}
-        {!hideFooter && (
-          <div className="flex items-center justify-between gap-2 px-4 py-3 md:px-6 md:py-4 border-t shrink-0 bg-background">
-            <div>{footerStart}</div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleCancel}
-                disabled={saving}
-              >
-                {cancelLabel}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => { if (onSubmit) void onSubmit(); }}
-                disabled={saving || submitDisabled || !onSubmit}
-              >
-                {saving ? "저장 중…" : submitLabel}
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* 초기 mount 트리거 용 — 리렌더 없이 mounted flag 유지 */}

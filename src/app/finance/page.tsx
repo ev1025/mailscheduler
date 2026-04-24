@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Plus, Wallet, ShoppingBag, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MonthPicker from "@/components/layout/month-picker";
-import EmptyIllustration from "@/components/ui/illustrations";
 import PageHeader from "@/components/layout/page-header";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
@@ -166,8 +165,7 @@ export default function FinancePage() {
           />
           <CategoryChart expenseByCategory={expenseByCategory} totalExpense={totalExpense} />
           {allTransactions.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <EmptyIllustration variant="finance" size={150} />
+            <div className="flex flex-col items-center justify-center py-12 gap-2">
               <p className="text-sm text-muted-foreground">이 달의 내역이 없습니다</p>
               <p className="text-xs text-muted-foreground/70">우상단 + 버튼으로 수입·지출을 기록해보세요</p>
             </div>

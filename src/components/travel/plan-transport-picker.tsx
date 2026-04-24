@@ -255,7 +255,7 @@ export default function PlanTransportPicker({
             <SelectTrigger className="h-7 w-[110px] text-xs">
               {sort === "fastest" ? "최단 경로순" : "도보 적은 순"}
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="min-w-0">
               <SelectItem value="fastest" className="text-xs" hideIndicator>
                 최단 경로순
               </SelectItem>

@@ -17,7 +17,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/ui/search-input";
-import EmptyIllustration from "@/components/ui/illustrations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/lib/supabase";
 import {
@@ -452,8 +451,7 @@ function ProductsPageInner() {
       {loading ? (
         <p className="text-sm text-muted-foreground">불러오는 중...</p>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-          <EmptyIllustration variant="products" size={150} />
+        <div className="flex flex-col items-center justify-center py-16 gap-2 text-center">
           <p className="text-sm text-muted-foreground">
             {products.length === 0
               ? "등록된 제품이 없습니다"

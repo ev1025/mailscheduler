@@ -10,6 +10,22 @@ interface Props {
   onExit: () => void | Promise<void>;
 }
 
+function formatRelative(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const diff = Date.now() - then;
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return "방금";
+  if (min < 60) return `${min}분 전`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}시간 전`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day}일 전`;
+  if (day < 30) return `${Math.floor(day / 7)}주 전`;
+  if (day < 365) return `${Math.floor(day / 30)}개월 전`;
+  return `${Math.floor(day / 365)}년 전`;
+}
+
 export default function NoteReaderView({ item, onEdit, onExit }: Props) {
   return (
     <>
@@ -37,6 +53,27 @@ export default function NoteReaderView({ item, onEdit, onExit }: Props) {
         </Button>
       </div>
       <div className="flex-1 overflow-y-auto p-4">
+        {/* 메타: 수정시간 · 태그 — 제목 바로 아래 subtle 한 줄 */}
+        {(item.updated_at || (item.tags && item.tags.length > 0)) && (
+          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+            {item.updated_at && <span>{formatRelative(item.updated_at)} 수정</span>}
+            {item.tags && item.tags.length > 0 && item.updated_at && (
+              <span className="text-muted-foreground/40">·</span>
+            )}
+            {item.tags && item.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {item.tags.map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {item.content ? (
           <div
             className="tiptap-editor"
@@ -54,33 +91,6 @@ export default function NoteReaderView({ item, onEdit, onExit }: Props) {
             </button>
           </p>
         )}
-      </div>
-      <div className="flex flex-col gap-2 border-t px-4 py-2 shrink-0">
-        {item.tags && item.tags.length > 0 && (
-          <div className="flex gap-1 flex-wrap">
-            {item.tags.map((t) => (
-              <span
-                key={t}
-                className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
-        )}
-        {/* 수정·생성 정보 — 컨텐츠 폭만큼만 차지 (full-width 스트레치 금지). */}
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          {item.updated_at && (
-            <span>
-              수정 {new Date(item.updated_at).toLocaleString("ko-KR", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-            </span>
-          )}
-          {item.created_at && (
-            <span>
-              생성 {new Date(item.created_at).toLocaleString("ko-KR", { month: "short", day: "numeric" })}
-            </span>
-          )}
-        </div>
       </div>
     </>
   );

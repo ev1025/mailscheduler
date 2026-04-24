@@ -18,7 +18,6 @@ import { cn } from "@/lib/utils";
 import NotificationsPanel from "./notifications-panel";
 import { useCurrentUser } from "@/lib/current-user";
 import { useNotifications } from "@/hooks/use-notifications";
-import DdayWidget from "@/components/common/dday-widget";
 
 interface NavItem {
   href: string;
@@ -123,13 +122,6 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </Link>
           );
         })}
-
-        {/* D-day 위젯 — 사이드바 펼쳐진 상태에서만 노출. 네비 아래 공간 활용. */}
-        {!collapsed && (
-          <div className="mt-4 px-1">
-            <DdayWidget limit={5} />
-          </div>
-        )}
       </nav>
 
       {/* 하단: 알림 / 설정 / 프로필 — 작업표시줄에 가려지지 않도록 pb 여유 */}

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { MoreHorizontal, Trash2, Copy } from "lucide-react";
-import EmptyIllustration from "@/components/ui/illustrations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import SearchInput from "@/components/ui/search-input";
 import PromptDialog from "@/components/ui/prompt-dialog";
@@ -222,8 +221,7 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
         {loading ? (
           <p className="text-xs text-muted-foreground text-center py-8">불러오는 중…</p>
         ) : ordered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-            <EmptyIllustration variant="travel" size={150} />
+          <div className="flex flex-col items-center justify-center py-12 gap-2 text-center">
             <p className="text-sm text-muted-foreground">
               {plans.length === 0
                 ? "아직 계획이 없습니다"
