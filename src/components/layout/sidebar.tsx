@@ -105,7 +105,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               href={item.href}
               title={collapsed ? item.label : undefined}
               onClick={() => {
+                // 지식창고 → 접힘(공간 확보). 다른 페이지 → 접혀 있었으면 자동 펼침.
                 if (autoCollapse && !collapsed) onToggle();
+                else if (!autoCollapse && collapsed) onToggle();
               }}
               className={cn(
                 "flex items-center rounded-md transition-colors",
