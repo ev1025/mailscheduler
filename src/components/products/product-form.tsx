@@ -16,7 +16,6 @@ import { useProductSubTags } from "@/hooks/use-product-subtags";
 import TagInput from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import type { Product, ProductCategory } from "@/types";
-import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
   FORM_LABEL,
   FORM_HINT,
@@ -38,7 +37,6 @@ interface Props {
   onSave: (
     data: Omit<Product, "id" | "created_at" | "updated_at">
   ) => Promise<{ error: unknown; data?: Product | null }>;
-  onDelete?: (id: string) => Promise<{ error: unknown }>;
 }
 
 export default function ProductForm({
@@ -46,7 +44,6 @@ export default function ProductForm({
   onOpenChange,
   product,
   onSave,
-  onDelete,
 }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ProductCategory>("영양제");
@@ -65,7 +62,6 @@ export default function ProductForm({
   const [siteDraft, setSiteDraft] = useState("");
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [fixedHelpOpen, setFixedHelpOpen] = useState(false);
   const fixedHelpRef = useRef<HTMLDivElement>(null);
   const userId = useCurrentUserId();
@@ -256,20 +252,6 @@ export default function ProductForm({
       submitDisabled={!name.trim()}
       saving={saving}
       onSubmit={handleSubmit}
-      footerStart={
-        product && onDelete ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={() => setDeleteConfirmOpen(true)}
-            title="삭제"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        ) : null
-      }
     >
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
@@ -468,26 +450,6 @@ export default function ProductForm({
 
         </div>
     </FormPage>
-
-    {product && onDelete && (
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onOpenChange={setDeleteConfirmOpen}
-        title="제품 삭제"
-        description={`"${product.name}"을(를) 삭제할까요?`}
-        confirmLabel="삭제"
-        destructive
-        onConfirm={async () => {
-          const { error } = await onDelete(product.id);
-          if (!error) {
-            setDeleteConfirmOpen(false);
-            onOpenChange(false);
-          } else {
-            toast.error("삭제 실패");
-          }
-        }}
-      />
-    )}
     </>
   );
 }

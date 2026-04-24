@@ -11,12 +11,14 @@ import {
   ShoppingBag,
   Menu,
   GripVertical,
+  Trash2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/ui/search-input";
 import EmptyIllustration from "@/components/ui/illustrations";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/lib/supabase";
 import {
   DndContext,
@@ -64,14 +66,17 @@ function ProductRow({
   idx,
   stat,
   onEdit,
+  onDelete,
 }: {
   p: Product;
   idx: number;
   stat?: ProductStat;
   onEdit: (p: Product) => void;
+  onDelete: (p: Product) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: p.id });
+  const [menuOpen, setMenuOpen] = useState(false);
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -85,17 +90,32 @@ function ProductRow({
       className="border-t hover:bg-accent/50 cursor-pointer group"
       onClick={() => onEdit(p)}
     >
-      <td className="text-center px-1 py-2 whitespace-nowrap w-8">
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center justify-center p-1.5 rounded text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
-          aria-label="드래그로 이동"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+      <td className="text-center px-1 py-2 whitespace-nowrap w-8" onClick={(e) => e.stopPropagation()}>
+        {/* 드래그로 이동 / 탭하면 삭제 메뉴 */}
+        <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+          <PopoverTrigger
+            {...attributes}
+            {...listeners}
+            className="inline-flex items-center justify-center p-1.5 rounded text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
+            title="드래그로 이동 / 탭하면 메뉴"
+            aria-label="제품 메뉴"
+          >
+            <GripVertical className="h-4 w-4" />
+          </PopoverTrigger>
+          <PopoverContent align="start" side="right" className="w-32 p-1">
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                setMenuOpen(false);
+                onDelete(p);
+              }}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              삭제
+            </button>
+          </PopoverContent>
+        </Popover>
       </td>
       <td className="text-center px-1 py-1.5 whitespace-nowrap w-8">
         <span
@@ -146,6 +166,8 @@ function ProductsPageInner() {
   const { categories: midCategories, addCategory, deleteCategory: deleteMidCategory } = useProductCategories();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+  // 목록 드래그바 탭 → 삭제 메뉴 → 확인 다이얼로그 대상
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   const [statsTick, setStatsTick] = useState(0);
   const [search, setSearch] = useState("");
   const router = useRouter();
@@ -514,6 +536,7 @@ function ProductsPageInner() {
                                         setEditing(prod);
                                         setFormOpen(true);
                                       }}
+                                      onDelete={(prod) => setDeletingProduct(prod)}
                                     />
                                   ))}
                                 </tbody>
@@ -539,9 +562,33 @@ function ProductsPageInner() {
         }}
         product={editing}
         onSave={handleSave}
-        onDelete={async (id) => {
-          const res = await deleteProduct(id);
-          return { error: res?.error ?? null };
+      />
+
+      {/* 제품 삭제 확인 — 목록 드래그바 → 삭제 경로 */}
+      <ConfirmDialog
+        open={!!deletingProduct}
+        onOpenChange={(o) => { if (!o) setDeletingProduct(null); }}
+        title="제품 삭제"
+        description={
+          deletingProduct
+            ? `"${deletingProduct.name}" 제품과 모든 구매 기록을 삭제합니다. 되돌릴 수 없어요.`
+            : ""
+        }
+        confirmLabel="삭제"
+        destructive
+        onConfirm={async () => {
+          if (deletingProduct) {
+            const res = await deleteProduct(deletingProduct.id);
+            if (res?.error) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const msg = (res.error as any)?.message ?? "삭제 실패";
+              // 간단 토스트 대체 — 에러 메시지 alert
+              alert(msg);
+            } else {
+              setStatsTick((t) => t + 1);
+            }
+          }
+          setDeletingProduct(null);
         }}
       />
 
