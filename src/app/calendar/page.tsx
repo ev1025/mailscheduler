@@ -1,14 +1,14 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CalendarDays,
   TableProperties,
-  Menu,
 } from "lucide-react";
 import MonthPicker from "@/components/layout/month-picker";
 import PageHeader from "@/components/layout/page-header";
+import HeaderViewMenu from "@/components/layout/header-view-menu";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useWeather } from "@/hooks/use-weather";
 import { useEventTags } from "@/hooks/use-event-tags";
@@ -209,63 +209,31 @@ function CalendarPageInner() {
     setScopeDialog(null);
   };
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handler = (e: MouseEvent | TouchEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("touchstart", handler);
-    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("touchstart", handler); };
-  }, [menuOpen]);
-
   const viewLabel = view === "calendar" ? "달력" : "일정목록";
-
-  const viewMenuItems = [
-    { key: "calendar" as const, label: "달력", icon: CalendarDays },
-    { key: "database" as const, label: "일정목록", icon: TableProperties },
-  ];
 
   return (
     <>
       <PageHeader
         title={viewLabel}
-        showBell
         actions={
-          <div className="flex items-center">
-            <div className="relative" ref={menuRef}>
-              <button
-                type="button"
-                onClick={() => setMenuOpen((o) => !o)}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-                aria-label="메뉴"
-              >
-                <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
-              </button>
-              {menuOpen && (
-                <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
-                  {viewMenuItems.map(({ key, label, icon: Icon }) => {
-                    const active = view === key;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => { setView(key); setMenuOpen(false); }}
-                        className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                          active ? "bg-accent font-medium" : "hover:bg-accent/50"
-                        }`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
+          <HeaderViewMenu
+            items={[
+              {
+                key: "calendar",
+                label: "달력",
+                icon: CalendarDays,
+                active: view === "calendar",
+                onSelect: () => setView("calendar"),
+              },
+              {
+                key: "database",
+                label: "일정목록",
+                icon: TableProperties,
+                active: view === "database",
+                onSelect: () => setView("database"),
+              },
+            ]}
+          />
         }
       />
     <div className="flex flex-col min-h-0 h-[calc(100%-3.5rem)] overflow-hidden px-2 py-2 md:h-auto md:overflow-visible md:min-h-0 md:p-6">

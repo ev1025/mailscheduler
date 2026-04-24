@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { Plane, Route } from "lucide-react";
 import PageHeader from "@/components/layout/page-header";
+import HeaderViewMenu from "@/components/layout/header-view-menu";
 import TravelList from "@/components/travel/travel-list";
 import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useEventTags } from "@/hooks/use-event-tags";
@@ -25,7 +27,28 @@ export default function TravelPage() {
 
   return (
     <>
-      <PageHeader title="여행" showBell />
+      <PageHeader
+        title="여행"
+        actions={
+          <HeaderViewMenu
+            items={[
+              {
+                key: "travel",
+                label: "여행",
+                icon: Plane,
+                active: true,
+                onSelect: () => {},
+              },
+              {
+                key: "travel-plans",
+                label: "여행 계획",
+                icon: Route,
+                onSelect: () => router.push("/travel/plans"),
+              },
+            ]}
+          />
+        }
+      />
       <div className="flex flex-col h-[calc(100%-3.5rem)] overflow-hidden px-2 py-2 md:h-auto md:overflow-visible md:min-h-0 md:p-6">
         <TravelList
           visibleUserIds={visibleUserIds}
