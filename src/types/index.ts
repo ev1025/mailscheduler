@@ -33,8 +33,11 @@ export interface ExpenseCategory {
 
 export interface Expense {
   id: string;
+  /** 거래 이름(제목) — 목록에서 가장 크게 표시되는 필드. null 이면 description/카테고리명으로 폴백. */
+  title: string | null;
   amount: number;
   category_id: string;
+  /** 상세 메모 — 폼에서만 보이고 목록에서는 숨김. */
   description: string | null;
   date: string;
   type: "income" | "expense";

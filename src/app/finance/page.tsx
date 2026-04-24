@@ -86,6 +86,7 @@ export default function FinancePage() {
   const allTransactions = [...transactions].sort((a, b) => b.date.localeCompare(a.date));
 
   const handleSave = async (data: {
+    title: string | null;
     amount: number; category_id: string; description: string | null;
     date: string; type: "income" | "expense"; payment_method: string;
   }) => {

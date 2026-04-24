@@ -67,7 +67,10 @@ export function useTransactions(year: number, month: number) {
       .from("expenses")
       .insert({ ...tx, user_id: userId });
     if (error) {
-      const retry = await supabase.from("expenses").insert(tx);
+      // title/user_id 컬럼이 아직 없는 DB 대비 — 두 필드 모두 제거하고 재시도.
+      const { title, ...rest } = tx;
+      void title;
+      const retry = await supabase.from("expenses").insert(rest);
       if (!retry.error) await fetchTransactions();
       return { error: retry.error };
     }
@@ -83,8 +86,19 @@ export function useTransactions(year: number, month: number) {
       .from("expenses")
       .update(updates)
       .eq("id", id);
-    if (!error) await fetchTransactions();
-    return { error };
+    if (error) {
+      // title 컬럼 없는 DB 대비 재시도.
+      const { title, ...rest } = updates;
+      void title;
+      const retry = await supabase
+        .from("expenses")
+        .update(rest)
+        .eq("id", id);
+      if (!retry.error) await fetchTransactions();
+      return { error: retry.error };
+    }
+    await fetchTransactions();
+    return { error: null };
   };
 
   const deleteTransaction = async (id: string) => {

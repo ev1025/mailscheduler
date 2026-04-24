@@ -66,14 +66,14 @@ export default function TransactionList({
                       {tx.category.name.charAt(0)}
                     </div>
                   )}
-                  {/* 이름(description) 이 제목 역할 — 제일 크게. 카테고리는 그 아래 작게.
-                      이름이 비어있으면 카테고리명을 제목으로 폴백, 하단은 생략.
-                      결제수단은 목록에서 노출 안 함 (편집 폼에서만). */}
+                  {/* 제목(title) 이 제일 크게. 카테고리는 그 아래 작게.
+                      title 없으면 description → 카테고리명 순으로 폴백.
+                      메모·결제수단은 목록에 노출 안 함 (편집 폼에서만). */}
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm truncate">
-                      {tx.description || tx.category?.name || "미분류"}
+                      {tx.title || tx.description || tx.category?.name || "미분류"}
                     </p>
-                    {tx.description && tx.category?.name && (
+                    {(tx.title || tx.description) && tx.category?.name && (
                       <p className="text-xs text-muted-foreground truncate">
                         {tx.category.name}
                       </p>

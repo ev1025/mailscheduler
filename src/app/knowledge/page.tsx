@@ -296,17 +296,18 @@ function KnowledgePageInner() {
     </>
   );
 
-  // 데스크톱: PageHeader 항상 노출(편집 중에도). 모바일: 노트 진입 시엔 기존처럼 숨김(에디터 자체 헤더 씀).
-  const showHeader = !dashSelectMode && !folderSelectMode;
+  // PageHeader 는 선택 모드에서도 계속 노출 — 이전엔 선택 진입 시 PageHeader 를
+  // 언마운트해서 h-14 가 사라져 아래 요소가 위로 밀리며 "손가락 아래 항목이 바뀌는"
+  // 레이아웃 이동이 발생했음. 지금은 제목 유지, 선택 모드일 때 actions(폴더/파일
+  // 추가) 만 숨기고, 실제 선택 툴바는 대시보드 내부 검색창 자리에 인라인으로 렌더.
   const hideHeaderOnMobile = noteOpen;
+  const inSelectMode = dashSelectMode || folderSelectMode;
 
   return (
     <>
-      {showHeader && (
-        <div className={hideHeaderOnMobile ? "hidden md:block" : ""}>
-          <PageHeader title="지식창고" actions={listActions} />
-        </div>
-      )}
+      <div className={hideHeaderOnMobile ? "hidden md:block" : ""}>
+        <PageHeader title="지식창고" actions={inSelectMode ? null : listActions} />
+      </div>
       <div
         className={`flex min-h-0 ${
           dashSelectMode || folderSelectMode

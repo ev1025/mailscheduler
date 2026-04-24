@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TagInput from "@/components/ui/tag-input";
@@ -24,6 +25,7 @@ interface TransactionFormProps {
   onDeleteCategory?: (id: string) => Promise<{ error: unknown }>;
   onUpdateCategoryColor?: (id: string, color: string) => Promise<{ error: unknown }>;
   onSave: (data: {
+    title: string | null;
     amount: number;
     category_id: string;
     description: string | null;
@@ -45,6 +47,7 @@ export default function TransactionForm({
 }: TransactionFormProps) {
   const { methods: paymentMethods, addMethod, deleteMethod, updateMethodColor } = usePaymentMethods();
   const [type, setType] = useState<"income" | "expense">("expense");
+  const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
@@ -55,6 +58,7 @@ export default function TransactionForm({
   useEffect(() => {
     if (transaction) {
       setType(transaction.type);
+      setTitle(transaction.title || "");
       setAmount(String(transaction.amount));
       setCategoryId(transaction.category_id);
       setDescription(transaction.description || "");
@@ -62,6 +66,7 @@ export default function TransactionForm({
       setPaymentMethod(transaction.payment_method);
     } else {
       setType("expense");
+      setTitle("");
       setAmount("");
       setCategoryId("");
       setDescription("");
@@ -76,6 +81,7 @@ export default function TransactionForm({
     if (!amount || !categoryId) return;
     setSaving(true);
     const { error } = await onSave({
+      title: title.trim() || null,
       amount: parseInt(amount, 10),
       category_id: categoryId,
       description: description.trim() || null,
@@ -97,6 +103,21 @@ export default function TransactionForm({
       onSubmit={handleSubmit}
     >
         <div className="flex flex-col gap-4">
+          {/* 지출명 — 목록에서 제일 크게 보이는 제목 필드 (DB 컬럼: title). */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="title" className={FORM_LABEL}>
+              지출명
+            </Label>
+            <Textarea
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="예: 기후동행카드, 점심"
+              rows={2}
+              className="min-h-0 text-sm"
+            />
+          </div>
+
           <Tabs
             value={type}
             onValueChange={(v) => {
@@ -210,16 +231,16 @@ export default function TransactionForm({
             </div>
           </div>
 
-          {/* 3행: 이름 — 목록에서 제목으로 보이는 필드 */}
+          {/* 메모 — 상세 내용. 목록에는 안 보이고 편집 폼에서만. */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="desc" className={FORM_LABEL}>
-              이름
+              메모
             </Label>
             <Input
               id="desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="예: 기후동행카드, 점심"
+              placeholder="세부 내용 (선택)"
               className={FORM_INPUT_COMPACT}
             />
           </div>
