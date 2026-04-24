@@ -42,13 +42,17 @@ export default function PageHeader({
   const { unreadCount } = useNotifications();
 
   const handleBack = onBack ?? (() => router.back());
+  // 모바일: 헤더 border 없음 + 진한 frosted blur → 네이티브 앱 느낌.
+  //         콘텐츠가 헤더 뒤로 슬쩍 비쳐 올라가는 레이어드 효과.
+  // 데스크톱: 문서 스크롤 가독성을 위해 기존 border-b 유지.
+  // sticky=false (FormPage 내부): border-b 로 헤더-본문 구분 유지.
   const stickyCls = sticky
-    ? "sticky top-0 z-30 bg-background/95 backdrop-blur-sm"
-    : "";
+    ? "sticky top-0 z-30 bg-background/75 backdrop-blur-xl md:bg-background md:backdrop-blur-none md:border-b"
+    : "border-b";
 
   return (
     <>
-      <header className={`${stickyCls} flex h-14 shrink-0 items-center gap-2 border-b px-3`}>
+      <header className={`${stickyCls} flex h-14 shrink-0 items-center gap-2 px-3`}>
         {showBack && (
           <button
             type="button"
@@ -60,7 +64,7 @@ export default function PageHeader({
           </button>
         )}
         <div className="flex flex-col min-w-0 flex-1">
-          <h1 className="text-lg font-bold leading-tight truncate">{title}</h1>
+          <h1 className="text-[22px] md:text-lg font-bold leading-tight truncate tracking-tight">{title}</h1>
           {subtitle && (
             <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
           )}
