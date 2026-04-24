@@ -1,9 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Trash2 } from "lucide-react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import type { Expense } from "@/types";
 import { format } from "date-fns";
@@ -51,7 +49,13 @@ export default function TransactionList({
             {grouped[date].map((tx) => (
               <div
                 key={tx.id}
-                className="group flex items-center justify-between rounded-lg border p-3"
+                role="button"
+                tabIndex={0}
+                onClick={() => onEdit(tx)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") onEdit(tx);
+                }}
+                className="group flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-colors hover:bg-accent/50 active:bg-accent"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   {tx.category && (
@@ -85,27 +89,18 @@ export default function TransactionList({
                     {tx.type === "income" ? "+" : "-"}
                     {formatWon(tx.amount)}
                   </span>
-                  {/* 모바일에선 항상 표시, 데스크톱은 행 hover 시 노출 */}
-                  <div className="flex gap-0.5 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-9 w-9 md:h-8 md:w-8"
-                      onClick={() => onEdit(tx)}
-                      aria-label="거래 수정"
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-9 w-9 md:h-8 md:w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => setDeletingTx(tx)}
-                      aria-label="거래 삭제"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  {/* 휴지통: 연한 회색. 행 클릭으로는 편집으로 가니 삭제만 별도 버튼. */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingTx(tx);
+                    }}
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent transition-colors"
+                    aria-label="거래 삭제"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
                 </div>
               </div>
             ))}
