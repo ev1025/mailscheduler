@@ -64,7 +64,7 @@ function StatusDot({ status }: { status: "pending" | "accepted" | "rejected" }) 
   }[status];
   const Icon = cfg.icon;
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${cfg.cls}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${cfg.cls}`}>
       <Icon className="h-2.5 w-2.5" />
       {cfg.label}
     </span>

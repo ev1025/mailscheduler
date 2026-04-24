@@ -311,7 +311,7 @@ export default function CalendarView({
                           // className 이 mismatch 날 수 있어 경고 억제.
                           // 최초 렌더 후엔 클라이언트 값으로 재조정되므로 UX 영향 없음.
                           suppressHydrationWarning
-                          className={`inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[11px] font-semibold md:h-5 md:w-5 md:text-xs ${
+                          className={`inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-xs font-semibold md:h-5 md:w-5 md:text-xs ${
                             tod ? "bg-primary text-primary-foreground" : hol ? "text-red-500" : dow === 6 ? "text-blue-500" : ""
                           }`}
                         >
@@ -320,7 +320,7 @@ export default function CalendarView({
                         {w && inM && <WeatherIcon weather={w} compact />}
                       </div>
                       {/* +N — 바 오버레이 위에 표시되도록 z-index */}
-                      {hc > 0 && <span className="relative z-10 mt-auto mb-[2px] shrink-0 px-1 text-[9px] text-muted-foreground">+{hc}</span>}
+                      {hc > 0 && <span className="relative z-10 mt-auto mb-[2px] shrink-0 px-1 text-[10px] text-muted-foreground">+{hc}</span>}
                     </DropCell>
                   );
                 })}

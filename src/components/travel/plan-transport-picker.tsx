@@ -240,7 +240,7 @@ export default function PlanTransportPicker({
       {/* 출발 + (대중교통 탭일 때만) 정렬 */}
       <div className="flex items-center justify-between mb-2 min-h-7">
         {legDeparture ? (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             출발{" "}
             <span className="font-semibold text-foreground tabular-nums">
               {legDeparture}
@@ -468,7 +468,7 @@ export function SegmentBar({ steps, totalSec: _totalSec }: { steps: TransportRou
                 backgroundColor: bg,
                 color: textColor,
               }}
-              className="h-4 flex items-center justify-center text-[9px] font-bold tabular-nums rounded-full"
+              className="h-4 flex items-center justify-center text-[10px] font-bold tabular-nums rounded-full"
             >
               {`${min}분`}
             </div>

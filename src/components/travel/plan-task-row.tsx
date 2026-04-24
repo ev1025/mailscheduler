@@ -127,7 +127,7 @@ export default function PlanTaskRow({
           <div className="flex items-center gap-1.5 min-w-0">
             {task.category && (
               <span
-                className="text-[9px] shrink-0 px-1 py-0 rounded border leading-4"
+                className="text-[10px] shrink-0 px-1 py-0 rounded border leading-4"
                 style={
                   categoryColor
                     ? {

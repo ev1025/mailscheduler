@@ -262,7 +262,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
       <span className="inline-flex items-center ml-0.5">
         {k.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
         {sortKeys.length > 1 && (
-          <span className="ml-0.5 text-[9px] tabular-nums font-semibold text-primary">{idx + 1}</span>
+          <span className="ml-0.5 text-[10px] tabular-nums font-semibold text-primary">{idx + 1}</span>
         )}
       </span>
     );

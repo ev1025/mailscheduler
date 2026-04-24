@@ -288,9 +288,9 @@ export default function PlanTaskSheet({
               w-fit + auto 컬럼으로 입력박스가 컨텐츠 너비에 맞게 렌더 (화면 전체 폭 X). */}
           <div className="grid grid-cols-[5.5rem_auto_auto] gap-1.5 items-center w-fit">
             {/* 라벨 행 */}
-            <Label className="text-[11px] text-muted-foreground">일자</Label>
-            <Label className="text-[11px] text-muted-foreground">시간</Label>
-            <Label className="text-[11px] text-muted-foreground">체류시간</Label>
+            <Label className="text-xs text-muted-foreground">일자</Label>
+            <Label className="text-xs text-muted-foreground">시간</Label>
+            <Label className="text-xs text-muted-foreground">체류시간</Label>
             {/* 입력 행 */}
             <Select value={String(dayIndex)} onValueChange={handleDayChange}>
               <SelectTrigger className="h-8 text-xs w-[5.5rem] px-2">
@@ -338,7 +338,7 @@ export default function PlanTaskSheet({
           {/* 장소 — 선택된 값이 있으면 카드(탭 시 검색창으로 전환, 기존 이름을
               쿼리로 주입). 검색창 포커스 잃으면 기존 값 유지하며 카드 복귀. */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-[11px] text-muted-foreground">장소</Label>
+            <Label className="text-xs text-muted-foreground">장소</Label>
             {placeName && placeLat != null && !editingPlace ? (
               <button
                 type="button"
@@ -387,7 +387,7 @@ export default function PlanTaskSheet({
           >
             {/* 분류 — 여행 폼과 동일한 풀. 단일 선택. */}
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] text-muted-foreground">분류</Label>
+              <Label className="text-xs text-muted-foreground">분류</Label>
               <TagInput
                 selectedTags={category ? [category] : []}
                 allTags={categories.map((c) => ({ id: c, name: c, color: colors[c] || "#6B7280" }))}
@@ -408,7 +408,7 @@ export default function PlanTaskSheet({
 
             {/* 태그 — 캘린더·여행 폼과 공용 이벤트 태그 풀 */}
             <div className="flex flex-col gap-1.5">
-              <Label className="text-[11px] text-muted-foreground">태그</Label>
+              <Label className="text-xs text-muted-foreground">태그</Label>
               <TagInput
                 selectedTags={selectedTags}
                 allTags={allEventTags}
@@ -423,13 +423,13 @@ export default function PlanTaskSheet({
 
           {/* 내용 */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-[11px] text-muted-foreground">내용</Label>
+            <Label className="text-xs text-muted-foreground">내용</Label>
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="어디에 갈지, 무엇을 할지 (예: 일출 보기)"
               rows={2}
-              className="text-[11px] min-h-16 leading-snug placeholder:text-[10px]"
+              className="text-xs min-h-16 leading-snug placeholder:text-[10px]"
             />
           </div>
 

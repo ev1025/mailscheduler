@@ -389,7 +389,7 @@ export default function SettingsPage() {
                   <span className="text-muted-foreground">요금</span>
                   <Badge variant="secondary" className="text-xs">월 6만건 무료</Badge>
                 </div>
-                <p className="text-[11px] text-amber-600 leading-relaxed">
+                <p className="text-xs text-amber-600 leading-relaxed">
                   ⚠️ 별도 신청 필수 — 콘솔에서 Maps 상품 목록의
                   &quot;Directions 5 이용 신청&quot; 필요. 미신청 시 HTTP 200 이지만
                   빈 body 를 반환하여 경로가 안 뜸.
@@ -457,7 +457,7 @@ export default function SettingsPage() {
                 <span className="text-muted-foreground">요금</span>
                 <Badge variant="secondary" className="text-xs">월 $200 크레딧 무료</Badge>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">
+              <p className="text-xs text-muted-foreground leading-relaxed pt-1">
                 Directions API 단가 $0.005/건 → 월 40,000건까지 실결제 0원.
                 개인 여행 계획 용도는 사실상 영구 무료.
                 &quot;Requests per day&quot; 한도 100 정도로 제한 걸어두면 과금 방지 확실.

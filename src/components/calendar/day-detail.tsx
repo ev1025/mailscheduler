@@ -120,7 +120,7 @@ function SortableItem({ ev, tagColorMap, isOwner, owner, onEdit, onDelete }: {
         </button>
       ) : owner ? (
         <div
-          className="shrink-0 flex items-center gap-1 rounded-full pl-0.5 pr-2 py-0.5 text-[11px] font-medium"
+          className="shrink-0 flex items-center gap-1 rounded-full pl-0.5 pr-2 py-0.5 text-xs font-medium"
           style={{
             backgroundColor: owner.color + "20",
             color: owner.color,
