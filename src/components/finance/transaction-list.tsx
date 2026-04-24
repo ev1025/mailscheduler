@@ -66,17 +66,13 @@ export default function TransactionList({
                       {tx.category.name.charAt(0)}
                     </div>
                   )}
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm truncate">
                       {tx.category?.name || "미분류"}
-                      {tx.description && (
-                        <span className="ml-2 text-muted-foreground font-normal">
-                          {tx.description}
-                        </span>
-                      )}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {tx.payment_method}
+                    {/* 설명·결제수단을 하단에 묶어 한 줄로 — 모바일 좁은 화면에서 잘림 방지. */}
+                    <p className="text-xs text-muted-foreground truncate">
+                      {[tx.description, tx.payment_method].filter(Boolean).join(" · ")}
                     </p>
                   </div>
                 </div>
