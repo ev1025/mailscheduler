@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
   Upload,
   Check,
   LogOut,
@@ -14,7 +13,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useSupabaseAuth, supabaseSignOut } from "@/lib/auth-supabase";
 import { useAppUsers, useCurrentUser } from "@/lib/current-user";
@@ -155,17 +153,17 @@ function ProfilePageInner() {
   return (
     <>
       <PageHeader title="내 프로필" showBack showBell />
-    <div className="p-4 md:p-6 max-w-xl mx-auto">
+    <div className="px-4 pt-3 pb-6 md:px-6 md:pt-6 md:pb-10 max-w-xl mx-auto">
 
-      <div className="flex flex-col gap-5">
-        {/* 헤더 카드 — 아바타 + 이름 입력 + 이메일 */}
-        <div className="flex flex-col items-center gap-3 pt-2">
+      <div className="flex flex-col gap-3.5">
+        {/* 헤더 — 아바타 + 이름 + 이메일 (압축) */}
+        <div className="flex flex-col items-center gap-2">
           <button
             type="button"
             onClick={() => {
               if (avatarMode === "image") fileRef.current?.click();
             }}
-            className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full text-5xl overflow-hidden shadow-sm ring-4 ring-background transition-transform active:scale-95"
+            className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-4xl overflow-hidden ring-1 ring-border/40 transition-transform active:scale-95"
             style={
               avatarUrl
                 ? { backgroundColor: "transparent" }
@@ -184,18 +182,18 @@ function ProfilePageInner() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="이름"
-            className="h-10 text-center text-base font-semibold border-none bg-transparent focus-visible:ring-0 focus-visible:border-b focus-visible:border-border rounded-none shadow-none"
+            className="h-8 text-center text-[15px] font-semibold border-none bg-transparent focus-visible:ring-0 focus-visible:border-b focus-visible:border-border rounded-none shadow-none px-0"
           />
-          <p className="text-xs text-muted-foreground -mt-1">{authUser?.email}</p>
+          <p className="text-[11px] text-muted-foreground/80 -mt-1">{authUser?.email}</p>
         </div>
 
-        {/* 이미지/이모지 모드 세그먼트 — 가운데 정렬 */}
+        {/* 이미지/이모지 세그먼트 — 더 작게 */}
         <div className="flex justify-center">
-          <div className="inline-flex rounded-full border bg-muted/40 p-0.5 text-sm">
+          <div className="inline-flex rounded-full border bg-muted/40 p-0.5 text-xs">
             <button
               type="button"
               onClick={() => setAvatarMode("image")}
-              className={`px-4 py-1.5 rounded-full transition-colors ${
+              className={`px-3 py-1 rounded-full transition-colors ${
                 avatarMode === "image"
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground"
@@ -209,7 +207,7 @@ function ProfilePageInner() {
                 setAvatarMode("emoji");
                 setAvatarUrl("");
               }}
-              className={`px-4 py-1.5 rounded-full transition-colors ${
+              className={`px-3 py-1 rounded-full transition-colors ${
                 avatarMode === "emoji"
                   ? "bg-background text-foreground shadow-sm"
                   : "text-muted-foreground"
@@ -227,9 +225,9 @@ function ProfilePageInner() {
               variant="outline"
               size="sm"
               onClick={() => fileRef.current?.click()}
-              className="flex-1 h-10"
+              className="flex-1 h-9"
             >
-              <Upload className="mr-1 h-4 w-4" /> 이미지 업로드
+              <Upload className="mr-1 h-3.5 w-3.5" /> 이미지 업로드
             </Button>
             {avatarUrl && (
               <Button
@@ -237,7 +235,7 @@ function ProfilePageInner() {
                 variant="outline"
                 size="sm"
                 onClick={() => setAvatarUrl("")}
-                className="h-10"
+                className="h-9"
               >
                 초기화
               </Button>
@@ -251,34 +249,28 @@ function ProfilePageInner() {
             />
           </div>
         ) : (
-          <div className="flex flex-col gap-2">
-            <Label className="text-xs text-muted-foreground">이모지</Label>
-            <div className="grid grid-cols-8 gap-1.5">
-              {PRESET_EMOJIS.map((e) => (
-                <button
-                  key={e}
-                  type="button"
-                  onClick={() => {
-                    setEmoji(e);
-                    setAvatarUrl("");
-                  }}
-                  className={`flex h-9 w-9 items-center justify-center rounded-md text-lg hover:bg-accent transition-colors ${
-                    emoji === e && !avatarUrl ? "ring-2 ring-primary" : ""
-                  }`}
-                >
-                  {e}
-                </button>
-              ))}
-            </div>
+          <div className="grid grid-cols-8 gap-1">
+            {PRESET_EMOJIS.map((e) => (
+              <button
+                key={e}
+                type="button"
+                onClick={() => {
+                  setEmoji(e);
+                  setAvatarUrl("");
+                }}
+                className={`flex h-8 w-full items-center justify-center rounded-md text-base hover:bg-accent transition-colors ${
+                  emoji === e && !avatarUrl ? "ring-2 ring-primary" : ""
+                }`}
+              >
+                {e}
+              </button>
+            ))}
           </div>
         )}
 
-        {/* 배경색 — 이모지 모드일 때만 표시 */}
+        {/* 배경색 — 이모지 모드일 때만 (라벨 제거, ColorPickerRow 만) */}
         {avatarMode === "emoji" && !avatarUrl && (
-          <div className="flex flex-col gap-2">
-            <Label className="text-xs text-muted-foreground">배경색</Label>
-            <ColorPickerRow color={color} onChange={setColor} />
-          </div>
+          <ColorPickerRow color={color} onChange={setColor} />
         )}
 
         {/* 저장 */}
@@ -286,52 +278,56 @@ function ProfilePageInner() {
           type="button"
           onClick={handleUpdate}
           disabled={!name.trim() || saving}
-          className="h-11"
+          className="h-9"
         >
-          <Check className="mr-1 h-4 w-4" />
+          <Check className="mr-1 h-3.5 w-3.5" />
           {saving ? "저장 중..." : "저장"}
         </Button>
 
-        {/* 액션 영역 */}
-        <div className="border-t pt-4 mt-2 grid grid-cols-2 gap-2">
+        {/* 액션 타일 — 2x2 compact grid */}
+        <div className="grid grid-cols-2 gap-1.5 border-t pt-3 mt-1">
           <button
             type="button"
             onClick={() => router.push("/settings")}
-            className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm hover:bg-accent transition-colors"
+            className="flex items-center justify-center gap-1.5 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
           >
-            <SettingsIcon className="h-4 w-4 text-muted-foreground" />
+            <SettingsIcon className="h-3.5 w-3.5 text-muted-foreground" />
             설정
           </button>
           <button
             type="button"
             onClick={() => setShareOpen(true)}
-            className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm hover:bg-accent transition-colors"
+            className="flex items-center justify-center gap-1.5 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
           >
-            <Share2 className="h-4 w-4 text-muted-foreground" />
+            <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
             일정 공유
           </button>
           <button
             type="button"
             onClick={() => setPwDialogOpen(true)}
-            className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm hover:bg-accent transition-colors"
+            className="flex items-center justify-center gap-1.5 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
           >
-            <Lock className="h-4 w-4 text-muted-foreground" />
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
             비밀번호 변경
           </button>
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex items-center justify-center gap-2 rounded-md border p-3 text-sm hover:bg-accent transition-colors"
+            className="flex items-center justify-center gap-1.5 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
           >
-            <LogOut className="h-4 w-4 text-muted-foreground" />
+            <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
             로그아웃
           </button>
+        </div>
+
+        {/* 위험 영역 — subtle text link (iOS 설정 앱 하단 스타일) */}
+        <div className="flex justify-center pt-1">
           <button
             type="button"
             onClick={() => setDeleteConfirmOpen(true)}
-            className="col-span-2 flex items-center justify-center gap-2 rounded-md border border-destructive/30 p-3 text-sm text-destructive hover:bg-destructive/5 transition-colors"
+            className="flex items-center gap-1 text-[11px] text-muted-foreground/60 hover:text-destructive underline-offset-4 hover:underline transition-colors"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-3 w-3" />
             프로필 삭제
           </button>
         </div>
