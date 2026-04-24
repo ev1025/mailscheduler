@@ -189,7 +189,18 @@ export default function FinancePage() {
         onDeleteCategory={deleteCategory}
         onUpdateCategoryColor={updateCategoryColor}
       />
-      <FixedExpenseManager open={fixedOpen} onOpenChange={setFixedOpen} fixedExpenses={fixedExpenses} categories={categories} onAdd={addFixed} onUpdate={updateFixed} onDelete={deleteFixed} />
+      <FixedExpenseManager
+        open={fixedOpen}
+        onOpenChange={setFixedOpen}
+        fixedExpenses={fixedExpenses}
+        categories={categories}
+        onAdd={addFixed}
+        onUpdate={updateFixed}
+        onDelete={deleteFixed}
+        onAddCategory={addCategory}
+        onDeleteCategory={deleteCategory}
+        onUpdateCategoryColor={updateCategoryColor}
+      />
     </div>
     </div>
     </>

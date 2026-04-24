@@ -1,23 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
+import TagInput from "@/components/ui/tag-input";
 import { Trash2, Plus } from "lucide-react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import { FORM_LABEL, FORM_INPUT_COMPACT } from "@/lib/form-classes";
 import type { ExpenseCategory } from "@/types";
 import type { FixedExpense } from "@/hooks/use-fixed-expenses";
 
@@ -34,6 +25,14 @@ interface FixedExpenseManagerProps {
     updates: Partial<Omit<FixedExpense, "id" | "created_at" | "category">>
   ) => Promise<{ error: unknown }>;
   onDelete: (id: string) => Promise<{ error: unknown }>;
+  /** 카테고리 추가/수정/삭제 — TagInput 연동용 */
+  onAddCategory?: (
+    name: string,
+    type: "income" | "expense",
+    color: string
+  ) => Promise<{ error: unknown }>;
+  onDeleteCategory?: (id: string) => Promise<{ error: unknown }>;
+  onUpdateCategoryColor?: (id: string, color: string) => Promise<{ error: unknown }>;
 }
 
 function formatWon(amount: number) {
@@ -48,10 +47,12 @@ export default function FixedExpenseManager({
   onAdd,
   onUpdate,
   onDelete,
+  onAddCategory,
+  onDeleteCategory,
+  onUpdateCategoryColor,
 }: FixedExpenseManagerProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  // 삭제 확인 다이얼로그
   const [deletingFx, setDeletingFx] = useState<FixedExpense | null>(null);
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -100,19 +101,24 @@ export default function FixedExpenseManager({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>고정비 관리</DialogTitle>
-        </DialogHeader>
+    <>
+      <FormPage
+        open={open}
+        onOpenChange={(o) => {
+          onOpenChange(o);
+          if (!o) resetForm();
+        }}
+        title="고정비 관리"
+        hideFooter
+      >
         <div className="flex flex-col gap-3">
           <p className="text-xs text-muted-foreground">
-            매월 자동으로 추가되는 고정 수입/지출 항목입니다. 항목을 클릭하면 수정할 수 있습니다.
+            매월 자동으로 추가되는 고정 수입/지출 항목입니다. 항목을 눌러 수정할 수 있어요.
           </p>
 
-          {/* 기존 고정비 목록 */}
+          {/* 고정비 목록 */}
           {fixedExpenses.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
+            <p className="text-sm text-muted-foreground text-center py-6">
               등록된 고정비가 없습니다
             </p>
           ) : (
@@ -122,7 +128,7 @@ export default function FixedExpenseManager({
                 return (
                   <div
                     key={fx.id}
-                    onClick={() => !showForm || isEditing ? startEdit(fx) : undefined}
+                    onClick={() => (!showForm || isEditing ? startEdit(fx) : undefined)}
                     className={`group flex items-center justify-between rounded-lg border p-2.5 cursor-pointer transition-colors ${
                       isEditing ? "border-primary bg-primary/5" : "hover:bg-accent/50"
                     }`}
@@ -194,19 +200,20 @@ export default function FixedExpenseManager({
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs">금액</Label>
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  <Label className={FORM_LABEL}>금액</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min="0"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="50000"
-                    className="h-8"
+                    className={FORM_INPUT_COMPACT}
                   />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <Label className="text-xs">매월 결제일</Label>
+                <div className="flex flex-col gap-1.5 min-w-0">
+                  <Label className={FORM_LABEL}>매월 결제일</Label>
                   <Input
                     type="number"
                     inputMode="numeric"
@@ -214,45 +221,54 @@ export default function FixedExpenseManager({
                     max="31"
                     value={dayOfMonth}
                     onChange={(e) => setDayOfMonth(e.target.value)}
-                    className="h-8"
+                    className={FORM_INPUT_COMPACT}
                   />
-                  <p className="text-[10px] text-muted-foreground leading-snug">
-                    29~31일은 해당 일자가 없는 달(2월 등)엔 월말에 자동 반영됩니다.
-                  </p>
                 </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <Label className="text-xs">카테고리</Label>
-                <Select
-                  value={categoryId}
-                  onValueChange={(v) => setCategoryId(v ?? "")}
-                >
-                  <SelectTrigger className="h-8">
-                    {categoryId ? (
-                      filteredCategories.find((c) => c.id === categoryId)?.name || "선택"
-                    ) : (
-                      <span className="text-muted-foreground">선택</span>
-                    )}
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredCategories.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <p className="text-[10px] text-muted-foreground leading-snug -mt-1">
+                29~31일은 해당 일자가 없는 달(2월 등)엔 월말에 자동 반영돼요.
+              </p>
+
+              <div className="flex flex-col gap-1.5 min-w-0">
+                <Label className={FORM_LABEL}>카테고리</Label>
+                <TagInput
+                  selectedTags={
+                    categoryId
+                      ? [filteredCategories.find((c) => c.id === categoryId)?.name || ""]
+                      : []
+                  }
+                  allTags={filteredCategories.map((c) => ({
+                    id: c.id,
+                    name: c.name,
+                    color: c.color,
+                  }))}
+                  onChange={(tags) => {
+                    const picked = tags[tags.length - 1];
+                    const match = filteredCategories.find((c) => c.name === picked);
+                    setCategoryId(match?.id || "");
+                  }}
+                  onAddTag={
+                    onAddCategory
+                      ? async (name, color) => onAddCategory(name, type, color)
+                      : undefined
+                  }
+                  onDeleteTag={onDeleteCategory}
+                  onUpdateTagColor={onUpdateCategoryColor}
+                  placeholder="검색/추가"
+                />
               </div>
+
               <div className="flex flex-col gap-1.5">
-                <Label className="text-xs">설명</Label>
+                <Label className={FORM_LABEL}>설명</Label>
                 <Input
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="넷플릭스, 월세 등"
-                  className="h-8"
+                  className={FORM_INPUT_COMPACT}
                 />
               </div>
-              <div className="flex gap-2">
+
+              <div className="flex gap-2 pt-1">
                 <Button
                   size="sm"
                   variant="outline"
@@ -272,17 +288,25 @@ export default function FixedExpenseManager({
               </div>
             </div>
           ) : (
-            <Button variant="outline" onClick={() => { resetForm(); setShowForm(true); }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                resetForm();
+                setShowForm(true);
+              }}
+            >
               <Plus className="mr-1 h-4 w-4" />
               고정비 추가
             </Button>
           )}
         </div>
-      </DialogContent>
+      </FormPage>
 
       <ConfirmDialog
         open={!!deletingFx}
-        onOpenChange={(o) => { if (!o) setDeletingFx(null); }}
+        onOpenChange={(o) => {
+          if (!o) setDeletingFx(null);
+        }}
         title="고정비 삭제"
         description={
           deletingFx
@@ -299,6 +323,6 @@ export default function FixedExpenseManager({
           setDeletingFx(null);
         }}
       />
-    </Dialog>
+    </>
   );
 }

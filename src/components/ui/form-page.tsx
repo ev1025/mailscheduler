@@ -172,7 +172,7 @@ export default function FormPage({
           {children}
 
           {!hideFooter && (
-            <div className="mt-6 pt-4 md:mt-8 md:pt-5 border-t flex items-center justify-between gap-2">
+            <div className="mt-6 md:mt-8 flex items-center justify-between gap-2">
               <div>{footerStart}</div>
               <div className="flex items-center gap-2">
                 <Button
