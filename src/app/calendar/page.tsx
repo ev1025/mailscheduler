@@ -5,10 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   CalendarDays,
   TableProperties,
-  Plane,
-  Route,
   Menu,
-  Plus,
 } from "lucide-react";
 import MonthPicker from "@/components/layout/month-picker";
 import PageHeader from "@/components/layout/page-header";
@@ -16,15 +13,13 @@ import { useCalendarEvents } from "@/hooks/use-calendar-events";
 import { useWeather } from "@/hooks/use-weather";
 import { useEventTags } from "@/hooks/use-event-tags";
 import { useCalendarShares } from "@/hooks/use-calendar-shares";
+import { useVisibleUserIds } from "@/hooks/use-visible-user-ids";
 import CalendarView from "@/components/calendar/calendar-view";
 import DatabaseView from "@/components/calendar/database-view";
 import EventForm from "@/components/calendar/event-form";
 import DayDetail from "@/components/calendar/day-detail";
-import TravelList from "@/components/travel/travel-list";
-import PlanList from "@/components/travel/plan-list";
-import PlanDetail from "@/components/travel/plan-detail";
 import RepeatScopeDialog, { type RepeatScope } from "@/components/calendar/repeat-scope-dialog";
-import { useCurrentUserId, useAppUsers } from "@/lib/current-user";
+import { useAppUsers } from "@/lib/current-user";
 import { getHolidayMap } from "@/lib/holidays";
 import type { CalendarEvent } from "@/types";
 
@@ -40,62 +35,38 @@ function CalendarPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const viewParam = searchParams.get("view");
-  type View = "calendar" | "database" | "travel" | "travel-plans" | "travel-plan";
-  const view: View =
-    viewParam === "database" ||
-    viewParam === "travel" ||
-    viewParam === "travel-plans" ||
-    viewParam === "travel-plan"
-      ? (viewParam as View)
-      : "calendar";
-  const planIdParam = searchParams.get("planId");
-  const setView = (v: View, extra?: Record<string, string>, opts?: { replace?: boolean }) => {
-    const params = new URLSearchParams();
-    if (v !== "calendar") params.set("view", v);
-    if (extra) for (const [k, val] of Object.entries(extra)) params.set(k, val);
-    const qs = params.toString();
-    const url = qs ? `/calendar?${qs}` : "/calendar";
-    // 기본은 push — 브라우저 뒤로가기가 view 전환 이력을 따라가도록.
-    // 여행계획 상세 → 목록 뒤로가기 지원. replace 는 명시적 opts 로만.
-    if (opts?.replace) router.replace(url, { scroll: false });
-    else router.push(url, { scroll: false });
+  type View = "calendar" | "database";
+  const view: View = viewParam === "database" ? "database" : "calendar";
+  const setView = (v: View) => {
+    const url = v === "calendar" ? "/calendar" : "/calendar?view=database";
+    router.push(url, { scroll: false });
   };
+
+  // /travel 페이지에서 onNavigateToMonth 로 이동 시 ?y=..&m=.. 로 넘어옴.
+  // 초기값 + 쿼리 변화 모두 반영.
+  const yParam = searchParams.get("y");
+  const mParam = searchParams.get("m");
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const currentUserId = useCurrentUserId();
+  const [year, setYear] = useState(() =>
+    yParam ? parseInt(yParam, 10) : now.getFullYear()
+  );
+  const [month, setMonth] = useState(() =>
+    mParam ? parseInt(mParam, 10) : now.getMonth() + 1
+  );
+  useEffect(() => {
+    if (yParam) {
+      const y = parseInt(yParam, 10);
+      if (!Number.isNaN(y)) setYear(y);
+    }
+    if (mParam) {
+      const m = parseInt(mParam, 10);
+      if (!Number.isNaN(m)) setMonth(m);
+    }
+  }, [yParam, mParam]);
+
   const { users } = useAppUsers();
   const { viewableUserIds } = useCalendarShares();
-  // localStorage에 영속 — 껏다 켜도 마지막 선택값 유지
-  const VISIBLE_KEY = "calendar_visible_user_ids";
-  const [visibleUserIds, setVisibleUserIds] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = localStorage.getItem(VISIBLE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
-  });
-
-  // 최초 1회: 저장된 값이 없으면 내 ID로 기본 세팅
-  useEffect(() => {
-    if (currentUserId && visibleUserIds.length === 0) {
-      setVisibleUserIds([currentUserId]);
-    }
-  }, [currentUserId, visibleUserIds.length]);
-
-  // 바뀔 때마다 저장
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (visibleUserIds.length > 0) {
-      try { localStorage.setItem(VISIBLE_KEY, JSON.stringify(visibleUserIds)); } catch {}
-    }
-  }, [visibleUserIds]);
-
-  const toggleVisible = (uid: string) => {
-    setVisibleUserIds((prev) =>
-      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]
-    );
-  };
+  const { visibleUserIds, toggleVisible } = useVisibleUserIds();
 
   // 폼 (새 일정 / 수정)
   const [formOpen, setFormOpen] = useState(false);
@@ -105,7 +76,6 @@ function CalendarPageInner() {
   // 날짜 상세
   const [dayDetailOpen, setDayDetailOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState("");
-
 
   const {
     events,
@@ -211,7 +181,6 @@ function CalendarPageInner() {
     setFormOpen(true);
   };
 
-
   // DB뷰에서 수정
   const handleEdit = (event: CalendarEvent) => {
     setEditing(event);
@@ -241,8 +210,6 @@ function CalendarPageInner() {
   };
 
   const [menuOpen, setMenuOpen] = useState(false);
-  // travel-plans 뷰에서 "+ 새 계획" 아이콘 트리거용 신호
-  const [newPlanSignal, setNewPlanSignal] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menuOpen) return;
@@ -253,106 +220,65 @@ function CalendarPageInner() {
     document.addEventListener("touchstart", handler);
     return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("touchstart", handler); };
   }, [menuOpen]);
-  const viewLabel =
-    view === "calendar"
-      ? "달력"
-      : view === "database"
-        ? "일정목록"
-        : view === "travel"
-          ? "여행"
-          : "여행 계획";
 
-  // 햄버거 메뉴 — 하단 네비의 "캘린더" / "여행" 탭 그룹에 맞춰 분리.
-  //  - 캘린더 탭(view=calendar|database): 달력·일정목록만 노출
-  //  - 여행 탭(view=travel|travel-plans|travel-plan): 여행·여행 계획만 노출
-  const isTravelTab = view === "travel" || view === "travel-plans" || view === "travel-plan";
-  const viewMenuItems = isTravelTab
-    ? [
-        { key: "travel" as const, label: "여행", icon: Plane },
-        { key: "travel-plans" as const, label: "여행 계획", icon: Route },
-      ]
-    : [
-        { key: "calendar" as const, label: "달력", icon: CalendarDays },
-        { key: "database" as const, label: "일정목록", icon: TableProperties },
-      ];
+  const viewLabel = view === "calendar" ? "달력" : "일정목록";
 
-  // 여행 계획 상세는 자체 헤더(← 제목)를 쓰므로 상위 PageHeader·메뉴 숨김
-  const hideTopHeader = view === "travel-plan";
+  const viewMenuItems = [
+    { key: "calendar" as const, label: "달력", icon: CalendarDays },
+    { key: "database" as const, label: "일정목록", icon: TableProperties },
+  ];
 
   return (
     <>
-      {!hideTopHeader && <PageHeader
+      <PageHeader
         title={viewLabel}
+        showBell
         actions={
           <div className="flex items-center">
-            {view === "travel-plans" && (
+            <div className="relative" ref={menuRef}>
               <button
                 type="button"
-                onClick={() => setNewPlanSignal((n) => n + 1)}
+                onClick={() => setMenuOpen((o) => !o)}
                 className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-                aria-label="새 계획"
-                title="새 계획"
+                aria-label="메뉴"
               >
-                <Plus className="h-[22px] w-[22px]" strokeWidth={1.6} />
+                <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
               </button>
-            )}
-            <div className="relative" ref={menuRef}>
-            <button
-              type="button"
-              onClick={() => setMenuOpen((o) => !o)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-              aria-label="메뉴"
-            >
-              <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
-                {viewMenuItems.map(({ key, label, icon: Icon }) => {
-                  // travel-plan 상세에서는 PageHeader 자체가 숨겨져 이 루프가 실행 안 됨.
-                  // TS narrowing 회피용 단순 비교.
-                  const active = view === key;
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => { setView(key); setMenuOpen(false); }}
-                      className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                        active ? "bg-accent font-medium" : "hover:bg-accent/50"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4" />
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+              {menuOpen && (
+                <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
+                  {viewMenuItems.map(({ key, label, icon: Icon }) => {
+                    const active = view === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => { setView(key); setMenuOpen(false); }}
+                        className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                          active ? "bg-accent font-medium" : "hover:bg-accent/50"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         }
-      />}
-    {/* 래퍼 — 모바일은 main 이 fixed h-dvh 내부스크롤이므로 h-[calc(100%-3.5rem)]
-        로 헤더 제외 영역을 차지하고 내부 overflow-hidden.
-        데스크탑은 document 스크롤이므로 h/overflow 없이 자연 흐름 + padding 만.
-        hideTopHeader(여행계획 상세) 는 자체 헤더가 있으므로 wrapper 역할 최소화. */}
-    <div className={`flex flex-col min-h-0 ${
-      hideTopHeader
-        ? ""
-        : "h-[calc(100%-3.5rem)] overflow-hidden px-2 py-2 md:h-auto md:overflow-visible md:min-h-0 md:p-6"
-    }`}>
+      />
+    <div className="flex flex-col min-h-0 h-[calc(100%-3.5rem)] overflow-hidden px-2 py-2 md:h-auto md:overflow-visible md:min-h-0 md:p-6">
 
-      {/* MonthPicker: 달력/일정목록에서만 (여행·여행계획은 월 개념 없음) */}
-      {view !== "travel" && view !== "travel-plans" && view !== "travel-plan" && (
-        <div className="mb-2 flex justify-center items-center shrink-0">
-          <MonthPicker
-            year={year}
-            month={month}
-            onYearChange={setYear}
-            onMonthChange={setMonth}
-          />
-        </div>
-      )}
-      {/* 사용자 필터: 달력 탭에서만 노출 — 여기서 선택한 값이 일정목록/여행에도 자동 적용 */}
+      <div className="mb-2 flex justify-center items-center shrink-0">
+        <MonthPicker
+          year={year}
+          month={month}
+          onYearChange={setYear}
+          onMonthChange={setMonth}
+        />
+      </div>
+      {/* 사용자 필터: 달력 탭에서만 노출 — 여기서 선택한 값이 일정목록에도 자동 적용 */}
       {view === "calendar" && viewableUserIds.length > 1 && (
         <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5 shrink-0">
           {users
@@ -392,54 +318,7 @@ function CalendarPageInner() {
         </div>
       )}
 
-      {view === "travel-plans" ? (
-        <PlanList
-          onSelectPlan={(id) => setView("travel-plan", { planId: id })}
-          newSignal={newPlanSignal}
-          visibleUserIds={visibleUserIds}
-        />
-      ) : view === "travel-plan" && planIdParam ? (
-        <PlanDetail
-          planId={planIdParam}
-          onBack={() => {
-            // 명시적으로 계획 목록 뷰로. router.back() 을 쓰면 이전 히스토리가
-            // 여행 메인(view=travel) 일 때 엉뚱한 곳으로 이동하는 문제 있음.
-            setView("travel-plans", undefined, { replace: true });
-          }}
-        />
-      ) : view === "travel" ? (
-        <TravelList
-          visibleUserIds={visibleUserIds}
-          onNavigateToMonth={(y, m) => {
-            setYear(y);
-            setMonth(m);
-            setView("calendar");
-          }}
-          onAddEvent={async (data) => {
-            const result = await addEvent(data);
-            if (!result.error) {
-              const d = new Date(data.start_date + "T00:00:00");
-              setYear(d.getFullYear());
-              setMonth(d.getMonth() + 1);
-            }
-            return result;
-          }}
-          onAddEventTagToCalendar={addTag}
-          onDeleteCalendarEventsByTitleDate={async (title, date) => {
-            const { supabase } = await import("@/lib/supabase");
-            const { data } = await supabase
-              .from("calendar_events")
-              .select("id")
-              .eq("title", title)
-              .eq("start_date", date);
-            if (data) {
-              for (const ev of data as { id: string }[]) {
-                await deleteEvent(ev.id);
-              }
-            }
-          }}
-        />
-      ) : view === "calendar" ? (
+      {view === "calendar" ? (
         // 데스크톱은 document 스크롤이라 부모가 h-auto → flex-1 이 0 이 되어 달력이 쪼그라듦.
         // calendar-md-height 는 globals.css 에 직접 정의된 @media (min-width:768px) 규칙으로
         // md+ 에서 height: 80vh 를 강제함. Tailwind arbitrary value 캐시 문제 회피.

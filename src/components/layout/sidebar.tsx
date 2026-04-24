@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Calendar,
   Plane,
@@ -23,13 +23,13 @@ interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
-  views?: string[];
+  /** /calendar 는 하위 파라미터(?view=database 등)가 있어도 active 를 유지해야 하므로 플래그. */
   isCalendarDefault?: boolean;
 }
 
 const navItems: NavItem[] = [
   { href: "/calendar", label: "캘린더", icon: Calendar, isCalendarDefault: true },
-  { href: "/calendar?view=travel", label: "여행", icon: Plane, views: ["travel", "travel-plans", "travel-plan"] },
+  { href: "/travel", label: "여행", icon: Plane },
   { href: "/finance", label: "가계부", icon: Wallet },
   { href: "/knowledge", label: "지식창고", icon: BookOpen },
 ];
@@ -41,20 +41,13 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const viewParam = searchParams.get("view");
   const [notiOpen, setNotiOpen] = useState(false);
   const currentUser = useCurrentUser();
   const { unreadCount } = useNotifications();
 
   const isActive = (item: NavItem): boolean => {
-    if (item.views && item.views.length > 0) {
-      return pathname === "/calendar" && !!viewParam && item.views.includes(viewParam);
-    }
     if (item.isCalendarDefault) {
-      if (pathname !== "/calendar") return false;
-      if (viewParam && ["travel", "travel-plans", "travel-plan"].includes(viewParam)) return false;
-      return true;
+      return pathname === "/calendar";
     }
     return pathname === item.href || pathname.startsWith(item.href + "/");
   };

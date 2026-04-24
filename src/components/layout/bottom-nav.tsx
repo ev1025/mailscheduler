@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Calendar,
   AirplaneTilt,
@@ -16,7 +16,6 @@ import { useCurrentUser } from "@/lib/current-user";
 import { useNotifications } from "@/hooks/use-notifications";
 
 // 모바일 하단 네비. 캘린더 | 여행 | 가계부 | 지식 | 프로필
-// 여행은 /calendar?view=travel (캘린더 라우트 공유, view 쿼리로 구분)
 
 type NavItem = {
   href: string;
@@ -24,49 +23,22 @@ type NavItem = {
   icon: ComponentType<IconProps>;
   /** 추가 match path prefix */
   also?: string[];
-  /** 추가 match view 쿼리값 목록 (/calendar 라우트에서 view 구분) */
-  views?: string[];
-  /** 이 항목이 캘린더 라우트의 "기본" 이면 view 쿼리가 없거나 calendar/database 일 때만 active */
-  isCalendarDefault?: boolean;
 };
 
 const navItems: NavItem[] = [
-  {
-    href: "/calendar",
-    label: "캘린더",
-    icon: Calendar,
-    isCalendarDefault: true,
-  },
-  {
-    href: "/calendar?view=travel",
-    label: "여행",
-    icon: AirplaneTilt,
-    views: ["travel", "travel-plans", "travel-plan"],
-  },
+  { href: "/calendar", label: "캘린더", icon: Calendar },
+  { href: "/travel", label: "여행", icon: AirplaneTilt },
   { href: "/finance", label: "가계부", icon: Wallet, also: ["/products"] },
   { href: "/knowledge", label: "지식", icon: BookOpen },
 ];
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const viewParam = searchParams.get("view");
   const currentUser = useCurrentUser();
   const { unreadCount } = useNotifications();
   const profileActive = pathname === "/profile" || pathname.startsWith("/profile/");
 
   const isActive = (item: NavItem): boolean => {
-    // 여행 탭: /calendar + view 쿼리가 travel 계열
-    if (item.views && item.views.length > 0) {
-      return pathname === "/calendar" && !!viewParam && item.views.includes(viewParam);
-    }
-    // 캘린더 기본 탭: /calendar + view 가 travel 계열이 아님
-    if (item.isCalendarDefault) {
-      if (pathname !== "/calendar") return false;
-      if (viewParam && ["travel", "travel-plans", "travel-plan"].includes(viewParam)) return false;
-      return true;
-    }
-    // 기타: path 기반
     if (pathname === item.href || pathname.startsWith(item.href + "/")) return true;
     if (item.also?.some((p) => pathname === p || pathname.startsWith(p + "/"))) return true;
     return false;
