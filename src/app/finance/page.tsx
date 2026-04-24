@@ -139,13 +139,18 @@ export default function FinancePage() {
         </Button>
       </div>
 
-      {/* 고정비 미적용 안내 */}
+      {/* 고정비 미적용 안내 — 현재 [고정] 표시는 미리보기일 뿐이고 실제 거래로는 확정되지 않은 상태. */}
       {fixedAsTransactions.length > 0 && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-dashed p-3">
-          <p className="text-xs text-muted-foreground">
-            고정비 {fixedAsTransactions.length}건 미적용 ([고정]으로 표시 중)
-          </p>
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={handleApplyFixed}>
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-dashed p-3">
+          <div className="flex flex-col gap-0.5">
+            <p className="text-xs font-medium">
+              고정비 {fixedAsTransactions.length}건 미적용
+            </p>
+            <p className="text-[10px] text-muted-foreground leading-snug">
+              [고정] 표시는 미리보기입니다. "확정 저장"을 눌러야 실제 거래 내역으로 기록돼요.
+            </p>
+          </div>
+          <Button size="sm" variant="outline" className="h-8 text-xs shrink-0" onClick={handleApplyFixed}>
             확정 저장
           </Button>
         </div>

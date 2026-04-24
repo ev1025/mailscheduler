@@ -123,12 +123,38 @@ export default function TransactionForm({
               <Input
                 id="amount"
                 type="number"
+                inputMode="numeric"
                 min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="금액 * (예: 10000)"
                 className={FORM_INPUT_COMPACT}
               />
+              {/* 빠른 입력 프리셋 — 현재값에 더하기. 모바일 keypad 왕복 줄임. */}
+              <div className="flex flex-wrap gap-1">
+                {[1000, 5000, 10000, 50000, 100000].map((delta) => (
+                  <button
+                    key={delta}
+                    type="button"
+                    onClick={() => {
+                      const cur = parseInt(amount || "0", 10) || 0;
+                      setAmount(String(cur + delta));
+                    }}
+                    className="px-2 py-0.5 rounded border text-[10px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                  >
+                    +{delta >= 10000 ? `${delta / 10000}만` : `${delta / 1000}천`}
+                  </button>
+                ))}
+                {amount && (
+                  <button
+                    type="button"
+                    onClick={() => setAmount("")}
+                    className="px-2 py-0.5 rounded border text-[10px] text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             </div>
             <div className="flex flex-col gap-1.5 min-w-0">
               <Label className={FORM_LABEL}>날짜</Label>

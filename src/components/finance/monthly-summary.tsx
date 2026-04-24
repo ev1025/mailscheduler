@@ -82,31 +82,26 @@ export default function MonthlySummary({
           editable
           value={
             editingIncome ? (
-              <div className="flex items-center gap-1">
-                <Input
-                  type="number"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      saveIncome(draft);
-                      setEditingIncome(false);
-                    }
-                  }}
-                  autoFocus
-                  className="h-7 text-xs w-full min-w-0"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={() => {
+                  // 포커스 빠질 때 자동 저장 — OK 버튼 없이도 확정.
+                  saveIncome(draft);
+                  setEditingIncome(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
                     saveIncome(draft);
                     setEditingIncome(false);
-                  }}
-                  className="text-xs text-primary shrink-0"
-                >
-                  OK
-                </button>
-              </div>
+                  }
+                  if (e.key === "Escape") setEditingIncome(false);
+                }}
+                autoFocus
+                className="h-7 text-xs w-full min-w-0"
+              />
             ) : (
               formatWon(monthlyIncome)
             )

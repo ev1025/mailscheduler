@@ -81,18 +81,19 @@ function ProductRow({
     <tr
       ref={setNodeRef}
       style={style}
-      className="border-t hover:bg-accent/40 cursor-pointer group"
+      className="border-t hover:bg-accent/50 cursor-pointer group"
       onClick={() => onEdit(p)}
     >
-      <td className="text-center px-1 py-1.5 whitespace-nowrap w-6">
+      <td className="text-center px-1 py-2 whitespace-nowrap w-8">
         <button
           type="button"
           {...attributes}
           {...listeners}
           onClick={(e) => e.stopPropagation()}
-          className="text-muted-foreground/40 hover:text-muted-foreground cursor-grab active:cursor-grabbing touch-none"
+          className="inline-flex items-center justify-center p-1.5 rounded text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
+          aria-label="드래그로 이동"
         >
-          <GripVertical className="h-3 w-3" />
+          <GripVertical className="h-4 w-4" />
         </button>
       </td>
       <td className="text-center px-1 py-1.5 whitespace-nowrap w-8">

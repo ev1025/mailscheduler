@@ -17,6 +17,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { Trash2, Plus } from "lucide-react";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
 import type { ExpenseCategory } from "@/types";
 import type { FixedExpense } from "@/hooks/use-fixed-expenses";
 
@@ -50,6 +51,8 @@ export default function FixedExpenseManager({
 }: FixedExpenseManagerProps) {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  // 삭제 확인 다이얼로그
+  const [deletingFx, setDeletingFx] = useState<FixedExpense | null>(null);
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [description, setDescription] = useState("");
@@ -151,8 +154,7 @@ export default function FixedExpenseManager({
                       className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (editingId === fx.id) resetForm();
-                        onDelete(fx.id);
+                        setDeletingFx(fx);
                       }}
                       aria-label="고정비 삭제"
                     >
@@ -207,12 +209,16 @@ export default function FixedExpenseManager({
                   <Label className="text-xs">매월 결제일</Label>
                   <Input
                     type="number"
+                    inputMode="numeric"
                     min="1"
                     max="31"
                     value={dayOfMonth}
                     onChange={(e) => setDayOfMonth(e.target.value)}
                     className="h-8"
                   />
+                  <p className="text-[10px] text-muted-foreground leading-snug">
+                    29~31일은 해당 일자가 없는 달(2월 등)엔 월말에 자동 반영됩니다.
+                  </p>
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -273,6 +279,26 @@ export default function FixedExpenseManager({
           )}
         </div>
       </DialogContent>
+
+      <ConfirmDialog
+        open={!!deletingFx}
+        onOpenChange={(o) => { if (!o) setDeletingFx(null); }}
+        title="고정비 삭제"
+        description={
+          deletingFx
+            ? `"${deletingFx.description || "이 고정비"}" 항목을 삭제합니다. 이 달에 이미 반영된 거래는 유지되고, 다음 달부터 자동 추가되지 않습니다.`
+            : ""
+        }
+        confirmLabel="삭제"
+        destructive
+        onConfirm={async () => {
+          if (deletingFx) {
+            if (editingId === deletingFx.id) resetForm();
+            onDelete(deletingFx.id);
+          }
+          setDeletingFx(null);
+        }}
+      />
     </Dialog>
   );
 }
