@@ -33,9 +33,10 @@ export default function KnowledgePage() {
 }
 
 function KnowledgePageInner() {
-  const { folders, addFolder, updateFolder, deleteFolder } = useKnowledgeFolders();
-  const { items, addItem, updateItem, deleteItem, refetch } =
+  const { folders, loading: foldersLoading, addFolder, updateFolder, deleteFolder } = useKnowledgeFolders();
+  const { items, loading: itemsLoading, addItem, updateItem, deleteItem, refetch } =
     useKnowledgeItems(null);
+  const knowledgeLoading = foldersLoading || itemsLoading;
 
   const {
     selectedItemId,
@@ -492,6 +493,7 @@ function KnowledgePageInner() {
                     }
                     folders={folders}
                     items={items}
+                    loading={knowledgeLoading}
                     onSelectItem={(id) => setSelectedItemId(id)}
                     onSelectFolder={(fid) => setViewFolderId(fid)}
                     onBack={() => {
@@ -530,6 +532,7 @@ function KnowledgePageInner() {
                   <KnowledgeDashboard
                     folders={folders}
                     items={items}
+                    loading={knowledgeLoading}
                     onSelectItem={(id) => setSelectedItemId(id)}
                     onSelectFolder={(fid) => setViewFolderId(fid)}
                     onSearch={setSearch}

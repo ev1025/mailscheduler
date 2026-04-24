@@ -15,7 +15,6 @@ import CategoryChart from "@/components/finance/category-chart";
 import FixedExpenseManager from "@/components/finance/fixed-expense-manager";
 import { PAGE_ACTION_BUTTON } from "@/lib/form-classes";
 import type { Expense } from "@/types";
-import { toast } from "sonner";
 
 export default function FinancePage() {
   const router = useRouter();
@@ -50,25 +49,41 @@ export default function FinancePage() {
     addTransaction, updateTransaction, deleteTransaction,
     addCategory, deleteCategory, updateCategoryColor,
     totalIncome, totalExpense, balance, expenseByCategory,
+    refetch: refetchTransactions,
   } = useTransactions(year, month);
 
-  const { fixedExpenses, addFixed, updateFixed, deleteFixed, applyFixedToMonth } = useFixedExpenses();
+  const {
+    fixedExpenses,
+    loading: fxLoading,
+    addFixed,
+    updateFixed,
+    deleteFixed,
+    applyFixedToMonth,
+  } = useFixedExpenses();
 
-  // 고정비 가상 거래
-  const fixedAsTransactions: Expense[] = fixedExpenses.map((fx) => {
-    const day = Math.min(fx.day_of_month, new Date(year, month, 0).getDate());
-    const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const exists = transactions.some((t) => t.amount === fx.amount && t.description === fx.description && t.date === date);
-    if (exists) return null;
-    return {
-      id: `fixed-${fx.id}`, amount: fx.amount, category_id: fx.category_id,
-      description: fx.description ? `[고정] ${fx.description}` : "[고정비]",
-      date, type: fx.type, payment_method: fx.payment_method,
-      created_at: "", category: fx.category,
-    } as Expense;
-  }).filter(Boolean) as Expense[];
+  // 월 진입 시 고정비를 실제 거래로 자동 반영 — 이전의 "확정 저장" 수동 단계 제거.
+  // applyFixedToMonth 내부에서 (amount·description·date) 중복 체크 후 insert 하므로
+  // 재호출되어도 중복 생성되지 않는다. appliedKey ref 로 한 번만 시도하도록 가드.
+  const appliedKey = useRef<string>("");
+  useEffect(() => {
+    if (txLoading || fxLoading) return;
+    if (fixedExpenses.length === 0) return;
+    const key = `${year}-${month}`;
+    if (appliedKey.current === key) return;
+    appliedKey.current = key;
+    void (async () => {
+      const count = await applyFixedToMonth(year, month, transactions);
+      if (count > 0) await refetchTransactions();
+    })();
+  }, [year, month, fixedExpenses, txLoading, fxLoading, transactions, applyFixedToMonth, refetchTransactions]);
 
-  const allTransactions = [...transactions, ...fixedAsTransactions].sort((a, b) => b.date.localeCompare(a.date));
+  // 고정비 등록/수정/삭제 후 현재 월에 다시 자동 적용될 수 있게 key 리셋.
+  // fixedExpenses 배열 자체가 바뀌면 다음 useEffect 때 재적용됨.
+  useEffect(() => {
+    appliedKey.current = "";
+  }, [fixedExpenses]);
+
+  const allTransactions = [...transactions].sort((a, b) => b.date.localeCompare(a.date));
 
   const handleSave = async (data: {
     amount: number; category_id: string; description: string | null;
@@ -76,15 +91,6 @@ export default function FinancePage() {
   }) => {
     if (editing) return await updateTransaction(editing.id, data);
     return await addTransaction(data);
-  };
-
-  const handleApplyFixed = async () => {
-    const count = await applyFixedToMonth(year, month, transactions);
-    if (count > 0) {
-      window.location.reload();
-    } else {
-      toast.info("추가할 고정비가 없습니다 (이미 등록됨)");
-    }
   };
 
   return (
@@ -138,23 +144,6 @@ export default function FinancePage() {
           추가
         </Button>
       </div>
-
-      {/* 고정비 미적용 안내 — 현재 [고정] 표시는 미리보기일 뿐이고 실제 거래로는 확정되지 않은 상태. */}
-      {fixedAsTransactions.length > 0 && (
-        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg border border-dashed p-3">
-          <div className="flex flex-col gap-0.5">
-            <p className="text-xs font-medium">
-              고정비 {fixedAsTransactions.length}건 미적용
-            </p>
-            <p className="text-[10px] text-muted-foreground leading-snug">
-              [고정] 표시는 미리보기입니다. "확정 저장"을 눌러야 실제 거래 내역으로 기록돼요.
-            </p>
-          </div>
-          <Button size="sm" variant="outline" className="h-8 text-xs shrink-0" onClick={handleApplyFixed}>
-            확정 저장
-          </Button>
-        </div>
-      )}
 
       {(
         <div className="flex flex-col gap-6">

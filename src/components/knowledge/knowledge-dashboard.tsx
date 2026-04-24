@@ -20,6 +20,8 @@ import KnowledgeEmptyState from "@/components/knowledge/empty-state";
 interface DashboardProps {
   folders: KnowledgeFolder[];
   items: KnowledgeItem[];
+  /** 첫 fetch 중이면 true — empty-state 플래시 방지 */
+  loading?: boolean;
   onSelectItem: (id: string) => void;
   onSelectFolder: (folderId: string) => void;
   onSearch: (q: string) => void;
@@ -244,7 +246,7 @@ export function FolderTreeRow({
 
 /* ── 메인 대시보드 ── */
 export default function KnowledgeDashboard({
-  folders, items, onSelectItem, onSelectFolder, onSearch, searchQuery, searchResults, onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onReorderFolders, onReorderItems, onSelectModeChange, onMoveItems, onMoveFolders, onTogglePinItem, hideSearch, pendingRenameFolderId, onConsumeRename,
+  folders, items, loading = false, onSelectItem, onSelectFolder, onSearch, searchQuery, searchResults, onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onReorderFolders, onReorderItems, onSelectModeChange, onMoveItems, onMoveFolders, onTogglePinItem, hideSearch, pendingRenameFolderId, onConsumeRename,
 }: DashboardProps) {
   const { toggleFolder: toggleFolderFav, isFolderFav, favoriteFolderIds } = useKnowledgeFavorites();
   // 즐겨찾기 = DB pinned (items) + localStorage favorites (folders)
@@ -500,8 +502,9 @@ export default function KnowledgeDashboard({
         </header>
       )}
 
-      {/* 폴더 이동 — 모바일은 바텀시트, 데스크톱(md+)은 중앙 다이얼로그. */}
-      <Sheet open={moveMode} onOpenChange={setMoveMode}>
+      {/* 폴더 이동 — 모바일은 바텀시트, 데스크톱(md+)은 중앙 다이얼로그.
+          modal=false 로 외부 요소 터치·포커스 가능 + 외부 터치 시 자동 닫힘. */}
+      <Sheet open={moveMode} onOpenChange={setMoveMode} modal={false}>
         <SheetContent side="bottom" className="md:hidden rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] max-h-[60dvh] z-[65]" showBackButton={false} showCloseButton={false} initialFocus={false} hideOverlay>
           <div className="flex flex-col h-full">
             <div className="flex flex-col items-center pt-3 pb-2 shrink-0">
@@ -653,7 +656,7 @@ export default function KnowledgeDashboard({
               </section>
             )}
 
-            {favoriteItems.length === 0 && rootFolders.length === 0 && rootItems.length === 0 && !selectMode && (
+            {favoriteItems.length === 0 && rootFolders.length === 0 && rootItems.length === 0 && !selectMode && !loading && (
               <KnowledgeEmptyState variant="no-folders" />
             )}
           </>

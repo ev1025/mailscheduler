@@ -3,12 +3,9 @@
 import { useState } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import TagInput from "@/components/ui/tag-input";
 import { Trash2, Plus } from "lucide-react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
-import { FORM_LABEL, FORM_INPUT_COMPACT } from "@/lib/form-classes";
+import FixedExpenseForm from "@/components/finance/fixed-expense-form";
 import type { ExpenseCategory } from "@/types";
 import type { FixedExpense } from "@/hooks/use-fixed-expenses";
 
@@ -25,7 +22,6 @@ interface FixedExpenseManagerProps {
     updates: Partial<Omit<FixedExpense, "id" | "created_at" | "category">>
   ) => Promise<{ error: unknown }>;
   onDelete: (id: string) => Promise<{ error: unknown }>;
-  /** 카테고리 추가/수정/삭제 — TagInput 연동용 */
   onAddCategory?: (
     name: string,
     type: "income" | "expense",
@@ -51,256 +47,118 @@ export default function FixedExpenseManager({
   onDeleteCategory,
   onUpdateCategoryColor,
 }: FixedExpenseManagerProps) {
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<FixedExpense | null>(null);
   const [deletingFx, setDeletingFx] = useState<FixedExpense | null>(null);
-  const [amount, setAmount] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [description, setDescription] = useState("");
-  const [dayOfMonth, setDayOfMonth] = useState("1");
-  const [type, setType] = useState<"income" | "expense">("expense");
 
-  const filteredCategories = categories.filter((c) => c.type === type);
-
-  const resetForm = () => {
-    setAmount("");
-    setCategoryId("");
-    setDescription("");
-    setDayOfMonth("1");
-    setType("expense");
-    setEditingId(null);
-    setShowForm(false);
+  const handleOpenNew = () => {
+    setEditing(null);
+    setFormOpen(true);
   };
 
-  const startEdit = (fx: FixedExpense) => {
-    setEditingId(fx.id);
-    setAmount(String(fx.amount));
-    setCategoryId(fx.category_id);
-    setDescription(fx.description || "");
-    setDayOfMonth(String(fx.day_of_month));
-    setType(fx.type);
-    setShowForm(true);
+  const handleOpenEdit = (fx: FixedExpense) => {
+    setEditing(fx);
+    setFormOpen(true);
   };
 
-  const handleSave = async () => {
-    if (!amount || !categoryId) return;
-    const payload = {
-      amount: parseInt(amount),
-      category_id: categoryId,
-      description: description.trim() || null,
-      day_of_month: parseInt(dayOfMonth) || 1,
-      type,
-      payment_method: "계좌이체",
-    };
-    if (editingId && onUpdate) {
-      await onUpdate(editingId, payload);
-    } else {
-      await onAdd(payload);
+  const handleSave = async (data: {
+    amount: number;
+    category_id: string;
+    description: string | null;
+    day_of_month: number;
+    type: "income" | "expense";
+    payment_method: string;
+  }) => {
+    if (editing && onUpdate) {
+      return await onUpdate(editing.id, data);
     }
-    resetForm();
+    return await onAdd(data);
   };
 
   return (
     <>
       <FormPage
         open={open}
-        onOpenChange={(o) => {
-          onOpenChange(o);
-          if (!o) resetForm();
-        }}
+        onOpenChange={onOpenChange}
         title="고정비 관리"
         hideFooter
       >
         <div className="flex flex-col gap-3">
           <p className="text-xs text-muted-foreground">
-            매월 자동으로 추가되는 고정 수입/지출 항목입니다. 항목을 눌러 수정할 수 있어요.
+            매월 자동으로 반영되는 고정 수입/지출 항목입니다. 항목을 눌러 수정하거나 휴지통으로 삭제하세요.
           </p>
 
-          {/* 고정비 목록 */}
           {fixedExpenses.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-6">
+            <p className="text-sm text-muted-foreground text-center py-10">
               등록된 고정비가 없습니다
             </p>
           ) : (
             <div className="flex flex-col gap-1.5">
-              {fixedExpenses.map((fx) => {
-                const isEditing = editingId === fx.id;
-                return (
-                  <div
-                    key={fx.id}
-                    onClick={() => (!showForm || isEditing ? startEdit(fx) : undefined)}
-                    className={`group flex items-center justify-between rounded-lg border p-2.5 cursor-pointer transition-colors ${
-                      isEditing ? "border-primary bg-primary/5" : "hover:bg-accent/50"
-                    }`}
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span
-                          className={
-                            fx.type === "income"
-                              ? "text-green-600 font-medium"
-                              : "text-red-600 font-medium"
-                          }
-                        >
-                          {fx.type === "income" ? "+" : "-"}
-                          {formatWon(fx.amount)}
-                        </span>
-                        <span className="text-muted-foreground text-xs">
-                          매월 {fx.day_of_month}일
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate mt-0.5">
-                        {fx.category?.name}
-                        {fx.description && ` · ${fx.description}`}
-                      </p>
+              {fixedExpenses.map((fx) => (
+                <div
+                  key={fx.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleOpenEdit(fx)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleOpenEdit(fx);
+                  }}
+                  className="group flex items-center justify-between rounded-lg border p-2.5 cursor-pointer transition-colors hover:bg-accent/50 active:bg-accent"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span
+                        className={
+                          fx.type === "income"
+                            ? "text-green-600 font-medium"
+                            : "text-red-600 font-medium"
+                        }
+                      >
+                        {fx.type === "income" ? "+" : "-"}
+                        {formatWon(fx.amount)}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        매월 {fx.day_of_month}일
+                      </span>
                     </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive/70 hover:text-destructive hover:bg-destructive/10 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeletingFx(fx);
-                      }}
-                      aria-label="고정비 삭제"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {fx.category?.name}
+                      {fx.description && ` · ${fx.description}`}
+                    </p>
                   </div>
-                );
-              })}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingFx(fx);
+                    }}
+                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent transition-colors"
+                    aria-label="고정비 삭제"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
-          {/* 추가/수정 폼 */}
-          {showForm ? (
-            <div className="flex flex-col gap-2.5 border rounded-lg p-3">
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant={type === "expense" ? "default" : "outline"}
-                  className="flex-1 h-8"
-                  onClick={() => {
-                    setType("expense");
-                    setCategoryId("");
-                  }}
-                >
-                  지출
-                </Button>
-                <Button
-                  size="sm"
-                  variant={type === "income" ? "default" : "outline"}
-                  className="flex-1 h-8"
-                  onClick={() => {
-                    setType("income");
-                    setCategoryId("");
-                  }}
-                >
-                  수입
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1.5 min-w-0">
-                  <Label className={FORM_LABEL}>금액</Label>
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    min="0"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="50000"
-                    className={FORM_INPUT_COMPACT}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5 min-w-0">
-                  <Label className={FORM_LABEL}>매월 결제일</Label>
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    min="1"
-                    max="31"
-                    value={dayOfMonth}
-                    onChange={(e) => setDayOfMonth(e.target.value)}
-                    className={FORM_INPUT_COMPACT}
-                  />
-                </div>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-snug -mt-1">
-                29~31일은 해당 일자가 없는 달(2월 등)엔 월말에 자동 반영돼요.
-              </p>
-
-              <div className="flex flex-col gap-1.5 min-w-0">
-                <Label className={FORM_LABEL}>카테고리</Label>
-                <TagInput
-                  selectedTags={
-                    categoryId
-                      ? [filteredCategories.find((c) => c.id === categoryId)?.name || ""]
-                      : []
-                  }
-                  allTags={filteredCategories.map((c) => ({
-                    id: c.id,
-                    name: c.name,
-                    color: c.color,
-                  }))}
-                  onChange={(tags) => {
-                    const picked = tags[tags.length - 1];
-                    const match = filteredCategories.find((c) => c.name === picked);
-                    setCategoryId(match?.id || "");
-                  }}
-                  onAddTag={
-                    onAddCategory
-                      ? async (name, color) => onAddCategory(name, type, color)
-                      : undefined
-                  }
-                  onDeleteTag={onDeleteCategory}
-                  onUpdateTagColor={onUpdateCategoryColor}
-                  placeholder="검색/추가"
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <Label className={FORM_LABEL}>설명</Label>
-                <Input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="넷플릭스, 월세 등"
-                  className={FORM_INPUT_COMPACT}
-                />
-              </div>
-
-              <div className="flex gap-2 pt-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-1"
-                  onClick={resetForm}
-                >
-                  취소
-                </Button>
-                <Button
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleSave}
-                  disabled={!amount || !categoryId}
-                >
-                  {editingId ? "수정" : "추가"}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => {
-                resetForm();
-                setShowForm(true);
-              }}
-            >
-              <Plus className="mr-1 h-4 w-4" />
-              고정비 추가
-            </Button>
-          )}
+          <Button variant="outline" onClick={handleOpenNew}>
+            <Plus className="mr-1 h-4 w-4" />
+            고정비 추가
+          </Button>
         </div>
       </FormPage>
+
+      <FixedExpenseForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        fixed={editing}
+        categories={categories}
+        onSave={handleSave}
+        onAddCategory={onAddCategory}
+        onDeleteCategory={onDeleteCategory}
+        onUpdateCategoryColor={onUpdateCategoryColor}
+      />
 
       <ConfirmDialog
         open={!!deletingFx}
@@ -310,16 +168,13 @@ export default function FixedExpenseManager({
         title="고정비 삭제"
         description={
           deletingFx
-            ? `"${deletingFx.description || "이 고정비"}" 항목을 삭제합니다. 이 달에 이미 반영된 거래는 유지되고, 다음 달부터 자동 추가되지 않습니다.`
+            ? `"${deletingFx.description || "이 고정비"}" 항목을 삭제합니다. 이미 이 달에 반영된 거래는 유지되고, 다음 달부터 자동 추가되지 않습니다.`
             : ""
         }
         confirmLabel="삭제"
         destructive
         onConfirm={async () => {
-          if (deletingFx) {
-            if (editingId === deletingFx.id) resetForm();
-            onDelete(deletingFx.id);
-          }
+          if (deletingFx) onDelete(deletingFx.id);
           setDeletingFx(null);
         }}
       />

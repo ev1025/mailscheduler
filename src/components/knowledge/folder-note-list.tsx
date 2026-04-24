@@ -14,6 +14,8 @@ interface Props {
   folder: KnowledgeFolder | null;
   folders: KnowledgeFolder[];
   items: KnowledgeItem[];
+  /** 첫 fetch 중이면 true — empty-state 플래시 방지 */
+  loading?: boolean;
   onSelectItem: (id: string) => void;
   onSelectFolder: (folderId: string) => void;
   onBack: () => void;
@@ -34,7 +36,7 @@ interface Props {
 }
 
 export default function FolderNoteList({
-  folder, folders, items, onSelectItem, onSelectFolder, onBack, onNavigateToFolder,
+  folder, folders, items, loading = false, onSelectItem, onSelectFolder, onBack, onNavigateToFolder,
   onDeleteItems, onDeleteFolders, onRenameFolder, onRenameItem, onMoveItems, onMoveFolders,
   onSelectModeChange, onTogglePinItem, searchQuery, onSearch, hideBreadcrumb,
 }: Props) {
@@ -160,8 +162,9 @@ export default function FolderNoteList({
         </div>
       )}
 
-      {/* 폴더 이동 — 바텀시트 */}
-      <Sheet open={moveMode} onOpenChange={setMoveMode}>
+      {/* 폴더 이동 — 바텀시트. modal=false 로 외부 요소 터치·포커스 가능 +
+          외부 터치 시 자동 닫힘 (Base UI dismissible 기본 true). */}
+      <Sheet open={moveMode} onOpenChange={setMoveMode} modal={false}>
         <SheetContent side="bottom" className="rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] max-h-[60dvh] z-[65]" showBackButton={false} showCloseButton={false} initialFocus={false} hideOverlay>
           <div className="flex flex-col h-full">
             <div className="flex flex-col items-center pt-3 pb-2 shrink-0">
@@ -185,8 +188,10 @@ export default function FolderNoteList({
 
       {/* 콘텐츠 */}
       <div className="flex-1 overflow-y-auto p-3">
-        {subFolders.length === 0 && folderItems.length === 0 ? (
+        {subFolders.length === 0 && folderItems.length === 0 && !loading ? (
           <KnowledgeEmptyState variant="no-notes-in-folder" />
+        ) : subFolders.length === 0 && folderItems.length === 0 && loading ? (
+          <div className="py-20" aria-hidden />
         ) : (
           <div className="flex flex-col gap-0.5">
             {subFolders.map((sf) => (

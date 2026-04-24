@@ -1,0 +1,224 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import FormPage from "@/components/ui/form-page";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import TagInput from "@/components/ui/tag-input";
+import { FORM_LABEL, FORM_INPUT_COMPACT, FORM_INPUT_PRIMARY } from "@/lib/form-classes";
+import { usePaymentMethods } from "@/hooks/use-payment-methods";
+import type { ExpenseCategory } from "@/types";
+import type { FixedExpense } from "@/hooks/use-fixed-expenses";
+
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  /** 기존 항목 수정이면 값 주입, 없으면 신규. */
+  fixed: FixedExpense | null;
+  categories: ExpenseCategory[];
+  onSave: (data: {
+    amount: number;
+    category_id: string;
+    description: string | null;
+    day_of_month: number;
+    type: "income" | "expense";
+    payment_method: string;
+  }) => Promise<{ error: unknown }>;
+  /** 카테고리 TagInput mutation */
+  onAddCategory?: (
+    name: string,
+    type: "income" | "expense",
+    color: string
+  ) => Promise<{ error: unknown }>;
+  onDeleteCategory?: (id: string) => Promise<{ error: unknown }>;
+  onUpdateCategoryColor?: (id: string, color: string) => Promise<{ error: unknown }>;
+}
+
+export default function FixedExpenseForm({
+  open,
+  onOpenChange,
+  fixed,
+  categories,
+  onSave,
+  onAddCategory,
+  onDeleteCategory,
+  onUpdateCategoryColor,
+}: Props) {
+  const { methods: paymentMethods, addMethod, deleteMethod, updateMethodColor } =
+    usePaymentMethods();
+
+  const [type, setType] = useState<"income" | "expense">("expense");
+  const [amount, setAmount] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [description, setDescription] = useState("");
+  const [dayOfMonth, setDayOfMonth] = useState("1");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    if (fixed) {
+      setType(fixed.type);
+      setAmount(String(fixed.amount));
+      setCategoryId(fixed.category_id);
+      setDescription(fixed.description || "");
+      setDayOfMonth(String(fixed.day_of_month));
+      setPaymentMethod(fixed.payment_method || "");
+    } else {
+      setType("expense");
+      setAmount("");
+      setCategoryId("");
+      setDescription("");
+      setDayOfMonth("1");
+      setPaymentMethod("");
+    }
+  }, [open, fixed]);
+
+  const filteredCategories = categories.filter((c) => c.type === type);
+
+  const handleSubmit = async () => {
+    if (!amount || !categoryId) return;
+    setSaving(true);
+    const { error } = await onSave({
+      amount: parseInt(amount, 10),
+      category_id: categoryId,
+      description: description.trim() || null,
+      day_of_month: parseInt(dayOfMonth, 10) || 1,
+      type,
+      payment_method: paymentMethod || "계좌이체",
+    });
+    setSaving(false);
+    if (!error) onOpenChange(false);
+  };
+
+  return (
+    <FormPage
+      open={open}
+      onOpenChange={onOpenChange}
+      title={fixed ? "고정비 수정" : "새 고정비"}
+      submitDisabled={!amount || !categoryId}
+      saving={saving}
+      onSubmit={handleSubmit}
+    >
+      <div className="flex flex-col gap-4">
+        {/* 수입/지출 세그먼트 */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className={`flex-1 h-9 rounded-md text-sm font-medium transition-colors ${
+              type === "expense"
+                ? "bg-red-500/10 text-red-600 border border-red-500/30"
+                : "border text-muted-foreground hover:bg-accent"
+            }`}
+            onClick={() => {
+              setType("expense");
+              setCategoryId("");
+            }}
+          >
+            지출
+          </button>
+          <button
+            type="button"
+            className={`flex-1 h-9 rounded-md text-sm font-medium transition-colors ${
+              type === "income"
+                ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/30"
+                : "border text-muted-foreground hover:bg-accent"
+            }`}
+            onClick={() => {
+              setType("income");
+              setCategoryId("");
+            }}
+          >
+            수입
+          </button>
+        </div>
+
+        {/* 금액 + 결제일 */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <Label className={FORM_LABEL}>금액</Label>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="50000"
+              className={FORM_INPUT_PRIMARY}
+            />
+          </div>
+          <div className="flex flex-col gap-1.5 min-w-0">
+            <Label className={FORM_LABEL}>매월 결제일</Label>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min="1"
+              max="31"
+              value={dayOfMonth}
+              onChange={(e) => setDayOfMonth(e.target.value)}
+              className={FORM_INPUT_COMPACT}
+            />
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground -mt-2 leading-snug">
+          29~31일은 해당 일자가 없는 달(2월 등)엔 월말에 자동 반영돼요.
+        </p>
+
+        {/* 카테고리 */}
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <Label className={FORM_LABEL}>카테고리</Label>
+          <TagInput
+            selectedTags={
+              categoryId
+                ? [filteredCategories.find((c) => c.id === categoryId)?.name || ""]
+                : []
+            }
+            allTags={filteredCategories.map((c) => ({
+              id: c.id,
+              name: c.name,
+              color: c.color,
+            }))}
+            onChange={(tags) => {
+              const picked = tags[tags.length - 1];
+              const match = filteredCategories.find((c) => c.name === picked);
+              setCategoryId(match?.id || "");
+            }}
+            onAddTag={
+              onAddCategory
+                ? async (name, color) => onAddCategory(name, type, color)
+                : undefined
+            }
+            onDeleteTag={onDeleteCategory}
+            onUpdateTagColor={onUpdateCategoryColor}
+            placeholder="검색/추가"
+          />
+        </div>
+
+        {/* 결제수단 */}
+        <div className="flex flex-col gap-1.5 min-w-0">
+          <Label className={FORM_LABEL}>결제수단</Label>
+          <TagInput
+            selectedTags={paymentMethod ? [paymentMethod] : []}
+            allTags={paymentMethods}
+            onChange={(tags) => setPaymentMethod(tags[tags.length - 1] || "")}
+            onAddTag={addMethod}
+            onDeleteTag={deleteMethod}
+            onUpdateTagColor={updateMethodColor}
+            placeholder="검색/추가"
+          />
+        </div>
+
+        {/* 설명 */}
+        <div className="flex flex-col gap-1.5">
+          <Label className={FORM_LABEL}>설명</Label>
+          <Input
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="넷플릭스, 월세 등"
+            className={FORM_INPUT_COMPACT}
+          />
+        </div>
+      </div>
+    </FormPage>
+  );
+}
