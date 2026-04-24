@@ -210,16 +210,16 @@ export default function TransactionForm({
             </div>
           </div>
 
-          {/* 3행: 메모 */}
+          {/* 3행: 이름 — 목록에서 제목으로 보이는 필드 */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="desc" className={FORM_LABEL}>
-              메모
+              이름
             </Label>
             <Input
               id="desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="어디서 뭘 샀는지 등"
+              placeholder="예: 기후동행카드, 점심"
               className={FORM_INPUT_COMPACT}
             />
           </div>

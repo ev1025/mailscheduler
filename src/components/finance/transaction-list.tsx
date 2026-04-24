@@ -57,7 +57,7 @@ export default function TransactionList({
                 }}
                 className="group flex items-center justify-between rounded-lg border p-3 cursor-pointer transition-colors hover:bg-accent/50 active:bg-accent"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   {tx.category && (
                     <div
                       className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs shrink-0"
@@ -66,14 +66,18 @@ export default function TransactionList({
                       {tx.category.name.charAt(0)}
                     </div>
                   )}
+                  {/* 이름(description) 이 제목 역할 — 제일 크게. 카테고리는 그 아래 작게.
+                      이름이 비어있으면 카테고리명을 제목으로 폴백, 하단은 생략.
+                      결제수단은 목록에서 노출 안 함 (편집 폼에서만). */}
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm truncate">
-                      {tx.category?.name || "미분류"}
+                    <p className="font-semibold text-sm truncate">
+                      {tx.description || tx.category?.name || "미분류"}
                     </p>
-                    {/* 설명·결제수단을 하단에 묶어 한 줄로 — 모바일 좁은 화면에서 잘림 방지. */}
-                    <p className="text-xs text-muted-foreground truncate">
-                      {[tx.description, tx.payment_method].filter(Boolean).join(" · ")}
-                    </p>
+                    {tx.description && tx.category?.name && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {tx.category.name}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
