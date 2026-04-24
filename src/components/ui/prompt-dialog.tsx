@@ -51,20 +51,45 @@ export default function PromptDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3">
           <Input
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") submit();
+              // 한글 IME 조합 중 Enter 는 조합 확정용 — submit 하지 않음.
+              // nativeEvent.isComposing / keyCode 229 둘 다 체크 (일부 브라우저는 한쪽만 지원).
+              const native = e.nativeEvent as KeyboardEvent & { isComposing?: boolean };
+              if (e.key === "Enter" && !native.isComposing && native.keyCode !== 229) {
+                e.preventDefault();
+                submit();
+              }
             }}
             placeholder={placeholder}
             autoFocus
-            className="h-10 flex-1"
+            className="h-10"
           />
-          <Button size="sm" onClick={submit} disabled={!value.trim()} className="h-10 shrink-0">
-            {confirmLabel}
-          </Button>
+          {/* 버튼을 Input 아래 별도 행으로 — 모바일 키보드 올라올 때 Input 옆 버튼이
+              가려지던 문제 해결. 취소/확인 모두 명확히 tap 가능. */}
+          <div className="flex gap-2 justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9"
+              onClick={() => onOpenChange(false)}
+            >
+              취소
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              className="h-9 min-w-20"
+              onClick={submit}
+              disabled={!value.trim()}
+            >
+              {confirmLabel}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

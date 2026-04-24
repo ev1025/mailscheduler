@@ -485,22 +485,6 @@ export default function KnowledgeDashboard({
 
   return (
     <div className="flex flex-col h-full" onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-      {/* 선택 모드 툴바 — PageHeader와 동일 규격(h-14, h-10 w-10 버튼, h-[20px] 아이콘) */}
-      {selectMode && (
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3">
-          <button type="button" onClick={exitSelect} aria-label="선택 해제" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent -ml-1"><ArrowLeft className="h-5 w-5" /></button>
-          <h1 className="text-lg font-bold leading-tight truncate flex-1">{totalSel}개 선택</h1>
-          <div className="flex items-center gap-0.5 shrink-0">
-            {totalSel === 1 && (
-              <button type="button" onClick={startInlineRename} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경" aria-label="이름 변경"><Pencil className="h-[20px] w-[20px]" strokeWidth={1.6} /></button>
-            )}
-            {totalSel > 0 && (
-              <button type="button" onClick={() => setMoveMode(true)} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동" aria-label="폴더 이동"><FolderInput className="h-[20px] w-[20px]" strokeWidth={1.6} /></button>
-            )}
-            <button type="button" onClick={handleDeleteBulk} disabled={totalSel === 0} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제" aria-label="삭제"><Trash2 className="h-[20px] w-[20px] text-destructive" strokeWidth={1.6} /></button>
-          </div>
-        </header>
-      )}
 
       {/* 폴더 이동 — 모바일은 바텀시트, 데스크톱(md+)은 중앙 다이얼로그.
           modal=false 로 외부 요소 터치·포커스 가능 + 외부 터치 시 자동 닫힘. */}
@@ -549,9 +533,23 @@ export default function KnowledgeDashboard({
         onClick={handleContainerClick}
         onDragStart={(e) => e.preventDefault()}
       >
-        {!selectMode && !hideSearch && (
+        {/* 검색창 자리: 선택모드 시 동일 높이의 선택 툴바로 치환 → 레이아웃 이동 없음.
+            꾹 눌러 선택 시 상단 높이가 바뀌지 않아 손가락 아래 항목이 그대로 유지됨. */}
+        {selectMode ? (
+          <div className="flex h-9 items-center gap-0.5 -mx-1">
+            <button type="button" onClick={exitSelect} aria-label="선택 해제" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"><ArrowLeft className="h-[18px] w-[18px]" /></button>
+            <span className="flex-1 text-sm font-semibold truncate px-1">{totalSel}개 선택</span>
+            {totalSel === 1 && (
+              <button type="button" onClick={startInlineRename} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경" aria-label="이름 변경"><Pencil className="h-[18px] w-[18px]" strokeWidth={1.6} /></button>
+            )}
+            {totalSel > 0 && (
+              <button type="button" onClick={() => setMoveMode(true)} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동" aria-label="폴더 이동"><FolderInput className="h-[18px] w-[18px]" strokeWidth={1.6} /></button>
+            )}
+            <button type="button" onClick={handleDeleteBulk} disabled={totalSel === 0} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제" aria-label="삭제"><Trash2 className="h-[18px] w-[18px] text-destructive" strokeWidth={1.6} /></button>
+          </div>
+        ) : !hideSearch ? (
           <SearchInput value={searchQuery} onChange={onSearch} placeholder="노트 검색..." size="md" />
-        )}
+        ) : null}
 
         {searchQuery.trim() && !selectMode ? (
           <div className="flex flex-col gap-1">

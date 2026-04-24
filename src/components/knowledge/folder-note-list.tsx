@@ -122,36 +122,31 @@ export default function FolderNoteList({
 
   return (
     <div className="flex flex-col h-full" onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
-      {/* 선택 모드: PageHeader 규격의 고정 h-14 툴바. */}
-      {selectMode && (
-        <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur-sm px-3 min-w-0 overflow-hidden">
-          <button type="button" onClick={exitSelect} aria-label="선택 해제" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent -ml-1">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <h1 className="text-lg font-bold leading-tight truncate flex-1">{totalSel}개 선택</h1>
-          <div className="flex items-center gap-0.5 shrink-0">
-            {totalSel === 1 && (
-              <button type="button" onClick={startRename} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경" aria-label="이름 변경"><Pencil className="h-[20px] w-[20px]" strokeWidth={1.6} /></button>
-            )}
-            {totalSel > 0 && (
-              <button type="button" onClick={() => setMoveMode(true)} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동" aria-label="폴더 이동"><FolderInput className="h-[20px] w-[20px]" strokeWidth={1.6} /></button>
-            )}
-            <button type="button" onClick={handleDelete} disabled={totalSel === 0} className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제" aria-label="삭제"><Trash2 className="h-[20px] w-[20px] text-destructive" strokeWidth={1.6} /></button>
-          </div>
-        </header>
-      )}
-
-      {/* 일반 모드: 검색박스 + 브레드크럼. 고정 높이 제약 없이 실제 내용만큼 차지. */}
-      {!selectMode && (onSearch || !hideBreadcrumb) && (
+      {/* 상단 영역 — 선택 모드/일반 모드 상관없이 동일한 wrapper 로 유지.
+          레이아웃 이동 방지: 꾹 눌러 선택 시 상단이 사라지며 손가락 아래 항목이
+          엉뚱한 폴더로 밀리던 현상 해결. 선택 모드에서 검색창 자리만 툴바로 치환. */}
+      {(onSearch || !hideBreadcrumb) && (
         <div className="flex flex-col gap-2 shrink-0 border-b bg-background px-3 py-3">
-          {onSearch && (
+          {selectMode ? (
+            <div className="flex h-9 items-center gap-0.5 -mx-1">
+              <button type="button" onClick={exitSelect} aria-label="선택 해제" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"><ArrowLeft className="h-[18px] w-[18px]" /></button>
+              <span className="flex-1 text-sm font-semibold truncate px-1">{totalSel}개 선택</span>
+              {totalSel === 1 && (
+                <button type="button" onClick={startRename} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경" aria-label="이름 변경"><Pencil className="h-[18px] w-[18px]" strokeWidth={1.6} /></button>
+              )}
+              {totalSel > 0 && (
+                <button type="button" onClick={() => setMoveMode(true)} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동" aria-label="폴더 이동"><FolderInput className="h-[18px] w-[18px]" strokeWidth={1.6} /></button>
+              )}
+              <button type="button" onClick={handleDelete} disabled={totalSel === 0} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제" aria-label="삭제"><Trash2 className="h-[18px] w-[18px] text-destructive" strokeWidth={1.6} /></button>
+            </div>
+          ) : onSearch ? (
             <SearchInput
               value={searchQuery ?? ""}
               onChange={onSearch}
               placeholder="노트 검색..."
               size="md"
             />
-          )}
+          ) : null}
           {!hideBreadcrumb && (
             <KnowledgeBreadcrumb
               folder={folder}
