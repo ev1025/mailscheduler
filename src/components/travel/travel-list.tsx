@@ -12,6 +12,7 @@ import TravelToCalendarDialog from "./travel-to-calendar-dialog";
 import AddToPlanDialog from "./add-to-plan-dialog";
 import { useTravelItems } from "@/hooks/use-travel-items";
 import { useTravelTags } from "@/hooks/use-travel-tags";
+import { useTravelCategories } from "@/hooks/use-travel-categories";
 import { useEventTags } from "@/hooks/use-event-tags";
 import { toast } from "sonner";
 import type { TravelItem, CalendarEvent } from "@/types";
@@ -63,6 +64,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 interface TravelRowProps {
   item: TravelItem;
   tagColorMap: Record<string, string>;
+  categoryColors: Record<string, string>;
   dragEnabled: boolean;
   onEdit: () => void;
   onToggleVisited: () => void;
@@ -74,6 +76,7 @@ interface TravelRowProps {
 function TravelRow({
   item,
   tagColorMap,
+  categoryColors,
   dragEnabled,
   onEdit,
   onToggleVisited,
@@ -89,7 +92,8 @@ function TravelRow({
     transition,
     opacity: isDragging ? 0.5 : 1,
   };
-  const color = CATEGORY_COLORS[item.category] || "#6B7280";
+  // 사용자 정의 분류는 categoryColors 에 있고, 기본 5개는 CATEGORY_COLORS 에 있어 둘 다 탐색.
+  const color = categoryColors[item.category] || CATEGORY_COLORS[item.category] || "#6B7280";
 
   return (
     <tr
@@ -226,6 +230,9 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
   const tagColorMap: Record<string, string> = {};
   for (const t of tags) tagColorMap[t.name] = t.color;
   for (const t of eventTags) tagColorMap[t.name] = t.color;
+
+  // 사용자 정의 분류 색상 맵 — 기본 5개 외의 분류에도 색상 반영.
+  const { colors: categoryColors } = useTravelCategories();
 
   const allCategories = [...new Set(items.map((i) => i.category))];
   const allItemTags = [...new Set(items.flatMap((i) => i.tag ? i.tag.split(",") : []))];
@@ -564,6 +571,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
                       key={item.id}
                       item={item}
                       tagColorMap={tagColorMap}
+                      categoryColors={categoryColors}
                       dragEnabled={dragEnabled}
                       onEdit={() => { setEditing(item); setFormOpen(true); }}
                       onToggleVisited={() => toggleVisited(item.id, item.visited)}

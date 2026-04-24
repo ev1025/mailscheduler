@@ -43,16 +43,30 @@ export default function DraggableSheet({
   );
   const [snapAnimating, setSnapAnimating] = useState(false);
 
-  // viewport interactiveWidget="resizes-content" 환경에선 dvh/vh 가 키보드에
-  // 따라 축소되어 시트가 쪼그라듦. 시트가 열릴 때 window.innerHeight 를 px 로
-  // 고정 캡처 → 키보드가 떠도 시트 높이 유지. orientationchange 시 재계산.
+  // 시트 높이 기준 — 키보드가 올라와도 축소되지 않도록 관찰된 최대 높이 유지.
+  // 시트가 키보드 올라간 상태에서 열리면 작은 viewport 가 잡혀 20% 크기로 보이던 버그 방지.
   const [baseHeight, setBaseHeight] = useState<number | null>(null);
   useEffect(() => {
     if (!open || typeof window === "undefined") return;
-    setBaseHeight(window.innerHeight);
-    const onRotate = () => setBaseHeight(window.innerHeight);
-    window.addEventListener("orientationchange", onRotate);
-    return () => window.removeEventListener("orientationchange", onRotate);
+    const capture = () => {
+      const vv = window.visualViewport?.height;
+      const ih = window.innerHeight;
+      // visualViewport 는 키보드 반영 축소된 값, innerHeight 는 전체 viewport.
+      // 둘 중 큰 값을 사용해 키보드 상태와 무관한 안정적 높이 확보.
+      const h = Math.max(ih, vv ?? 0);
+      setBaseHeight((prev) => (prev == null ? h : Math.max(prev, h)));
+    };
+    capture();
+    window.visualViewport?.addEventListener("resize", capture);
+    window.addEventListener("orientationchange", capture);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", capture);
+      window.removeEventListener("orientationchange", capture);
+    };
+  }, [open]);
+  // 회전 시엔 최대값 리셋이 필요해 open 닫을 때 초기화.
+  useEffect(() => {
+    if (!open) setBaseHeight(null);
   }, [open]);
 
   useEffect(() => {
