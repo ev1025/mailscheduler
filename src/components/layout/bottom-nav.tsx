@@ -71,8 +71,7 @@ export default function BottomNav() {
   };
 
   return (
-    // 강한 frosted blur + 아주 연한 border → 네이티브 앱 탭바 느낌.
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/30 bg-background/75 backdrop-blur-xl md:hidden pb-safe">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-lg md:hidden pb-safe">
       <div className="flex h-14 items-stretch justify-around">
         {navItems.map((item) => {
           const active = isActive(item);
@@ -81,25 +80,11 @@ export default function BottomNav() {
               key={item.label}
               href={item.href}
               className={cn(
-                "flex flex-1 flex-col items-center justify-center gap-[3px] px-1 text-[11px] transition-colors",
-                active ? "text-primary font-semibold" : "text-muted-foreground"
+                "flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs transition-colors active:bg-accent/50",
+                active ? "text-foreground font-medium" : "text-muted-foreground"
               )}
             >
-              {/* 아이콘 뒤 pill — active 시 primary 틴트 배경 (iOS/Material hybrid) */}
-              <span
-                className={cn(
-                  "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
-                  active ? "bg-primary/12" : "bg-transparent"
-                )}
-              >
-                <item.icon
-                  className={cn(
-                    "h-[22px] w-[22px] transition-colors",
-                    active ? "text-primary" : "text-muted-foreground",
-                    active && "stroke-[2.3]"
-                  )}
-                />
-              </span>
+              <item.icon className={cn("h-5 w-5", active && "stroke-[2.5]")} />
               <span>{item.label}</span>
             </Link>
           );
@@ -107,52 +92,39 @@ export default function BottomNav() {
         <Link
           href="/profile"
           className={cn(
-            "relative flex flex-1 flex-col items-center justify-center gap-[3px] px-1 text-[11px] transition-colors",
-            profileActive ? "text-primary font-semibold" : "text-muted-foreground"
+            "relative flex flex-1 flex-col items-center justify-center gap-0.5 px-1 text-xs transition-colors active:bg-accent/50",
+            profileActive ? "text-foreground font-medium" : "text-muted-foreground"
           )}
         >
           {unreadCount > 0 && (
-            <span className="absolute top-1 right-[calc(50%-6px)] h-2 w-2 rounded-full bg-red-500 ring-2 ring-background" />
+            <span className="absolute top-1 right-[calc(50%-2px)] h-2 w-2 rounded-full bg-red-500" />
           )}
-          <span
-            className={cn(
-              "flex h-7 w-12 items-center justify-center rounded-full transition-colors",
-              profileActive ? "bg-primary/12" : "bg-transparent"
-            )}
-          >
-            {currentUser ? (
-              <span
-                className="flex h-[22px] w-[22px] items-center justify-center rounded-full text-[11px] overflow-hidden"
-                style={
-                  currentUser.avatar_url
-                    ? { backgroundColor: "transparent" }
-                    : {
-                        backgroundColor: currentUser.color + "30",
-                        color: currentUser.color,
-                      }
-                }
-              >
-                {currentUser.avatar_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={currentUser.avatar_url}
-                    alt={currentUser.name}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  currentUser.emoji || currentUser.name[0]
-                )}
-              </span>
-            ) : (
-              <User
-                className={cn(
-                  "h-[22px] w-[22px] transition-colors",
-                  profileActive ? "text-primary" : "text-muted-foreground",
-                  profileActive && "stroke-[2.3]"
-                )}
-              />
-            )}
-          </span>
+          {currentUser ? (
+            <span
+              className="flex h-5 w-5 items-center justify-center rounded-full text-xs overflow-hidden"
+              style={
+                currentUser.avatar_url
+                  ? { backgroundColor: "transparent" }
+                  : {
+                      backgroundColor: currentUser.color + "30",
+                      color: currentUser.color,
+                    }
+              }
+            >
+              {currentUser.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={currentUser.avatar_url}
+                  alt={currentUser.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                currentUser.emoji || currentUser.name[0]
+              )}
+            </span>
+          ) : (
+            <User className="h-5 w-5" />
+          )}
           <span>프로필</span>
         </Link>
       </div>
