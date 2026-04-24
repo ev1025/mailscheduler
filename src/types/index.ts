@@ -90,18 +90,6 @@ export interface ProductPurchase {
 }
 
 // 기존 Supplement 유지(fallback 호환)
-export interface Supplement {
-  id: string;
-  name: string;
-  type: string | null;
-  price: number | null;
-  ranking: number | null;
-  link: string | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 // --- Travel (데이트 확장) ---
 export type TravelCategory =
   | "자연"

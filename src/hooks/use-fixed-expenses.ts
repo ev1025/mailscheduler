@@ -18,8 +18,6 @@ export interface FixedExpense {
   payment_method: string;
   is_active: boolean;
   product_id?: string | null;
-  main_category?: string | null;
-  sub_category?: string | null;
   created_at: string;
   category?: ExpenseCategory;
 }
