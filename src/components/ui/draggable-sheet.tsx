@@ -211,13 +211,17 @@ export default function DraggableSheet({
   })();
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    // modal=false + hideOverlay — 외부 요소(textarea/input 등) 터치 시 시트 자동 닫힘 +
+    // 터치한 요소가 즉시 포커스. overlay 가 있으면 첫 터치를 overlay 가 가로채 두 번
+    // 탭해야 하던 이슈 해결.
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
       <SheetContent
         side="bottom"
-        className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden ${
+        hideOverlay
+        className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden shadow-2xl border-t ${
           snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
         } ${className ?? ""}`}
-        style={{ height, borderTopWidth: 0 }}
+        style={{ height }}
         showBackButton={false}
         showCloseButton={false}
         initialFocus={false}

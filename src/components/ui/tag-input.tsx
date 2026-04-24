@@ -516,10 +516,14 @@ export default function TagInput({
           >
             {triggerContent}
           </button>
-          <Sheet open={open} onOpenChange={setOpen}>
+          {/* modal=false + hideOverlay → 외부 input/textarea 터치 시 시트 자동 닫힘 +
+              터치한 요소 즉시 포커스. overlay 가 있으면 첫 터치는 overlay 가 먹어
+              두 번 탭해야 하던 문제 해결. */}
+          <Sheet open={open} onOpenChange={setOpen} modal={false}>
             <SheetContent
               side="bottom"
-              className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[70] ${
+              hideOverlay
+              className={`rounded-t-2xl pb-[max(env(safe-area-inset-bottom),1rem)] overflow-hidden z-[70] shadow-2xl border-t ${
                 snapAnimating ? "transition-[height] duration-[250ms] ease-out" : ""
               }`}
               style={{
