@@ -319,28 +319,36 @@ function KnowledgePageInner() {
         {/* 데스크톱 좌측 탐색기 — 항상 노출. 맨 위 검색박스는 폴더 진입 시에도 유지.
             그 아래에 대시보드 or FolderNoteList(breadcrumb+목록) 렌더. */}
         <aside className="hidden md:flex md:w-72 shrink-0 flex-col overflow-hidden border-r bg-muted/10">
-          {/* 선택 모드에선 툴바가 위로 오도록 브레드크럼·검색 숨김. */}
+          {/* 선택 모드에선 툴바가 위로 오도록 검색창 숨김 (브레드크럼은 explorer 안쪽 slot 으로 이동). */}
           {!dashSelectMode && !folderSelectMode && (
             <div className="p-3 flex flex-col gap-2">
-              <KnowledgeBreadcrumb
-                folder={
-                  viewFolderId && viewFolderId !== "__unfiled__"
-                    ? folders.find((f) => f.id === viewFolderId) || null
-                    : null
-                }
-                folders={folders}
-                onNavigate={(fid) => setViewFolderId(fid)}
-              />
               <SearchInput value={search} onChange={setSearch} placeholder="노트 검색..." size="md" />
             </div>
           )}
           <div className="flex-1 overflow-y-auto">
-            {/* 데스크톱: Windows 스타일 통합 탐색기. 단일 클릭·Ctrl·Shift·더블클릭·우클릭·DnD. */}
+            {/* 데스크톱: Windows 스타일 통합 탐색기. 단일 클릭·Ctrl·Shift·더블클릭·우클릭·DnD.
+                Breadcrumb 을 DndContext 내부 headerSlot 에 넣어야 경로로 드래그 드롭 가능. */}
             <KnowledgeExplorer
               folders={folders}
               items={items}
               rootFolderId={
                 viewFolderId && viewFolderId !== "__unfiled__" ? viewFolderId : null
+              }
+              headerSlot={
+                !dashSelectMode && !folderSelectMode ? (
+                  <div className="px-3 pt-3 pb-1">
+                    <KnowledgeBreadcrumb
+                      folder={
+                        viewFolderId && viewFolderId !== "__unfiled__"
+                          ? folders.find((f) => f.id === viewFolderId) || null
+                          : null
+                      }
+                      folders={folders}
+                      onNavigate={(fid) => setViewFolderId(fid)}
+                      droppable
+                    />
+                  </div>
+                ) : null
               }
               onOpenItem={(id) => setSelectedItemId(id)}
               onNavigateFolder={(fid) => setViewFolderId(fid)}

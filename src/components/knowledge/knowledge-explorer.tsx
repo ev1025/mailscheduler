@@ -64,6 +64,9 @@ interface Props {
     selected: SelectedRef[],
     target: { parentId: string | null; beforeId: string | null }
   ) => void | Promise<void>;
+  /** DndContext 내부 맨 위에 렌더할 추가 영역 — 예: KnowledgeBreadcrumb 을
+   *  droppable 로 넘겨 탐색기 DnD 와 같은 컨텍스트 안에서 경로 드롭을 받게 함. */
+  headerSlot?: React.ReactNode;
 }
 
 export default function KnowledgeExplorer({
@@ -80,6 +83,7 @@ export default function KnowledgeExplorer({
   onConsumeRename,
   rootFolderId,
   onReorder,
+  headerSlot,
 }: Props) {
   // 즐겨찾기는 글(노트) 전용 — 폴더 즐겨찾기 기능 제거.
   const favoriteItems = useMemo(() => items.filter((i) => i.pinned), [items]);
@@ -375,6 +379,10 @@ export default function KnowledgeExplorer({
       targetFolderId = rootFolderId ?? null;
     } else if (targetId.startsWith("folder:")) {
       targetFolderId = targetId.slice("folder:".length);
+    } else if (targetId === "breadcrumb:home") {
+      targetFolderId = null;
+    } else if (targetId.startsWith("breadcrumb:")) {
+      targetFolderId = targetId.slice("breadcrumb:".length);
     } else return;
     // 자기 자신 / 선택된 폴더 내부로 이동 금지
     if (targetFolderId && refs.some((r) => r.kind === "folder" && r.id === targetFolderId)) return;
@@ -404,6 +412,7 @@ export default function KnowledgeExplorer({
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      {headerSlot}
       <div
         className="flex flex-col h-full w-full overflow-hidden"
         onClick={handleContainerClick}
