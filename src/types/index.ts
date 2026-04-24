@@ -13,6 +13,10 @@ export interface CalendarEvent {
   repeat: RepeatType | null;
   series_id?: string | null; // 반복 일정 시리즈 묶음 ID (null이면 단일)
   sort_order?: number;
+  /** D-day 로 표시할지 여부 — D-day 위젯·캘린더 하이라이트 대상. */
+  is_dday?: boolean;
+  /** 위젯용 짧은 레이블 (예: "시험", "여행"). 미설정 시 title 축약 사용. */
+  dday_label?: string | null;
   created_at: string;
 }
 

@@ -126,6 +126,9 @@ export default function EventForm({
   const [showEndTime, setShowEndTime] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sharedWith, setSharedWith] = useState<string[]>([]);
+  // D-day 토글 — on 이면 D-day 위젯에 노출.
+  const [isDday, setIsDday] = useState(false);
+  const [ddayLabel, setDdayLabel] = useState("");
 
   useEffect(() => {
     if (!open) return;
@@ -143,6 +146,8 @@ export default function EventForm({
 
       setShowEndDate(!!event.end_date);
       setShowEndTime(!!event.end_time);
+      setIsDday(!!event.is_dday);
+      setDdayLabel(event.dday_label ?? "");
       setSharedWith(
         (event as unknown as { shared_with?: string[] | null }).shared_with ||
           []
@@ -166,6 +171,8 @@ export default function EventForm({
     setRepeatCount(-1);
     setShowEndDate(false);
     setShowEndTime(false);
+    setIsDday(false);
+    setDdayLabel("");
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -192,6 +199,8 @@ export default function EventForm({
         color,
         tag: selectedTags.length > 0 ? selectedTags.join(",") : null,
         repeat: repeat === "none" ? null : repeat,
+        is_dday: isDday || undefined,
+        dday_label: isDday && ddayLabel.trim() ? ddayLabel.trim() : null,
         ...(sharedWith.length > 0 ? { shared_with: sharedWith } : {}),
       } as Omit<CalendarEvent, "id" | "created_at">,
       rc
@@ -298,6 +307,32 @@ export default function EventForm({
                 </button>
               ) : (
                 <span className="w-4" />
+              )}
+            </div>
+          </div>
+
+          {/* D-day 토글 — on 이면 D-day 위젯에 노출, 짧은 레이블 입력 가능. */}
+          <div className="flex flex-col gap-1.5">
+            <Label className={FORM_LABEL}>D-day</Label>
+            <div className="flex items-center gap-2 min-w-0">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isDday}
+                  onChange={(e) => setIsDday(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <span className="text-xs">이 날짜까지 D-day 카운트</span>
+              </label>
+              {isDday && (
+                <input
+                  type="text"
+                  value={ddayLabel}
+                  onChange={(e) => setDdayLabel(e.target.value)}
+                  placeholder="짧은 라벨 (선택)"
+                  maxLength={20}
+                  className="h-8 flex-1 min-w-0 rounded-md border px-2 text-xs"
+                />
               )}
             </div>
           </div>

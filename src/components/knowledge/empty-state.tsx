@@ -1,6 +1,7 @@
 "use client";
 
-import { FolderOpen, FilePlus, FolderPlus } from "lucide-react";
+import { FilePlus, FolderPlus } from "lucide-react";
+import EmptyIllustration from "@/components/ui/illustrations";
 
 // 폴더/노트가 하나도 없을 때, 검색 결과가 없을 때 보여주는 안내 컴포넌트.
 
@@ -29,8 +30,8 @@ export default function KnowledgeEmptyState({
 
   if (variant === "no-notes-in-folder") {
     return (
-      <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-        <FolderOpen className="h-10 w-10 text-muted-foreground/40" strokeWidth={1.4} />
+      <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+        <EmptyIllustration variant="knowledge" size={140} />
         <p className="text-sm text-muted-foreground">이 폴더에 노트가 없습니다</p>
         {onAddNote && (
           <button
@@ -46,8 +47,8 @@ export default function KnowledgeEmptyState({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-      <FolderOpen className="h-12 w-12 text-muted-foreground/40" strokeWidth={1.4} />
+    <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+      <EmptyIllustration variant="knowledge" size={160} />
       <div className="flex flex-col gap-1">
         <p className="text-sm font-medium">지식창고가 비어있어요</p>
         <p className="text-xs text-muted-foreground">

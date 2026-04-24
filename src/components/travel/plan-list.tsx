@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Calendar, MoreHorizontal, Trash2, Copy } from "lucide-react";
+import { MoreHorizontal, Trash2, Copy } from "lucide-react";
+import EmptyIllustration from "@/components/ui/illustrations";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import SearchInput from "@/components/ui/search-input";
 import PromptDialog from "@/components/ui/prompt-dialog";
@@ -221,13 +222,18 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
         {loading ? (
           <p className="text-xs text-muted-foreground text-center py-8">불러오는 중…</p>
         ) : ordered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-            <Calendar className="h-12 w-12 text-muted-foreground/40" strokeWidth={1.4} />
+          <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+            <EmptyIllustration variant="travel" size={150} />
             <p className="text-sm text-muted-foreground">
               {plans.length === 0
-                ? "아직 계획이 없습니다. 우상단 + 버튼을 눌러 시작하세요."
-                : "검색 결과가 없습니다."}
+                ? "아직 계획이 없습니다"
+                : "검색 결과가 없습니다"}
             </p>
+            {plans.length === 0 && (
+              <p className="text-xs text-muted-foreground/70">
+                우상단 + 버튼을 눌러 첫 여행 계획을 세워보세요
+              </p>
+            )}
           </div>
         ) : (
           <DndContext

@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/ui/search-input";
+import EmptyIllustration from "@/components/ui/illustrations";
 import { supabase } from "@/lib/supabase";
 import {
   DndContext,
@@ -429,12 +430,18 @@ function ProductsPageInner() {
       {loading ? (
         <p className="text-sm text-muted-foreground">불러오는 중...</p>
       ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <EmptyIllustration variant="products" size={150} />
           <p className="text-sm text-muted-foreground">
             {products.length === 0
               ? "등록된 제품이 없습니다"
               : "검색 결과가 없습니다"}
           </p>
+          {products.length === 0 && (
+            <p className="text-xs text-muted-foreground/70">
+              + 버튼으로 제품을 추가하고 구매 가격을 기록해보세요
+            </p>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-4">

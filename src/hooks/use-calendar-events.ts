@@ -58,7 +58,7 @@ export function useCalendarEvents(
   }, [fetchEvents]);
 
   function safeData(data: Record<string, unknown>) {
-    const { tag, repeat, sort_order, shared_with, shared_accepted_by, series_id, ...rest } =
+    const { tag, repeat, sort_order, shared_with, shared_accepted_by, series_id, is_dday, dday_label, ...rest } =
       data;
     const result: Record<string, unknown> = { ...rest };
     if (tag !== undefined && tag !== null && tag !== "") result.tag = tag;
@@ -70,6 +70,8 @@ export function useCalendarEvents(
     if (shared_accepted_by !== undefined)
       result.shared_accepted_by = shared_accepted_by;
     if (series_id !== undefined) result.series_id = series_id;
+    if (is_dday !== undefined) result.is_dday = is_dday;
+    if (dday_label !== undefined) result.dday_label = dday_label;
     return result;
   }
 
@@ -86,11 +88,13 @@ export function useCalendarEvents(
       .from("calendar_events")
       .insert(safeData(payload as Record<string, unknown>));
     if (error) {
-      const { tag, repeat, sort_order, shared_with, ...rest } = event;
+      const { tag, repeat, sort_order, shared_with, is_dday, dday_label, ...rest } = event;
       void tag;
       void repeat;
       void sort_order;
       void shared_with;
+      void is_dday;
+      void dday_label;
       const { error: retryError } = await supabase
         .from("calendar_events")
         .insert(rest);
