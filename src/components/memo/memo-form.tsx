@@ -54,7 +54,7 @@ export default function MemoForm({
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
           <Label htmlFor="title">
-            제목 <span className="text-rose-500">*</span>
+            제목<span className="text-rose-500 ml-0.5">*</span>
           </Label>
           <Input
             id="title"

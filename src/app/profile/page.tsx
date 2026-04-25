@@ -7,6 +7,7 @@ import {
   Check,
   Share2,
   Settings as SettingsIcon,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -251,33 +252,36 @@ function ProfilePageInner() {
           {saving ? "저장 중..." : "저장"}
         </Button>
 
-        {/* 액션 타일 — 2개. 비밀번호 변경/프로필 삭제는 설정 페이지로 이동. */}
-        <div className="grid grid-cols-2 gap-1.5 mt-1">
+        {/* 액션 — 행 단위 리스트 (iOS 설정 앱 스타일). 화면 휑함 방지 + 위계 명확. */}
+        <div className="rounded-lg border bg-card overflow-hidden mt-2">
           <button
             type="button"
             onClick={() => router.push("/settings")}
-            className="flex items-center justify-center gap-1.5 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
+            className="flex w-full items-center justify-between gap-2 px-3 py-3 text-sm hover:bg-accent transition-colors border-b"
           >
-            <SettingsIcon className="h-3.5 w-3.5 text-muted-foreground" />
-            설정
+            <span className="flex items-center gap-2.5">
+              <SettingsIcon className="h-4 w-4 text-muted-foreground" />
+              설정
+            </span>
+            <span className="text-muted-foreground/50 text-xs">›</span>
           </button>
           <button
             type="button"
             onClick={() => setShareOpen(true)}
-            className="flex items-center justify-center gap-1.5 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
+            className="flex w-full items-center justify-between gap-2 px-3 py-3 text-sm hover:bg-accent transition-colors border-b"
           >
-            <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
-            일정 공유
+            <span className="flex items-center gap-2.5">
+              <Share2 className="h-4 w-4 text-muted-foreground" />
+              일정 공유
+            </span>
+            <span className="text-muted-foreground/50 text-xs">›</span>
           </button>
-        </div>
-
-        {/* 로그아웃 — 프로필 삭제 자리처럼 subtle text. iOS 설정 앱 하단 스타일. */}
-        <div className="flex justify-center pt-1">
           <button
             type="button"
             onClick={handleSignOut}
-            className="text-[11px] text-muted-foreground/60 hover:text-foreground underline-offset-4 hover:underline transition-colors"
+            className="flex w-full items-center gap-2.5 px-3 py-3 text-sm text-muted-foreground/70 hover:bg-accent hover:text-foreground transition-colors"
           >
+            <LogOut className="h-4 w-4" />
             로그아웃
           </button>
         </div>

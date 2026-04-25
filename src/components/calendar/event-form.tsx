@@ -227,7 +227,7 @@ export default function EventForm({
           {/* 제목 */}
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="event-title" className={FORM_LABEL}>
-              제목 <span className="text-rose-500">*</span>
+              제목<span className="text-rose-500 ml-0.5">*</span>
             </Label>
             <Input
               id="event-title"

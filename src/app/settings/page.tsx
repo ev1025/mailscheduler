@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/ui/search-input";
-import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, MapPin, Lock, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, MapPin, Lock, Trash2, ChevronRight as ChevronRightIcon } from "lucide-react";
 import PageHeader from "@/components/layout/page-header";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import PasswordChangeDialog from "@/components/layout/password-change-dialog";
@@ -249,13 +249,16 @@ function SettingsPageInner() {
                 </span>
                 <ChevronRightIcon className="h-4 w-4 text-muted-foreground/50" />
               </button>
-              {/* 프로필 삭제 — 위험 액션. 카드 하단 subtle 텍스트 링크 */}
               <button
                 type="button"
                 onClick={() => setDeleteConfirmOpen(true)}
-                className="self-start mt-1 px-2 text-[11px] text-muted-foreground/60 hover:text-destructive underline-offset-4 hover:underline transition-colors"
+                className="flex items-center justify-between gap-2 rounded-md px-2 py-2.5 text-sm text-destructive hover:bg-destructive/10 transition-colors"
               >
-                프로필 삭제
+                <span className="flex items-center gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  프로필 삭제
+                </span>
+                <ChevronRightIcon className="h-4 w-4 opacity-50" />
               </button>
             </CardContent>
           </Card>

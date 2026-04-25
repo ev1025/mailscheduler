@@ -158,7 +158,7 @@ export default function FixedExpenseForm({
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5 min-w-0">
             <Label className={FORM_LABEL}>
-              금액 <span className="text-rose-500">*</span>
+              금액<span className="text-rose-500 ml-0.5">*</span>
             </Label>
             <Input
               type="number"
@@ -190,7 +190,7 @@ export default function FixedExpenseForm({
         {/* 카테고리 */}
         <div className="flex flex-col gap-1.5 min-w-0">
           <Label className={FORM_LABEL}>
-            카테고리 <span className="text-rose-500">*</span>
+            카테고리<span className="text-rose-500 ml-0.5">*</span>
           </Label>
           <TagInput
             selectedTags={

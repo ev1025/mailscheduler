@@ -127,9 +127,26 @@ export default function TransactionList({
             : "삭제"
         }
         description={
-          deletingTx?.installment_id && deletingTx.installment_total && deletingTx.installment_total > 1
-            ? `${deletingTx.installment_total}개월 할부라 묶인 회차 모두 삭제돼요.`
-            : "삭제하면 되돌릴 수 없어요."
+          deletingTx ? (
+            <span className="block">
+              <span className="block text-foreground tabular-nums">
+                {format(new Date(deletingTx.date + "T00:00:00"), "yyyy년 M월 d일 (EEE)", { locale: ko })}
+                {" · "}
+                <span className={deletingTx.type === "income" ? "text-emerald-600" : "text-rose-500"}>
+                  {deletingTx.type === "income" ? "+" : "-"}
+                  {formatWon(deletingTx.amount)}
+                </span>
+                {deletingTx.category?.name && (
+                  <span className="text-muted-foreground"> · {deletingTx.category.name}</span>
+                )}
+              </span>
+              <span className="block mt-1.5 text-xs text-muted-foreground/70 break-keep">
+                {deletingTx.installment_id && deletingTx.installment_total && deletingTx.installment_total > 1
+                  ? `${deletingTx.installment_total}개월 할부 묶음이라 모든 회차가 함께 삭제돼요.`
+                  : "삭제하면 되돌릴 수 없어요."}
+              </span>
+            </span>
+          ) : null
         }
         confirmLabel="삭제"
         destructive

@@ -117,20 +117,27 @@ export default function TransactionForm({
     if (!error) onOpenChange(false);
   };
 
+  const titleLabel = type === "income" ? "수입명" : "지출명";
+  const headerLabel = isEdit
+    ? "내역 수정"
+    : type === "income"
+      ? "수입 내역 추가"
+      : "지출 내역 추가";
+
   return (
     <FormPage
       open={open}
       onOpenChange={onOpenChange}
-      title={isEdit ? "내역 수정" : "내역 추가"}
-      submitDisabled={!amount || !categoryId}
+      title={headerLabel}
+      submitDisabled={!title.trim() || !amount || !categoryId}
       saving={saving}
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
-        {/* 1. 지출명 */}
+        {/* 1. 지출명/수입명 (필수) */}
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="title" className={FORM_LABEL}>
-            지출명
+            {titleLabel}<span className="text-rose-500 ml-0.5">*</span>
           </Label>
           <Textarea
             id="title"
@@ -143,13 +150,10 @@ export default function TransactionForm({
         </div>
 
         {/* 2. 금액 — type 은 카드의 +수입/+지출 버튼에서 결정되어 props 로 들어옴.
-            폼 내부 Tabs 토글은 제거 (사용자 요청). */}
+            폼 헤더에 type 표시되니 라벨 prefix 는 제거. */}
         <div className="flex flex-col gap-1.5 min-w-0">
           <Label htmlFor="amount" className={FORM_LABEL}>
-            <span className={type === "income" ? "text-emerald-600" : "text-rose-500"}>
-              {type === "income" ? "수입" : "지출"}
-            </span>{" "}
-            금액 (원) <span className="text-rose-500">*</span>
+            금액 (원)<span className="text-rose-500 ml-0.5">*</span>
           </Label>
           <Input
             id="amount"
@@ -226,7 +230,7 @@ export default function TransactionForm({
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5 min-w-0">
             <Label className={FORM_LABEL}>
-              카테고리 <span className="text-rose-500">*</span>
+              카테고리<span className="text-rose-500 ml-0.5">*</span>
             </Label>
             <TagInput
               selectedTags={
