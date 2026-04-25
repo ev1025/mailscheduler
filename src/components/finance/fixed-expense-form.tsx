@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import TagInput from "@/components/ui/tag-input";
-import { FORM_LABEL, FORM_INPUT_COMPACT, FORM_INPUT_PRIMARY } from "@/lib/form-classes";
+import { FORM_LABEL, FORM_INPUT_PRIMARY } from "@/lib/form-classes";
 import { usePaymentMethods } from "@/hooks/use-payment-methods";
 import type { ExpenseCategory } from "@/types";
 import type { FixedExpense } from "@/hooks/use-fixed-expenses";
@@ -177,7 +177,7 @@ export default function FixedExpenseForm({
               max="31"
               value={dayOfMonth}
               onChange={(e) => setDayOfMonth(e.target.value)}
-              className={FORM_INPUT_COMPACT}
+              className={FORM_INPUT_PRIMARY}
             />
           </div>
         </div>
@@ -235,8 +235,8 @@ export default function FixedExpenseForm({
           <Input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="넷플릭스, 월세 등"
-            className={FORM_INPUT_COMPACT}
+            placeholder="세부 내용 (선택)"
+            className={FORM_INPUT_PRIMARY}
           />
         </div>
       </div>

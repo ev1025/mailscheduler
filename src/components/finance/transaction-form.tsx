@@ -9,7 +9,11 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TagInput from "@/components/ui/tag-input";
 import DatePicker from "@/components/ui/date-picker";
 import { usePaymentMethods } from "@/hooks/use-payment-methods";
-import { FORM_LABEL, FORM_INPUT_COMPACT } from "@/lib/form-classes";
+import { FORM_LABEL, FORM_INPUT_PRIMARY } from "@/lib/form-classes";
+
+// native <select> 를 Input 과 동일한 룩으로 — 가계부·고정비 폼에서 같이 쓰는 토큰.
+const FORM_SELECT_CLASS =
+  "h-9 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 import type { Expense, ExpenseCategory } from "@/types";
 
 interface TransactionFormProps {
@@ -170,7 +174,7 @@ export default function TransactionForm({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder="10000"
-            className={FORM_INPUT_COMPACT}
+            className={FORM_INPUT_PRIMARY}
           />
         </div>
 
@@ -208,7 +212,7 @@ export default function TransactionForm({
             <DatePicker
               value={date}
               onChange={setDate}
-              className={`${FORM_INPUT_COMPACT} w-full min-w-0`}
+              className={`${FORM_INPUT_PRIMARY} w-full min-w-0`}
             />
           </div>
           <div className="flex flex-col gap-1.5 min-w-0">
@@ -220,7 +224,7 @@ export default function TransactionForm({
               value={installmentMonths}
               onChange={(e) => setInstallmentMonths(parseInt(e.target.value, 10))}
               disabled={isEdit}
-              className={`${FORM_INPUT_COMPACT} w-full min-w-0 disabled:opacity-50`}
+              className={`${FORM_SELECT_CLASS} disabled:opacity-50`}
               title={isEdit ? "수정 모드에선 할부 변경 불가" : "다음 달부터 같은 일자에 자동 등록"}
             >
               <option value={1}>일시불</option>
@@ -292,7 +296,7 @@ export default function TransactionForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="세부 내용 (선택)"
-            className={FORM_INPUT_COMPACT}
+            className={FORM_INPUT_PRIMARY}
           />
         </div>
       </div>

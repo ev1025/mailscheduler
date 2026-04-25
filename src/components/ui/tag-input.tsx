@@ -425,8 +425,10 @@ export default function TagInput({
       </>
     );
 
+  // Input 컴포넌트와 동일 룩으로 통일 — 같은 폼 안에서 Input/Select/TagInput 모두
+  // 같은 높이·라운드·테두리 톤으로 보이도록.
   const triggerClass =
-    "flex items-center flex-wrap gap-1 min-h-8 w-full rounded-md border bg-transparent px-2 py-1 text-xs text-left hover:bg-accent/30 transition-colors";
+    "flex items-center flex-wrap gap-1 min-h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-left transition-colors hover:bg-accent/30 dark:bg-input/30";
 
   return (
     <div className="flex flex-col gap-1.5">
