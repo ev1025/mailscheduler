@@ -122,10 +122,11 @@ function KnowledgePageInner() {
   }, [selectedItem?.id]);
 
   // ── 액션 핸들러 ─────────────────────────────────────
-  const handleAddFolder = async (parentId: string | null) => {
-    const { data } = await addFolder("새 폴더", undefined, parentId);
-    // 생성 직후 대시보드에서 인라인 이름편집 모드로 진입시키기 위해 id 저장.
-    if (data) setPendingRenameFolderId(data.id);
+  // 새 폴더는 PromptDialog 로 이름 먼저 입력받아 생성 — 모바일에서 인라인 rename
+  // 진입이 어려워 통일된 흐름이 더 자연스러움.
+  const handleAddFolder = (parentId: string | null) => {
+    setFolderPromptParentId(parentId);
+    setFolderPromptOpen(true);
   };
 
   const handleAddItem = async (folderId: string | null) => {
