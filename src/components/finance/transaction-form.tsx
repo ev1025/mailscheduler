@@ -5,15 +5,11 @@ import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TagInput from "@/components/ui/tag-input";
 import DatePicker from "@/components/ui/date-picker";
+import NumberWheel from "@/components/ui/number-wheel";
 import { usePaymentMethods } from "@/hooks/use-payment-methods";
 import { FORM_LABEL, FORM_INPUT_PRIMARY } from "@/lib/form-classes";
-
-// native <select> 를 Input 과 동일한 룩으로 — 가계부·고정비 폼에서 같이 쓰는 토큰.
-const FORM_SELECT_CLASS =
-  "h-9 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 import type { Expense, ExpenseCategory } from "@/types";
 
 interface TransactionFormProps {
@@ -142,32 +138,18 @@ export default function TransactionForm({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="예: 기후동행카드, 점심"
             rows={2}
-            className="min-h-0 text-sm"
+            className="min-h-0"
           />
         </div>
 
-        {/* 2. 지출/수입 Tabs */}
-        <Tabs
-          value={type}
-          onValueChange={(v) => {
-            setType(v as "income" | "expense");
-            setCategoryId("");
-          }}
-        >
-          <TabsList className="w-full">
-            <TabsTrigger value="expense" className="flex-1">
-              지출
-            </TabsTrigger>
-            <TabsTrigger value="income" className="flex-1">
-              수입
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {/* 3. 금액 */}
+        {/* 2. 금액 — type 은 카드의 +수입/+지출 버튼에서 결정되어 props 로 들어옴.
+            폼 내부 Tabs 토글은 제거 (사용자 요청). */}
         <div className="flex flex-col gap-1.5 min-w-0">
           <Label htmlFor="amount" className={FORM_LABEL}>
-            금액 (원)
+            <span className={type === "income" ? "text-emerald-600" : "text-rose-500"}>
+              {type === "income" ? "수입" : "지출"}
+            </span>{" "}
+            금액 (원) <span className="text-rose-500">*</span>
           </Label>
           <Input
             id="amount"
@@ -219,28 +201,23 @@ export default function TransactionForm({
             />
           </div>
           <div className="flex flex-col gap-1.5 min-w-0">
-            <Label htmlFor="installment" className={FORM_LABEL}>
-              할부
-            </Label>
-            <select
-              id="installment"
-              value={installmentMonths}
-              onChange={(e) => setInstallmentMonths(parseInt(e.target.value, 10))}
-              disabled={isEdit}
-              className={`${FORM_SELECT_CLASS} disabled:opacity-50`}
-              title={isEdit ? "수정 모드에선 할부 변경 불가" : "다음 달부터 같은 일자에 자동 등록"}
-            >
-              <option value={1}>일시불</option>
-              {[2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 18, 24].map((n) => (
-                <option key={n} value={n}>
-                  {n}개월
-                </option>
-              ))}
-            </select>
+            <Label className={FORM_LABEL}>할부</Label>
+            <div className="flex items-center gap-2 h-9">
+              <NumberWheel
+                value={installmentMonths}
+                onChange={(v) => !isEdit && setInstallmentMonths(v)}
+                min={1}
+                max={36}
+                className={isEdit ? "opacity-50 pointer-events-none" : ""}
+              />
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {installmentMonths === 1 ? "일시불" : `${installmentMonths}개월 할부`}
+              </span>
+            </div>
           </div>
         </div>
         {!isEdit && installmentMonths > 1 && amount && (
-          <p className="text-[11px] text-muted-foreground -mt-2 leading-snug">
+          <p className="text-[11px] text-muted-foreground -mt-2 leading-snug break-keep">
             매월 같은 일자에 약 {Math.floor(parseInt(amount, 10) / installmentMonths).toLocaleString()}원씩 {installmentMonths}건 자동 등록됩니다. 한 건 삭제 시 묶음 전체가 함께 삭제돼요.
           </p>
         )}
@@ -248,7 +225,9 @@ export default function TransactionForm({
         {/* 5. 카테고리 | 결제수단 */}
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5 min-w-0">
-            <Label className={FORM_LABEL}>카테고리</Label>
+            <Label className={FORM_LABEL}>
+              카테고리 <span className="text-rose-500">*</span>
+            </Label>
             <TagInput
               selectedTags={
                 categoryId

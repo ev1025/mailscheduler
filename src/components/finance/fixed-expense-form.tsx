@@ -118,7 +118,7 @@ export default function FixedExpenseForm({
             onChange={(e) => setTitle(e.target.value)}
             placeholder="예: 넷플릭스, 월세"
             rows={2}
-            className="min-h-0 text-sm"
+            className="min-h-0"
           />
         </div>
 
@@ -157,7 +157,9 @@ export default function FixedExpenseForm({
         {/* 금액 + 결제일 */}
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1.5 min-w-0">
-            <Label className={FORM_LABEL}>금액</Label>
+            <Label className={FORM_LABEL}>
+              금액 <span className="text-rose-500">*</span>
+            </Label>
             <Input
               type="number"
               inputMode="numeric"
@@ -187,7 +189,9 @@ export default function FixedExpenseForm({
 
         {/* 카테고리 */}
         <div className="flex flex-col gap-1.5 min-w-0">
-          <Label className={FORM_LABEL}>카테고리</Label>
+          <Label className={FORM_LABEL}>
+            카테고리 <span className="text-rose-500">*</span>
+          </Label>
           <TagInput
             selectedTags={
               categoryId

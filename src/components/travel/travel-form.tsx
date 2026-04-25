@@ -444,12 +444,13 @@ export default function TravelForm({
 
           {/* 분류 — 미선택 상태 허용, 저장 시 필수 */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">분류</Label>
+            <Label className="text-xs text-muted-foreground">
+              분류 <span className="text-rose-500">*</span>
+            </Label>
             <TagInput
               selectedTags={category ? [category] : []}
               allTags={midCategories.map((c) => ({ id: c, name: c, color: categoryColors[c] || "#6B7280" }))}
               onChange={(next) => {
-                // 기존 미선택 또는 현재 선택과 다른 값이 들어왔을 때만 교체
                 const picked = next.find((t) => t !== category);
                 if (picked) setCategory(picked as TravelCategory);
                 else if (next.length === 0) setCategory("");
@@ -460,7 +461,7 @@ export default function TravelForm({
               onRenameTag={updateCategoryName}
               builtinIds={BUILTIN_TRAVEL_CATEGORIES}
               orderKey="tag-order:travel-categories"
-              placeholder="분류 선택 *"
+              placeholder="분류 선택"
             />
           </div>
 

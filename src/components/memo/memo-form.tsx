@@ -53,12 +53,14 @@ export default function MemoForm({
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <Label htmlFor="title">제목</Label>
+          <Label htmlFor="title">
+            제목 <span className="text-rose-500">*</span>
+          </Label>
           <Input
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="메모 제목 *"
+            placeholder="메모 제목"
           />
         </div>
         <div className="flex flex-col gap-2">

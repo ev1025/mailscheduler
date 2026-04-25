@@ -226,12 +226,14 @@ export default function EventForm({
         <div className="flex flex-col gap-4">
           {/* 제목 */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="event-title" className={FORM_LABEL}>제목</Label>
+            <Label htmlFor="event-title" className={FORM_LABEL}>
+              제목 <span className="text-rose-500">*</span>
+            </Label>
             <Input
               id="event-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="일정 제목 *"
+              placeholder="일정 제목"
               className={FORM_INPUT_PRIMARY}
             />
           </div>
