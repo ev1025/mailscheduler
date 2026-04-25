@@ -94,11 +94,33 @@ export function NoteTreeRow({ item, depth, selectMode, selected, onToggle, onCli
   );
 }
 
-/* ── Sortable 래퍼 ── */
+/* ── Sortable 래퍼 ──
+   인디케이터: isOver(드래그 항목이 자기 위에 있고 자기 자신 아닐 때) 일 때
+   row 위쪽에 2px primary 라인을 띄워 drop 위치를 시각화.
+   폴더 row 는 추가로 drop=안으로 이동 시 'ring' 으로 강조 (item→folder 드롭). */
 function SortableFolderRow(props: Parameters<typeof FolderTreeRow>[0]) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.folder.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, over, active } =
+    useSortable({ id: props.folder.id, data: { kind: "folder" } });
+  const isOver = over?.id === props.folder.id && active?.id !== props.folder.id;
+  // 같은 SortableContext(폴더-폴더) 면 정렬, 아니면(노트-폴더) 안으로
+  const isFolderReorder = isOver && active?.data?.current?.kind === "folder";
+  const isItemDroppingIn = isOver && !isFolderReorder;
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }} {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+      {...attributes}
+      {...listeners}
+      className={`relative ${
+        isOver && isFolderReorder
+          ? "before:absolute before:-top-[3px] before:left-2 before:right-2 before:h-0.5 before:bg-primary before:rounded-full"
+          : ""
+      } ${
+        isItemDroppingIn && !isFolderReorder
+          ? "ring-2 ring-primary rounded-md"
+          : ""
+      }`}
+    >
       <FolderTreeRow {...props} />
     </div>
   );
@@ -106,9 +128,21 @@ function SortableFolderRow(props: Parameters<typeof FolderTreeRow>[0]) {
 
 // 노트(파일) 행도 드래그 재정렬 가능하게 래핑. item id 기준.
 function SortableNoteRow(props: Parameters<typeof NoteTreeRow>[0]) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.item.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging, over, active } =
+    useSortable({ id: props.item.id, data: { kind: "item" } });
+  const isOver = over?.id === props.item.id && active?.id !== props.item.id;
   return (
-    <div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }} {...attributes} {...listeners}>
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+      {...attributes}
+      {...listeners}
+      className={`relative ${
+        isOver
+          ? "before:absolute before:-top-[3px] before:left-2 before:right-2 before:h-0.5 before:bg-primary before:rounded-full"
+          : ""
+      }`}
+    >
       <NoteTreeRow {...props} />
     </div>
   );
@@ -262,7 +296,7 @@ export default function KnowledgeDashboard({
     });
 
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-  // 드래그 종료 — active 가 폴더 or item 인지 판별해 각각의 재정렬 훅에 위임.
+  // 드래그 종료 — active 가 폴더 or item 인지 판별해 각각의 재정렬·이동 훅에 위임.
   const handleDragEnd = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
     const activeId = String(e.active.id);
@@ -277,8 +311,15 @@ export default function KnowledgeDashboard({
       onReorderFolders(reordered.map((f) => f.id));
       return;
     }
-    // 아이템-아이템 재정렬 — 같은 부모(folder_id) 기준.
+    // 노트 → 폴더 드롭: 해당 폴더 안으로 이동 (parent_id = folder.id).
     const itemActive = items.find((i) => i.id === activeId);
+    const folderTarget = folders.find((f) => f.id === overId);
+    if (itemActive && folderTarget && onMoveItems) {
+      if (itemActive.folder_id === folderTarget.id) return; // 이미 그 폴더 안
+      onMoveItems([itemActive.id], folderTarget.id);
+      return;
+    }
+    // 아이템-아이템 재정렬 — 같은 부모(folder_id) 기준.
     const itemOver = items.find((i) => i.id === overId);
     if (itemActive && itemOver && onReorderItems) {
       const parentId = itemActive.folder_id ?? null;
