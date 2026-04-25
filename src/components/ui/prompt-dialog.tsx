@@ -57,7 +57,7 @@ export default function PromptDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm gap-4 p-5 sm:p-6">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-[17px] font-semibold leading-tight break-keep">
             {title}
@@ -75,23 +75,25 @@ export default function PromptDialog({
           }}
           placeholder={placeholder}
           autoFocus
-          className="h-11 sm:h-10"
+          className="h-9"
         />
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+        <div className="flex justify-end gap-2 pt-0.5">
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={() => onOpenChange(false)}
             disabled={busy}
-            className="h-11 sm:h-9 sm:min-w-[80px]"
+            className="h-9 px-4"
           >
             취소
           </Button>
           <Button
             type="button"
+            size="sm"
             onClick={submit}
             disabled={busy || !value.trim()}
-            className="h-11 sm:h-9 sm:min-w-[80px]"
+            className="h-9 px-4"
           >
             {busy ? "처리 중…" : confirmLabel}
           </Button>

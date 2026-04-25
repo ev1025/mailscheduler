@@ -121,11 +121,15 @@ export default function TransactionList({
       <ConfirmDialog
         open={!!deletingTx}
         onOpenChange={(o) => { if (!o) setDeletingTx(null); }}
-        title="삭제할까요?"
+        title={
+          deletingTx
+            ? `${deletingTx.title || deletingTx.description || deletingTx.category?.name || "이 거래"} 삭제`
+            : "삭제"
+        }
         description={
           deletingTx?.installment_id && deletingTx.installment_total && deletingTx.installment_total > 1
-            ? `${deletingTx.installment_total}개월 할부 묶음이라 모든 회차가 함께 삭제돼요.`
-            : "삭제하면 되돌릴 수 없어요."
+            ? `${deletingTx.installment_total}개월 할부라 묶인 회차 모두 삭제됩니다.`
+            : undefined
         }
         confirmLabel="삭제"
         destructive

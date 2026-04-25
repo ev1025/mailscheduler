@@ -566,12 +566,8 @@ function ProductsPageInner() {
       <ConfirmDialog
         open={!!deletingProduct}
         onOpenChange={(o) => { if (!o) setDeletingProduct(null); }}
-        title="제품 삭제"
-        description={
-          deletingProduct
-            ? `"${deletingProduct.name}" 제품과 모든 구매 기록을 삭제합니다. 되돌릴 수 없어요.`
-            : ""
-        }
+        title={deletingProduct ? `${deletingProduct.name} 삭제` : "제품 삭제"}
+        description="모든 구매 기록도 함께 삭제됩니다."
         confirmLabel="삭제"
         destructive
         onConfirm={async () => {
@@ -605,8 +601,7 @@ function ProductsPageInner() {
       <ConfirmDialog
         open={!!pendingDeleteCategory}
         onOpenChange={(o) => { if (!o) setPendingDeleteCategory(null); }}
-        title="분류 삭제"
-        description={`"${pendingDeleteCategory}" 분류를 삭제할까요?`}
+        title={pendingDeleteCategory ? `${pendingDeleteCategory} 분류 삭제` : "분류 삭제"}
         confirmLabel="삭제"
         destructive
         onConfirm={async () => {

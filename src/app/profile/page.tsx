@@ -360,7 +360,7 @@ function ProfilePageInner() {
         open={deleteConfirmOpen}
         onOpenChange={setDeleteConfirmOpen}
         title="프로필 삭제"
-        description="프로필과 로그인 세션을 삭제합니다. 계속할까요?"
+        description="프로필과 로그인 세션이 삭제됩니다."
         confirmLabel="삭제"
         destructive
         onConfirm={handleDeleteProfile}

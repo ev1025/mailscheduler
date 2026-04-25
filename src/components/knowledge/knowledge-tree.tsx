@@ -389,14 +389,8 @@ export default function KnowledgeTree({
       <ConfirmDialog
         open={!!deleteFolderTarget}
         onOpenChange={(o) => { if (!o) setDeleteFolderTarget(null); }}
-        title="폴더 삭제"
-        description={
-          <>
-            <strong>{deleteFolderTarget?.name}</strong> 폴더를 삭제할까요?
-            <br />
-            내부 내용도 함께 이동/삭제됩니다.
-          </>
-        }
+        title={deleteFolderTarget ? `${deleteFolderTarget.name} 폴더 삭제` : "폴더 삭제"}
+        description="내부 내용도 함께 삭제됩니다."
         confirmLabel="삭제"
         destructive
         onConfirm={async () => {
@@ -408,8 +402,7 @@ export default function KnowledgeTree({
       <ConfirmDialog
         open={!!deleteItemTarget}
         onOpenChange={(o) => { if (!o) setDeleteItemTarget(null); }}
-        title="노트 삭제"
-        description={`"${deleteItemTarget?.title}" 노트를 삭제할까요?`}
+        title={deleteItemTarget ? `${deleteItemTarget.title || "(제목 없음)"} 삭제` : "노트 삭제"}
         confirmLabel="삭제"
         destructive
         onConfirm={async () => {

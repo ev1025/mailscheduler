@@ -14,7 +14,8 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: string;
-  description: React.ReactNode;
+  /** 부가 설명 — 없으면 제목만으로 충분한 경우 생략. 짧게 한 줄 권장. */
+  description?: React.ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
   destructive?: boolean;
@@ -56,36 +57,33 @@ export default function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        // 모바일에서 좌우 인셋을 더 줘서 답답함 완화 (max-w-[20rem]).
-        // 데스크톱은 sm:max-w-sm(384px) 그대로.
-        className={cn(
-          "max-w-[20rem] sm:max-w-sm gap-3.5 p-5 sm:p-6",
-          contentClassName
-        )}
-      >
+      <DialogContent className={cn(contentClassName)}>
         <DialogHeader>
-          <DialogTitle className="text-base sm:text-[17px] font-semibold leading-tight break-keep">
+          <DialogTitle className="text-[17px] font-semibold leading-tight break-keep">
             {title}
           </DialogTitle>
         </DialogHeader>
-        <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed break-keep whitespace-pre-wrap">
-          {description}
-        </p>
-        <div className="grid grid-cols-2 gap-2 pt-1 sm:flex sm:justify-end">
+        {description && (
+          <p className="text-[13px] text-muted-foreground leading-relaxed break-keep whitespace-pre-wrap">
+            {description}
+          </p>
+        )}
+        <div className="flex justify-end gap-2 pt-0.5">
           <Button
             variant="outline"
+            size="sm"
             onClick={() => onOpenChange(false)}
             disabled={busy}
-            className="h-11 sm:h-9 sm:min-w-[80px]"
+            className="h-9 px-4"
           >
             {cancelLabel}
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
+            size="sm"
             onClick={submit}
             disabled={busy}
-            className="h-11 sm:h-9 sm:min-w-[80px]"
+            className="h-9 px-4"
           >
             {busy ? "처리 중…" : confirmLabel}
           </Button>

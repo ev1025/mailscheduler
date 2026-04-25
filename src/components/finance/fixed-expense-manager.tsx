@@ -163,12 +163,12 @@ export default function FixedExpenseManager({
         onOpenChange={(o) => {
           if (!o) setDeletingFx(null);
         }}
-        title="고정비 삭제"
-        description={
+        title={
           deletingFx
-            ? `"${deletingFx.title || deletingFx.description || "이 고정비"}" 항목을 삭제합니다. 이미 이 달에 반영된 거래는 유지되고, 다음 달부터 자동 추가되지 않습니다.`
-            : ""
+            ? `${deletingFx.title || deletingFx.description || "고정비"} 삭제`
+            : "고정비 삭제"
         }
+        description="이미 반영된 거래는 유지, 다음 달부터 자동 추가만 중지돼요."
         confirmLabel="삭제"
         destructive
         // FormPage(z-[70]) 내부에서 띄우므로 z-[80] 으로 올려야 backdrop 위에 보임.

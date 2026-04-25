@@ -276,8 +276,8 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
         onOpenChange={(o) => {
           if (!o) setDeletingId(null);
         }}
-        title="계획 삭제"
-        description="계획과 그 안의 모든 일정이 삭제됩니다."
+        title="여행 계획 삭제"
+        description="계획 안의 모든 일정도 함께 삭제됩니다."
         confirmLabel="삭제"
         destructive
         onConfirm={async () => {
