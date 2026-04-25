@@ -25,7 +25,11 @@ interface Props {
 }
 
 /**
- * 네이티브 `window.confirm()` 대체. 브라우저 "URL 내용:" 프리픽스 제거.
+ * 네이티브 `window.confirm()` 대체. 모바일·데스크톱 공통 디자인 토큰:
+ * - 모바일: 좌우 1rem 인셋. 버튼은 풀너비 2분할(취소/확인).
+ * - 데스크톱: max-w-sm. 우측 정렬 + 자동 너비.
+ * - title 17px / description 14px leading-relaxed + break-keep(한국어 단어 단위 줄바꿈).
+ * - 버튼 tap target 44px (h-11) — iOS HIG 권장.
  */
 export default function ConfirmDialog({
   open,
@@ -52,27 +56,35 @@ export default function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn("sm:max-w-sm", contentClassName)}>
+      <DialogContent
+        showBackButton={false}
+        className={cn("max-w-sm gap-4 p-5 sm:p-6", contentClassName)}
+      >
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle className="text-[17px] font-semibold leading-tight break-keep">
+            {title}
+          </DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-3">
-          <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {description}
-          </div>
-          <div className="flex justify-end gap-2 pt-1">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={busy}>
-              {cancelLabel}
-            </Button>
-            <Button
-              size="sm"
-              variant={destructive ? "destructive" : "default"}
-              onClick={submit}
-              disabled={busy}
-            >
-              {busy ? "처리 중..." : confirmLabel}
-            </Button>
-          </div>
+        <p className="text-sm text-muted-foreground leading-relaxed break-keep whitespace-pre-wrap">
+          {description}
+        </p>
+        <div className="grid grid-cols-2 gap-2 pt-1 sm:flex sm:justify-end">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={busy}
+            className="h-11 sm:h-9 sm:min-w-[80px]"
+          >
+            {cancelLabel}
+          </Button>
+          <Button
+            variant={destructive ? "destructive" : "default"}
+            onClick={submit}
+            disabled={busy}
+            className="h-11 sm:h-9 sm:min-w-[80px]"
+          >
+            {busy ? "처리 중…" : confirmLabel}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
