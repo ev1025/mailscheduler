@@ -168,13 +168,16 @@ export default function FixedExpenseManager({
         title="고정비 삭제"
         description={
           deletingFx
-            ? `"${deletingFx.description || "이 고정비"}" 항목을 삭제합니다. 이미 이 달에 반영된 거래는 유지되고, 다음 달부터 자동 추가되지 않습니다.`
+            ? `"${deletingFx.title || deletingFx.description || "이 고정비"}" 항목을 삭제합니다. 이미 이 달에 반영된 거래는 유지되고, 다음 달부터 자동 추가되지 않습니다.`
             : ""
         }
         confirmLabel="삭제"
         destructive
+        // FormPage(z-[70]) 내부에서 띄우므로 z-[80] 으로 올려야 backdrop 위에 보임.
+        // 이전엔 z-50 이라 FormPage 오버레이에 가려져 클릭 자체가 안 됐음.
+        contentClassName="z-[80]"
         onConfirm={async () => {
-          if (deletingFx) onDelete(deletingFx.id);
+          if (deletingFx) await onDelete(deletingFx.id);
           setDeletingFx(null);
         }}
       />

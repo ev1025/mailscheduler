@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface Props {
   open: boolean;
@@ -18,6 +19,9 @@ interface Props {
   cancelLabel?: string;
   destructive?: boolean;
   onConfirm: () => void | Promise<void>;
+  /** popup className override — FormPage(z-[70]) 내부에서 띄울 때 z-[80] 으로 올려야
+   *  backdrop 위에 보임. 기본값은 그대로 z-50. */
+  contentClassName?: string;
 }
 
 /**
@@ -32,6 +36,7 @@ export default function ConfirmDialog({
   cancelLabel = "취소",
   destructive = false,
   onConfirm,
+  contentClassName,
 }: Props) {
   const [busy, setBusy] = useState(false);
 
@@ -47,7 +52,7 @@ export default function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className={cn("sm:max-w-sm", contentClassName)}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
