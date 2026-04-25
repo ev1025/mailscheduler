@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Wallet, ShoppingBag, Menu } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Wallet, ShoppingBag, Menu } from "lucide-react";
 import MonthPicker from "@/components/layout/month-picker";
 import PageHeader from "@/components/layout/page-header";
 import { useTransactions } from "@/hooks/use-transactions";
@@ -13,7 +12,6 @@ import TransactionList from "@/components/finance/transaction-list";
 import TransactionForm from "@/components/finance/transaction-form";
 import CategoryChart from "@/components/finance/category-chart";
 import FixedExpenseManager from "@/components/finance/fixed-expense-manager";
-import { PAGE_ACTION_BUTTON } from "@/lib/form-classes";
 import type { Expense } from "@/types";
 
 export default function FinancePage() {
@@ -35,6 +33,8 @@ export default function FinancePage() {
   }, [finMenuOpen]);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [fixedOpen, setFixedOpen] = useState(false);
+  /** 카드 +수입 / +지출 클릭 시 폼 type 미리 세팅용. 신규 작성 시에만 의미. */
+  const [formDefaultType, setFormDefaultType] = useState<"income" | "expense">("expense");
 
 
   const handleYearChange = (y: number) => {
@@ -141,22 +141,20 @@ export default function FinancePage() {
         <MonthPicker year={year} month={month} onYearChange={handleYearChange} onMonthChange={handleMonthChange} />
       </div>
 
-      {/* 버튼 행 */}
-      <div className="mb-4 flex items-center justify-end gap-2">
-        <Button size="sm" variant="outline" className={PAGE_ACTION_BUTTON} onClick={() => setFixedOpen(true)}>
-          고정비
-        </Button>
-        <Button size="sm" className={PAGE_ACTION_BUTTON} onClick={() => { setEditing(null); setFormOpen(true); }}>
-          <Plus className="mr-1 h-4 w-4" />
-          추가
-        </Button>
-      </div>
+      {/* 페이지 상단의 [고정비] [+ 추가] 버튼은 제거. 액션은 MonthlySummary
+          각 카드 우상단의 ✏️ / + 아이콘으로 직접 수행. */}
 
       {(
         <div className="flex flex-col gap-6">
           <MonthlySummary
             totalIncome={totalIncome}
             totalExpense={totalExpense}
+            onOpenFixed={() => setFixedOpen(true)}
+            onAddTransaction={(t) => {
+              setEditing(null);
+              setFormDefaultType(t);
+              setFormOpen(true);
+            }}
           />
           <CategoryChart expenseByCategory={expenseByCategory} totalExpense={totalExpense} />
           {txLoading ? (
@@ -164,7 +162,7 @@ export default function FinancePage() {
           ) : allTransactions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2">
               <p className="text-sm text-muted-foreground">이 달의 내역이 없습니다</p>
-              <p className="text-xs text-muted-foreground/70">우상단 + 버튼으로 수입·지출을 기록해보세요</p>
+              <p className="text-xs text-muted-foreground/70 break-keep">위 카드의 + 아이콘으로 수입·지출을 기록해보세요</p>
             </div>
           ) : (
             <TransactionList
@@ -181,6 +179,7 @@ export default function FinancePage() {
         onOpenChange={setFormOpen}
         categories={categories}
         transaction={editing}
+        defaultType={formDefaultType}
         onSave={handleSave}
         onAddCategory={addCategory}
         onDeleteCategory={deleteCategory}

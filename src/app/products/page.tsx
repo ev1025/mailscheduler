@@ -602,6 +602,7 @@ function ProductsPageInner() {
         open={!!pendingDeleteCategory}
         onOpenChange={(o) => { if (!o) setPendingDeleteCategory(null); }}
         title={pendingDeleteCategory ? `${pendingDeleteCategory} 분류 삭제` : "분류 삭제"}
+        description="이 분류에 속한 제품은 분류 없음으로 이동합니다."
         confirmLabel="삭제"
         destructive
         onConfirm={async () => {

@@ -21,6 +21,8 @@ interface TransactionFormProps {
   onOpenChange: (open: boolean) => void;
   categories: ExpenseCategory[];
   transaction?: Expense | null;
+  /** 신규 작성 시 type 초기값. 카드 +수입/+지출 버튼에서 미리 세팅. 기본 expense. */
+  defaultType?: "income" | "expense";
   onAddCategory?: (
     name: string,
     type: "income" | "expense",
@@ -56,6 +58,7 @@ export default function TransactionForm({
   onOpenChange,
   categories,
   transaction,
+  defaultType = "expense",
   onAddCategory,
   onDeleteCategory,
   onUpdateCategoryColor,
@@ -86,7 +89,7 @@ export default function TransactionForm({
       setPaymentMethod(transaction.payment_method);
       setInstallmentMonths(1);
     } else {
-      setType("expense");
+      setType(defaultType);
       setTitle("");
       setAmount("");
       setCategoryId("");
@@ -95,7 +98,7 @@ export default function TransactionForm({
       setPaymentMethod("");
       setInstallmentMonths(1);
     }
-  }, [transaction, open]);
+  }, [transaction, open, defaultType]);
 
   const filteredCategories = categories.filter((c) => c.type === type);
 

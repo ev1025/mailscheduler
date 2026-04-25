@@ -128,8 +128,8 @@ export default function TransactionList({
         }
         description={
           deletingTx?.installment_id && deletingTx.installment_total && deletingTx.installment_total > 1
-            ? `${deletingTx.installment_total}개월 할부라 묶인 회차 모두 삭제됩니다.`
-            : undefined
+            ? `${deletingTx.installment_total}개월 할부라 묶인 회차 모두 삭제돼요.`
+            : "삭제하면 되돌릴 수 없어요."
         }
         confirmLabel="삭제"
         destructive

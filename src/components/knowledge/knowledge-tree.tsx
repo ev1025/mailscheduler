@@ -403,6 +403,7 @@ export default function KnowledgeTree({
         open={!!deleteItemTarget}
         onOpenChange={(o) => { if (!o) setDeleteItemTarget(null); }}
         title={deleteItemTarget ? `${deleteItemTarget.title || "(제목 없음)"} 삭제` : "노트 삭제"}
+        description="삭제하면 되돌릴 수 없어요."
         confirmLabel="삭제"
         destructive
         onConfirm={async () => {
