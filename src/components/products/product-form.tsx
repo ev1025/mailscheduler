@@ -438,13 +438,12 @@ export default function ProductForm({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label className={FORM_LABEL}>성분/메모</Label>
+            <Label className={FORM_LABEL}>메모</Label>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              placeholder="성분, 특이사항 등"
-              className="text-xs"
+              placeholder="성분·특이사항 등"
             />
           </div>
 

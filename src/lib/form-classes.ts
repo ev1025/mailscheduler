@@ -10,8 +10,9 @@
 // 제목·주요 입력 (다이얼로그 최상단의 "제목 *" 같은 입력)
 export const FORM_INPUT_PRIMARY = "h-9 text-sm"
 
-// 한 줄 안 2~4열 그리드 안쪽의 보조 입력(날짜/시간/Select/ 보조 버튼 등)
-export const FORM_INPUT_COMPACT = "h-8 text-xs"
+// 모든 폼 입력은 PRIMARY 와 동일 — 한 폼 안에서 input/select/picker 의 폰트·높이가
+// 제각각이던 문제 해결. 토큰 이름은 호환을 위해 유지(과거 호출처 다수).
+export const FORM_INPUT_COMPACT = FORM_INPUT_PRIMARY
 
 // 라벨
 export const FORM_LABEL = "text-xs text-muted-foreground"
