@@ -102,16 +102,16 @@ function TravelRow({
       className={`hover:bg-accent/50 transition-colors border-b last:border-b-0 cursor-pointer ${item.visited ? "opacity-60" : ""}`}
       onClick={onEdit}
     >
-      {/* 왼쪽 드래그 핸들 + 액션 팝오버 (드래그하면 이동, 탭하면 메뉴) */}
-      <td className="px-1 py-1.5 md:py-2.5 border-r whitespace-nowrap w-8" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center" {...(dragEnabled ? { ...attributes, ...listeners } : {})}>
+      {/* 왼쪽 드래그 핸들 + 액션 팝오버 — 너비·여백 최소화로 본문 영역 확보. */}
+      <td className="px-0 py-1 border-r whitespace-nowrap w-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-center" {...(dragEnabled ? { ...attributes, ...listeners } : {})}>
           <Popover open={menuOpen} onOpenChange={setMenuOpen}>
             <PopoverTrigger
-              className="rounded p-1.5 text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
+              className="rounded p-1 text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
               title="드래그로 이동 / 탭하면 메뉴"
               aria-label="행 메뉴"
             >
-              <GripVertical className="h-4 w-4" />
+              <GripVertical className="h-3.5 w-3.5" />
             </PopoverTrigger>
             {/* 컨텐츠 크기에 맞추기 — 고정 w-40 → w-auto + min/max 제한 */}
             <PopoverContent className="w-auto min-w-[6rem] max-w-[14rem] p-1" align="start" side="right">

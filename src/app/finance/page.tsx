@@ -48,7 +48,7 @@ export default function FinancePage() {
     transactions, categories, loading: txLoading,
     addTransaction, addInstallment, updateTransaction, deleteTransaction,
     addCategory, deleteCategory, updateCategoryColor,
-    totalIncome, totalExpense, balance, expenseByCategory,
+    totalIncome, totalExpense, expenseByCategory,
     refetch: refetchTransactions,
   } = useTransactions(year, month);
 
@@ -157,7 +157,6 @@ export default function FinancePage() {
           <MonthlySummary
             totalIncome={totalIncome}
             totalExpense={totalExpense}
-            balance={balance}
           />
           <CategoryChart expenseByCategory={expenseByCategory} totalExpense={totalExpense} />
           {txLoading ? (

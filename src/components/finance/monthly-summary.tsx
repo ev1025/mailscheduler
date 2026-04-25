@@ -2,14 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, Pencil } from "lucide-react";
+import { TrendingUp, TrendingDown, Pencil } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-settings";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
 
 interface MonthlySummaryProps {
   totalIncome: number;
   totalExpense: number;
-  balance: number;
 }
 
 function formatWon(amount: number) {
@@ -19,7 +18,6 @@ function formatWon(amount: number) {
 export default function MonthlySummary({
   totalIncome,
   totalExpense,
-  balance,
 }: MonthlySummaryProps) {
   const { value: incomeStr, saveValue: saveIncome } = useAppSetting(
     "monthly_income",
@@ -28,7 +26,6 @@ export default function MonthlySummary({
   const monthlyIncome = parseInt(incomeStr) || 0;
   const { fixedExpenses } = useFixedExpenses();
   const totalFixed = fixedExpenses.reduce((s, f) => s + f.amount, 0);
-  const disposable = monthlyIncome - totalFixed;
 
   const [editingIncome, setEditingIncome] = useState(false);
   const [draft, setDraft] = useState("");
@@ -74,9 +71,9 @@ export default function MonthlySummary({
   );
 
   return (
-    <div className="flex flex-col gap-2 md:gap-4">
-      {/* 1층: 월급 / 고정비 / 여윳돈 */}
-      <div className="grid gap-2 md:gap-3 grid-cols-3">
+    <div className="flex flex-col gap-2 md:gap-3">
+      {/* 1층: 월급 | 고정비 — 2칸으로 넓혀 천만원 단위까지 truncate 없이 표시 */}
+      <div className="grid gap-2 md:gap-3 grid-cols-2">
         <Cell
           label="월급"
           editable
@@ -88,7 +85,6 @@ export default function MonthlySummary({
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 onBlur={() => {
-                  // 포커스 빠질 때 자동 저장 — OK 버튼 없이도 확정.
                   saveIncome(draft);
                   setEditingIncome(false);
                 }}
@@ -112,16 +108,10 @@ export default function MonthlySummary({
           color="text-foreground"
           value={`-${formatWon(totalFixed)}`}
         />
-        <Cell
-          label="여윳돈"
-          icon={<PiggyBank className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
-          color={disposable >= 0 ? "text-foreground" : "text-rose-500"}
-          value={formatWon(disposable)}
-        />
       </div>
 
-      {/* 2층: 실제 수입/지출/잔액 — 색상은 saturation 낮은 emerald/rose 로 톤 다운 */}
-      <div className="grid gap-2 md:gap-3 grid-cols-3">
+      {/* 2층: 이번달 수입 | 지출 — 색상은 saturation 낮은 emerald/rose 로 톤 다운 */}
+      <div className="grid gap-2 md:gap-3 grid-cols-2">
         <Cell
           label="이번달 수입"
           icon={<TrendingUp className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
@@ -133,12 +123,6 @@ export default function MonthlySummary({
           icon={<TrendingDown className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
           color="text-rose-500"
           value={`-${formatWon(totalExpense)}`}
-        />
-        <Cell
-          label="잔액"
-          icon={<Wallet className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
-          color={balance >= 0 ? "text-foreground" : "text-rose-500"}
-          value={formatWon(balance)}
         />
       </div>
     </div>

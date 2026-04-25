@@ -57,14 +57,19 @@ export default function ConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={cn("max-w-sm gap-4 p-5 sm:p-6", contentClassName)}
+        // 모바일에서 좌우 인셋을 더 줘서 답답함 완화 (max-w-[20rem]).
+        // 데스크톱은 sm:max-w-sm(384px) 그대로.
+        className={cn(
+          "max-w-[20rem] sm:max-w-sm gap-3.5 p-5 sm:p-6",
+          contentClassName
+        )}
       >
         <DialogHeader>
-          <DialogTitle className="text-[17px] font-semibold leading-tight break-keep">
+          <DialogTitle className="text-base sm:text-[17px] font-semibold leading-tight break-keep">
             {title}
           </DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground leading-relaxed break-keep whitespace-pre-wrap">
+        <p className="text-[13px] sm:text-sm text-muted-foreground leading-relaxed break-keep whitespace-pre-wrap">
           {description}
         </p>
         <div className="grid grid-cols-2 gap-2 pt-1 sm:flex sm:justify-end">

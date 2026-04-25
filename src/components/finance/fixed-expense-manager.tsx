@@ -85,8 +85,8 @@ export default function FixedExpenseManager({
         hideFooter
       >
         <div className="flex flex-col gap-3">
-          <p className="text-xs text-muted-foreground">
-            매월 자동으로 반영되는 고정 수입/지출 항목입니다. 항목을 눌러 수정하거나 휴지통으로 삭제하세요.
+          <p className="text-xs text-muted-foreground leading-relaxed break-keep">
+            매월 자동 반영되는 고정 항목. 항목 탭으로 수정 · 휴지통으로 삭제.
           </p>
 
           {fixedExpenses.length === 0 ? (
