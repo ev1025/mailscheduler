@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import SearchInput from "@/components/ui/search-input";
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent,
+  DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent,
 } from "@dnd-kit/core";
 import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -295,7 +295,13 @@ export default function KnowledgeDashboard({
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
     });
 
-  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  // 모바일 터치는 PointerSensor 만으로는 잘 안 잡혀 TouchSensor 추가.
+  // delay 250ms — 짧은 탭(클릭)·짧은 스크롤은 DnD 발동 안 함.
+  // selectMode 진입 long-press(400ms) 이전에 드래그 시작하면 DnD 우선.
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+  );
   // 드래그 종료 — active 가 폴더 or item 인지 판별해 각각의 재정렬·이동 훅에 위임.
   const handleDragEnd = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;

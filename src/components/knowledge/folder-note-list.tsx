@@ -12,6 +12,7 @@ import KnowledgeEmptyState from "@/components/knowledge/empty-state";
 import {
   DndContext,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   useDraggable,
@@ -166,7 +167,10 @@ export default function FolderNoteList({
 
   // DnD: 노트를 폴더 위로 드래그 → 그 폴더 안으로 이동.
   // selectMode 중엔 비활성 (선택 박스 드래그와 충돌 방지).
-  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+  );
   const handleDragEnd = (e: DragEndEvent) => {
     if (!e.over) return;
     const activeId = String(e.active.id);
