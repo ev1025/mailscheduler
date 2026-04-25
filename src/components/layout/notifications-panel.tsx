@@ -11,7 +11,7 @@ import { useCalendarShares } from "@/hooks/use-calendar-shares";
 import { useAppUsers } from "@/lib/current-user";
 import { formatDistanceToNow } from "date-fns";
 import { ko } from "date-fns/locale";
-import { Check, X } from "lucide-react";
+import { ArrowLeft, Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -63,15 +63,25 @@ export default function NotificationsPanel({ open, onOpenChange }: Props) {
         // 모바일 좌우 1rem 인셋, 데스크톱 max-w-md. 본문 자체 스크롤만 허용 — 헤더는 고정.
         className="max-w-md p-0 gap-0 max-h-[80dvh] overflow-hidden grid-rows-[auto_1fr]"
       >
-        {/* 헤더 — sticky 영역. 제목 17px 통일. */}
-        <div className="flex items-center justify-between border-b px-5 py-3.5">
-          <DialogTitle className="text-[17px] font-semibold leading-none">알림</DialogTitle>
+        {/* 헤더 — 좌측 ← 닫기, 가운데 제목, 우측 모두 읽음 액션 */}
+        <div className="flex items-center gap-2 border-b px-3 py-2.5">
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            aria-label="뒤로"
+            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <DialogTitle className="text-[17px] font-semibold leading-none flex-1 min-w-0">
+            알림
+          </DialogTitle>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={markAllRead}
-              className="h-8 text-xs"
+              className="h-8 text-xs shrink-0"
             >
               모두 읽음
             </Button>

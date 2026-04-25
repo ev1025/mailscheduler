@@ -57,7 +57,6 @@ export default function ConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        showBackButton={false}
         className={cn("max-w-sm gap-4 p-5 sm:p-6", contentClassName)}
       >
         <DialogHeader>

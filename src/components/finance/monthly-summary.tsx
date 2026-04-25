@@ -52,14 +52,14 @@ export default function MonthlySummary({
   }) => (
     <div className="rounded-lg border bg-card p-2.5 md:p-3 flex flex-col gap-1 min-w-0">
       <div className="flex items-center justify-between gap-1">
-        <span className="text-xs md:text-xs text-muted-foreground truncate">
+        <span className="text-[11px] md:text-xs text-muted-foreground truncate">
           {label}
         </span>
         {editable ? (
           <button
             type="button"
             onClick={() => setEditingIncome((v) => !v)}
-            className="text-muted-foreground hover:text-foreground shrink-0"
+            className="text-muted-foreground/60 hover:text-foreground shrink-0"
           >
             <Pencil className="h-3 w-3" />
           </button>
@@ -67,7 +67,7 @@ export default function MonthlySummary({
           icon
         )}
       </div>
-      <div className={`text-base md:text-xl font-bold truncate ${color || ""}`}>
+      <div className={`text-sm md:text-base font-semibold truncate tabular-nums ${color || "text-foreground"}`}>
         {value}
       </div>
     </div>
@@ -109,35 +109,35 @@ export default function MonthlySummary({
         />
         <Cell
           label="고정비"
-          color="text-orange-600"
+          color="text-foreground"
           value={`-${formatWon(totalFixed)}`}
         />
         <Cell
           label="여윳돈"
-          icon={<PiggyBank className="h-3 w-3 text-green-500 shrink-0" />}
-          color={disposable >= 0 ? "text-green-600" : "text-red-600"}
+          icon={<PiggyBank className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
+          color={disposable >= 0 ? "text-foreground" : "text-rose-500"}
           value={formatWon(disposable)}
         />
       </div>
 
-      {/* 2층: 실제 수입/지출/잔액 */}
+      {/* 2층: 실제 수입/지출/잔액 — 색상은 saturation 낮은 emerald/rose 로 톤 다운 */}
       <div className="grid gap-2 md:gap-3 grid-cols-3">
         <Cell
           label="이번달 수입"
-          icon={<TrendingUp className="h-3 w-3 text-green-500 shrink-0" />}
-          color="text-green-600"
+          icon={<TrendingUp className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
+          color="text-emerald-600"
           value={`+${formatWon(totalIncome)}`}
         />
         <Cell
           label="이번달 지출"
-          icon={<TrendingDown className="h-3 w-3 text-red-500 shrink-0" />}
-          color="text-red-600"
+          icon={<TrendingDown className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
+          color="text-rose-500"
           value={`-${formatWon(totalExpense)}`}
         />
         <Cell
           label="잔액"
-          icon={<Wallet className="h-3 w-3 text-blue-500 shrink-0" />}
-          color={balance >= 0 ? "text-blue-600" : "text-red-600"}
+          icon={<Wallet className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
+          color={balance >= 0 ? "text-foreground" : "text-rose-500"}
           value={formatWon(balance)}
         />
       </div>

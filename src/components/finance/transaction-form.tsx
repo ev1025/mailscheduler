@@ -5,7 +5,6 @@ import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import TagInput from "@/components/ui/tag-input";
 import DatePicker from "@/components/ui/date-picker";
 import { usePaymentMethods } from "@/hooks/use-payment-methods";
@@ -118,39 +117,41 @@ export default function TransactionForm({
             />
           </div>
 
-          <Tabs
-            value={type}
-            onValueChange={(v) => {
-              setType(v as "income" | "expense");
-              setCategoryId("");
-            }}
-          >
-            <TabsList className="w-full">
-              <TabsTrigger value="expense" className="flex-1">
-                지출
-              </TabsTrigger>
-              <TabsTrigger value="income" className="flex-1">
-                수입
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-
-          {/* 1행: 금액 | 날짜 */}
+          {/* 1행: 금액 | 날짜 — 별도 지출/수입 토글 제거. 금액 좌측 부호 버튼 (− 지출 / + 수입)
+              으로 통합. 부호 변경 시 type 자동 전환 + categoryId 리셋. */}
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1.5 min-w-0">
               <Label htmlFor="amount" className={FORM_LABEL}>
                 금액 (원)
               </Label>
-              <Input
-                id="amount"
-                type="number"
-                inputMode="numeric"
-                min="0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="금액 * (예: 10000)"
-                className={FORM_INPUT_COMPACT}
-              />
+              <div className="flex gap-1.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setType((t) => (t === "expense" ? "income" : "expense"));
+                    setCategoryId("");
+                  }}
+                  className={`shrink-0 h-9 w-10 rounded-md border text-lg font-semibold leading-none transition-colors ${
+                    type === "expense"
+                      ? "border-rose-300/60 bg-rose-50 text-rose-500 dark:bg-rose-500/10 dark:border-rose-500/30"
+                      : "border-emerald-300/60 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:border-emerald-500/30"
+                  }`}
+                  aria-label={type === "expense" ? "지출 (눌러서 수입으로 전환)" : "수입 (눌러서 지출로 전환)"}
+                  title={type === "expense" ? "지출" : "수입"}
+                >
+                  {type === "expense" ? "−" : "+"}
+                </button>
+                <Input
+                  id="amount"
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="10000"
+                  className={`${FORM_INPUT_COMPACT} flex-1 min-w-0`}
+                />
+              </div>
               {/* 빠른 입력 프리셋 — 현재값에 더하기. 모바일 keypad 왕복 줄임. */}
               <div className="flex flex-wrap gap-1">
                 {[1000, 5000, 10000, 50000, 100000].map((delta) => (

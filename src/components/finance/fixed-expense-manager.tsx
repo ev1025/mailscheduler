@@ -113,11 +113,9 @@ export default function FixedExpenseManager({
                     </p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                       <span
-                        className={
-                          fx.type === "income"
-                            ? "text-green-600 font-medium"
-                            : "text-red-600 font-medium"
-                        }
+                        className={`font-medium tabular-nums ${
+                          fx.type === "income" ? "text-emerald-600" : "text-rose-500"
+                        }`}
                       >
                         {fx.type === "income" ? "+" : "-"}
                         {formatWon(fx.amount)}

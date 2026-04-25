@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { UserPlus, X, Users } from "lucide-react";
+import { ArrowLeft, UserPlus, X, Users } from "lucide-react";
 import { useCalendarShares } from "@/hooks/use-calendar-shares";
 import { useAppUsers, useCurrentUserId } from "@/lib/current-user";
 import { toast } from "sonner";
@@ -117,9 +117,17 @@ export default function ShareManager({ open, onOpenChange }: Props) {
         showBackButton={false}
         className="max-w-md p-0 gap-0 max-h-[80dvh] overflow-hidden grid-rows-[auto_1fr]"
       >
-        {/* 헤더 */}
-        <div className="flex items-center justify-between border-b px-5 py-3.5">
-          <DialogTitle className="text-[17px] font-semibold leading-none">
+        {/* 헤더 — 좌측 ← 닫기, 제목 */}
+        <div className="flex items-center gap-2 border-b px-3 py-2.5">
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            aria-label="뒤로"
+            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </button>
+          <DialogTitle className="text-[17px] font-semibold leading-none flex-1 min-w-0">
             캘린더 공유
           </DialogTitle>
         </div>
@@ -186,85 +194,62 @@ export default function ShareManager({ open, onOpenChange }: Props) {
                 </section>
               )}
 
-              {/* 공유 중 — incoming(내가 owner 캘린더 보는 중) + outgoing(상대가 내 캘린더 보는 중) 합침 */}
-              {(incomingAccepted.length > 0 || outgoingAccepted.length > 0) && (
-                <section>
-                  <SectionHeader
-                    title="공유 중"
-                    count={incomingAccepted.length + outgoingAccepted.length}
-                  />
-                  <ul className="flex flex-col gap-2">
-                    {incomingAccepted.map((s) => {
-                      const owner = getUser(s.owner_id);
-                      if (!owner) return null;
-                      return (
-                        <li
-                          key={s.id}
-                          className="flex items-center gap-3 rounded-xl border bg-card p-3"
-                        >
-                          <Avatar user={owner} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">
-                              {owner.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              캘린더 보는 중
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-9 px-3 text-xs text-muted-foreground hover:text-destructive shrink-0"
-                            onClick={() =>
-                              setCancelTarget({
-                                id: s.id,
-                                name: owner.name,
-                                mode: "remove-accepted",
-                              })
-                            }
+              {/* 공유 중 — 양방향 동일 포맷. 부가 라벨(보는 중/공유 중) 제거하고
+                  같은 사용자 한 번만 표시 (양쪽 다 accepted 일 때 dedupe). */}
+              {(() => {
+                type AccItem = { id: string; userId: string; name: string };
+                const seen = new Set<string>();
+                const items: AccItem[] = [];
+                for (const s of incomingAccepted) {
+                  const u = getUser(s.owner_id);
+                  if (!u || seen.has(u.id)) continue;
+                  seen.add(u.id);
+                  items.push({ id: s.id, userId: u.id, name: u.name });
+                }
+                for (const s of outgoingAccepted) {
+                  const u = getUser(s.viewer_id);
+                  if (!u || seen.has(u.id)) continue;
+                  seen.add(u.id);
+                  items.push({ id: s.id, userId: u.id, name: u.name });
+                }
+                if (items.length === 0) return null;
+                return (
+                  <section>
+                    <SectionHeader title="공유 중" count={items.length} />
+                    <ul className="flex flex-col gap-2">
+                      {items.map((it) => {
+                        const u = getUser(it.userId);
+                        if (!u) return null;
+                        return (
+                          <li
+                            key={it.userId}
+                            className="flex items-center gap-3 rounded-xl border bg-card p-3"
                           >
-                            해제
-                          </Button>
-                        </li>
-                      );
-                    })}
-                    {outgoingAccepted.map((s) => {
-                      const viewer = getUser(s.viewer_id);
-                      if (!viewer) return null;
-                      return (
-                        <li
-                          key={s.id}
-                          className="flex items-center gap-3 rounded-xl border bg-card p-3"
-                        >
-                          <Avatar user={viewer} />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">
-                              {viewer.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              내 캘린더 공유 중
-                            </p>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-9 px-3 text-xs text-muted-foreground hover:text-destructive shrink-0"
-                            onClick={() =>
-                              setCancelTarget({
-                                id: s.id,
-                                name: viewer.name,
-                                mode: "remove-accepted",
-                              })
-                            }
-                          >
-                            해제
-                          </Button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </section>
-              )}
+                            <Avatar user={u} />
+                            <span className="flex-1 text-sm font-semibold truncate">
+                              {it.name}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-9 px-3 text-xs text-muted-foreground hover:text-destructive shrink-0"
+                              onClick={() =>
+                                setCancelTarget({
+                                  id: it.id,
+                                  name: it.name,
+                                  mode: "remove-accepted",
+                                })
+                              }
+                            >
+                              해제
+                            </Button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                );
+              })()}
 
               {/* 보낸 요청 (대기) */}
               {outgoingPending.length > 0 && (

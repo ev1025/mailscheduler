@@ -122,14 +122,14 @@ export default function FixedExpenseForm({
           />
         </div>
 
-        {/* 수입/지출 세그먼트 */}
+        {/* 수입/지출 세그먼트 — 톤 다운: 활성 상태도 강한 빨강·녹색 대신 차분한 색상. */}
         <div className="flex gap-2">
           <button
             type="button"
-            className={`flex-1 h-9 rounded-md text-sm font-medium transition-colors ${
+            className={`flex-1 h-9 rounded-md text-sm font-medium transition-colors border ${
               type === "expense"
-                ? "bg-red-500/10 text-red-600 border border-red-500/30"
-                : "border text-muted-foreground hover:bg-accent"
+                ? "border-rose-300/60 bg-rose-50 text-rose-500 dark:bg-rose-500/10 dark:border-rose-500/30"
+                : "text-muted-foreground hover:bg-accent"
             }`}
             onClick={() => {
               setType("expense");
@@ -140,10 +140,10 @@ export default function FixedExpenseForm({
           </button>
           <button
             type="button"
-            className={`flex-1 h-9 rounded-md text-sm font-medium transition-colors ${
+            className={`flex-1 h-9 rounded-md text-sm font-medium transition-colors border ${
               type === "income"
-                ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/30"
-                : "border text-muted-foreground hover:bg-accent"
+                ? "border-emerald-300/60 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:border-emerald-500/30"
+                : "text-muted-foreground hover:bg-accent"
             }`}
             onClick={() => {
               setType("income");

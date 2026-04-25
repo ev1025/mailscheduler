@@ -60,8 +60,11 @@ export default function TransactionList({
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   {tx.category && (
                     <div
-                      className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs shrink-0"
-                      style={{ backgroundColor: tx.category.color }}
+                      className="h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium shrink-0"
+                      style={{
+                        backgroundColor: tx.category.color + "20",
+                        color: tx.category.color,
+                      }}
                     >
                       {tx.category.name.charAt(0)}
                     </div>
@@ -82,8 +85,8 @@ export default function TransactionList({
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span
-                    className={`font-semibold text-sm ${
-                      tx.type === "income" ? "text-green-600" : "text-red-600"
+                    className={`font-semibold text-sm tabular-nums ${
+                      tx.type === "income" ? "text-emerald-600" : "text-rose-500"
                     }`}
                   >
                     {tx.type === "income" ? "+" : "-"}

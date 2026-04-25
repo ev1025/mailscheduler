@@ -57,10 +57,7 @@ export default function PromptDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showBackButton={false}
-        className="max-w-sm gap-4 p-5 sm:p-6"
-      >
+      <DialogContent className="max-w-sm gap-4 p-5 sm:p-6">
         <DialogHeader>
           <DialogTitle className="text-[17px] font-semibold leading-tight break-keep">
             {title}
