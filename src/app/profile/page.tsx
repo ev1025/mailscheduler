@@ -161,99 +161,100 @@ function ProfilePageInner() {
           <p className="text-[11px] text-muted-foreground/80 -mt-1">{authUser?.email}</p>
         </div>
 
-        {/* 이미지/이모지 세그먼트 — 더 작게 */}
-        <div className="flex justify-center">
-          <div className="inline-flex rounded-full border bg-muted/40 p-0.5 text-xs">
-            <button
-              type="button"
-              onClick={() => setAvatarMode("image")}
-              className={`px-3 py-1 rounded-full transition-colors ${
-                avatarMode === "image"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground"
-              }`}
-            >
-              이미지
-            </button>
-            <button
-              type="button"
-              onClick={() => setAvatarMode("emoji")}
-              className={`px-3 py-1 rounded-full transition-colors ${
-                avatarMode === "emoji"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground"
-              }`}
-            >
-              이모지
-            </button>
+        {/* 아바타 편집 카드 — 액션 카드와 동일한 rounded-lg border bg-card 톤으로 통일.
+            세그먼트 + 모드별 옵션(업로드 / 이모지 그리드) + 배경색 + 저장 한 카드 안에. */}
+        <div className="rounded-lg border bg-card p-3 flex flex-col gap-3 mt-2">
+          {/* 이미지/이모지 세그먼트 */}
+          <div className="flex justify-center">
+            <div className="inline-flex rounded-full border bg-muted/40 p-0.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setAvatarMode("image")}
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  avatarMode === "image"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                }`}
+              >
+                이미지
+              </button>
+              <button
+                type="button"
+                onClick={() => setAvatarMode("emoji")}
+                className={`px-3 py-1 rounded-full transition-colors ${
+                  avatarMode === "emoji"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                }`}
+              >
+                이모지
+              </button>
+            </div>
           </div>
-        </div>
 
-        {avatarMode === "image" ? (
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileRef.current?.click()}
-              className="flex-1 h-9"
-            >
-              <Upload className="mr-1 h-3.5 w-3.5" /> 이미지 업로드
-            </Button>
-            {avatarUrl && (
+          {avatarMode === "image" ? (
+            <div className="flex gap-2">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setAvatarUrl("")}
-                className="h-9"
+                onClick={() => fileRef.current?.click()}
+                className="flex-1 h-9"
               >
-                초기화
+                <Upload className="mr-1 h-3.5 w-3.5" /> 이미지 업로드
               </Button>
-            )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-            />
-          </div>
-        ) : (
-          <div className="grid grid-cols-8 gap-1">
-            {PRESET_EMOJIS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setEmoji(e)}
-                className={`flex h-8 w-full items-center justify-center rounded-md text-base hover:bg-accent transition-colors ${
-                  emoji === e ? "ring-2 ring-primary" : ""
-                }`}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-        )}
+              {avatarUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAvatarUrl("")}
+                  className="h-9"
+                >
+                  초기화
+                </Button>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-8 gap-1">
+                {PRESET_EMOJIS.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => setEmoji(e)}
+                    className={`flex h-8 w-full items-center justify-center rounded-md text-base hover:bg-accent transition-colors ${
+                      emoji === e ? "ring-2 ring-primary" : ""
+                    }`}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+              <ColorPickerRow color={color} onChange={setColor} />
+            </>
+          )}
 
-        {/* 배경색 — 이모지 모드일 때만 (이미지 모드에선 의미 없음) */}
-        {avatarMode === "emoji" && (
-          <ColorPickerRow color={color} onChange={setColor} />
-        )}
+          <Button
+            type="button"
+            onClick={handleUpdate}
+            disabled={!name.trim() || saving}
+            className="h-9"
+          >
+            <Check className="mr-1 h-3.5 w-3.5" />
+            {saving ? "저장 중..." : "저장"}
+          </Button>
+        </div>
 
-        {/* 저장 */}
-        <Button
-          type="button"
-          onClick={handleUpdate}
-          disabled={!name.trim() || saving}
-          className="h-9"
-        >
-          <Check className="mr-1 h-3.5 w-3.5" />
-          {saving ? "저장 중..." : "저장"}
-        </Button>
-
-        {/* 액션 — 행 단위 리스트 (iOS 설정 앱 스타일). 화면 휑함 방지 + 위계 명확. */}
-        <div className="rounded-lg border bg-card overflow-hidden mt-2">
+        {/* 액션 카드 — 위 아바타 카드와 동일 톤 (rounded-lg border bg-card). */}
+        <div className="rounded-lg border bg-card overflow-hidden">
           <button
             type="button"
             onClick={() => router.push("/settings")}
