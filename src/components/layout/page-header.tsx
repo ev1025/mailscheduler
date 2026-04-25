@@ -48,7 +48,7 @@ export default function PageHeader({
 
   return (
     <>
-      <header className={`${stickyCls} flex h-14 shrink-0 items-center gap-2 border-b px-3`}>
+      <header className={`${stickyCls} flex h-14 shrink-0 items-center gap-2 border-b px-4`}>
         {showBack && (
           <button
             type="button"

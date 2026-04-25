@@ -1,15 +1,12 @@
 "use client";
 
 import { Suspense, useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Upload,
   Check,
-  LogOut,
   Share2,
   Settings as SettingsIcon,
-  Trash2,
-  Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +18,6 @@ import AvatarCropDialog from "@/components/layout/avatar-crop-dialog";
 import ShareManager from "@/components/calendar/share-manager";
 import PageHeader from "@/components/layout/page-header";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
-import ConfirmDialog from "@/components/ui/confirm-dialog";
-import PasswordChangeDialog from "@/components/layout/password-change-dialog";
 
 const DEFAULT_COLOR = "#3B82F6";
 
@@ -42,10 +37,10 @@ export default function ProfilePage() {
 
 function ProfilePageInner() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user: authUser, loading: authLoading } = useSupabaseAuth();
-  const { users, updateUser, deleteUser } = useAppUsers();
+  const { users, updateUser } = useAppUsers();
   const currentUser = useCurrentUser();
+  void users; // keep for potential future use
 
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🙂");
@@ -58,30 +53,13 @@ function ProfilePageInner() {
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  // 비밀번호 변경 다이얼로그
-  const [pwDialogOpen, setPwDialogOpen] = useState(false);
-
-  // URL의 ?action=reset-password 로 진입하면 즉시 다이얼로그 오픈
-  // (AppShell이 PASSWORD_RECOVERY 이벤트를 잡아서 이 URL로 리다이렉트)
-  useEffect(() => {
-    if (searchParams.get("action") === "reset-password") {
-      setPwDialogOpen(true);
-      toast.info("새 비밀번호를 설정하세요");
-      // 쿼리 정리 (다이얼로그 닫고 다시 돌아와도 재오픈되지 않도록)
-      router.replace("/profile", { scroll: false });
-    }
-  }, [searchParams, router]);
-
-  // 로그인 안 됐거나 프로필 없으면 홈으로 (AppShell의 게이트가 signin/setup 처리)
   useEffect(() => {
     if (authLoading) return;
     if (!authUser) {
       router.replace("/");
       return;
     }
-    // users state 아직 비어있을 수 있으므로 currentUser 확인은 화면에서만
   }, [authLoading, authUser, router]);
 
   useEffect(() => {
@@ -116,11 +94,13 @@ function ProfilePageInner() {
       return;
     }
     setSaving(true);
+    // mode 기준으로 저장 — emoji 모드여도 avatarUrl state 는 유지(다시 image 모드로
+    // 돌아왔을 때 복원되도록). DB 에는 mode 에 맞는 한쪽만 저장.
     const { error } = await updateUser(currentUser.id, {
       name: name.trim(),
-      emoji: avatarUrl ? null : emoji,
+      emoji: avatarMode === "emoji" ? emoji : null,
       color,
-      avatar_url: avatarUrl || null,
+      avatar_url: avatarMode === "image" ? avatarUrl || null : null,
     });
     setSaving(false);
     if (error) {
@@ -135,13 +115,6 @@ function ProfilePageInner() {
     router.replace("/");
   };
 
-  const handleDeleteProfile = async () => {
-    if (!currentUser) return;
-    await deleteUser(currentUser.id);
-    await supabaseSignOut();
-    router.replace("/");
-  };
-
   if (authLoading || !currentUser) {
     return (
       <div className="p-8 text-center text-sm text-muted-foreground">
@@ -152,7 +125,7 @@ function ProfilePageInner() {
 
   return (
     <>
-      <PageHeader title="내 프로필" showBack showBell />
+      <PageHeader title="내 프로필" showBell />
     <div className="px-4 pt-3 pb-6 md:px-6 md:pt-6 md:pb-10 max-w-xl mx-auto">
 
       <div className="flex flex-col gap-3.5">
@@ -171,7 +144,7 @@ function ProfilePageInner() {
             }
             aria-label="아바타 변경"
           >
-            {avatarUrl ? (
+            {avatarMode === "image" && avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={avatarUrl} alt="avatar" className="h-full w-full object-cover" />
             ) : (
@@ -203,10 +176,7 @@ function ProfilePageInner() {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setAvatarMode("emoji");
-                setAvatarUrl("");
-              }}
+              onClick={() => setAvatarMode("emoji")}
               className={`px-3 py-1 rounded-full transition-colors ${
                 avatarMode === "emoji"
                   ? "bg-background text-foreground shadow-sm"
@@ -254,12 +224,9 @@ function ProfilePageInner() {
               <button
                 key={e}
                 type="button"
-                onClick={() => {
-                  setEmoji(e);
-                  setAvatarUrl("");
-                }}
+                onClick={() => setEmoji(e)}
                 className={`flex h-8 w-full items-center justify-center rounded-md text-base hover:bg-accent transition-colors ${
-                  emoji === e && !avatarUrl ? "ring-2 ring-primary" : ""
+                  emoji === e ? "ring-2 ring-primary" : ""
                 }`}
               >
                 {e}
@@ -268,8 +235,8 @@ function ProfilePageInner() {
           </div>
         )}
 
-        {/* 배경색 — 이모지 모드일 때만 (라벨 제거, ColorPickerRow 만) */}
-        {avatarMode === "emoji" && !avatarUrl && (
+        {/* 배경색 — 이모지 모드일 때만 (이미지 모드에선 의미 없음) */}
+        {avatarMode === "emoji" && (
           <ColorPickerRow color={color} onChange={setColor} />
         )}
 
@@ -284,8 +251,8 @@ function ProfilePageInner() {
           {saving ? "저장 중..." : "저장"}
         </Button>
 
-        {/* 액션 타일 — 2x2 compact grid */}
-        <div className="grid grid-cols-2 gap-1.5 border-t pt-3 mt-1">
+        {/* 액션 타일 — 2개. 비밀번호 변경/프로필 삭제는 설정 페이지로 이동. */}
+        <div className="grid grid-cols-2 gap-1.5 mt-1">
           <button
             type="button"
             onClick={() => router.push("/settings")}
@@ -302,33 +269,16 @@ function ProfilePageInner() {
             <Share2 className="h-3.5 w-3.5 text-muted-foreground" />
             일정 공유
           </button>
-          <button
-            type="button"
-            onClick={() => setPwDialogOpen(true)}
-            className="flex items-center justify-center gap-1.5 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
-          >
-            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
-            비밀번호 변경
-          </button>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="flex items-center justify-center gap-1.5 rounded-md border p-2.5 text-xs hover:bg-accent transition-colors"
-          >
-            <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
-            로그아웃
-          </button>
         </div>
 
-        {/* 위험 영역 — subtle text link (iOS 설정 앱 하단 스타일) */}
+        {/* 로그아웃 — 프로필 삭제 자리처럼 subtle text. iOS 설정 앱 하단 스타일. */}
         <div className="flex justify-center pt-1">
           <button
             type="button"
-            onClick={() => setDeleteConfirmOpen(true)}
-            className="flex items-center gap-1 text-[11px] text-muted-foreground/60 hover:text-destructive underline-offset-4 hover:underline transition-colors"
+            onClick={handleSignOut}
+            className="text-[11px] text-muted-foreground/60 hover:text-foreground underline-offset-4 hover:underline transition-colors"
           >
-            <Trash2 className="h-3 w-3" />
-            프로필 삭제
+            로그아웃
           </button>
         </div>
       </div>
@@ -345,7 +295,9 @@ function ProfilePageInner() {
             return;
           }
           setAvatarUrl(url);
-          setEmoji("");
+          // 이미지 업로드되면 자동으로 image 모드. emoji state 는 유지(다시 emoji
+          // 모드로 돌아갔을 때 복원되도록).
+          setAvatarMode("image");
           if (prevUrl && prevUrl.includes("/storage/v1/object/public/avatars/")) {
             deleteFromStorage("avatars", prevUrl);
           }
@@ -353,18 +305,6 @@ function ProfilePageInner() {
       />
 
       <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
-
-      <PasswordChangeDialog open={pwDialogOpen} onOpenChange={setPwDialogOpen} />
-
-      <ConfirmDialog
-        open={deleteConfirmOpen}
-        onOpenChange={setDeleteConfirmOpen}
-        title="프로필 삭제"
-        description="프로필과 로그인 세션이 삭제됩니다."
-        confirmLabel="삭제"
-        destructive
-        onConfirm={handleDeleteProfile}
-      />
     </div>
     </>
   );

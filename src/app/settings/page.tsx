@@ -1,14 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/ui/search-input";
-import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, MapPin } from "lucide-react";
+import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, MapPin, Lock, ChevronRight as ChevronRightIcon } from "lucide-react";
 import PageHeader from "@/components/layout/page-header";
+import ConfirmDialog from "@/components/ui/confirm-dialog";
+import PasswordChangeDialog from "@/components/layout/password-change-dialog";
+import { useAppUsers, useCurrentUser } from "@/lib/current-user";
+import { supabaseSignOut } from "@/lib/auth-supabase";
+import { toast } from "sonner";
 import {
   useWeatherLocation,
   setWeatherLocation,
@@ -35,13 +40,44 @@ function ApiSection({ title, children, defaultOpen = false }: { title: string; c
 }
 
 export default function SettingsPage() {
+  return (
+    <Suspense fallback={null}>
+      <SettingsPageInner />
+    </Suspense>
+  );
+}
+
+function SettingsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<"general" | "api">("general");
   const [theme, setTheme] = useState<Theme>("system");
   const currentLocation = useWeatherLocation();
   const [locQuery, setLocQuery] = useState("");
   const [locResults, setLocResults] = useState<GeoResult[]>([]);
   const [locSearching, setLocSearching] = useState(false);
+
+  // 계정 — 비밀번호 변경 / 프로필 삭제 (이전엔 /profile 에 있던 것)
+  const { deleteUser } = useAppUsers();
+  const currentUser = useCurrentUser();
+  const [pwDialogOpen, setPwDialogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+
+  // ?action=reset-password 진입 시 비밀번호 변경 다이얼로그 자동 오픈
+  useEffect(() => {
+    if (searchParams.get("action") === "reset-password") {
+      setPwDialogOpen(true);
+      toast.info("새 비밀번호를 설정하세요");
+      router.replace("/settings", { scroll: false });
+    }
+  }, [searchParams, router]);
+
+  const handleDeleteProfile = async () => {
+    if (!currentUser) return;
+    await deleteUser(currentUser.id);
+    await supabaseSignOut();
+    router.replace("/");
+  };
 
   useEffect(() => {
     if (!locQuery.trim()) {
@@ -193,6 +229,34 @@ export default function SettingsPage() {
                   )}
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* 계정 — 비밀번호 변경 + 프로필 삭제 (이전엔 /profile 에 있던 액션) */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">계정</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => setPwDialogOpen(true)}
+                className="flex items-center justify-between gap-2 rounded-md px-2 py-2.5 text-sm hover:bg-accent transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-muted-foreground" />
+                  비밀번호 변경
+                </span>
+                <ChevronRightIcon className="h-4 w-4 text-muted-foreground/50" />
+              </button>
+              {/* 프로필 삭제 — 위험 액션. 카드 하단 subtle 텍스트 링크 */}
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmOpen(true)}
+                className="self-start mt-1 px-2 text-[11px] text-muted-foreground/60 hover:text-destructive underline-offset-4 hover:underline transition-colors"
+              >
+                프로필 삭제
+              </button>
             </CardContent>
           </Card>
         </div>
@@ -533,6 +597,17 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
+
+    <PasswordChangeDialog open={pwDialogOpen} onOpenChange={setPwDialogOpen} />
+    <ConfirmDialog
+      open={deleteConfirmOpen}
+      onOpenChange={setDeleteConfirmOpen}
+      title="프로필 삭제"
+      description="프로필과 로그인 세션이 삭제됩니다."
+      confirmLabel="삭제"
+      destructive
+      onConfirm={handleDeleteProfile}
+    />
     </>
   );
 }
