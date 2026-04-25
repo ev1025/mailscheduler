@@ -421,15 +421,15 @@ export default function PlanTaskSheet({
             </div>
           </div>
 
-          {/* 내용 */}
+          {/* 메모 */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">내용</Label>
+            <Label className="text-xs text-muted-foreground">메모</Label>
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="어디에 갈지, 무엇을 할지 (예: 일출 보기)"
+              placeholder="세부 내용 (예: 일출 보기)"
               rows={2}
-              className="text-xs min-h-16 leading-snug placeholder:text-[10px]"
+              className="min-h-16 leading-snug"
             />
           </div>
 

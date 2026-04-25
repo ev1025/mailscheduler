@@ -349,16 +349,15 @@ export default function EventForm({
           </div>
 
 
-          {/* 설명 */}
+          {/* 메모 */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="event-desc" className={FORM_LABEL}>설명</Label>
+            <Label htmlFor="event-desc" className={FORM_LABEL}>메모</Label>
             <Textarea
               id="event-desc"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="일정 설명"
+              placeholder="세부 내용 (선택)"
               rows={3}
-              className={FORM_TEXTAREA}
             />
           </div>
 

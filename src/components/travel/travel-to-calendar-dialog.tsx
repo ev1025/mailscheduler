@@ -128,10 +128,10 @@ export default function TravelToCalendarDialog({
             })}
           </div>
 
-          {/* 내용 (분간되도록 박스 + 라벨) */}
+          {/* 메모 (분간되도록 박스 + 라벨) */}
           {item.notes && (
             <div className="flex flex-col gap-1">
-              <Label className="text-xs text-muted-foreground">내용</Label>
+              <Label className="text-xs text-muted-foreground">메모</Label>
               <div className="rounded-md border bg-muted/30 p-2.5 text-xs whitespace-pre-wrap">
                 {item.notes}
               </div>

@@ -294,7 +294,7 @@ export default function TravelForm({
                 value={month != null ? String(month) : "none"}
                 onValueChange={(v) => setMonth(!v || v === "none" ? null : parseInt(v))}
               >
-                <SelectTrigger className="h-8 w-20 text-xs">
+                <SelectTrigger className="h-9 w-24 text-sm">
                   {month != null ? `${month}월` : <span className="text-muted-foreground">-</span>}
                 </SelectTrigger>
                 <SelectContent className="min-w-0">
@@ -331,12 +331,12 @@ export default function TravelForm({
 
             {/* 검색 입력창 — 타이핑하면 아래에 결과 드롭다운 */}
             <div className="relative">
-              <SearchIcon className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <SearchIcon className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={placeQuery}
                 onChange={(e) => setPlaceQuery(e.target.value)}
                 placeholder="장소명·지역 (예: 대전역, 애월 카페)"
-                className="pl-8 h-8 text-xs"
+                className="pl-9 h-9"
               />
               {placeQuery.trim() && (placeLoading || placeResults.length > 0) && (
                 <div className="absolute left-0 right-0 top-full mt-1 z-30 max-h-60 overflow-y-auto rounded-md border bg-popover shadow-lg">
@@ -485,8 +485,8 @@ export default function TravelForm({
 
           {/* 여행 내용 */}
           <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">여행 내용</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="여행 관련 메모" rows={4} className="text-xs" />
+            <Label className="text-xs text-muted-foreground">메모</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="세부 내용 (선택)" rows={4} />
           </div>
 
           {/* 가본 날 (캘린더 추가 이력) */}

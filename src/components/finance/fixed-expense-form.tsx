@@ -233,9 +233,9 @@ export default function FixedExpenseForm({
           />
         </div>
 
-        {/* 설명 */}
+        {/* 메모 */}
         <div className="flex flex-col gap-1.5">
-          <Label className={FORM_LABEL}>설명</Label>
+          <Label className={FORM_LABEL}>메모</Label>
           <Input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
