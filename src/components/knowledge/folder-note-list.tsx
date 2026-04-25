@@ -9,6 +9,50 @@ import type { KnowledgeFolder, KnowledgeItem } from "@/types";
 import MoveTargetTree from "@/components/knowledge/move-target-tree";
 import KnowledgeBreadcrumb from "@/components/knowledge/breadcrumb";
 import KnowledgeEmptyState from "@/components/knowledge/empty-state";
+import {
+  DndContext,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  useDroppable,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+
+/* ── DnD 래퍼 — 노트는 드래그 소스, 폴더는 드롭 타겟. ── */
+function DraggableNoteWrapper({
+  id,
+  disabled,
+  children,
+}: {
+  id: string;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id, disabled });
+  return (
+    <div ref={setNodeRef} {...attributes} {...listeners} className={isDragging ? "opacity-40" : ""}>
+      {children}
+    </div>
+  );
+}
+
+function DroppableFolderWrapper({
+  id,
+  disabled,
+  children,
+}: {
+  id: string;
+  disabled: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id, disabled });
+  return (
+    <div ref={setNodeRef} className={`rounded-lg ${isOver ? "ring-2 ring-primary" : ""}`}>
+      {children}
+    </div>
+  );
+}
 
 interface Props {
   folder: KnowledgeFolder | null;
@@ -120,6 +164,22 @@ export default function FolderNoteList({
     exitSelect();
   };
 
+  // DnD: 노트를 폴더 위로 드래그 → 그 폴더 안으로 이동.
+  // selectMode 중엔 비활성 (선택 박스 드래그와 충돌 방지).
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const handleDragEnd = (e: DragEndEvent) => {
+    if (!e.over) return;
+    const activeId = String(e.active.id);
+    const overId = String(e.over.id);
+    if (activeId === overId) return;
+    const folderTarget = subFolders.find((f) => f.id === overId);
+    const itemActive = folderItems.find((i) => i.id === activeId);
+    if (folderTarget && itemActive && onMoveItems) {
+      if (itemActive.folder_id === folderTarget.id) return;
+      onMoveItems([itemActive.id], folderTarget.id);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full" onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
       {/* 상단 영역 — 선택 모드/일반 모드 상관없이 동일한 wrapper 로 유지.
@@ -188,63 +248,68 @@ export default function FolderNoteList({
         ) : subFolders.length === 0 && folderItems.length === 0 && loading ? (
           <div className="py-20" aria-hidden />
         ) : (
-          <div className="flex flex-col gap-0.5">
-            {subFolders.map((sf) => (
-              <div key={sf.id} data-sel-id={sf.id} data-sel-type="folder" role="button" tabIndex={0}
-                onClick={() => selectMode ? toggleSel(sf.id, "folder") : onSelectFolder(sf.id)}
-                onTouchStart={() => { const t = setTimeout(() => handleLongPress(sf.id, "folder"), 400); (sf as any)._t = t; }}
-                onTouchEnd={() => { if ((sf as any)._t) clearTimeout((sf as any)._t); }}
-                onTouchMove={() => { if ((sf as any)._t) clearTimeout((sf as any)._t); }}
-                onContextMenu={(e) => { e.preventDefault(); handleLongPress(sf.id, "folder"); }}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors select-none ${selFolders.has(sf.id) ? "bg-primary/10" : ""}`}
-              >
-                {selectMode && (selFolders.has(sf.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
-                <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
-                {renamingId === sf.id ? (
-                  <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") submitRename(); if (e.key === "Escape") setRenamingId(null); }}
-                    onClick={(e) => e.stopPropagation()} autoFocus
-                    className="flex-1 text-sm font-medium bg-transparent border-b border-primary outline-none px-0.5 min-w-0" />
-                ) : (
-                  <span className="flex-1 text-sm font-medium text-left truncate">{sf.name}</span>
-                )}
-                {/* 폴더는 즐겨찾기 대상 아님 — 글 전용 정책. */}
-                {!selectMode && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
-              </div>
-            ))}
-            {folderItems.map((item) => (
-              <div key={item.id} data-sel-id={item.id} data-sel-type="item" role="button" tabIndex={0}
-                onClick={() => selectMode ? toggleSel(item.id, "item") : onSelectItem(item.id)}
-                onTouchStart={() => { const t = setTimeout(() => handleLongPress(item.id, "item"), 400); (item as any)._t = t; }}
-                onTouchEnd={() => { if ((item as any)._t) clearTimeout((item as any)._t); }}
-                onTouchMove={() => { if ((item as any)._t) clearTimeout((item as any)._t); }}
-                onContextMenu={(e) => { e.preventDefault(); handleLongPress(item.id, "item"); }}
-                className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors select-none ${selItems.has(item.id) ? "bg-primary/10" : ""}`}
-              >
-                {selectMode && (selItems.has(item.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
-                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                {renamingId === item.id ? (
-                  <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") submitRename(); if (e.key === "Escape") setRenamingId(null); }}
-                    onClick={(e) => e.stopPropagation()} autoFocus
-                    className="flex-1 text-sm bg-transparent border-b border-primary outline-none px-0.5 min-w-0" />
-                ) : (
-                  <span className="flex-1 text-sm text-left truncate">{item.title || "(제목 없음)"}</span>
-                )}
-                {!selectMode && onTogglePinItem && (
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onTogglePinItem(item.id, item.pinned); }}
-                    className="shrink-0 p-1 rounded hover:bg-accent"
-                    aria-label={item.pinned ? "즐겨찾기 해제" : "즐겨찾기"}
+          <DndContext sensors={dndSensors} onDragEnd={handleDragEnd}>
+            <div className="flex flex-col gap-0.5">
+              {subFolders.map((sf) => (
+                <DroppableFolderWrapper key={sf.id} id={sf.id} disabled={selectMode}>
+                  <div data-sel-id={sf.id} data-sel-type="folder" role="button" tabIndex={0}
+                    onClick={() => selectMode ? toggleSel(sf.id, "folder") : onSelectFolder(sf.id)}
+                    onTouchStart={() => { const t = setTimeout(() => handleLongPress(sf.id, "folder"), 400); (sf as unknown as { _t?: ReturnType<typeof setTimeout> })._t = t; }}
+                    onTouchEnd={() => { const x = (sf as unknown as { _t?: ReturnType<typeof setTimeout> })._t; if (x) clearTimeout(x); }}
+                    onTouchMove={() => { const x = (sf as unknown as { _t?: ReturnType<typeof setTimeout> })._t; if (x) clearTimeout(x); }}
+                    onContextMenu={(e) => { e.preventDefault(); handleLongPress(sf.id, "folder"); }}
+                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors select-none ${selFolders.has(sf.id) ? "bg-primary/10" : ""}`}
                   >
-                    <Star className={`h-3.5 w-3.5 ${item.pinned ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`} />
-                  </button>
-                )}
-                {!selectMode && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
-              </div>
-            ))}
-          </div>
+                    {selectMode && (selFolders.has(sf.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
+                    <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
+                    {renamingId === sf.id ? (
+                      <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") submitRename(); if (e.key === "Escape") setRenamingId(null); }}
+                        onClick={(e) => e.stopPropagation()} autoFocus
+                        className="flex-1 text-sm font-medium bg-transparent border-b border-primary outline-none px-0.5 min-w-0" />
+                    ) : (
+                      <span className="flex-1 text-sm font-medium text-left truncate">{sf.name}</span>
+                    )}
+                    {!selectMode && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  </div>
+                </DroppableFolderWrapper>
+              ))}
+              {folderItems.map((item) => (
+                <DraggableNoteWrapper key={item.id} id={item.id} disabled={selectMode || renamingId === item.id}>
+                  <div data-sel-id={item.id} data-sel-type="item" role="button" tabIndex={0}
+                    onClick={() => selectMode ? toggleSel(item.id, "item") : onSelectItem(item.id)}
+                    onTouchStart={() => { const t = setTimeout(() => handleLongPress(item.id, "item"), 400); (item as unknown as { _t?: ReturnType<typeof setTimeout> })._t = t; }}
+                    onTouchEnd={() => { const x = (item as unknown as { _t?: ReturnType<typeof setTimeout> })._t; if (x) clearTimeout(x); }}
+                    onTouchMove={() => { const x = (item as unknown as { _t?: ReturnType<typeof setTimeout> })._t; if (x) clearTimeout(x); }}
+                    onContextMenu={(e) => { e.preventDefault(); handleLongPress(item.id, "item"); }}
+                    className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors select-none ${selItems.has(item.id) ? "bg-primary/10" : ""}`}
+                  >
+                    {selectMode && (selItems.has(item.id) ? <CheckSquare className="h-4 w-4 text-primary shrink-0" /> : <Square className="h-4 w-4 text-muted-foreground shrink-0" />)}
+                    <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                    {renamingId === item.id ? (
+                      <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") submitRename(); if (e.key === "Escape") setRenamingId(null); }}
+                        onClick={(e) => e.stopPropagation()} autoFocus
+                        className="flex-1 text-sm bg-transparent border-b border-primary outline-none px-0.5 min-w-0" />
+                    ) : (
+                      <span className="flex-1 text-sm text-left truncate">{item.title || "(제목 없음)"}</span>
+                    )}
+                    {!selectMode && onTogglePinItem && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); onTogglePinItem(item.id, item.pinned); }}
+                        className="shrink-0 p-1 rounded hover:bg-accent"
+                        aria-label={item.pinned ? "즐겨찾기 해제" : "즐겨찾기"}
+                      >
+                        <Star className={`h-3.5 w-3.5 ${item.pinned ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/40"}`} />
+                      </button>
+                    )}
+                    {!selectMode && <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  </div>
+                </DraggableNoteWrapper>
+              ))}
+            </div>
+          </DndContext>
         )}
       </div>
     </div>

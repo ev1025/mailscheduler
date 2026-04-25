@@ -1,13 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import PanelDialog from "@/components/ui/panel-dialog";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, UserPlus, X, Users } from "lucide-react";
+import { UserPlus, X, Users } from "lucide-react";
 import { useCalendarShares } from "@/hooks/use-calendar-shares";
 import { useAppUsers, useCurrentUserId } from "@/lib/current-user";
 import { toast } from "sonner";
@@ -112,28 +108,9 @@ export default function ShareManager({ open, onOpenChange }: Props) {
   const confirmLabel = cancelTarget?.mode === "reject-incoming" ? "거절" : "확인";
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        showBackButton={false}
-        className="max-w-md p-0 gap-0 max-h-[80dvh] overflow-hidden grid-rows-[auto_1fr]"
-      >
-        {/* 헤더 — 좌측 ← 닫기, 제목 */}
-        <div className="flex items-center gap-2 border-b px-3 py-2.5">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            aria-label="뒤로"
-            className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
-          <DialogTitle className="text-[17px] font-semibold leading-none flex-1 min-w-0">
-            캘린더 공유
-          </DialogTitle>
-        </div>
-
-        {/* 본문 — 자체 스크롤. 섹션별 분리. */}
-        <div className="overflow-y-auto px-4 py-4">
+    <PanelDialog open={open} onOpenChange={onOpenChange} title="캘린더 공유">
+      {/* 본문 — 섹션별 분리. */}
+      <div className="px-4 py-4">
           {incomingPending.length === 0 &&
           incomingAccepted.length === 0 &&
           outgoingPending.length === 0 &&
@@ -327,8 +304,7 @@ export default function ShareManager({ open, onOpenChange }: Props) {
               </section>
             </div>
           )}
-        </div>
-      </DialogContent>
+      </div>
 
       <ConfirmDialog
         open={!!cancelTarget}
@@ -351,7 +327,7 @@ export default function ShareManager({ open, onOpenChange }: Props) {
           setCancelTarget(null);
         }}
       />
-    </Dialog>
+    </PanelDialog>
   );
 }
 
