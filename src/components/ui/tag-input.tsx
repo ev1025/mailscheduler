@@ -145,7 +145,7 @@ export default function TagInput({
   onRenameTag,
   builtinIds,
   orderKey,
-  placeholder = "검색",
+  placeholder = "검색·추가",
 }: TagInputProps) {
   const isBuiltin = (id: string) => !!builtinIds?.includes(id);
 
@@ -572,7 +572,7 @@ export default function TagInput({
                 <div className="flex flex-col items-center pt-3 pb-2 touch-none shrink-0">
                   <div className="h-1.5 w-14 rounded-full bg-muted-foreground/40 mb-3" />
                   <div className="text-base font-semibold text-center">
-                    {placeholder === "검색" ? "태그" : placeholder.replace(/\s*\*\s*$/, "")}
+                    {placeholder.replace(/\s*\*\s*$/, "")}
                   </div>
                 </div>
               )}

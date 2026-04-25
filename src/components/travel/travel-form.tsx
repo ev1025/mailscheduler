@@ -463,7 +463,7 @@ export default function TravelForm({
               onRenameTag={updateCategoryName}
               builtinIds={BUILTIN_TRAVEL_CATEGORIES}
               orderKey="tag-order:travel-categories"
-              placeholder="분류 선택"
+              placeholder="검색·추가"
             />
           </div>
 
@@ -479,7 +479,7 @@ export default function TravelForm({
               onUpdateTagColor={onUpdateEventTagColor}
               onRenameTag={onRenameEventTag}
               orderKey="tag-order:event-tags"
-              placeholder="태그"
+              placeholder="검색·추가"
             />
           </div>
 

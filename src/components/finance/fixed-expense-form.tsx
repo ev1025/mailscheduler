@@ -215,7 +215,7 @@ export default function FixedExpenseForm({
             }
             onDeleteTag={onDeleteCategory}
             onUpdateTagColor={onUpdateCategoryColor}
-            placeholder="검색/추가"
+            placeholder="검색·추가"
           />
         </div>
 
@@ -229,7 +229,7 @@ export default function FixedExpenseForm({
             onAddTag={addMethod}
             onDeleteTag={deleteMethod}
             onUpdateTagColor={updateMethodColor}
-            placeholder="검색/추가"
+            placeholder="검색·추가"
           />
         </div>
 

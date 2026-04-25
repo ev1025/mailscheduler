@@ -255,7 +255,7 @@ export default function TransactionForm({
               }
               onDeleteTag={onDeleteCategory}
               onUpdateTagColor={onUpdateCategoryColor}
-              placeholder="검색/추가"
+              placeholder="검색·추가"
             />
           </div>
           <div className="flex flex-col gap-1.5 min-w-0">
@@ -267,7 +267,7 @@ export default function TransactionForm({
               onAddTag={addMethod}
               onDeleteTag={deleteMethod}
               onUpdateTagColor={updateMethodColor}
-              placeholder="검색/추가"
+              placeholder="검색·추가"
             />
           </div>
         </div>

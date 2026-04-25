@@ -402,7 +402,7 @@ export default function PlanTaskSheet({
                 onRenameTag={updateCategoryName}
                 builtinIds={BUILTIN_TRAVEL_CATEGORIES}
                 orderKey="tag-order:travel-categories"
-                placeholder="분류 선택"
+                placeholder="검색·추가"
               />
             </div>
 

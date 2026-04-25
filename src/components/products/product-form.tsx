@@ -276,7 +276,7 @@ export default function ProductForm({
                 onAddTag={addMidCategory}
                 onDeleteTag={deleteMidCategory}
                 onUpdateTagColor={updateMidCategoryColor}
-                placeholder="검색/추가"
+                placeholder="검색·추가"
               />
             </div>
             <div className="flex flex-col gap-1.5 min-w-0">
@@ -288,7 +288,7 @@ export default function ProductForm({
                 onAddTag={addTag}
                 onDeleteTag={deleteTag}
                 onUpdateTagColor={updateTagColor}
-                placeholder="검색/추가"
+                placeholder="검색·추가"
               />
             </div>
           </div>
