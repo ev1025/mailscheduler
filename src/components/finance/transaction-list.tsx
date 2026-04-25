@@ -71,16 +71,23 @@ export default function TransactionList({
                   )}
                   {/* 제목(title) 이 제일 크게. 카테고리는 그 아래 작게.
                       title 없으면 description → 카테고리명 순으로 폴백.
-                      메모·결제수단은 목록에 노출 안 함 (편집 폼에서만). */}
+                      할부 항목은 카테고리 옆에 작은 배지 추가. */}
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm truncate">
                       {tx.title || tx.description || tx.category?.name || "미분류"}
                     </p>
-                    {(tx.title || tx.description) && tx.category?.name && (
-                      <p className="text-xs text-muted-foreground truncate">
-                        {tx.category.name}
-                      </p>
-                    )}
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {(tx.title || tx.description) && tx.category?.name && (
+                        <span className="text-xs text-muted-foreground truncate">
+                          {tx.category.name}
+                        </span>
+                      )}
+                      {tx.installment_total && tx.installment_total > 1 && (
+                        <span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground shrink-0">
+                          할부 {tx.installment_total}개월
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -117,13 +124,15 @@ export default function TransactionList({
         title="거래 삭제"
         description={
           deletingTx
-            ? `"${deletingTx.category?.name || "미분류"}${deletingTx.description ? ` · ${deletingTx.description}` : ""}" 거래를 삭제합니다. 이 작업은 되돌릴 수 없어요.`
+            ? deletingTx.installment_id && deletingTx.installment_total && deletingTx.installment_total > 1
+              ? `"${deletingTx.title || deletingTx.description || deletingTx.category?.name || "이 거래"}" 는 ${deletingTx.installment_total}개월 할부 묶음입니다. 한 건을 지우면 묶인 모든 회차가 함께 삭제됩니다.`
+              : `"${deletingTx.title || deletingTx.description || deletingTx.category?.name || "이 거래"}" 거래를 삭제합니다. 이 작업은 되돌릴 수 없어요.`
             : ""
         }
         confirmLabel="삭제"
         destructive
         onConfirm={async () => {
-          if (deletingTx) onDelete(deletingTx.id);
+          if (deletingTx) await onDelete(deletingTx.id);
           setDeletingTx(null);
         }}
       />

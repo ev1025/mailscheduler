@@ -42,6 +42,10 @@ export interface Expense {
   date: string;
   type: "income" | "expense";
   payment_method: string;
+  /** 할부 묶음 ID — 같은 묶음의 행은 동일 UUID. 한 항목 삭제 시 같은 묶음 전체 삭제. */
+  installment_id?: string | null;
+  /** 할부 총 개월 수 (2~24). null/1 이면 일시불. */
+  installment_total?: number | null;
   created_at: string;
   category?: ExpenseCategory;
 }

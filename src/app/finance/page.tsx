@@ -46,7 +46,7 @@ export default function FinancePage() {
 
   const {
     transactions, categories, loading: txLoading,
-    addTransaction, updateTransaction, deleteTransaction,
+    addTransaction, addInstallment, updateTransaction, deleteTransaction,
     addCategory, deleteCategory, updateCategoryColor,
     totalIncome, totalExpense, balance, expenseByCategory,
     refetch: refetchTransactions,
@@ -85,12 +85,18 @@ export default function FinancePage() {
 
   const allTransactions = [...transactions].sort((a, b) => b.date.localeCompare(a.date));
 
-  const handleSave = async (data: {
-    title: string | null;
-    amount: number; category_id: string; description: string | null;
-    date: string; type: "income" | "expense"; payment_method: string;
-  }) => {
+  const handleSave = async (
+    data: {
+      title: string | null;
+      amount: number; category_id: string; description: string | null;
+      date: string; type: "income" | "expense"; payment_method: string;
+    },
+    installmentMonths?: number
+  ) => {
     if (editing) return await updateTransaction(editing.id, data);
+    if (installmentMonths && installmentMonths >= 2) {
+      return await addInstallment(data, installmentMonths);
+    }
     return await addTransaction(data);
   };
 

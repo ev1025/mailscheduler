@@ -67,10 +67,63 @@ export function useTransactions(year: number, month: number) {
       .from("expenses")
       .insert({ ...tx, user_id: userId });
     if (error) {
-      // title/user_id 컬럼이 아직 없는 DB 대비 — 두 필드 모두 제거하고 재시도.
-      const { title, ...rest } = tx;
+      // title/installment_*/user_id 컬럼이 아직 없는 DB 대비 — 모두 제거하고 재시도.
+      const { title, installment_id, installment_total, ...rest } = tx;
       void title;
+      void installment_id;
+      void installment_total;
       const retry = await supabase.from("expenses").insert(rest);
+      if (!retry.error) await fetchTransactions();
+      return { error: retry.error };
+    }
+    await fetchTransactions();
+    return { error: null };
+  };
+
+  /** N개월 할부 — 같은 installment_id 로 N개 행 일괄 insert. 시작 날짜 기준 +1개월씩.
+   *  amount 는 N등분, 잔액(rounding remainder)은 마지막 행에 합산. title 에 (k/N) 표기. */
+  const addInstallment = async (
+    base: Omit<Expense, "id" | "created_at" | "category" | "installment_id" | "installment_total">,
+    months: number
+  ) => {
+    if (months <= 1) return await addTransaction(base);
+    const installmentId =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `inst_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const baseAmount = Math.floor(base.amount / months);
+    const remainder = base.amount - baseAmount * months;
+    const startDate = new Date(base.date + "T00:00:00");
+
+    const rows = Array.from({ length: months }, (_, i) => {
+      const d = new Date(startDate);
+      d.setMonth(d.getMonth() + i);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const amt = i === months - 1 ? baseAmount + remainder : baseAmount;
+      const titledLabel = `${i + 1}/${months}`;
+      const title = base.title ? `${base.title} (${titledLabel})` : `할부 ${titledLabel}`;
+      return {
+        ...base,
+        title,
+        amount: amt,
+        date: dateStr,
+        installment_id: installmentId,
+        installment_total: months,
+        user_id: userId,
+      };
+    });
+
+    const { error } = await supabase.from("expenses").insert(rows);
+    if (error) {
+      // installment_*/title/user_id 컬럼 없는 DB 대비
+      const fallback = rows.map((r) => {
+        const { installment_id, installment_total, title, ...rest } = r;
+        void installment_id;
+        void installment_total;
+        void title;
+        return rest;
+      });
+      const retry = await supabase.from("expenses").insert(fallback);
       if (!retry.error) await fetchTransactions();
       return { error: retry.error };
     }
@@ -101,7 +154,17 @@ export function useTransactions(year: number, month: number) {
     return { error: null };
   };
 
+  /** 단일 또는 할부 묶음 삭제 — installment_id 가 있으면 같은 묶음 전체 삭제. */
   const deleteTransaction = async (id: string) => {
+    const target = transactions.find((t) => t.id === id);
+    if (target?.installment_id) {
+      const { error } = await supabase
+        .from("expenses")
+        .delete()
+        .eq("installment_id", target.installment_id);
+      if (!error) await fetchTransactions();
+      return { error };
+    }
     const { error } = await supabase.from("expenses").delete().eq("id", id);
     if (!error) await fetchTransactions();
     return { error };
@@ -168,6 +231,7 @@ export function useTransactions(year: number, month: number) {
     categories,
     loading,
     addTransaction,
+    addInstallment,
     updateTransaction,
     deleteTransaction,
     addCategory,
