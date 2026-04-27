@@ -178,7 +178,14 @@ export default function FixedExpenseForm({
               min="1"
               max="31"
               value={dayOfMonth}
-              onChange={(e) => setDayOfMonth(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "") { setDayOfMonth(""); return; }
+                const n = parseInt(v, 10);
+                if (isNaN(n)) return;
+                // HTML max 는 검증만 하고 입력 자체를 막지 않으므로 onChange 에서 clamp.
+                setDayOfMonth(String(Math.min(31, Math.max(1, n))));
+              }}
               className={FORM_INPUT_PRIMARY}
             />
           </div>

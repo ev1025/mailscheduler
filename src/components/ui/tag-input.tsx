@@ -503,7 +503,7 @@ export default function TagInput({
             collisionAvoidance={{ side: "none", align: "none" }}
             // 트리거(input) 폭과 동일하게 — Base UI Popover 가 positioner 에
             // --anchor-width 변수를 세팅하므로 이를 그대로 사용
-            className="w-[var(--anchor-width)] min-w-[240px] p-0 max-h-[60dvh] overflow-hidden"
+            className="w-[var(--anchor-width)] min-w-[240px] p-0 max-h-[60dvh] overflow-hidden flex flex-col"
           >
             {renderBody()}
           </PopoverContent>
@@ -561,8 +561,9 @@ export default function TagInput({
       <>
           {view === "list" ? (
             <div
-              // 모바일: h-full 로 바텀시트 전체를 채움. 데스크탑: 내용 크기에 맞춤.
-              className={`flex flex-col min-h-0 ${isDesktop ? "" : "h-full"}`}
+              // 모바일: h-full 로 바텀시트 전체를 채움. 데스크탑: flex-1 로 PopoverContent 채움
+              // (PopoverContent 가 flex column 이라 자식이 flex-1 로 max-h-60dvh 안에서 스크롤 가능).
+              className={`flex flex-col min-h-0 ${isDesktop ? "flex-1" : "h-full"}`}
               onTouchStart={isDesktop ? undefined : onDragStart}
               onTouchMove={isDesktop ? undefined : onDragMove}
               onTouchEnd={isDesktop ? undefined : onDragEnd}
