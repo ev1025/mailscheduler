@@ -5,9 +5,9 @@ import { toast } from "sonner";
 import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import TagInput from "@/components/ui/tag-input";
-import { FORM_LABEL, FORM_INPUT_PRIMARY } from "@/lib/form-classes";
+import { FormField } from "@/components/ui/form-field";
+import { FORM_INPUT_PRIMARY } from "@/lib/form-classes";
 import { usePaymentMethods } from "@/hooks/use-payment-methods";
 import type { ExpenseCategory } from "@/types";
 import type { FixedExpense } from "@/hooks/use-fixed-expenses";
@@ -118,10 +118,7 @@ export default function FixedExpenseForm({
     >
       <div className="flex flex-col gap-4">
         {/* 지출명 — 목록에서 제일 크게 보이는 제목 필드 (DB 컬럼: title). */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="fx-title" className={FORM_LABEL}>
-            지출명
-          </Label>
+        <FormField label="지출명" htmlFor="fx-title">
           <Textarea
             id="fx-title"
             value={title}
@@ -130,7 +127,7 @@ export default function FixedExpenseForm({
             rows={2}
             className="min-h-0"
           />
-        </div>
+        </FormField>
 
         {/* 수입/지출 세그먼트 — finance 시멘틱 토큰 사용. opacity 단계로 라이트/다크 자동 대응. */}
         <div className="flex gap-2">
@@ -166,10 +163,7 @@ export default function FixedExpenseForm({
 
         {/* 금액 + 결제일 */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <Label className={FORM_LABEL}>
-              금액<span className="text-rose-500 ml-0.5">*</span>
-            </Label>
+          <FormField label="금액" required>
             <Input
               type="number"
               inputMode="numeric"
@@ -179,9 +173,8 @@ export default function FixedExpenseForm({
               placeholder="50000"
               className={FORM_INPUT_PRIMARY}
             />
-          </div>
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <Label className={FORM_LABEL}>매월 결제일</Label>
+          </FormField>
+          <FormField label="매월 결제일">
             <Input
               type="number"
               inputMode="numeric"
@@ -198,17 +191,14 @@ export default function FixedExpenseForm({
               }}
               className={FORM_INPUT_PRIMARY}
             />
-          </div>
+          </FormField>
         </div>
         <p className="text-[11px] text-muted-foreground -mt-2 leading-snug">
           29~31일은 해당 일자가 없는 달(2월 등)엔 월말에 자동 반영돼요.
         </p>
 
         {/* 카테고리 */}
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <Label className={FORM_LABEL}>
-            카테고리<span className="text-rose-500 ml-0.5">*</span>
-          </Label>
+        <FormField label="카테고리" required>
           <TagInput
             selectedTags={
               categoryId
@@ -234,11 +224,10 @@ export default function FixedExpenseForm({
             onUpdateTagColor={onUpdateCategoryColor}
             placeholder="검색·추가"
           />
-        </div>
+        </FormField>
 
         {/* 결제수단 */}
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <Label className={FORM_LABEL}>결제수단</Label>
+        <FormField label="결제수단">
           <TagInput
             selectedTags={paymentMethod ? [paymentMethod] : []}
             allTags={paymentMethods}
@@ -248,18 +237,17 @@ export default function FixedExpenseForm({
             onUpdateTagColor={updateMethodColor}
             placeholder="검색·추가"
           />
-        </div>
+        </FormField>
 
         {/* 메모 */}
-        <div className="flex flex-col gap-1.5">
-          <Label className={FORM_LABEL}>메모</Label>
+        <FormField label="메모">
           <Input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="세부 내용 (선택)"
             className={FORM_INPUT_PRIMARY}
           />
-        </div>
+        </FormField>
       </div>
     </FormPage>
   );

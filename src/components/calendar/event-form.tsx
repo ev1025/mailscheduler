@@ -24,6 +24,7 @@ import ColorPickerPanel from "@/components/ui/color-picker";
 import WeatherIcon from "./weather-icon";
 import DatePicker from "@/components/ui/date-picker";
 import TagInput from "@/components/ui/tag-input";
+import { FormField } from "@/components/ui/form-field";
 import {
   FORM_LABEL,
   FORM_INPUT_PRIMARY,
@@ -225,10 +226,7 @@ export default function EventForm({
     >
         <div className="flex flex-col gap-4">
           {/* 제목 */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="event-title" className={FORM_LABEL}>
-              제목<span className="text-rose-500 ml-0.5">*</span>
-            </Label>
+          <FormField label="제목" required htmlFor="event-title">
             <Input
               id="event-title"
               value={title}
@@ -236,7 +234,7 @@ export default function EventForm({
               placeholder="일정 제목"
               className={FORM_INPUT_PRIMARY}
             />
-          </div>
+          </FormField>
 
           {/* 색상 */}
           <div className="flex flex-col gap-1.5">

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import type { Memo } from "@/types";
 
 interface MemoFormProps {
@@ -52,19 +52,15 @@ export default function MemoForm({
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="title">
-            제목<span className="text-rose-500 ml-0.5">*</span>
-          </Label>
+        <FormField label="제목" required htmlFor="title">
           <Input
             id="title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="메모 제목"
           />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="content">내용</Label>
+        </FormField>
+        <FormField label="메모" htmlFor="content">
           <Textarea
             id="content"
             value={content}
@@ -72,7 +68,7 @@ export default function MemoForm({
             placeholder="메모 내용을 입력하세요"
             rows={6}
           />
-        </div>
+        </FormField>
       </div>
     </FormPage>
   );

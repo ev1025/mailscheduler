@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import {
   Select,
   SelectContent,
@@ -267,10 +268,7 @@ export default function TravelForm({
     >
         <div className="flex flex-col gap-4">
           {/* 제목 */}
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="travel-title" className="text-xs text-muted-foreground">
-              제목<span className="text-rose-500 ml-0.5">*</span>
-            </Label>
+          <FormField label="제목" required htmlFor="travel-title">
             <Input
               id="travel-title"
               value={title}
@@ -278,7 +276,7 @@ export default function TravelForm({
               placeholder="예: 진해 군항제"
               className="h-9 text-sm"
             />
-          </div>
+          </FormField>
 
           {/* 색상 */}
           <div className="flex flex-col gap-1.5">
@@ -445,10 +443,7 @@ export default function TravelForm({
           </div>
 
           {/* 분류 — 미선택 상태 허용, 저장 시 필수 */}
-          <div className="flex flex-col gap-1.5">
-            <Label className="text-xs text-muted-foreground">
-              분류<span className="text-rose-500 ml-0.5">*</span>
-            </Label>
+          <FormField label="분류" required>
             <TagInput
               selectedTags={category ? [category] : []}
               allTags={midCategories.map((c) => ({ id: c, name: c, color: categoryColors[c] || "#6B7280" }))}
@@ -465,7 +460,7 @@ export default function TravelForm({
               orderKey="tag-order:travel-categories"
               placeholder="검색·추가"
             />
-          </div>
+          </FormField>
 
           {/* 태그 */}
           <div className="flex flex-col gap-1.5">

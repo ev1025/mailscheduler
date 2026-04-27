@@ -4,12 +4,12 @@ import { useState, useEffect } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import TagInput from "@/components/ui/tag-input";
 import DatePicker from "@/components/ui/date-picker";
 import NumberWheel from "@/components/ui/number-wheel";
+import { FormField } from "@/components/ui/form-field";
 import { usePaymentMethods } from "@/hooks/use-payment-methods";
-import { FORM_LABEL, FORM_INPUT_PRIMARY } from "@/lib/form-classes";
+import { FORM_INPUT_PRIMARY } from "@/lib/form-classes";
 import type { Expense, ExpenseCategory } from "@/types";
 
 interface TransactionFormProps {
@@ -135,10 +135,7 @@ export default function TransactionForm({
     >
       <div className="flex flex-col gap-4">
         {/* 1. 지출명/수입명 (필수) */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="title" className={FORM_LABEL}>
-            {titleLabel}<span className="text-rose-500 ml-0.5">*</span>
-          </Label>
+        <FormField label={titleLabel} required htmlFor="title">
           <Textarea
             id="title"
             value={title}
@@ -147,14 +144,11 @@ export default function TransactionForm({
             rows={2}
             className="min-h-0"
           />
-        </div>
+        </FormField>
 
         {/* 2. 금액 — type 은 카드의 +수입/+지출 버튼에서 결정되어 props 로 들어옴.
             폼 헤더에 type 표시되니 라벨 prefix 는 제거. */}
-        <div className="flex flex-col gap-1.5 min-w-0">
-          <Label htmlFor="amount" className={FORM_LABEL}>
-            금액 (원)<span className="text-rose-500 ml-0.5">*</span>
-          </Label>
+        <FormField label="금액 (원)" required htmlFor="amount">
           <Input
             id="amount"
             type="number"
@@ -165,7 +159,7 @@ export default function TransactionForm({
             placeholder="10000"
             className={FORM_INPUT_PRIMARY}
           />
-        </div>
+        </FormField>
 
         {/* 3. 프리셋 — 5천/1만/3만/5만/10만 + 클리어 */}
         <div className="flex flex-wrap gap-1 -mt-2">
@@ -196,16 +190,14 @@ export default function TransactionForm({
 
         {/* 4. 날짜 | 할부 — 수정 모드에선 할부 비활성(이미 묶음 만들어진 상태) */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <Label className={FORM_LABEL}>날짜</Label>
+          <FormField label="날짜">
             <DatePicker
               value={date}
               onChange={setDate}
               className={`${FORM_INPUT_PRIMARY} w-full min-w-0`}
             />
-          </div>
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <Label className={FORM_LABEL}>할부</Label>
+          </FormField>
+          <FormField label="할부">
             <div className="flex items-center gap-2 h-9">
               <NumberWheel
                 value={installmentMonths}
@@ -218,7 +210,7 @@ export default function TransactionForm({
                 {installmentMonths === 1 ? "일시불" : `${installmentMonths}개월 할부`}
               </span>
             </div>
-          </div>
+          </FormField>
         </div>
         {!isEdit && installmentMonths > 1 && amount && (
           <p className="text-[11px] text-muted-foreground -mt-2 leading-snug break-keep">
@@ -228,10 +220,7 @@ export default function TransactionForm({
 
         {/* 5. 카테고리 | 결제수단 */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <Label className={FORM_LABEL}>
-              카테고리<span className="text-rose-500 ml-0.5">*</span>
-            </Label>
+          <FormField label="카테고리" required>
             <TagInput
               selectedTags={
                 categoryId
@@ -257,9 +246,8 @@ export default function TransactionForm({
               onUpdateTagColor={onUpdateCategoryColor}
               placeholder="검색·추가"
             />
-          </div>
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <Label className={FORM_LABEL}>결제수단</Label>
+          </FormField>
+          <FormField label="결제수단">
             <TagInput
               selectedTags={paymentMethod ? [paymentMethod] : []}
               allTags={paymentMethods}
@@ -269,14 +257,11 @@ export default function TransactionForm({
               onUpdateTagColor={updateMethodColor}
               placeholder="검색·추가"
             />
-          </div>
+          </FormField>
         </div>
 
         {/* 6. 메모 */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="desc" className={FORM_LABEL}>
-            메모
-          </Label>
+        <FormField label="메모" htmlFor="desc">
           <Input
             id="desc"
             value={description}
@@ -284,7 +269,7 @@ export default function TransactionForm({
             placeholder="세부 내용 (선택)"
             className={FORM_INPUT_PRIMARY}
           />
-        </div>
+        </FormField>
       </div>
     </FormPage>
   );
