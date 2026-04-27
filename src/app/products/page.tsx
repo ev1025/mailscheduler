@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState, useMemo, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Crown,
@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/ui/search-input";
 import RowActionPopover from "@/components/ui/row-action-popover";
+import { useUrlStringParam } from "@/hooks/use-url-param";
 import { supabase } from "@/lib/supabase";
 import {
   DndContext,
@@ -157,15 +158,8 @@ function ProductsPageInner() {
   const [statsTick, setStatsTick] = useState(0);
   const [search, setSearch] = useState("");
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const categoryFilter = searchParams.get("category") || "전체";
-  const setCategoryFilter = (c: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (c === "전체") params.delete("category");
-    else params.set("category", c);
-    const qs = params.toString();
-    router.replace(qs ? `/products?${qs}` : "/products", { scroll: false });
-  };
+  // category 필터 — URL 동기화 (useUrlStringParam 헬퍼로 통일).
+  const [categoryFilter, setCategoryFilter] = useUrlStringParam("category", "전체");
   const [stats, setStats] = useState<Record<string, ProductStat>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   // 커스텀 순서 (sub-category별)

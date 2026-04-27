@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet, ShoppingBag, Menu } from "lucide-react";
 import MonthPicker from "@/components/layout/month-picker";
 import PageHeader from "@/components/layout/page-header";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
+import { useUrlNumberParam } from "@/hooks/use-url-param";
 import MonthlySummary from "@/components/finance/monthly-summary";
 import TransactionList from "@/components/finance/transaction-list";
 import TransactionForm from "@/components/finance/transaction-form";
@@ -15,10 +16,19 @@ import FixedExpenseManager from "@/components/finance/fixed-expense-manager";
 import type { Expense } from "@/types";
 
 export default function FinancePage() {
+  return (
+    <Suspense fallback={null}>
+      <FinancePageInner />
+    </Suspense>
+  );
+}
+
+function FinancePageInner() {
   const router = useRouter();
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth() + 1);
+  // 새로고침/공유 링크 시 상태 보존을 위해 URL 동기화.
+  const [year, setYear] = useUrlNumberParam("y", now.getFullYear());
+  const [month, setMonth] = useUrlNumberParam("m", now.getMonth() + 1);
   const [formOpen, setFormOpen] = useState(false);
   const [finMenuOpen, setFinMenuOpen] = useState(false);
   const finMenuRef = useRef<HTMLDivElement>(null);
