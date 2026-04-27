@@ -63,10 +63,6 @@ export default function KnowledgeSidebarTree({
           onClickFolder={(id) => onSelectFolder?.(id)}
           onClickItem={onSelectItem}
           onLongPress={noop}
-          renamingId={null}
-          renameValue=""
-          onRenameChange={noop}
-          onRenameSubmit={noop}
           isFolderFavorite={() => false}
           onToggleFolderFavorite={noop}
         />
@@ -81,10 +77,6 @@ export default function KnowledgeSidebarTree({
           onToggle={noop}
           onClick={() => onSelectItem(it.id)}
           onLongPress={noop}
-          renamingId={null}
-          renameValue=""
-          onRenameChange={noop}
-          onRenameSubmit={noop}
           isFavorite={it.pinned}
         />
       ))}
