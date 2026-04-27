@@ -139,8 +139,10 @@ function ProfilePageInner() {
           </>
         }
       />
-      <div className="flex-1 flex items-center justify-center px-4 pb-6 md:px-6 md:pb-10">
-        <div className="w-full max-w-xl flex flex-col gap-3.5">
+      {/* 세로 센터 대신 상단 고정 — 이미지/이모지 토글 시 컨텐츠 높이가 달라져도
+          편집 영역 시작 위치가 흔들리지 않게. */}
+      <div className="px-4 pt-6 pb-6 md:px-6 md:pt-8 md:pb-10">
+        <div className="w-full max-w-xl mx-auto flex flex-col gap-3.5">
         {/* 헤더 — 아바타 + 이름 + 이메일 (압축) */}
         <div className="flex flex-col items-center gap-2">
           <button
