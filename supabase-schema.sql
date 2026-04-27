@@ -54,7 +54,7 @@ CREATE TABLE expenses (
   description TEXT,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
   type TEXT NOT NULL CHECK (type IN ('income', 'expense')),
-  payment_method TEXT DEFAULT '카드' CHECK (payment_method IN ('현금', '카드', '계좌이체', '기타')),
+  payment_method TEXT DEFAULT '카드',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX idx_expenses_date ON expenses(date);
@@ -125,7 +125,7 @@ CREATE TABLE fixed_expenses (
   description TEXT,
   day_of_month INTEGER DEFAULT 1,
   type TEXT NOT NULL DEFAULT 'expense' CHECK (type IN ('income', 'expense')),
-  payment_method TEXT DEFAULT '계좌이체' CHECK (payment_method IN ('현금', '카드', '계좌이체', '기타')),
+  payment_method TEXT DEFAULT '계좌이체',
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

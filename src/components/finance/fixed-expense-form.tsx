@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -94,7 +95,16 @@ export default function FixedExpenseForm({
       payment_method: paymentMethod || "계좌이체",
     });
     setSaving(false);
-    if (!error) onOpenChange(false);
+    if (error) {
+      // 침묵 실패 방지 — DB 제약(예: payment_method CHECK) 위반 등을 사용자에게 표시.
+      const msg =
+        typeof error === "object" && error && "message" in error
+          ? String((error as { message?: unknown }).message)
+          : "저장 실패";
+      toast.error(msg);
+      return;
+    }
+    onOpenChange(false);
   };
 
   return (
