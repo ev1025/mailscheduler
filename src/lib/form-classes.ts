@@ -8,7 +8,8 @@
 //   <Input className={FORM_INPUT_PRIMARY} />
 
 // 제목·주요 입력 (다이얼로그 최상단의 "제목 *" 같은 입력)
-export const FORM_INPUT_PRIMARY = "h-9 text-sm"
+// 모바일 16px(text-base) — iOS Safari 자동 줌 방지. 데스크톱은 14px(text-sm) 유지.
+export const FORM_INPUT_PRIMARY = "h-9 text-base md:text-sm"
 
 // 모든 폼 입력은 PRIMARY 와 동일 — 한 폼 안에서 input/select/picker 의 폰트·높이가
 // 제각각이던 문제 해결. 토큰 이름은 호환을 위해 유지(과거 호출처 다수).
@@ -17,11 +18,11 @@ export const FORM_INPUT_COMPACT = FORM_INPUT_PRIMARY
 // 라벨
 export const FORM_LABEL = "text-xs text-muted-foreground"
 
-// 힌트·작은 설명·툴팁·Textarea 본문
+// 힌트·작은 설명·툴팁 (input 이 아닌 일반 텍스트 — 자동 줌 무관)
 export const FORM_HINT = "text-xs"
 
-// Textarea 본문(플레이스홀더 포함). 현재는 FORM_HINT와 동일하지만 의미 분리.
-export const FORM_TEXTAREA = "text-xs"
+// Textarea 본문(플레이스홀더 포함). 모바일 16px → 데스크톱 12px.
+export const FORM_TEXTAREA = "text-base md:text-xs"
 
 // 인라인 보조 버튼(같은 행에서 Input과 나란히 쓰는 "추가/취소" 등)
 // FORM_INPUT_COMPACT(h-8)와 같은 행에 놓일 때 높이를 맞추기 위함.

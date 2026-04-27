@@ -22,7 +22,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // maximumScale 미지정 — 사용자 핀치 줌 허용 (WCAG 1.4.4 접근성).
+  // iOS Safari 자동 줌은 input·textarea·select 글자크기 16px 이상으로 방지.
   themeColor: "#0F172A",
   viewportFit: "cover",
   // resizes-content: 키보드가 올라오면 layout viewport 자체가 축소.
