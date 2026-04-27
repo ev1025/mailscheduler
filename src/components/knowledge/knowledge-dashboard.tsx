@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Star, ChevronRight, FileText, Folder, Trash2, CheckSquare, Square, ArrowLeft, Pencil, FolderInput } from "lucide-react";
+import { Star, ChevronRight, FileText, Folder, CheckSquare, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SearchInput from "@/components/ui/search-input";
 import type { KnowledgeFolder, KnowledgeItem } from "@/types";
@@ -9,6 +9,8 @@ import { useKnowledgeFavorites } from "@/lib/knowledge-favorites";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PromptDialog from "@/components/ui/prompt-dialog";
+import SelectionToolbar from "@/components/ui/selection-toolbar";
+import { useSelectionMode } from "@/hooks/use-selection-mode";
 import MoveTargetTree from "@/components/knowledge/move-target-tree";
 import KnowledgeEmptyState from "@/components/knowledge/empty-state";
 
@@ -207,45 +209,35 @@ export default function KnowledgeDashboard({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExpand = (id: string) => setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  // 선택 모드
-  const [selectMode, setSelectMode] = useState(false);
-  const [selFolders, setSelFolders] = useState<Set<string>>(new Set());
-  const [selItems, setSelItems] = useState<Set<string>>(new Set());
+  // 선택 모드 — useSelectionMode 훅으로 통합 (folders/items/total/handlers).
+  const sel = useSelectionMode({ onChange: onSelectModeChange });
+  const selectMode = sel.active;
+  const selFolders = sel.folders;
+  const selItems = sel.items;
+  const totalSel = sel.total;
+  const handleLongPress = sel.handleLongPress;
+  const addToSelection = sel.addToSelection;
+  const toggleSelection = sel.toggleSelection;
+  const dragRef = sel.dragRef;
+  const lastSelRef = sel.lastSelRef;
+
   const [moveMode, setMoveMode] = useState(false);
   // 이름 변경 — PromptDialog 한 가지 진입 (인라인 rename 제거).
   const [renamePrompt, setRenamePrompt] = useState<{ id: string; type: "folder" | "item"; current: string } | null>(null);
-  const dragRef = useRef(false);
 
-  const exitSelect = () => { setSelectMode(false); setSelFolders(new Set()); setSelItems(new Set()); setMoveMode(false); onSelectModeChange?.(false); };
-  const totalSel = selFolders.size + selItems.size;
-  const addToSelection = useCallback((id: string, type: "folder" | "item") => {
-    if (type === "folder") setSelFolders((p) => new Set([...p, id]));
-    else setSelItems((p) => new Set([...p, id]));
-  }, []);
-  const toggleSelection = useCallback((id: string, type: "folder" | "item") => {
-    if (type === "folder") setSelFolders((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
-    else setSelItems((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
-  }, []);
-
-  // Shift 범위선택 기준점. handleLongPress·toggleSelectionWithAnchor 에서 갱신.
-  const lastSelRef = useRef<string | null>(null);
-
-  const handleLongPress = useCallback((id: string, type: "folder" | "item") => {
-    setSelectMode(true);
-    onSelectModeChange?.(true);
-    addToSelection(id, type);
-    lastSelRef.current = id;
-    dragRef.current = true;
-  }, [addToSelection, onSelectModeChange]);
+  const exitSelect = () => {
+    sel.exit();
+    setMoveMode(false);
+  };
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!dragRef.current) return;
     const t = e.touches[0];
     const el = document.elementFromPoint(t.clientX, t.clientY);
-    const sel = el?.closest("[data-sel-id]") as HTMLElement | null;
-    if (sel) addToSelection(sel.dataset.selId!, sel.dataset.selType as "folder" | "item");
-  }, [addToSelection]);
-  const handleTouchEnd = useCallback(() => { dragRef.current = false; }, []);
+    const target = el?.closest("[data-sel-id]") as HTMLElement | null;
+    if (target) addToSelection(target.dataset.selId!, target.dataset.selType as "folder" | "item");
+  }, [addToSelection, dragRef]);
+  const handleTouchEnd = useCallback(() => { dragRef.current = false; }, [dragRef]);
 
   // 마우스 드래그 다중선택 (데스크톱) — 좌클릭 누른 채 움직이면 지나간 항목 누적 선택.
   // 이동 거리 5px 넘어야 발동 → 단일 클릭(열기) 과 충돌 방지.
@@ -259,16 +251,13 @@ export default function KnowledgeDashboard({
         const dy = e.clientY - s.startY;
         if (dx * dx + dy * dy < 25) return; // 5px 임계값
         s.active = true;
-        if (!selectMode) {
-          setSelectMode(true);
-          onSelectModeChange?.(true);
-        }
+        if (!selectMode) sel.enterMode();
       }
       const el = document.elementFromPoint(e.clientX, e.clientY);
-      const sel = el?.closest("[data-sel-id]") as HTMLElement | null;
+      const target = el?.closest("[data-sel-id]") as HTMLElement | null;
       // 즐겨찾기 섹션(data-sel-exclude) 하위 항목은 드래그 선택 대상 제외.
-      if (!sel || sel.closest("[data-sel-exclude]")) return;
-      addToSelection(sel.dataset.selId!, sel.dataset.selType as "folder" | "item");
+      if (!target || target.closest("[data-sel-exclude]")) return;
+      addToSelection(target.dataset.selId!, target.dataset.selType as "folder" | "item");
     };
     const onUp = () => { mouseDragRef.current = null; };
     window.addEventListener("mousemove", onMove);
@@ -419,29 +408,25 @@ export default function KnowledgeDashboard({
         onDragStart={(e) => e.preventDefault()}
       >
         {/* 검색창 자리: 선택모드 시 동일 높이의 선택 툴바로 치환 → 레이아웃 이동 없음. */}
-        {selectMode ? (
-          <div className="flex h-9 items-center gap-0.5 -mx-1">
-            <button type="button" onClick={exitSelect} aria-label="선택 해제" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"><ArrowLeft className="h-[18px] w-[18px]" /></button>
-            <span className="flex-1 text-sm font-semibold truncate px-1">{totalSel}개 선택</span>
-            {totalSel === 1 && (
-              <button type="button" onClick={startRename} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="이름 변경" aria-label="이름 변경"><Pencil className="h-[18px] w-[18px]" strokeWidth={1.6} /></button>
-            )}
-            {totalSel === 1 && selItems.size === 1 && onTogglePinItem && (() => {
-              const id = Array.from(selItems)[0];
-              const it = items.find((x) => x.id === id);
-              if (!it) return null;
-              return (
-                <button type="button" onClick={async () => { await onTogglePinItem(it.id, it.pinned); exitSelect(); }} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title={it.pinned ? "즐겨찾기 해제" : "즐겨찾기"} aria-label={it.pinned ? "즐겨찾기 해제" : "즐겨찾기"}>
-                  <Star className={`h-[18px] w-[18px] ${it.pinned ? "fill-yellow-400 text-yellow-400" : ""}`} strokeWidth={1.6} />
-                </button>
-              );
-            })()}
-            {totalSel > 0 && (
-              <button type="button" onClick={() => setMoveMode(true)} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent" title="폴더 이동" aria-label="폴더 이동"><FolderInput className="h-[18px] w-[18px]" strokeWidth={1.6} /></button>
-            )}
-            <button type="button" onClick={handleDeleteBulk} disabled={totalSel === 0} className="flex h-9 w-9 items-center justify-center rounded-full text-muted-foreground hover:bg-accent disabled:opacity-30" title="삭제" aria-label="삭제"><Trash2 className="h-[18px] w-[18px] text-destructive" strokeWidth={1.6} /></button>
-          </div>
-        ) : !hideSearch ? (
+        {selectMode ? (() => {
+          // ⭐ 토글 — 1개 선택 + item(노트) 1개일 때만.
+          const singleItemId = totalSel === 1 && selItems.size === 1 ? Array.from(selItems)[0] : null;
+          const singleItem = singleItemId ? items.find((x) => x.id === singleItemId) : null;
+          return (
+            <SelectionToolbar
+              totalSelected={totalSel}
+              onExit={exitSelect}
+              onRename={startRename}
+              onMove={() => setMoveMode(true)}
+              onDelete={handleDeleteBulk}
+              onToggleFavorite={singleItem && onTogglePinItem
+                ? async () => { await onTogglePinItem(singleItem.id, singleItem.pinned); exitSelect(); }
+                : undefined
+              }
+              favoritePinned={singleItem?.pinned}
+            />
+          );
+        })() : !hideSearch ? (
           <SearchInput value={searchQuery} onChange={onSearch} placeholder="노트 검색..." size="md" />
         ) : null}
 
