@@ -145,7 +145,7 @@ export default function FinancePage() {
           각 카드 우상단의 ✏️ / + 아이콘으로 직접 수행. */}
 
       {(
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-3 md:gap-4">
           <MonthlySummary
             totalIncome={totalIncome}
             totalExpense={totalExpense}
