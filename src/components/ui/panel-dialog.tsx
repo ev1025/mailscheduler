@@ -22,7 +22,7 @@ interface Props {
  * 알림·공유 같은 "리스트형 패널" 다이얼로그 공통 컴포넌트.
  * - 헤더: 좌측 ← 뒤로(닫기), 가운데 17px 제목, 우측 액션 슬롯
  * - 본문: 자체 스크롤 (max-h-[80dvh])
- * - max-w-md (알림 / 공유 목록은 sm 보다 넓은 게 자연스러움)
+ * - 모바일 양옆 24px 여백 (다이얼로그 표준), 데스크톱은 max-w-md
  *
  * Dialog 기본 padding/gap 을 무력화(p-0 gap-0) 하고 헤더·본문 영역에서 직접 padding.
  */
@@ -38,7 +38,7 @@ export default function PanelDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showBackButton={false}
-        className={`max-w-md p-0 gap-0 max-h-[80dvh] overflow-hidden grid-rows-[auto_1fr] ${className ?? ""}`}
+        className={`max-w-[calc(100%-3rem)] sm:max-w-md p-0 gap-0 max-h-[80dvh] overflow-hidden grid-rows-[auto_1fr] ${className ?? ""}`}
       >
         {/* 헤더 — 좌측 ← 닫기, 제목, 우측 액션 */}
         <div className="flex items-center gap-2 border-b px-3 py-2.5">
