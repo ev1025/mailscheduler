@@ -74,12 +74,33 @@ export function useKnowledgeItems(folderId: string | null) {
     return { error };
   };
 
+  /**
+   * 즐겨찾기 토글 — optimistic 업데이트.
+   * 일반 updateItem 처럼 await fetchItems 로 round-trip 하면 모바일에서 별 아이콘이
+   * 한 박자 늦게 반응. 로컬 상태부터 바꾸고, 서버 실패 시 롤백.
+   */
+  const togglePin = async (id: string, currentPinned: boolean) => {
+    const next = !currentPinned;
+    const now = new Date().toISOString();
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, pinned: next, updated_at: now } : it)));
+    const { error } = await supabase
+      .from("knowledge_items")
+      .update({ pinned: next, updated_at: now })
+      .eq("id", id);
+    if (error) {
+      // 롤백
+      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, pinned: currentPinned } : it)));
+    }
+    return { error };
+  };
+
   return {
     items,
     loading,
     addItem,
     updateItem,
     deleteItem,
+    togglePin,
     refetch: fetchItems,
   };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Trash2 } from "lucide-react";
 import RowActionPopover from "@/components/ui/row-action-popover";
 import { formatMinutes } from "@/lib/travel/providers";
@@ -25,7 +26,7 @@ interface Props {
   expectedTime?: string | null;
 }
 
-export default function PlanTaskRow({
+function PlanTaskRowImpl({
   task,
   onClick,
   onDelete,
@@ -173,3 +174,7 @@ export default function PlanTaskRow({
     </div>
   );
 }
+
+// 큰 리스트 항목 — props 안 변하면 리렌더 스킵.
+const PlanTaskRow = memo(PlanTaskRowImpl);
+export default PlanTaskRow;

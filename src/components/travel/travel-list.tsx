@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import { Plus, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, Filter, X, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -73,7 +73,9 @@ interface TravelRowProps {
   onDelete: () => void;
 }
 
-function TravelRow({
+// TravelRow 는 자주 리렌더되는 큰 리스트 항목 — memo 로 props 변경 없을 땐 스킵.
+// (visibleUserIds 토글·필터 변경 시 부모만 리렌더되는 일이 많음)
+const TravelRow = memo(function TravelRow({
   item,
   tagColorMap,
   categoryColors,
@@ -169,7 +171,7 @@ function TravelRow({
       </td>
     </tr>
   );
-}
+});
 
 interface TravelListProps {
   onNavigateToMonth?: (year: number, month: number) => void;

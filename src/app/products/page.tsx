@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useMemo, useEffect, useRef } from "react";
+import { Suspense, memo, useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -61,7 +61,8 @@ interface ProductStat {
   minPrice: number | null;
 }
 
-function ProductRow({
+// 큰 리스트 항목 — props 안 변하면 리렌더 스킵 (memo).
+const ProductRow = memo(function ProductRow({
   p,
   idx,
   stat,
@@ -138,7 +139,7 @@ function ProductRow({
       </td>
     </tr>
   );
-}
+});
 
 export default function ProductsPage() {
   return (

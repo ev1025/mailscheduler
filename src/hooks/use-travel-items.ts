@@ -131,8 +131,23 @@ export function useTravelItems(visibleUserIds?: string[]) {
     return { error };
   };
 
+  /**
+   * "가본 곳" 토글 — optimistic 업데이트.
+   * 가장 자주 누르는 액션이라 round-trip 지연이 체감 큼. 로컬 즉시 반영 후
+   * 서버 실패 시 롤백. updateItem 처럼 fetchItems 안 함.
+   */
   const toggleVisited = async (id: string, visited: boolean) => {
-    return updateItem(id, { visited: !visited });
+    const next = !visited;
+    const now = new Date().toISOString();
+    setItems((prev) => prev.map((it) => (it.id === id ? { ...it, visited: next, updated_at: now } : it)));
+    const { error } = await supabase
+      .from("travel_items")
+      .update({ visited: next, updated_at: now })
+      .eq("id", id);
+    if (error) {
+      setItems((prev) => prev.map((it) => (it.id === id ? { ...it, visited } : it)));
+    }
+    return { error };
   };
 
   return { items, loading, addItem, updateItem, deleteItem, toggleVisited, refetch: fetchItems };
