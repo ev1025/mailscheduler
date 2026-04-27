@@ -145,7 +145,7 @@ export default function MonthlySummary({
       <div className="grid gap-2 md:gap-3 grid-cols-2">
         <Cell
           label="이번달 수입"
-          color="text-emerald-600"
+          color="text-finance-gain"
           action={
             onAddTransaction ? (
               <ActionBtn
@@ -159,7 +159,7 @@ export default function MonthlySummary({
         />
         <Cell
           label="이번달 지출"
-          color="text-rose-500"
+          color="text-finance-loss"
           action={
             onAddTransaction ? (
               <ActionBtn

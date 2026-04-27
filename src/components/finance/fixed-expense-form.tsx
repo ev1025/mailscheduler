@@ -132,13 +132,13 @@ export default function FixedExpenseForm({
           />
         </div>
 
-        {/* 수입/지출 세그먼트 — 톤 다운: 활성 상태도 강한 빨강·녹색 대신 차분한 색상. */}
+        {/* 수입/지출 세그먼트 — finance 시멘틱 토큰 사용. opacity 단계로 라이트/다크 자동 대응. */}
         <div className="flex gap-2">
           <button
             type="button"
             className={`flex-1 h-9 rounded-md text-sm font-medium transition-colors border ${
               type === "expense"
-                ? "border-rose-300/60 bg-rose-50 text-rose-500 dark:bg-rose-500/10 dark:border-rose-500/30"
+                ? "border-finance-loss/30 bg-finance-loss/10 text-finance-loss"
                 : "text-muted-foreground hover:bg-accent"
             }`}
             onClick={() => {
@@ -152,7 +152,7 @@ export default function FixedExpenseForm({
             type="button"
             className={`flex-1 h-9 rounded-md text-sm font-medium transition-colors border ${
               type === "income"
-                ? "border-emerald-300/60 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:border-emerald-500/30"
+                ? "border-finance-gain/30 bg-finance-gain/10 text-finance-gain"
                 : "text-muted-foreground hover:bg-accent"
             }`}
             onClick={() => {

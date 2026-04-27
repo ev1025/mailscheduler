@@ -26,6 +26,10 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  /* 손익 색 — 가계부 income/expense 전용. destructive 와 다른 시멘틱.
+     destructive 는 "삭제·위험", finance-loss 는 "지출"이라 별개로 다룬다. */
+  --color-finance-loss: var(--finance-loss);
+  --color-finance-gain: var(--finance-gain);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -63,6 +67,9 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  /* rose-500 / emerald-600 oklch 변환값 — 라이트 모드 */
+  --finance-loss: oklch(0.645 0.246 16.439);
+  --finance-gain: oklch(0.596 0.145 163.225);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -98,6 +105,9 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
+  /* rose-400 / emerald-500 — 다크 모드. 어두운 배경에서 가독성 위해 한 단계 밝게. */
+  --finance-loss: oklch(0.712 0.194 13.428);
+  --finance-gain: oklch(0.696 0.17 162.48);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);

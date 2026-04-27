@@ -93,7 +93,7 @@ export default function TransactionList({
                 <div className="flex items-center gap-2 shrink-0">
                   <span
                     className={`font-semibold text-sm tabular-nums ${
-                      tx.type === "income" ? "text-emerald-600" : "text-rose-500"
+                      tx.type === "income" ? "text-finance-gain" : "text-finance-loss"
                     }`}
                   >
                     {tx.type === "income" ? "+" : "-"}
@@ -132,7 +132,7 @@ export default function TransactionList({
               <span className="block text-foreground tabular-nums">
                 {format(new Date(deletingTx.date + "T00:00:00"), "yyyy년 M월 d일 (EEE)", { locale: ko })}
                 {" · "}
-                <span className={deletingTx.type === "income" ? "text-emerald-600" : "text-rose-500"}>
+                <span className={deletingTx.type === "income" ? "text-finance-gain" : "text-finance-loss"}>
                   {deletingTx.type === "income" ? "+" : "-"}
                   {formatWon(deletingTx.amount)}
                 </span>
