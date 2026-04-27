@@ -500,7 +500,8 @@ export default function TagInput({
             align="start"
             side="bottom"
             sideOffset={2}
-            collisionAvoidance={{ side: "none", align: "none" }}
+            // collisionAvoidance 기본값(flip / shift) 사용 — 화면 아래 공간이
+            // 부족하면 위로 flip 하거나 안쪽으로 shift 해서 잘리지 않게.
             // 트리거(input) 폭과 동일하게 — Base UI Popover 가 positioner 에
             // --anchor-width 변수를 세팅하므로 이를 그대로 사용
             className="w-[var(--anchor-width)] min-w-[240px] p-0 max-h-[60dvh] overflow-hidden flex flex-col"
