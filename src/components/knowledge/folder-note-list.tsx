@@ -172,8 +172,17 @@ export default function FolderNoteList({
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
   );
   const handleDragEnd = (e: DragEndEvent) => {
-    if (!e.over) return;
     const activeId = String(e.active.id);
+    // 모바일 패턴: 길게 눌렀다가 이동 없이 손 뗀 경우 → 선택 모드 진입.
+    const moved = Math.abs(e.delta.x) > 10 || Math.abs(e.delta.y) > 10;
+    if (!e.over && !moved) {
+      const f = subFolders.find((x) => x.id === activeId);
+      const it = folderItems.find((x) => x.id === activeId);
+      if (f) handleLongPress(f.id, "folder");
+      else if (it) handleLongPress(it.id, "item");
+      return;
+    }
+    if (!e.over) return;
     const overId = String(e.over.id);
     if (activeId === overId) return;
     const folderTarget = subFolders.find((f) => f.id === overId);
@@ -280,11 +289,10 @@ export default function FolderNoteList({
               ))}
               {folderItems.map((item) => (
                 <DraggableNoteWrapper key={item.id} id={item.id} disabled={selectMode || renamingId === item.id}>
+                  {/* 노트는 dnd-kit TouchSensor 가 길게-누름 담당 (드래그-옮기기).
+                      이동 없이 release 하면 handleDragEnd 에서 선택 모드로 진입. */}
                   <div data-sel-id={item.id} data-sel-type="item" role="button" tabIndex={0}
                     onClick={() => selectMode ? toggleSel(item.id, "item") : onSelectItem(item.id)}
-                    onTouchStart={() => { const t = setTimeout(() => handleLongPress(item.id, "item"), 400); (item as unknown as { _t?: ReturnType<typeof setTimeout> })._t = t; }}
-                    onTouchEnd={() => { const x = (item as unknown as { _t?: ReturnType<typeof setTimeout> })._t; if (x) clearTimeout(x); }}
-                    onTouchMove={() => { const x = (item as unknown as { _t?: ReturnType<typeof setTimeout> })._t; if (x) clearTimeout(x); }}
                     onContextMenu={(e) => { e.preventDefault(); handleLongPress(item.id, "item"); }}
                     className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 hover:bg-accent/50 transition-colors select-none ${selItems.has(item.id) ? "bg-primary/10" : ""}`}
                   >

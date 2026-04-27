@@ -53,15 +53,14 @@ export function NoteTreeRow({ item, depth, selectMode, selected, onToggle, onCli
   renamingId: string | null; renameValue: string; onRenameChange: (v: string) => void; onRenameSubmit: () => void;
   isFavorite: boolean; onToggleFavorite?: () => void;
 }) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRenaming = renamingId === item.id;
+  // 모바일 길게-누름은 dnd-kit TouchSensor 가 담당 (드래그-옮기기).
+  // 이동 없이 손 뗀 경우는 부모의 handleDragEnd 에서 선택 모드 진입으로 처리.
+  // 데스크톱 우클릭(onContextMenu)은 selectMode 진입 유지.
   return (
     <div
       data-sel-id={item.id} data-sel-type="item" role="button" tabIndex={0}
       onClick={selectMode ? onToggle : onClick}
-      onTouchStart={() => { timerRef.current = setTimeout(onLongPress, 400); }}
-      onTouchEnd={() => { if (timerRef.current) clearTimeout(timerRef.current); }}
-      onTouchMove={() => { if (timerRef.current) clearTimeout(timerRef.current); }}
       onContextMenu={(e) => { e.preventDefault(); onLongPress(); }}
       className={`flex items-center gap-1.5 rounded-lg py-2 pr-2 transition-colors select-none ${selected ? "bg-primary/10" : "hover:bg-accent/50"}`}
       style={{ paddingLeft: depth * 16 }}
@@ -100,7 +99,7 @@ export function NoteTreeRow({ item, depth, selectMode, selected, onToggle, onCli
    폴더 row 는 추가로 drop=안으로 이동 시 'ring' 으로 강조 (item→folder 드롭). */
 function SortableFolderRow(props: Parameters<typeof FolderTreeRow>[0]) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, over, active } =
-    useSortable({ id: props.folder.id, data: { kind: "folder" } });
+    useSortable({ id: props.folder.id, data: { kind: "folder" }, disabled: props.selectMode });
   const isOver = over?.id === props.folder.id && active?.id !== props.folder.id;
   // 같은 SortableContext(폴더-폴더) 면 정렬, 아니면(노트-폴더) 안으로
   const isFolderReorder = isOver && active?.data?.current?.kind === "folder";
@@ -129,7 +128,7 @@ function SortableFolderRow(props: Parameters<typeof FolderTreeRow>[0]) {
 // 노트(파일) 행도 드래그 재정렬 가능하게 래핑. item id 기준.
 function SortableNoteRow(props: Parameters<typeof NoteTreeRow>[0]) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, over, active } =
-    useSortable({ id: props.item.id, data: { kind: "item" } });
+    useSortable({ id: props.item.id, data: { kind: "item" }, disabled: props.selectMode });
   const isOver = over?.id === props.item.id && active?.id !== props.item.id;
   return (
     <div
@@ -196,7 +195,7 @@ export function FolderTreeRow({
   // 토글 내부엔 하위 폴더만 노출. 파일은 해당 폴더 진입 시 보이는 방식으로.
   const hasChildren = subFolders.length > 0;
   const isOpen = expanded.has(folder.id);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // 모바일 길게-누름은 dnd-kit TouchSensor 가 담당 (드래그-옮기기).
 
   return (
     <div>
@@ -205,9 +204,6 @@ export function FolderTreeRow({
         data-sel-id={folder.id} data-sel-type="folder"
         role="button" tabIndex={0}
         onClick={() => selectMode ? onToggleFolder(folder.id) : onClickFolder(folder.id)}
-        onTouchStart={() => { timerRef.current = setTimeout(() => onLongPress(folder.id, "folder"), 400); }}
-        onTouchEnd={() => { if (timerRef.current) clearTimeout(timerRef.current); }}
-        onTouchMove={() => { if (timerRef.current) clearTimeout(timerRef.current); }}
         onContextMenu={(e) => { e.preventDefault(); onLongPress(folder.id, "folder"); }}
         className={`flex items-center gap-1.5 rounded-lg py-2 pr-2 transition-colors select-none ${
           selFolders.has(folder.id) ? "bg-primary/10" : "hover:bg-accent/50"
@@ -304,8 +300,18 @@ export default function KnowledgeDashboard({
   );
   // 드래그 종료 — active 가 폴더 or item 인지 판별해 각각의 재정렬·이동 훅에 위임.
   const handleDragEnd = (e: DragEndEvent) => {
-    if (!e.over || e.active.id === e.over.id) return;
     const activeId = String(e.active.id);
+    // 모바일 패턴: 길게 눌렀다가 이동 없이 손 뗀 경우 → 선택 모드 진입.
+    // TouchSensor delay 250ms 이후 release & delta≈0 이면 사용자가 "선택"하려던 의도로 간주.
+    const moved = Math.abs(e.delta.x) > 10 || Math.abs(e.delta.y) > 10;
+    if ((!e.over || activeId === String(e.over.id)) && !moved) {
+      const f = folders.find((x) => x.id === activeId);
+      const it = items.find((x) => x.id === activeId);
+      if (f) handleLongPress(f.id, "folder");
+      else if (it) handleLongPress(it.id, "item");
+      return;
+    }
+    if (!e.over || e.active.id === e.over.id) return;
     const overId = String(e.over.id);
     // 폴더-폴더 재정렬 (루트)
     const folderActive = rootFolders.find((f) => f.id === activeId);
