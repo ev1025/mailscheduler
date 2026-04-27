@@ -2,21 +2,14 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Upload,
-  Check,
-  Share2,
-  Settings as SettingsIcon,
-  LogOut,
-} from "lucide-react";
+import { Upload, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { useSupabaseAuth, supabaseSignOut } from "@/lib/auth-supabase";
+import { useSupabaseAuth } from "@/lib/auth-supabase";
 import { useAppUsers, useCurrentUser } from "@/lib/current-user";
 import { uploadToStorage, deleteFromStorage } from "@/lib/storage";
 import AvatarCropDialog from "@/components/layout/avatar-crop-dialog";
-import ShareManager from "@/components/calendar/share-manager";
 import PageHeader from "@/components/layout/page-header";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
 
@@ -53,7 +46,6 @@ function ProfilePageInner() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
-  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -111,11 +103,6 @@ function ProfilePageInner() {
     toast.success("저장됐어요");
   };
 
-  const handleSignOut = async () => {
-    await supabaseSignOut();
-    router.replace("/");
-  };
-
   if (authLoading || !currentUser) {
     return (
       <div className="p-8 text-center text-sm text-muted-foreground">
@@ -125,11 +112,10 @@ function ProfilePageInner() {
   }
 
   return (
-    <>
+    <div className="flex flex-col min-h-full">
       <PageHeader title="내 프로필" showBell />
-    <div className="px-4 pt-3 pb-6 md:px-6 md:pt-6 md:pb-10 max-w-xl mx-auto">
-
-      <div className="flex flex-col gap-3.5">
+      <div className="flex-1 flex items-center justify-center px-4 pb-6 md:px-6 md:pb-10">
+        <div className="w-full max-w-xl flex flex-col gap-3.5">
         {/* 헤더 — 아바타 + 이름 + 이메일 (압축) */}
         <div className="flex flex-col items-center gap-2">
           <button
@@ -253,38 +239,6 @@ function ProfilePageInner() {
           </Button>
         </div>
 
-        {/* 액션 카드 — 위 아바타 카드와 동일 톤 (rounded-lg border bg-card). */}
-        <div className="rounded-lg border bg-card overflow-hidden">
-          <button
-            type="button"
-            onClick={() => router.push("/settings")}
-            className="flex w-full items-center justify-between gap-2 px-3 py-3 text-sm hover:bg-accent transition-colors border-b"
-          >
-            <span className="flex items-center gap-2.5">
-              <SettingsIcon className="h-4 w-4 text-muted-foreground" />
-              설정
-            </span>
-            <span className="text-muted-foreground/50 text-xs">›</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setShareOpen(true)}
-            className="flex w-full items-center justify-between gap-2 px-3 py-3 text-sm hover:bg-accent transition-colors border-b"
-          >
-            <span className="flex items-center gap-2.5">
-              <Share2 className="h-4 w-4 text-muted-foreground" />
-              일정 공유
-            </span>
-            <span className="text-muted-foreground/50 text-xs">›</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="flex w-full items-center gap-2.5 px-3 py-3 text-sm text-muted-foreground/70 hover:bg-accent hover:text-foreground transition-colors"
-          >
-            <LogOut className="h-4 w-4" />
-            로그아웃
-          </button>
         </div>
       </div>
 
@@ -309,8 +263,6 @@ function ProfilePageInner() {
         }}
       />
 
-      <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
     </div>
-    </>
   );
 }

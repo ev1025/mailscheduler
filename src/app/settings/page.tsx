@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/ui/search-input";
-import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, MapPin, Lock, Trash2, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { Monitor, Sun, Moon, ChevronDown, ChevronRight, ExternalLink, MapPin, Lock, Trash2, LogOut, ChevronRight as ChevronRightIcon } from "lucide-react";
 import PageHeader from "@/components/layout/page-header";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import PasswordChangeDialog from "@/components/layout/password-change-dialog";
@@ -75,6 +75,11 @@ function SettingsPageInner() {
   const handleDeleteProfile = async () => {
     if (!currentUser) return;
     await deleteUser(currentUser.id);
+    await supabaseSignOut();
+    router.replace("/");
+  };
+
+  const handleSignOut = async () => {
     await supabaseSignOut();
     router.replace("/");
   };
@@ -246,6 +251,17 @@ function SettingsPageInner() {
                 <span className="flex items-center gap-2">
                   <Lock className="h-4 w-4 text-muted-foreground" />
                   비밀번호 변경
+                </span>
+                <ChevronRightIcon className="h-4 w-4 text-muted-foreground/50" />
+              </button>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="flex items-center justify-between gap-2 rounded-md px-2 py-2.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <LogOut className="h-4 w-4" />
+                  로그아웃
                 </span>
                 <ChevronRightIcon className="h-4 w-4 text-muted-foreground/50" />
               </button>
