@@ -5,7 +5,7 @@ import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/components/ui/form-field";
 import { Trash2, HelpCircle, Crown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUserId } from "@/lib/current-user";
@@ -17,7 +17,6 @@ import TagInput from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import type { Product, ProductCategory } from "@/types";
 import {
-  FORM_LABEL,
   FORM_HINT,
   FORM_INPUT_PRIMARY,
   FORM_INPUT_COMPACT,
@@ -254,21 +253,19 @@ export default function ProductForm({
       onSubmit={handleSubmit}
     >
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="product-name" className={FORM_LABEL}>제품명</Label>
+          <FormField label="제품명" required htmlFor="product-name">
             <Input
               id="product-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="제품명 * (예: 오메가3)"
+              placeholder="예: 오메가3"
               className={FORM_INPUT_PRIMARY}
             />
-          </div>
+          </FormField>
 
           {/* 분류 · 세부분류 — 항상 같은 행 (2열) */}
           <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1.5 min-w-0">
-              <Label className={FORM_LABEL}>분류</Label>
+            <FormField label="분류">
               <TagInput
                 selectedTags={category ? [category] : []}
                 allTags={categoryTags}
@@ -278,9 +275,8 @@ export default function ProductForm({
                 onUpdateTagColor={updateMidCategoryColor}
                 placeholder="검색·추가"
               />
-            </div>
-            <div className="flex flex-col gap-1.5 min-w-0">
-              <Label className={FORM_LABEL}>세부분류</Label>
+            </FormField>
+            <FormField label="세부분류">
               <TagInput
                 selectedTags={subCategory ? [subCategory] : []}
                 allTags={subTags}
@@ -290,23 +286,21 @@ export default function ProductForm({
                 onUpdateTagColor={updateTagColor}
                 placeholder="검색·추가"
               />
-            </div>
+            </FormField>
           </div>
 
           {/* 브랜드 — 별도 행 */}
-          <div className="flex flex-col gap-1.5">
-            <Label className={FORM_LABEL}>브랜드</Label>
+          <FormField label="브랜드">
             <Input
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
               placeholder="브랜드명"
               className={FORM_INPUT_COMPACT}
             />
-          </div>
+          </FormField>
 
           {/* 가격 입력 + 추가된 목록 */}
-          <div className="flex flex-col gap-2">
-            <Label className={FORM_LABEL}>가격 / 사이트</Label>
+          <FormField label="가격 / 사이트">
             <div className="flex items-center gap-1.5 min-w-0">
               <Input
                 type="number"
@@ -404,7 +398,7 @@ export default function ProductForm({
                 </ul>
               );
             })()}
-          </div>
+          </FormField>
 
           {/* 고정비 등록 체크박스 */}
           <div className="flex items-center gap-2">
@@ -437,15 +431,14 @@ export default function ProductForm({
             </div>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <Label className={FORM_LABEL}>메모</Label>
+          <FormField label="메모">
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder="성분·특이사항 등"
             />
-          </div>
+          </FormField>
 
         </div>
     </FormPage>

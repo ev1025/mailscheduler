@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/ui/search-input";
 import RowActionPopover from "@/components/ui/row-action-popover";
 import { useUrlStringParam } from "@/hooks/use-url-param";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import {
   DndContext,
@@ -548,17 +549,33 @@ function ProductsPageInner() {
         open={!!deletingProduct}
         onOpenChange={(o) => { if (!o) setDeletingProduct(null); }}
         title={deletingProduct ? `${deletingProduct.name} 삭제` : "제품 삭제"}
-        description="모든 구매 기록도 함께 삭제됩니다."
+        description={
+          deletingProduct ? (
+            <span className="block">
+              <span className="block text-foreground">
+                {deletingProduct.category}
+                {deletingProduct.sub_category ? ` · ${deletingProduct.sub_category}` : ""}
+                {deletingProduct.brand ? ` · ${deletingProduct.brand}` : ""}
+              </span>
+              <span className="block mt-1.5 text-xs text-muted-foreground/70 break-keep">
+                구매 기록도 함께 삭제돼요. 되돌릴 수 없어요.
+              </span>
+            </span>
+          ) : (
+            "삭제하면 되돌릴 수 없어요."
+          )
+        }
         confirmLabel="삭제"
         destructive
         onConfirm={async () => {
           if (deletingProduct) {
             const res = await deleteProduct(deletingProduct.id);
             if (res?.error) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const msg = (res.error as any)?.message ?? "삭제 실패";
-              // 간단 토스트 대체 — 에러 메시지 alert
-              alert(msg);
+              const msg =
+                typeof res.error === "object" && res.error && "message" in res.error
+                  ? String((res.error as { message?: unknown }).message)
+                  : "삭제 실패";
+              toast.error(msg);
             } else {
               setStatsTick((t) => t + 1);
             }
