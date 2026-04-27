@@ -94,13 +94,6 @@ CREATE POLICY "Own rows" ON fixed_expenses FOR ALL TO authenticated
   USING (user_id = auth_app_user_id())
   WITH CHECK (user_id = auth_app_user_id());
 
--- memos
-DROP POLICY IF EXISTS "Allow all" ON memos;
-DROP POLICY IF EXISTS "Own rows" ON memos;
-CREATE POLICY "Own rows" ON memos FOR ALL TO authenticated
-  USING (user_id = auth_app_user_id())
-  WITH CHECK (user_id = auth_app_user_id());
-
 -- travel_items
 DROP POLICY IF EXISTS "Allow all" ON travel_items;
 DROP POLICY IF EXISTS "Own rows" ON travel_items;

@@ -50,15 +50,6 @@ export interface Expense {
   category?: ExpenseCategory;
 }
 
-export interface Memo {
-  id: string;
-  title: string;
-  content: string | null;
-  pinned: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
 // --- Products (생필품: 영양제 포함 통합) ---
 // 사용자가 임의 추가 가능 → 기본값은 '영양제/화장품/단백질/음식/생필품/구독/기타'.
 export type ProductCategory = string;

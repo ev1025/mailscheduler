@@ -59,18 +59,7 @@ CREATE TABLE expenses (
 );
 CREATE INDEX idx_expenses_date ON expenses(date);
 
--- 4. 메모
-CREATE TABLE memos (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  title TEXT NOT NULL,
-  content TEXT,
-  pinned BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-CREATE INDEX idx_memos_pinned_updated ON memos(pinned DESC, updated_at DESC);
-
--- 5. 영양제 비교
+-- 4. 영양제 비교 (이전 5번. memo 테이블 제거에 따라 번호 당겼음.)
 CREATE TABLE supplements (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
@@ -97,14 +86,12 @@ CREATE TABLE weather_cache (
 ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expense_categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
-ALTER TABLE memos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE supplements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE weather_cache ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow all" ON calendar_events FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON expense_categories FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON expenses FOR ALL TO anon USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all" ON memos FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON supplements FOR ALL TO anon USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON weather_cache FOR ALL TO anon USING (true) WITH CHECK (true);
 
@@ -240,8 +227,6 @@ ALTER TABLE event_tags ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES app_user
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES app_users(id) ON DELETE CASCADE;
 ALTER TABLE fixed_expenses ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES app_users(id) ON DELETE CASCADE;
 
-ALTER TABLE memos ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES app_users(id) ON DELETE CASCADE;
-
 ALTER TABLE travel_items ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES app_users(id) ON DELETE CASCADE;
 ALTER TABLE travel_tags ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES app_users(id) ON DELETE CASCADE;
 
@@ -255,7 +240,6 @@ ALTER TABLE knowledge_items ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES app
 UPDATE calendar_events SET user_id = (SELECT id FROM app_users WHERE name = '나') WHERE user_id IS NULL;
 UPDATE expenses SET user_id = (SELECT id FROM app_users WHERE name = '나') WHERE user_id IS NULL;
 UPDATE fixed_expenses SET user_id = (SELECT id FROM app_users WHERE name = '나') WHERE user_id IS NULL;
-UPDATE memos SET user_id = (SELECT id FROM app_users WHERE name = '나') WHERE user_id IS NULL;
 UPDATE travel_items SET user_id = (SELECT id FROM app_users WHERE name = '나') WHERE user_id IS NULL;
 UPDATE travel_tags SET user_id = (SELECT id FROM app_users WHERE name = '나') WHERE user_id IS NULL;
 UPDATE event_tags SET user_id = (SELECT id FROM app_users WHERE name = '나') WHERE user_id IS NULL;

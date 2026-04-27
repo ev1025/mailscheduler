@@ -8,7 +8,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
  *
  * 패턴 통일 목적:
  *  - 현재 calendar(?view=, ?y=, ?m=), products(?category=), settings(?action=) 등 일부만 URL 반영.
- *  - finance/memo/travel-plans 는 useState 만 — 새로고침/공유 링크 시 상태 소실.
+ *  - finance / travel-plans 등 일부는 useState 만 써서 새로고침 시 상태 소실되던 것 통일.
  *  - 본 훅으로 한 줄 호출 (`const [y, setY] = useUrlNumberParam("y", default)`) 로 통일.
  *
  * 동작:
