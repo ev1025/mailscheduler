@@ -514,7 +514,7 @@ export default function TravelForm({
                       {onRemoveVisitedDate && (
                         <button
                           type="button"
-                          className="absolute -top-1.5 -right-1.5 opacity-0 group-hover/vd:opacity-100 transition-opacity rounded-full bg-background border text-muted-foreground hover:text-destructive p-0.5"
+                          className="absolute -top-1.5 -right-1.5 transition-opacity rounded-full bg-background border text-muted-foreground hover:text-destructive p-0.5 md:opacity-0 md:group-hover/vd:opacity-100"
                           onClick={async (e) => {
                             e.stopPropagation();
                             await onRemoveVisitedDate(item.id, d);

@@ -33,7 +33,7 @@ export default function MemoCard({
             )}
             <CardTitle className="text-base truncate">{memo.title}</CardTitle>
           </div>
-          <div className="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="flex shrink-0 gap-1 transition-opacity md:opacity-0 md:group-hover:opacity-100">
             <Button
               size="icon"
               variant="ghost"

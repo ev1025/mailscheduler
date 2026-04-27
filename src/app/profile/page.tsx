@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Check } from "lucide-react";
+import { Upload, Check, Settings as SettingsIcon, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { useSupabaseAuth } from "@/lib/auth-supabase";
 import { useAppUsers, useCurrentUser } from "@/lib/current-user";
 import { uploadToStorage, deleteFromStorage } from "@/lib/storage";
 import AvatarCropDialog from "@/components/layout/avatar-crop-dialog";
+import ShareManager from "@/components/calendar/share-manager";
 import PageHeader from "@/components/layout/page-header";
 import ColorPickerRow from "@/components/ui/color-picker-popover";
 
@@ -46,6 +47,7 @@ function ProfilePageInner() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const [cropOpen, setCropOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -113,7 +115,30 @@ function ProfilePageInner() {
 
   return (
     <div className="flex flex-col min-h-full">
-      <PageHeader title="내 프로필" showBell />
+      <PageHeader
+        title="내 프로필"
+        showBell
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              aria-label="일정 공유"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+            >
+              <Share2 className="h-[20px] w-[20px]" strokeWidth={1.6} />
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push("/settings")}
+              aria-label="설정"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+            >
+              <SettingsIcon className="h-[20px] w-[20px]" strokeWidth={1.6} />
+            </button>
+          </>
+        }
+      />
       <div className="flex-1 flex items-center justify-center px-4 pb-6 md:px-6 md:pb-10">
         <div className="w-full max-w-xl flex flex-col gap-3.5">
         {/* 헤더 — 아바타 + 이름 + 이메일 (압축) */}
@@ -263,6 +288,7 @@ function ProfilePageInner() {
         }}
       />
 
+      <ShareManager open={shareOpen} onOpenChange={setShareOpen} />
     </div>
   );
 }

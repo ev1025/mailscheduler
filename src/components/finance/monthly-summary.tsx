@@ -56,7 +56,7 @@ export default function MonthlySummary({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent transition-colors shrink-0"
+      className="-mr-1 flex h-8 w-8 items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent transition-colors shrink-0"
     >
       {icon}
     </button>

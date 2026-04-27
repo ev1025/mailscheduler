@@ -393,7 +393,7 @@ export default function ProductForm({
                             e.stopPropagation();
                             removePriceRow(originalIdx);
                           }}
-                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-opacity shrink-0"
+                          className="text-muted-foreground hover:text-destructive transition-opacity shrink-0 md:opacity-0 md:group-hover:opacity-100"
                           title="삭제"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
