@@ -10,14 +10,13 @@ import {
   Wallet,
   ShoppingBag,
   Menu,
-  GripVertical,
   Trash2,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/ui/search-input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import RowActionPopover from "@/components/ui/row-action-popover";
 import { supabase } from "@/lib/supabase";
 import {
   DndContext,
@@ -75,7 +74,6 @@ function ProductRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: p.id });
-  const [menuOpen, setMenuOpen] = useState(false);
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -90,31 +88,20 @@ function ProductRow({
       onClick={() => onEdit(p)}
     >
       <td className="text-center px-1 py-2 whitespace-nowrap w-8" onClick={(e) => e.stopPropagation()}>
-        {/* 드래그로 이동 / 탭하면 삭제 메뉴 */}
-        <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-          <PopoverTrigger
-            {...attributes}
-            {...listeners}
-            className="inline-flex items-center justify-center p-1.5 rounded text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
-            title="드래그로 이동 / 탭하면 메뉴"
-            aria-label="제품 메뉴"
-          >
-            <GripVertical className="h-4 w-4" />
-          </PopoverTrigger>
-          <PopoverContent align="start" side="right" className="w-32 p-1">
-            <button
-              type="button"
-              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
-              onClick={() => {
-                setMenuOpen(false);
-                onDelete(p);
-              }}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              삭제
-            </button>
-          </PopoverContent>
-        </Popover>
+        <RowActionPopover
+          triggerLabel="제품 메뉴"
+          triggerClassName="inline-flex items-center justify-center"
+          dragAttributes={attributes as unknown as React.HTMLAttributes<HTMLElement>}
+          dragListeners={listeners as unknown as React.HTMLAttributes<HTMLElement>}
+          items={[
+            {
+              icon: <Trash2 className="h-3.5 w-3.5" />,
+              label: "삭제",
+              destructive: true,
+              onClick: () => onDelete(p),
+            },
+          ]}
+        />
       </td>
       <td className="text-center px-1 py-1.5 whitespace-nowrap w-8">
         <span

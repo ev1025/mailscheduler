@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { GripVertical, Trash2 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Trash2 } from "lucide-react";
+import RowActionPopover from "@/components/ui/row-action-popover";
 import { formatMinutes } from "@/lib/travel/providers";
 import { addMinutes, formatTime } from "@/lib/travel/time";
 import { openPlaceInNaverMap } from "@/lib/travel/naver-map-link";
@@ -34,7 +33,6 @@ export default function PlanTaskRow({
   dragAttributes,
   expectedTime,
 }: Props) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const { colors: categoryColors } = useTravelCategories();
   const categoryColor = task.category ? categoryColors[task.category] : undefined;
   // expectedTime 은 체인 계산 결과 (중간 task) 또는 null (첫 task).
@@ -60,56 +58,40 @@ export default function PlanTaskRow({
       }}
       className="group flex items-stretch gap-0 rounded-md border bg-card hover:bg-accent/50 transition-colors cursor-pointer select-none"
     >
-      {/* 드래그바 — 탭하면 Popover 메뉴 (삭제 등), 드래그하면 이동.
-          1행·2행 사이(수직 중앙)에 위치시켜 카드 대칭감 확보. */}
+      {/* 드래그바 — 탭하면 메뉴, 드래그하면 이동. RowActionPopover 통일 패턴. */}
       {dragListeners !== undefined && (
         <div
           onClick={(e) => e.stopPropagation()}
           className="flex items-center pl-0.5"
         >
-          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-            <PopoverTrigger
-              {...dragAttributes}
-              {...dragListeners}
-              className="rounded p-1.5 text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
-              title="드래그로 이동 / 탭하면 메뉴"
-              aria-label="작업 메뉴"
-            >
-              <GripVertical className="h-4 w-4" />
-            </PopoverTrigger>
-            <PopoverContent className="w-40 p-1" align="start" side="right">
-              {task.place_name && (
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    openPlaceInNaverMap(task.place_name, {
+          <RowActionPopover
+            triggerLabel="작업 메뉴"
+            dragAttributes={dragAttributes as React.HTMLAttributes<HTMLElement> | undefined}
+            dragListeners={dragListeners as React.HTMLAttributes<HTMLElement> | undefined}
+            items={[
+              ...(task.place_name
+                ? [{
+                    icon: (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={NAVER_MAP_ICON} alt="네이버지도" className="h-3.5 w-3.5" />
+                    ),
+                    label: "네이버지도 열기",
+                    onClick: () => openPlaceInNaverMap(task.place_name, {
                       lat: task.place_lat,
                       lng: task.place_lng,
-                    });
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={NAVER_MAP_ICON} alt="네이버지도" className="h-3.5 w-3.5" />
-                  네이버지도 열기
-                </button>
-              )}
-              {onDelete && (
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onDelete();
-                  }}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  삭제
-                </button>
-              )}
-            </PopoverContent>
-          </Popover>
+                    }),
+                  }]
+                : []),
+              ...(onDelete
+                ? [{
+                    icon: <Trash2 className="h-3.5 w-3.5" />,
+                    label: "삭제",
+                    destructive: true,
+                    onClick: onDelete,
+                  }]
+                : []),
+            ]}
+          />
         </div>
       )}
 

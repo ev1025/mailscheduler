@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { MoreHorizontal, Trash2, Copy } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Trash2, Copy } from "lucide-react";
+import RowActionPopover from "@/components/ui/row-action-popover";
 import SearchInput from "@/components/ui/search-input";
 import PromptDialog from "@/components/ui/prompt-dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
@@ -89,40 +89,27 @@ function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate }: PlanCa
           ? `${plan.start_date ?? "-"} ~ ${plan.end_date ?? "-"}`
           : "기간 미정"}
       </p>
-      <Popover>
-        <PopoverTrigger
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition md:opacity-0 md:group-hover:opacity-100"
-          aria-label="계획 메뉴"
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </PopoverTrigger>
-        <PopoverContent
-          align="end"
+      <div className="absolute right-2 top-1/2 -translate-y-1/2 md:opacity-0 md:group-hover:opacity-100 transition">
+        <RowActionPopover
+          trigger="more-h"
+          triggerLabel="계획 메뉴"
           side="bottom"
-          className="w-40 p-1"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            onClick={() => onDuplicate()}
-            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
-          >
-            <Copy className="h-3.5 w-3.5" />
-            복제
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete()}
-            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            삭제
-          </button>
-        </PopoverContent>
-      </Popover>
+          align="end"
+          items={[
+            {
+              icon: <Copy className="h-3.5 w-3.5" />,
+              label: "복제",
+              onClick: onDuplicate,
+            },
+            {
+              icon: <Trash2 className="h-3.5 w-3.5" />,
+              label: "삭제",
+              destructive: true,
+              onClick: onDelete,
+            },
+          ]}
+        />
+      </div>
     </div>
   );
 }

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, GripVertical, Filter, X, Route } from "lucide-react";
+import { Plus, Trash2, CalendarPlus, Check, ArrowUp, ArrowDown, Filter, X, Route } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import RowActionPopover from "@/components/ui/row-action-popover";
 import FilterPanel from "@/components/ui/filter-panel";
 import SearchInput from "@/components/ui/search-input";
 import TravelForm from "./travel-form";
@@ -84,7 +84,6 @@ function TravelRow({
   onAddToPlan,
   onDelete,
 }: TravelRowProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id, disabled: !dragEnabled });
   const style = {
@@ -104,51 +103,37 @@ function TravelRow({
     >
       {/* 왼쪽 드래그 핸들 + 액션 팝오버 — 너비·여백 최소화로 본문 영역 확보. */}
       <td className="px-0 py-1 border-r whitespace-nowrap w-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-center" {...(dragEnabled ? { ...attributes, ...listeners } : {})}>
-          <Popover open={menuOpen} onOpenChange={setMenuOpen}>
-            <PopoverTrigger
-              className="rounded p-1 text-muted-foreground/60 hover:text-muted-foreground hover:bg-accent cursor-grab active:cursor-grabbing touch-none"
-              title="드래그로 이동 / 탭하면 메뉴"
-              aria-label="행 메뉴"
-            >
-              <GripVertical className="h-3.5 w-3.5" />
-            </PopoverTrigger>
-            {/* 컨텐츠 크기에 맞추기 — 고정 w-40 → w-auto + min/max 제한 */}
-            <PopoverContent className="w-auto min-w-[6rem] max-w-[14rem] p-1" align="start" side="right">
-              <button
-                type="button"
-                className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent ${item.visited ? "text-green-600" : ""}`}
-                onClick={() => { setMenuOpen(false); onToggleVisited(); }}
-              >
-                <Check className="h-3.5 w-3.5 text-green-600" />
-                {item.visited ? "가본 곳 해제" : "가본 곳으로 표시"}
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
-                onClick={() => { setMenuOpen(false); onAddToCalendar(); }}
-              >
-                <CalendarPlus className="h-3.5 w-3.5 text-blue-600" />
-                달력에 추가
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent"
-                onClick={() => { setMenuOpen(false); onAddToPlan(); }}
-              >
-                <Route className="h-3.5 w-3.5 text-purple-600" />
-                계획에 추가
-              </button>
-              <button
-                type="button"
-                className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs text-destructive hover:bg-destructive/10"
-                onClick={() => { setMenuOpen(false); onDelete(); }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                삭제
-              </button>
-            </PopoverContent>
-          </Popover>
+        <div className="flex items-center justify-center">
+          <RowActionPopover
+            triggerLabel="행 메뉴"
+            dragAttributes={dragEnabled ? (attributes as unknown as React.HTMLAttributes<HTMLElement>) : undefined}
+            dragListeners={dragEnabled ? (listeners as unknown as React.HTMLAttributes<HTMLElement>) : undefined}
+            items={[
+              {
+                icon: <Check className="h-3.5 w-3.5" />,
+                iconClassName: "text-finance-gain",
+                label: item.visited ? "가본 곳 해제" : "가본 곳으로 표시",
+                textClassName: item.visited ? "text-finance-gain" : undefined,
+                onClick: onToggleVisited,
+              },
+              {
+                icon: <CalendarPlus className="h-3.5 w-3.5 text-blue-600" />,
+                label: "달력에 추가",
+                onClick: onAddToCalendar,
+              },
+              {
+                icon: <Route className="h-3.5 w-3.5 text-purple-600" />,
+                label: "계획에 추가",
+                onClick: onAddToPlan,
+              },
+              {
+                icon: <Trash2 className="h-3.5 w-3.5" />,
+                label: "삭제",
+                destructive: true,
+                onClick: onDelete,
+              },
+            ]}
+          />
         </div>
       </td>
       {/* 제목 */}
