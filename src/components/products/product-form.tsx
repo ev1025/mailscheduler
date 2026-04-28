@@ -83,11 +83,14 @@ export default function ProductForm({
 
   const { tags: subTags, addTag, deleteTag, updateTagColor } = useProductSubTags(category);
   const { upsertFixedFromProduct, deleteFixedByProduct } = useFixedExpenses();
-  const now = new Date();
-  const { categories: expCategories } = useTransactions(
-    now.getFullYear(),
-    now.getMonth() + 1
-  );
+  // 카테고리 셀렉트 값으로 사용할 expense_categories 만 필요. transactions 자체는 이번 달
+  // 범위로 잠깐 가져오지만 결과는 안 씀(useTransactions 가 categories 를 함께 반환하므로
+  // 가벼운 호출). YYYY-MM-DD 시그니처에 맞춰 오늘 날짜 단일 일자로 호출.
+  const todayIso = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const { categories: expCategories } = useTransactions(todayIso, todayIso);
 
   // 기존 제품 수정 시 DB에서 가격들 로드
   useEffect(() => {

@@ -5,17 +5,32 @@ import { supabase } from "@/lib/supabase";
 import type { Expense, ExpenseCategory } from "@/types";
 import { useCurrentUserId } from "@/lib/current-user";
 
-export function useTransactions(year: number, month: number) {
+/**
+ * 가계부 거래 조회 훅.
+ *
+ * 호환성: 기존엔 (year, month) 시그니처였으나 시작일/종료일 범위 픽커 도입에 따라
+ * (startDate, endDate?) 시그니처로 변경.
+ *  - startDate: "YYYY-MM-DD" (포함)
+ *  - endDate: "YYYY-MM-DD" (포함). 생략 시 startDate 가 속한 달의 말일로 간주.
+ *
+ * 내부 쿼리는 inclusive end 를 위해 다음날 자정 미만으로 변환.
+ */
+export function useTransactions(startDate: string, endDate?: string) {
   const userId = useCurrentUserId();
   const [transactions, setTransactions] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<ExpenseCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
-  const endDate =
-    month === 12
-      ? `${year + 1}-01-01`
-      : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  // endDate 가 주어지면 그 다음날 (exclusive 상한). 없으면 startDate 의 다음 달 1일.
+  const endExclusive = (() => {
+    if (endDate) {
+      const d = new Date(endDate + "T00:00:00");
+      d.setDate(d.getDate() + 1);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+    const d = new Date(startDate + "T00:00:00");
+    return `${d.getFullYear()}-${String(d.getMonth() + 2).padStart(2, "0")}-01`;
+  })();
 
   const fetchCategories = useCallback(async () => {
     const { data } = await supabase
@@ -31,7 +46,7 @@ export function useTransactions(year: number, month: number) {
       .from("expenses")
       .select("*, category:expense_categories(*)")
       .gte("date", startDate)
-      .lt("date", endDate)
+      .lt("date", endExclusive)
       .order("date", { ascending: false })
       .order("created_at", { ascending: false });
     if (userId) query = query.eq("user_id", userId);
@@ -50,7 +65,7 @@ export function useTransactions(year: number, month: number) {
       setTransactions(data);
     }
     setLoading(false);
-  }, [startDate, endDate, userId]);
+  }, [startDate, endExclusive, userId]);
 
   useEffect(() => {
     fetchCategories();

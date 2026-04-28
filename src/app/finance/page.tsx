@@ -1,13 +1,13 @@
 "use client";
 
-import { Suspense, useState, useEffect, useRef } from "react";
+import { Suspense, useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, ShoppingBag, Menu } from "lucide-react";
-import MonthPicker from "@/components/layout/month-picker";
+import { Wallet, ShoppingBag, Menu, X, Pin, PinOff } from "lucide-react";
+import DateRangePicker from "@/components/layout/date-range-picker";
 import PageHeader from "@/components/layout/page-header";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
-import { useUrlNumberParam } from "@/hooks/use-url-param";
+import { useUrlStringParam } from "@/hooks/use-url-param";
 import MonthlySummary from "@/components/finance/monthly-summary";
 import TransactionList from "@/components/finance/transaction-list";
 import TransactionForm from "@/components/finance/transaction-form";
@@ -26,9 +26,21 @@ export default function FinancePage() {
 function FinancePageInner() {
   const router = useRouter();
   const now = new Date();
-  // 새로고침/공유 링크 시 상태 보존을 위해 URL 동기화.
-  const [year, setYear] = useUrlNumberParam("y", now.getFullYear());
-  const [month, setMonth] = useUrlNumberParam("m", now.getMonth() + 1);
+
+  // 시작일/종료일 — 기본은 이번 달 1일~말일. URL 에 ?s=YYYY-MM-DD&e=YYYY-MM-DD 동기화.
+  const defaultStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  const defaultEnd = (() => {
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+  })();
+  const [startDate, setStartDate] = useUrlStringParam("s", defaultStart);
+  const [endDate, setEndDate] = useUrlStringParam("e", defaultEnd);
+
+  // 고정비 자동 적용 시 사용할 (year, month) — startDate 가 속한 달 기준.
+  const startObj = new Date(startDate + "T00:00:00");
+  const year = startObj.getFullYear();
+  const month = startObj.getMonth() + 1;
+
   const [formOpen, setFormOpen] = useState(false);
   const [finMenuOpen, setFinMenuOpen] = useState(false);
   const finMenuRef = useRef<HTMLDivElement>(null);
@@ -46,12 +58,9 @@ function FinancePageInner() {
   /** 카드 +수입 / +지출 클릭 시 폼 type 미리 세팅용. 신규 작성 시에만 의미. */
   const [formDefaultType, setFormDefaultType] = useState<"income" | "expense">("expense");
 
-
-  const handleYearChange = (y: number) => {
-    setYear(y);
-  };
-  const handleMonthChange = (m: number) => {
-    setMonth(m);
+  const handleRangeChange = (s: string, e: string) => {
+    setStartDate(s);
+    setEndDate(e);
   };
 
   const {
@@ -60,7 +69,7 @@ function FinancePageInner() {
     addCategory, deleteCategory, updateCategoryColor,
     totalIncome, totalExpense, expenseByCategory,
     refetch: refetchTransactions,
-  } = useTransactions(year, month);
+  } = useTransactions(startDate, endDate);
 
   const {
     fixedExpenses,
@@ -94,6 +103,39 @@ function FinancePageInner() {
   }, [fixedExpenses]);
 
   const allTransactions = [...transactions].sort((a, b) => b.date.localeCompare(a.date));
+
+  // 카테고리 차트 클릭으로 설정되는 필터. null = 전체.
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  // 고정비에서 자동 등록된 거래 포함 여부 (여행 "가본곳 포함" 토글 패턴 차용).
+  const [includeFixed, setIncludeFixed] = useState(true);
+
+  // 어떤 거래가 고정비에서 자동 등록된 것인지 판별 — applyFixedToMonth 가
+  // amount + description 동일하게 insert 하므로 그 조합으로 매칭.
+  // (false-positive 가능성 있으나 실용상 충분.)
+  const fixedSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const fx of fixedExpenses) {
+      s.add(`${fx.amount}|${fx.description ?? ""}`);
+    }
+    return s;
+  }, [fixedExpenses]);
+
+  const isFromFixed = (tx: Expense) => fixedSet.has(`${tx.amount}|${tx.description ?? ""}`);
+
+  const filteredTransactions = useMemo(() => {
+    return allTransactions.filter((tx) => {
+      if (categoryFilter && tx.category?.name !== categoryFilter) return false;
+      if (!includeFixed && isFromFixed(tx)) return false;
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTransactions, categoryFilter, includeFixed, fixedSet]);
+
+  // 필터링된 거래의 합계 (UI 표시용)
+  const filteredTotal = useMemo(
+    () => filteredTransactions.reduce((sum, tx) => sum + (tx.type === "expense" ? tx.amount : 0), 0),
+    [filteredTransactions],
+  );
 
   const handleSave = async (
     data: {
@@ -148,7 +190,7 @@ function FinancePageInner() {
     <div className="flex flex-col h-[calc(100%-3.5rem)]">
     <div className="flex-1 overflow-y-auto p-4 md:p-6">
       <div className="mb-3 flex justify-center">
-        <MonthPicker year={year} month={month} onYearChange={handleYearChange} onMonthChange={handleMonthChange} />
+        <DateRangePicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
       </div>
 
       {/* 페이지 상단의 [고정비] [+ 추가] 버튼은 제거. 액션은 MonthlySummary
@@ -166,17 +208,66 @@ function FinancePageInner() {
               setFormOpen(true);
             }}
           />
-          <CategoryChart expenseByCategory={expenseByCategory} totalExpense={totalExpense} />
+          <CategoryChart
+            expenseByCategory={expenseByCategory}
+            totalExpense={totalExpense}
+            onSelectCategory={setCategoryFilter}
+            activeCategory={categoryFilter}
+          />
+
+          {/* 필터바 — 카테고리 필터 활성 칩 + 고정비 포함 토글.
+              여행 목록의 "가본 곳 포함" 토글 패턴을 가계부에 차용. */}
+          {(categoryFilter || !includeFixed) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {categoryFilter && (
+                <button
+                  type="button"
+                  onClick={() => setCategoryFilter(null)}
+                  className="inline-flex items-center gap-1 rounded-full border bg-accent px-2.5 py-1 text-xs font-medium hover:bg-accent/70 transition-colors"
+                  aria-label={`${categoryFilter} 필터 해제`}
+                >
+                  {categoryFilter}
+                  <X className="h-3 w-3 opacity-60" />
+                </button>
+              )}
+              <span className="text-xs text-muted-foreground tabular-nums ml-auto">
+                {filteredTransactions.length}건
+                {categoryFilter && filteredTotal > 0 && (
+                  <> · -{new Intl.NumberFormat("ko-KR").format(filteredTotal)}원</>
+                )}
+              </span>
+            </div>
+          )}
+
+          {/* 고정비 포함/미포함 토글 — 항상 노출 (필터 활성 여부와 무관) */}
+          <button
+            type="button"
+            onClick={() => setIncludeFixed((v) => !v)}
+            className="-mt-1 self-end inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            aria-pressed={includeFixed}
+          >
+            {includeFixed ? <Pin className="h-3 w-3" /> : <PinOff className="h-3 w-3" />}
+            {includeFixed ? "고정비 포함" : "고정비 제외"}
+          </button>
+
           {txLoading ? (
             <div className="py-12" aria-hidden />
-          ) : allTransactions.length === 0 ? (
+          ) : filteredTransactions.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 gap-2">
-              <p className="text-sm text-muted-foreground">이 달의 내역이 없습니다</p>
-              <p className="text-xs text-muted-foreground/70 break-keep">위 카드의 + 아이콘으로 수입·지출을 기록해보세요</p>
+              <p className="text-sm text-muted-foreground">
+                {categoryFilter || !includeFixed
+                  ? "조건에 맞는 내역이 없습니다"
+                  : "이 달의 내역이 없습니다"}
+              </p>
+              {!categoryFilter && includeFixed && (
+                <p className="text-xs text-muted-foreground/70 break-keep">
+                  위 카드의 + 아이콘으로 수입·지출을 기록해보세요
+                </p>
+              )}
             </div>
           ) : (
             <TransactionList
-              transactions={allTransactions}
+              transactions={filteredTransactions}
               onEdit={(tx) => { setEditing(tx); setFormOpen(true); }}
               onDelete={async (id) => { await deleteTransaction(id); }}
             />
