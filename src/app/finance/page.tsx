@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, ShoppingBag, Menu, X, Pin, PinOff } from "lucide-react";
+import { Wallet, ShoppingBag, Menu, X, Check } from "lucide-react";
 import DateRangePicker from "@/components/layout/date-range-picker";
 import PageHeader from "@/components/layout/page-header";
 import { useTransactions } from "@/hooks/use-transactions";
@@ -215,40 +215,57 @@ function FinancePageInner() {
             activeCategory={categoryFilter}
           />
 
-          {/* 필터바 — 카테고리 필터 활성 칩 + 고정비 포함 토글.
-              여행 목록의 "가본 곳 포함" 토글 패턴을 가계부에 차용. */}
-          {(categoryFilter || !includeFixed) && (
-            <div className="flex flex-wrap items-center gap-1.5">
+          {/* 거래 목록 헤더 — 한 줄에 [필터 칩 + 건수·합계] | [고정비 포함 체크박스]
+              항상 노출되어 정보 일관. 필터 칩은 카테고리 색을 적용해 차트와 시각 연결. */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               {categoryFilter && (
                 <button
                   type="button"
                   onClick={() => setCategoryFilter(null)}
-                  className="inline-flex items-center gap-1 rounded-full border bg-accent px-2.5 py-1 text-xs font-medium hover:bg-accent/70 transition-colors"
                   aria-label={`${categoryFilter} 필터 해제`}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors hover:opacity-80"
+                  style={{
+                    backgroundColor: (expenseByCategory[categoryFilter]?.color || "#6B7280") + "1A",
+                    borderColor: (expenseByCategory[categoryFilter]?.color || "#6B7280") + "55",
+                    color: expenseByCategory[categoryFilter]?.color || "#6B7280",
+                  }}
                 >
                   {categoryFilter}
-                  <X className="h-3 w-3 opacity-60" />
+                  <X className="h-3 w-3 opacity-70" />
                 </button>
               )}
-              <span className="text-xs text-muted-foreground tabular-nums ml-auto">
-                {filteredTransactions.length}건
-                {categoryFilter && filteredTotal > 0 && (
-                  <> · -{new Intl.NumberFormat("ko-KR").format(filteredTotal)}원</>
+              <span className="text-xs text-muted-foreground tabular-nums truncate">
+                총 {filteredTransactions.length}건
+                {filteredTotal > 0 && (
+                  <> · {new Intl.NumberFormat("ko-KR").format(filteredTotal)}원</>
                 )}
               </span>
             </div>
-          )}
 
-          {/* 고정비 포함/미포함 토글 — 항상 노출 (필터 활성 여부와 무관) */}
-          <button
-            type="button"
-            onClick={() => setIncludeFixed((v) => !v)}
-            className="-mt-1 self-end inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            aria-pressed={includeFixed}
-          >
-            {includeFixed ? <Pin className="h-3 w-3" /> : <PinOff className="h-3 w-3" />}
-            {includeFixed ? "고정비 포함" : "고정비 제외"}
-          </button>
+            {/* 고정비 포함 체크박스 — 명시적 의미. Pin 아이콘 메타포 모호함 제거. */}
+            <button
+              type="button"
+              onClick={() => setIncludeFixed((v) => !v)}
+              aria-pressed={includeFixed}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full px-2 h-7 text-xs hover:bg-accent/50 transition-colors"
+            >
+              <span
+                className={`flex h-3.5 w-3.5 items-center justify-center rounded border-[1.5px] transition-colors ${
+                  includeFixed
+                    ? "bg-primary border-primary"
+                    : "border-muted-foreground/40"
+                }`}
+              >
+                {includeFixed && (
+                  <Check className="h-2.5 w-2.5 text-primary-foreground" strokeWidth={3} />
+                )}
+              </span>
+              <span className={includeFixed ? "" : "text-muted-foreground"}>
+                고정비 포함
+              </span>
+            </button>
+          </div>
 
           {txLoading ? (
             <div className="py-12" aria-hidden />
