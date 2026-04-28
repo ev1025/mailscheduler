@@ -29,13 +29,20 @@ export function detectStandalone(): boolean {
 
 /** 가드 엔트리가 history 의 현재 상태가 아닐 경우에만 새로 push.
  *  AppShell 에서 pathname 변경마다 호출하면 어느 페이지에서 back 을 눌러도
- *  먼저 가드를 pop 하면서 종료 확인 다이얼로그가 떠 in-app 라우팅을 가로챔. */
+ *  먼저 가드를 pop 하면서 종료 확인 다이얼로그가 떠 in-app 라우팅을 가로챔.
+ *
+ *  중요: 기존 state 를 spread 로 머지해서 Next.js 의 __next (라우터 트리) 메타데이터를
+ *  유지해야 함. 안 그러면 popstate 시 Next.js 핸들러가 state.__next 를 잃은 걸 보고
+ *  "외부 navigation" 으로 간주해 강제 라우팅 → 이전 페이지로 점프하는 동시에 우리
+ *  exit confirm 도 떠 두 가지 효과가 충돌. */
 export function pushExitGuardIfNeeded() {
   if (typeof window === "undefined") return;
   if (!detectStandalone()) return;
-  const cur = window.history.state as { __exitGuard?: boolean } | null;
-  if (cur?.__exitGuard) return;
-  window.history.pushState({ __exitGuard: true }, "");
+  const cur = (window.history.state || {}) as Record<string, unknown> & {
+    __exitGuard?: boolean;
+  };
+  if (cur.__exitGuard) return;
+  window.history.pushState({ ...cur, __exitGuard: true }, "");
 }
 
 function ensureListener() {

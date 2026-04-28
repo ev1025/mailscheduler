@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
-import { Trash2, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { Trash2, Plus } from "lucide-react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import DeleteRecordDescription from "@/components/ui/delete-record-description";
 import FixedExpenseForm from "@/components/finance/fixed-expense-form";
@@ -128,18 +128,20 @@ export default function FixedExpenseManager({
               {sortedCats.map(([catName, group]) => {
                 const isOpen = expandedCats.has(catName);
                 return (
-                  <div key={catName} className="rounded-lg border bg-card overflow-hidden">
-                    {/* 카테고리 헤더 — 닫힘 토글 (기본 닫힘). 색 점 + 이름 + 합계 + 건수 */}
+                  <div
+                    key={catName}
+                    className={`rounded-lg border bg-card overflow-hidden transition-colors ${
+                      isOpen ? "border-primary/40" : ""
+                    }`}
+                  >
+                    {/* 카테고리 헤더 — 행 전체가 토글. 펼침 상태는 활성 테두리 색 +
+                        펼쳐진 항목 자체로 시각화 (별도 화살표 없음). */}
                     <button
                       type="button"
                       onClick={() => toggleCat(catName)}
-                      className="w-full flex items-center gap-2 px-2.5 py-2 hover:bg-accent/50 transition-colors text-left"
+                      aria-expanded={isOpen}
+                      className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-accent/50 transition-colors text-left"
                     >
-                      {isOpen ? (
-                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      ) : (
-                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      )}
                       <span
                         className="h-2.5 w-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: group.color }}
