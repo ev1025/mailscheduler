@@ -27,11 +27,11 @@ export default function CategoryChart({
 
   if (sorted.length === 0) return null;
 
-  // SVG 원형 차트 계산
-  const size = 160;
+  // SVG 원형 차트 — 컴팩트 사이즈로 다이어트.
+  const size = 128;
   const cx = size / 2;
   const cy = size / 2;
-  const radius = 60;
+  const radius = 48;
   const circumference = 2 * Math.PI * radius;
 
   let cumulativePercent = 0;
@@ -44,27 +44,25 @@ export default function CategoryChart({
   });
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+    <Card size="sm">
+      <CardHeader className="pb-1.5">
+        <CardTitle className="text-xs font-medium text-muted-foreground">
           카테고리별 지출
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col sm:flex-row items-center gap-6">
-          {/* 원형 차트 */}
+        <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4">
+          {/* 원형 차트 — 도넛 두께 18 (이전 24), 활성 22 */}
           <div className="shrink-0">
             <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-              {/* 배경 원 */}
               <circle
                 cx={cx}
                 cy={cy}
                 r={radius}
                 fill="none"
                 stroke="hsl(var(--muted))"
-                strokeWidth={24}
+                strokeWidth={18}
               />
-              {/* 카테고리별 호 — 클릭으로 필터링. 활성 카테고리는 너비 키워 강조. */}
               {slices.map((slice) => {
                 const isActive = activeCategory === slice.name;
                 const dim = activeCategory && !isActive ? 0.35 : 1;
@@ -77,7 +75,7 @@ export default function CategoryChart({
                     fill="none"
                     stroke={slice.color}
                     strokeOpacity={dim}
-                    strokeWidth={isActive ? 30 : 24}
+                    strokeWidth={isActive ? 22 : 18}
                     strokeDasharray={`${slice.length} ${circumference - slice.length}`}
                     strokeDashoffset={slice.offset}
                     transform={`rotate(-90 ${cx} ${cy})`}
@@ -86,28 +84,28 @@ export default function CategoryChart({
                   />
                 );
               })}
-              {/* 가운데 텍스트 */}
+              {/* 가운데 텍스트 — 컴팩트 폰트 */}
               <text
                 x={cx}
-                y={cy - 6}
+                y={cy - 5}
                 textAnchor="middle"
-                className="fill-foreground text-xs font-medium"
+                className="fill-muted-foreground text-[10px]"
               >
                 총 지출
               </text>
               <text
                 x={cx}
-                y={cy + 12}
+                y={cy + 9}
                 textAnchor="middle"
-                className="fill-foreground text-sm font-bold"
+                className="fill-foreground text-[11px] font-bold"
               >
                 {formatWon(totalExpense)}
               </text>
             </svg>
           </div>
 
-          {/* 범례 — 클릭하면 도넛과 동일하게 필터 토글. 활성 행은 배경 강조. */}
-          <div className="flex flex-col gap-1 flex-1 w-full">
+          {/* 범례 — 컴팩트 (text-xs, py-0.5) */}
+          <div className="flex flex-col gap-0.5 flex-1 w-full">
             {slices.map((slice) => {
               const isActive = activeCategory === slice.name;
               const dim = activeCategory && !isActive ? "opacity-50" : "";
@@ -117,13 +115,13 @@ export default function CategoryChart({
                   type="button"
                   onClick={() => onSelectCategory?.(isActive ? null : slice.name)}
                   disabled={!onSelectCategory}
-                  className={`flex items-center justify-between text-sm rounded-md px-2 py-1 -mx-2 transition-colors ${
+                  className={`flex items-center justify-between text-xs rounded-md px-2 py-0.5 -mx-2 transition-colors ${
                     isActive ? "bg-accent" : "hover:bg-accent/50"
                   } ${dim} disabled:cursor-default disabled:hover:bg-transparent`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span
-                      className="inline-block h-3 w-3 rounded-full shrink-0"
+                      className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
                       style={{ backgroundColor: slice.color }}
                     />
                     <span className={`truncate ${isActive ? "font-semibold" : "font-medium"}`}>

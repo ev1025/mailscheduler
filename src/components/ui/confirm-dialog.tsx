@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useState } from "react";
 import {
   Dialog,
@@ -26,11 +27,14 @@ interface Props {
 }
 
 /**
- * 네이티브 `window.confirm()` 대체. 모바일·데스크톱 공통 디자인 토큰:
- * - 모바일: 좌우 1rem 인셋. 버튼은 풀너비 2분할(취소/확인).
- * - 데스크톱: max-w-sm. 우측 정렬 + 자동 너비.
- * - title 17px / description 14px leading-relaxed + break-keep(한국어 단어 단위 줄바꿈).
- * - 버튼 tap target 44px (h-11) — iOS HIG 권장.
+ * 네이티브 `window.confirm()` 대체. iOS Alert 패턴:
+ * - 중앙 정렬 제목 + (선택) 짧은 설명
+ * - 좌우 1:1 풀너비 버튼 (취소 / 확인) — 한 손 조작 친화
+ * - 데스크탑 max-w-xs (작은 카드, 권한 강조)
+ * - 뒤로가기 ← 버튼 비표시 (alert 는 "어디로 돌아가는" 화면이 아님)
+ * - 초기 포커스 = 취소 버튼 (실수 방지)
+ *
+ * description 가독성: 12.5px 보다 13px 가 한국어 짧은 문장에 더 자연스럽다.
  */
 export default function ConfirmDialog({
   open,
@@ -44,6 +48,7 @@ export default function ConfirmDialog({
   contentClassName,
 }: Props) {
   const [busy, setBusy] = useState(false);
+  const cancelRef = React.useRef<HTMLButtonElement>(null);
 
   const submit = async () => {
     setBusy(true);
@@ -55,35 +60,56 @@ export default function ConfirmDialog({
     }
   };
 
+  // 다이얼로그 열림 시 취소 버튼에 포커스 — 뒤로가기 ← 가 자동 포커스되던 문제 해결.
+  // 위험 액션(destructive) 다이얼로그에서도 안전한 기본 선택지가 강조됨.
+  React.useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => cancelRef.current?.focus(), 0);
+    return () => clearTimeout(t);
+  }, [open]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(contentClassName)}>
-        <DialogHeader>
-          <DialogTitle className="text-[17px] font-semibold leading-tight break-keep">
-            {title}
-          </DialogTitle>
-        </DialogHeader>
-        {description && (
-          <p className="text-[13px] text-muted-foreground leading-relaxed break-keep whitespace-pre-wrap">
-            {description}
-          </p>
+      <DialogContent
+        showBackButton={false}
+        className={cn(
+          "max-w-[calc(100%-3rem)] sm:max-w-xs p-0 gap-0 overflow-hidden",
+          contentClassName,
         )}
-        <div className="flex justify-end gap-2 pt-0.5">
+      >
+        {/* 본문 — 중앙 정렬 alert 스타일 */}
+        <div className="px-5 pt-5 pb-4 flex flex-col items-center text-center gap-1.5">
+          <DialogHeader className="contents">
+            <DialogTitle className="text-base font-semibold leading-snug break-keep">
+              {title}
+            </DialogTitle>
+          </DialogHeader>
+          {description && (
+            <div className="text-[13px] text-muted-foreground leading-relaxed break-keep whitespace-pre-wrap">
+              {description}
+            </div>
+          )}
+        </div>
+
+        {/* 버튼 — 1:1 풀너비, 가운데 구분선. iOS Alert 의 시그니처 패턴. */}
+        <div className="grid grid-cols-2 border-t divide-x">
           <Button
-            variant="outline"
-            size="sm"
+            ref={cancelRef}
+            variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={busy}
-            className="h-9 px-4"
+            className="h-11 rounded-none font-medium"
           >
             {cancelLabel}
           </Button>
           <Button
-            variant={destructive ? "destructive" : "default"}
-            size="sm"
+            variant="ghost"
             onClick={submit}
             disabled={busy}
-            className="h-9 px-4"
+            className={cn(
+              "h-11 rounded-none font-semibold",
+              destructive ? "text-destructive hover:bg-destructive/10" : "text-primary",
+            )}
           >
             {busy ? "처리 중…" : confirmLabel}
           </Button>

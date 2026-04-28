@@ -40,8 +40,7 @@ export default function MonthlySummary({
     setDraft(String(monthlyIncome));
   }, [monthlyIncome]);
 
-  // 카드 우상단 액션 버튼 — Pencil/Plus 등 임의 아이콘 + onClick. 카드 자체에
-  // 의미 있는 액션을 직접 박아 페이지 헤더 액션 버튼을 비움.
+  // 카드 우상단 액션 버튼 — 컴팩트 사이즈 (h-7).
   const ActionBtn = ({
     icon,
     onClick,
@@ -56,7 +55,7 @@ export default function MonthlySummary({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="-mr-1 flex h-8 w-8 items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent transition-colors shrink-0"
+      className="-mr-0.5 -my-1 flex h-7 w-7 items-center justify-center rounded text-muted-foreground/60 hover:text-foreground hover:bg-accent transition-colors shrink-0"
     >
       {icon}
     </button>
@@ -73,23 +72,23 @@ export default function MonthlySummary({
     color?: string;
     action?: React.ReactNode;
   }) => (
-    <div className="rounded-lg border bg-card p-2.5 md:p-3 flex flex-col gap-1 min-w-0">
-      <div className="flex items-center justify-between gap-1">
-        <span className="text-[11px] md:text-xs text-muted-foreground truncate">
+    <div className="rounded-lg border bg-card px-2.5 py-2 flex flex-col gap-0.5 min-w-0">
+      <div className="flex items-center justify-between gap-1 min-h-[1rem]">
+        <span className="text-[10px] md:text-[11px] text-muted-foreground truncate">
           {label}
         </span>
         {action}
       </div>
-      <div className={`text-sm md:text-base font-semibold truncate tabular-nums ${color || "text-foreground"}`}>
+      <div className={`text-sm font-semibold truncate tabular-nums ${color || "text-foreground"}`}>
         {value}
       </div>
     </div>
   );
 
   return (
-    <div className="flex flex-col gap-2 md:gap-3">
+    <div className="flex flex-col gap-1.5 md:gap-2">
       {/* 1층: 월급 | 고정비 — 각 카드 우상단에 ✏️ 액션 */}
-      <div className="grid gap-2 md:gap-3 grid-cols-2">
+      <div className="grid gap-1.5 md:gap-2 grid-cols-2">
         <Cell
           label="월급"
           action={
@@ -142,7 +141,7 @@ export default function MonthlySummary({
       </div>
 
       {/* 2층: 이번달 수입 | 지출 — 각 카드 우상단에 + 액션 (해당 type 으로 폼 열림) */}
-      <div className="grid gap-2 md:gap-3 grid-cols-2">
+      <div className="grid gap-1.5 md:gap-2 grid-cols-2">
         <Cell
           label="이번달 수입"
           color="text-finance-gain"

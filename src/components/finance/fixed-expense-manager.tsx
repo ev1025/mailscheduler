@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import DeleteRecordDescription from "@/components/ui/delete-record-description";
 import FixedExpenseForm from "@/components/finance/fixed-expense-form";
@@ -51,6 +51,35 @@ export default function FixedExpenseManager({
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<FixedExpense | null>(null);
   const [deletingFx, setDeletingFx] = useState<FixedExpense | null>(null);
+  // 카테고리별 펼침 상태 — 기본 닫힘. 펼친 그룹 id 만 Set 에 보관.
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+
+  // 카테고리별 그룹화. 카테고리명 → 항목 배열. 미분류는 "(미분류)" 키.
+  const grouped = useMemo(() => {
+    const g: Record<string, { color: string; items: FixedExpense[]; total: number }> = {};
+    for (const fx of fixedExpenses) {
+      const key = fx.category?.name || "(미분류)";
+      const color = fx.category?.color || "#6B7280";
+      if (!g[key]) g[key] = { color, items: [], total: 0 };
+      g[key].items.push(fx);
+      g[key].total += fx.type === "income" ? -fx.amount : fx.amount;
+    }
+    return g;
+  }, [fixedExpenses]);
+
+  // 정렬: 합계 큰 카테고리 위로.
+  const sortedCats = useMemo(
+    () => Object.entries(grouped).sort(([, a], [, b]) => b.total - a.total),
+    [grouped],
+  );
+
+  const toggleCat = (name: string) => {
+    setExpandedCats((p) => {
+      const n = new Set(p);
+      n.has(name) ? n.delete(name) : n.add(name);
+      return n;
+    });
+  };
 
   const handleOpenNew = () => {
     setEditing(null);
@@ -96,48 +125,83 @@ export default function FixedExpenseManager({
             </p>
           ) : (
             <div className="flex flex-col gap-1.5">
-              {fixedExpenses.map((fx) => (
-                <div
-                  key={fx.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => handleOpenEdit(fx)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleOpenEdit(fx);
-                  }}
-                  className="group flex items-center justify-between rounded-lg border p-2.5 cursor-pointer transition-colors hover:bg-accent/50 active:bg-accent"
-                >
-                  <div className="min-w-0 flex-1">
-                    {/* 지출명(title) 이 제일 크게. 없으면 description → 카테고리명 폴백. */}
-                    <p className="font-semibold text-sm truncate">
-                      {fx.title || fx.description || fx.category?.name || "미분류"}
-                    </p>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+              {sortedCats.map(([catName, group]) => {
+                const isOpen = expandedCats.has(catName);
+                return (
+                  <div key={catName} className="rounded-lg border bg-card overflow-hidden">
+                    {/* 카테고리 헤더 — 닫힘 토글 (기본 닫힘). 색 점 + 이름 + 합계 + 건수 */}
+                    <button
+                      type="button"
+                      onClick={() => toggleCat(catName)}
+                      className="w-full flex items-center gap-2 px-2.5 py-2 hover:bg-accent/50 transition-colors text-left"
+                    >
+                      {isOpen ? (
+                        <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      )}
                       <span
-                        className={`font-medium tabular-nums ${
-                          fx.type === "income" ? "text-finance-gain" : "text-finance-loss"
-                        }`}
-                      >
-                        {fx.type === "income" ? "+" : "-"}
-                        {formatWon(fx.amount)}
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: group.color }}
+                      />
+                      <span className="text-sm font-semibold flex-1 truncate">{catName}</span>
+                      <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">
+                        {group.items.length}건
                       </span>
-                      <span>매월 {fx.day_of_month}일</span>
-                      {fx.category?.name && <span className="truncate">· {fx.category.name}</span>}
-                    </div>
+                      <span className="text-sm font-semibold tabular-nums text-finance-loss shrink-0">
+                        -{formatWon(group.total)}
+                      </span>
+                    </button>
+
+                    {/* 카테고리 내부 항목들 — 펼쳐진 경우만 */}
+                    {isOpen && (
+                      <ul className="border-t divide-y divide-border/60">
+                        {group.items.map((fx) => (
+                          <li
+                            key={fx.id}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => handleOpenEdit(fx)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleOpenEdit(fx);
+                            }}
+                            className="group flex items-center justify-between gap-2 px-3 py-2 cursor-pointer transition-colors hover:bg-accent/40"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-[13px] truncate">
+                                {fx.title || fx.description || fx.category?.name || "미분류"}
+                              </p>
+                              <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5 tabular-nums">
+                                <span>매월 {fx.day_of_month}일</span>
+                                {fx.payment_method && <span>· {fx.payment_method}</span>}
+                              </div>
+                            </div>
+                            <span
+                              className={`text-sm font-semibold tabular-nums shrink-0 ${
+                                fx.type === "income" ? "text-finance-gain" : "text-finance-loss"
+                              }`}
+                            >
+                              {fx.type === "income" ? "+" : "-"}
+                              {formatWon(fx.amount)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeletingFx(fx);
+                              }}
+                              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent transition-colors"
+                              aria-label="고정비 삭제"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeletingFx(fx);
-                    }}
-                    className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent transition-colors"
-                    aria-label="고정비 삭제"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
