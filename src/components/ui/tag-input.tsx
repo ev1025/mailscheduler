@@ -689,14 +689,23 @@ export default function TagInput({
                     ))
                   )}
                   {newTagName.trim() && !allTags.some((t) => t.name === newTagName.trim()) && onAddTag && (
-                    <div
-                      className="flex items-center gap-2 px-2 py-2 hover:bg-accent rounded cursor-pointer text-sm text-muted-foreground"
-                      onMouseDown={(e) => { if (document.activeElement === inputRef.current) e.preventDefault(); }}
-                      onClick={handleAdd}
+                    <button
+                      type="button"
+                      // onPointerDown preventDefault — 모바일/데스크탑 모두에서 input 포커스
+                      // 유지 → 키보드 hide 로 인한 시트 레이아웃 shift 깜빡임 방지.
+                      // (이전 onMouseDown 만으로는 모바일 터치 합성 click 시 timing 어긋나서
+                      // 버튼 좌표가 키보드 사라진 만큼 위로 밀리며 outside-tap 감지로 시트가
+                      // 닫혀버림 → "+추가" 가 작동 안 한 것처럼 보였음.)
+                      onPointerDown={(e) => e.preventDefault()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAdd();
+                      }}
+                      className="flex w-full items-center gap-2 px-2 py-2 hover:bg-accent rounded cursor-pointer text-sm text-muted-foreground text-left"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       <span>&quot;{newTagName.trim()}&quot; 추가</span>
-                    </div>
+                    </button>
                   )}
                   {filtered.length === 0 && !newTagName.trim() && allTags.length === 0 && (
                     <div className="px-2.5 py-6 text-xs text-muted-foreground text-center">
