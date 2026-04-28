@@ -8,8 +8,8 @@ import { useCurrentUserId } from "@/lib/current-user";
  * 결제수단 — Supabase payment_methods 테이블에서 조회/관리.
  * 이전엔 localStorage 였으나 디바이스 동기화 + 다중유저 분리를 위해 DB 로 이전.
  *
- * 시드값(카드/현금/계좌이체/자동이체/간편결제)은 supabase-categories-migration.sql
- * 에서 모든 기존 유저에게 INSERT. 신규 유저는 회원가입 후 첫 사용 시 비어 있을 수
+ * 시드값(카드/현금/계좌이체/자동이체/간편결제)은 supabase-schema.sql 에서
+ * 모든 기존 유저에게 INSERT. 신규 유저는 회원가입 후 첫 사용 시 비어 있을 수
  * 있어 클라이언트 자동 시드를 백업으로 둠.
  */
 

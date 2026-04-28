@@ -483,3 +483,188 @@ CREATE INDEX IF NOT EXISTS app_users_auth_user_id_idx
 -- ============================================
 ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS series_id UUID;
 CREATE INDEX IF NOT EXISTS calendar_events_series_id_idx ON calendar_events(series_id);
+
+-- =============================================
+-- source: supabase-drop-memos.sql
+-- =============================================
+-- 메모 페이지 기능 제거에 따라 memos 테이블 삭제. 신규 환경에선 no-op.
+DROP TABLE IF EXISTS memos CASCADE;
+
+-- =============================================
+-- source: supabase-payment-method-unconstrain.sql
+-- =============================================
+-- payment_method 컬럼의 CHECK 제약 제거 — 사용자가 결제수단 자유롭게 추가 가능하도록.
+-- 신규 환경엔 영향 없음(스키마 정의에 CHECK 없음). 기존 DB 정리용.
+ALTER TABLE expenses       DROP CONSTRAINT IF EXISTS expenses_payment_method_check;
+ALTER TABLE fixed_expenses DROP CONSTRAINT IF EXISTS fixed_expenses_payment_method_check;
+
+-- =============================================
+-- source: supabase-travel-location.sql
+-- =============================================
+-- 여행/데이트 항목에 네이버 지도 연동용 위치 정보.
+ALTER TABLE travel_items
+  ADD COLUMN IF NOT EXISTS place_name TEXT,
+  ADD COLUMN IF NOT EXISTS address    TEXT,
+  ADD COLUMN IF NOT EXISTS lat        DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS lng        DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS places     JSONB NOT NULL DEFAULT '[]'::jsonb;
+
+-- 단일 좌표 → places 배열 마이그레이션 (idempotent)
+UPDATE travel_items
+SET places = jsonb_build_array(
+  jsonb_build_object('name', place_name, 'address', address, 'lat', lat, 'lng', lng)
+)
+WHERE place_name IS NOT NULL
+  AND (places IS NULL OR places = '[]'::jsonb);
+
+CREATE INDEX IF NOT EXISTS idx_travel_items_latlng ON travel_items (lat, lng);
+
+-- travel_items.category CHECK 제약 제거 (이전 환경 대비)
+ALTER TABLE travel_items DROP CONSTRAINT IF EXISTS travel_items_category_check;
+
+-- =============================================
+-- source: supabase-travel-plans.sql + leg-durations + plan-category + transport-route
+-- =============================================
+-- 여행 계획: 타임라인 task + 이동수단별 소요시간/경로 캐시.
+CREATE TABLE IF NOT EXISTS travel_plans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  start_date DATE,
+  end_date DATE,
+  notes TEXT,
+  user_id UUID REFERENCES app_users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS travel_plan_tasks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  plan_id UUID NOT NULL REFERENCES travel_plans(id) ON DELETE CASCADE,
+  day_index INT DEFAULT 0,
+  start_time TIME,
+  place_name TEXT NOT NULL,
+  place_address TEXT,
+  place_lat DOUBLE PRECISION,
+  place_lng DOUBLE PRECISION,
+  tag TEXT,                                    -- 콤마구분 태그(복수)
+  category TEXT,                               -- 단일 분류(자연/숙소/식당/...)
+  content TEXT,
+  stay_minutes INT DEFAULT 0,
+  manual_order INT DEFAULT 0,
+  transport_mode TEXT,                         -- 'car' | 'bus' | 'taxi' | 'train' | 'transit'
+  transport_duration_sec INT,                  -- 선택된 수단의 소요시간(초)
+  transport_durations JSONB DEFAULT '{}'::JSONB, -- { car: 3900, bus: 7200, ... }
+  transport_route JSONB,                       -- transit step 배열 (도보+버스+지하철 혼합)
+  transport_manual BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tpt_plan_day_time
+  ON travel_plan_tasks (plan_id, day_index, start_time, manual_order);
+
+ALTER TABLE travel_plans       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE travel_plan_tasks  ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON travel_plans;
+DROP POLICY IF EXISTS "Allow all" ON travel_plan_tasks;
+CREATE POLICY "Allow all" ON travel_plans      FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON travel_plan_tasks FOR ALL TO public USING (true) WITH CHECK (true);
+
+-- 기존 단일 transport_duration_sec → transport_durations JSONB 복사 (idempotent)
+UPDATE travel_plan_tasks
+SET transport_durations = jsonb_build_object(transport_mode, transport_duration_sec)
+WHERE transport_mode IS NOT NULL
+  AND transport_duration_sec IS NOT NULL
+  AND (transport_durations IS NULL OR transport_durations = '{}'::JSONB);
+
+-- =============================================
+-- source: supabase-categories-migration.sql
+-- =============================================
+-- 결제수단 / 생필품 분류 / 여행 분류 — localStorage → Supabase 이전.
+-- 빌트인은 SQL 시드, 사용자 추가는 클라이언트 hook 에서 INSERT.
+-- (아래 anon "Allow all" 은 schema 의 baseline. supabase-rls-auth.sql 에서
+--  authenticated 역할에 대해 user_id 기반 "Own rows" 로 다시 잠금.)
+
+CREATE TABLE IF NOT EXISTS payment_methods (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES app_users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT DEFAULT '#6B7280',
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_payment_methods_user ON payment_methods(user_id, sort_order);
+ALTER TABLE payment_methods ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON payment_methods;
+CREATE POLICY "Allow all" ON payment_methods FOR ALL TO anon USING (true) WITH CHECK (true);
+
+INSERT INTO payment_methods (user_id, name, color, sort_order)
+SELECT u.id, v.name, v.color, v.sort_order
+FROM app_users u
+CROSS JOIN (VALUES
+  ('카드',     '#3B82F6', 0),
+  ('현금',     '#22C55E', 1),
+  ('계좌이체', '#A855F7', 2),
+  ('자동이체', '#F59E0B', 3),
+  ('간편결제', '#E4D547', 4)
+) AS v(name, color, sort_order)
+ON CONFLICT (user_id, name) DO NOTHING;
+
+
+CREATE TABLE IF NOT EXISTS product_categories (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES app_users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT DEFAULT '#6B7280',
+  is_builtin BOOLEAN DEFAULT FALSE,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_product_categories_user ON product_categories(user_id, sort_order);
+ALTER TABLE product_categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON product_categories;
+CREATE POLICY "Allow all" ON product_categories FOR ALL TO anon USING (true) WITH CHECK (true);
+
+INSERT INTO product_categories (user_id, name, color, is_builtin, sort_order)
+SELECT u.id, v.name, v.color, TRUE, v.sort_order
+FROM app_users u
+CROSS JOIN (VALUES
+  ('영양제', '#22C55E', 0),
+  ('화장품', '#EC4899', 1),
+  ('단백질', '#F59E0B', 2),
+  ('음식',   '#EF4444', 3),
+  ('생필품', '#3B82F6', 4),
+  ('구독',   '#8B5CF6', 5)
+) AS v(name, color, sort_order)
+ON CONFLICT (user_id, name) DO NOTHING;
+
+
+CREATE TABLE IF NOT EXISTS travel_categories (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES app_users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT DEFAULT '#6B7280',
+  is_builtin BOOLEAN DEFAULT FALSE,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id, name)
+);
+CREATE INDEX IF NOT EXISTS idx_travel_categories_user ON travel_categories(user_id, sort_order);
+ALTER TABLE travel_categories ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow all" ON travel_categories;
+CREATE POLICY "Allow all" ON travel_categories FOR ALL TO anon USING (true) WITH CHECK (true);
+
+INSERT INTO travel_categories (user_id, name, color, is_builtin, sort_order)
+SELECT u.id, v.name, v.color, TRUE, v.sort_order
+FROM app_users u
+CROSS JOIN (VALUES
+  ('자연',   '#22C55E', 0),
+  ('숙소',   '#A855F7', 1),
+  ('식당',   '#F50B0B', 2),
+  ('놀거리', '#3B82F6', 3),
+  ('데이트', '#EC4899', 4),
+  ('공연',   '#E1D04E', 5),
+  ('쇼핑',   '#06B6D4', 6)
+) AS v(name, color, sort_order)
+ON CONFLICT (user_id, name) DO NOTHING;

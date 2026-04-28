@@ -158,20 +158,18 @@ export interface TravelPlanTask {
   place_lat: number | null;
   place_lng: number | null;
   tag: string | null;       // 태그(복수, 콤마 구분)
-  category?: string | null; // 분류(단일) — SQL 마이그(supabase-travel-plan-category) 후 활성
+  category?: string | null; // 분류(단일)
   content: string | null;
   stay_minutes: number;
   manual_order: number;
   transport_mode: TransportMode | null;
   transport_duration_sec: number | null;
   transport_manual: boolean;
-  // 수단별 소요시간 캐시 (초). SQL 마이그레이션(supabase-travel-leg-durations.sql)
-  // 실행 후부터 채워짐. 옵셔널 유지하여 컬럼 없는 구 DB 에서도 동작.
+  // 수단별 소요시간 캐시 (초). 옵셔널 유지 — 컬럼 없는 구 DB 에서도 동작.
   // 예: { car: 3900, bus: 7200, taxi: 3900, train: null }
   transport_durations?: Partial<Record<TransportMode, number | null>> | null;
   // transit 모드로 선택된 조합 경로의 상세 (도보·버스·지하철 혼합 step 배열).
   // 사용자가 picker 대중교통 탭에서 특정 경로를 고르면 여기 저장.
-  // SQL: supabase-travel-transport-route.sql 실행 후 활성.
   transport_route?: TransportRouteStep[] | null;
   created_at: string;
 }

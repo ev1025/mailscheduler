@@ -77,15 +77,9 @@ PUBLIC_TRAIN_API_KEY=...           # 공공데이터 KORAIL (디코딩 키)
 
 SQL Editor 에서 아래 파일을 **순서대로** 실행:
 
-1. `supabase-schema.sql` — 전체 기본 스키마 + RLS + 기본 카테고리 시드
-2. `supabase-rls-auth.sql` — Supabase Auth(user_id) 기반 RLS 정책
-3. `supabase-storage.sql` — `avatars` 버킷 정책
-4. `supabase-share-edit-rls.sql` — 공유받은 캘린더 편집 권한
-5. `supabase-travel-location.sql` — `travel_items.location` JSONB
-6. `supabase-travel-plans.sql` — `travel_plans` / `travel_plan_tasks`
-7. `supabase-travel-plan-category.sql` — task 분류 컬럼
-8. `supabase-travel-leg-durations.sql` — 수단별 소요시간 캐시 JSONB
-9. `supabase-travel-transport-route.sql` — 대중교통 경로 상세(JSONB)
+1. `supabase-schema.sql` — 모든 테이블/컬럼/시드 (이전엔 별도였던 여행/카테고리 마이그레이션 통합)
+2. `supabase-rls-auth.sql` — Supabase Auth 기반 RLS 정책 (공유 편집 권한 포함)
+3. `supabase-storage.sql` — `avatars` / `knowledge-images` 버킷 정책
 
 필수 추가 마이그레이션 (이후 세션에서 도입된 필드):
 
@@ -96,9 +90,6 @@ ALTER TABLE fixed_expenses ADD COLUMN IF NOT EXISTS title TEXT;
 
 -- 지식창고 항목 순서 유지
 ALTER TABLE knowledge_items ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
-
--- 여행 항목의 장소 배열
-ALTER TABLE travel_items ADD COLUMN IF NOT EXISTS places JSONB;
 ```
 
 ### 정리 (미사용 잔재 제거, 선택)

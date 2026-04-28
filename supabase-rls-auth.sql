@@ -171,3 +171,153 @@ CREATE POLICY "Authenticated" ON supplements
 DROP POLICY IF EXISTS "Allow all" ON weather_cache;
 CREATE POLICY "Public cache" ON weather_cache
   FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+
+-- ────────────────────────────────
+-- 7. 카테고리/결제수단 (user_id = 본인)
+-- ────────────────────────────────
+-- payment_methods
+DROP POLICY IF EXISTS "Allow all" ON payment_methods;
+DROP POLICY IF EXISTS "Own rows" ON payment_methods;
+CREATE POLICY "Own rows" ON payment_methods FOR ALL TO authenticated
+  USING (user_id = auth_app_user_id())
+  WITH CHECK (user_id = auth_app_user_id());
+
+-- product_categories
+DROP POLICY IF EXISTS "Allow all" ON product_categories;
+DROP POLICY IF EXISTS "Own rows" ON product_categories;
+CREATE POLICY "Own rows" ON product_categories FOR ALL TO authenticated
+  USING (user_id = auth_app_user_id())
+  WITH CHECK (user_id = auth_app_user_id());
+
+-- travel_categories
+DROP POLICY IF EXISTS "Allow all" ON travel_categories;
+DROP POLICY IF EXISTS "Own rows" ON travel_categories;
+CREATE POLICY "Own rows" ON travel_categories FOR ALL TO authenticated
+  USING (user_id = auth_app_user_id())
+  WITH CHECK (user_id = auth_app_user_id());
+
+-- ────────────────────────────────
+-- 8. 공유 편집 권한 — owner + accepted viewer 모두 R/W
+--    (이전 source: supabase-share-edit-rls.sql — 위 4번의 "Own rows" 일부를 덮어씀)
+-- ────────────────────────────────
+
+-- travel_items: 4번에서 만든 "Own rows" 대체
+DROP POLICY IF EXISTS "Own rows" ON travel_items;
+DROP POLICY IF EXISTS "Own or shared" ON travel_items;
+CREATE POLICY "Own or shared" ON travel_items
+  FOR ALL TO authenticated
+  USING (
+    user_id = auth_app_user_id()
+    OR user_id IN (
+      SELECT owner_id FROM calendar_shares
+      WHERE viewer_id = auth_app_user_id() AND status = 'accepted'
+    )
+  )
+  WITH CHECK (
+    user_id = auth_app_user_id()
+    OR user_id IN (
+      SELECT owner_id FROM calendar_shares
+      WHERE viewer_id = auth_app_user_id() AND status = 'accepted'
+    )
+  );
+
+-- travel_plans: schema 의 anon "Allow all" 대체
+DROP POLICY IF EXISTS "Allow all" ON travel_plans;
+DROP POLICY IF EXISTS "Own or shared" ON travel_plans;
+CREATE POLICY "Own or shared" ON travel_plans
+  FOR ALL TO authenticated
+  USING (
+    user_id = auth_app_user_id()
+    OR user_id IN (
+      SELECT owner_id FROM calendar_shares
+      WHERE viewer_id = auth_app_user_id() AND status = 'accepted'
+    )
+  )
+  WITH CHECK (
+    user_id = auth_app_user_id()
+    OR user_id IN (
+      SELECT owner_id FROM calendar_shares
+      WHERE viewer_id = auth_app_user_id() AND status = 'accepted'
+    )
+  );
+
+-- travel_plan_tasks: 해당 plan 의 권한 따라감 (plan_id 경유)
+DROP POLICY IF EXISTS "Allow all" ON travel_plan_tasks;
+DROP POLICY IF EXISTS "Via plan" ON travel_plan_tasks;
+CREATE POLICY "Via plan" ON travel_plan_tasks
+  FOR ALL TO authenticated
+  USING (
+    plan_id IN (
+      SELECT id FROM travel_plans
+      WHERE user_id = auth_app_user_id()
+         OR user_id IN (
+           SELECT owner_id FROM calendar_shares
+           WHERE viewer_id = auth_app_user_id() AND status = 'accepted'
+         )
+    )
+  )
+  WITH CHECK (
+    plan_id IN (
+      SELECT id FROM travel_plans
+      WHERE user_id = auth_app_user_id()
+         OR user_id IN (
+           SELECT owner_id FROM calendar_shares
+           WHERE viewer_id = auth_app_user_id() AND status = 'accepted'
+         )
+    )
+  );
+
+-- travel_tags: 읽기는 공유자도 (태그 풀 공유), 쓰기는 소유자만
+DROP POLICY IF EXISTS "Own rows" ON travel_tags;
+DROP POLICY IF EXISTS "Read own or shared" ON travel_tags;
+DROP POLICY IF EXISTS "Write own" ON travel_tags;
+DROP POLICY IF EXISTS "Update own" ON travel_tags;
+DROP POLICY IF EXISTS "Delete own" ON travel_tags;
+CREATE POLICY "Read own or shared" ON travel_tags
+  FOR SELECT TO authenticated USING (
+    user_id = auth_app_user_id()
+    OR user_id IN (
+      SELECT owner_id FROM calendar_shares
+      WHERE viewer_id = auth_app_user_id() AND status = 'accepted'
+    )
+  );
+CREATE POLICY "Write own" ON travel_tags
+  FOR INSERT TO authenticated WITH CHECK (user_id = auth_app_user_id());
+CREATE POLICY "Update own" ON travel_tags
+  FOR UPDATE TO authenticated
+  USING (user_id = auth_app_user_id())
+  WITH CHECK (user_id = auth_app_user_id());
+CREATE POLICY "Delete own" ON travel_tags
+  FOR DELETE TO authenticated USING (user_id = auth_app_user_id());
+
+-- calendar_events: 2번에서 만든 Insert/Update/Delete own 대체 — 공유자도 쓰기 가능
+DROP POLICY IF EXISTS "Insert own events" ON calendar_events;
+DROP POLICY IF EXISTS "Update own events" ON calendar_events;
+DROP POLICY IF EXISTS "Delete own events" ON calendar_events;
+DROP POLICY IF EXISTS "Write shared events" ON calendar_events;
+DROP POLICY IF EXISTS "Update shared events" ON calendar_events;
+DROP POLICY IF EXISTS "Delete shared events" ON calendar_events;
+CREATE POLICY "Write shared events" ON calendar_events
+  FOR INSERT TO authenticated WITH CHECK (
+    user_id = auth_app_user_id()
+    OR user_id IN (
+      SELECT owner_id FROM calendar_shares
+      WHERE viewer_id = auth_app_user_id() AND status = 'accepted'
+    )
+  );
+CREATE POLICY "Update shared events" ON calendar_events
+  FOR UPDATE TO authenticated USING (
+    user_id = auth_app_user_id()
+    OR user_id IN (
+      SELECT owner_id FROM calendar_shares
+      WHERE viewer_id = auth_app_user_id() AND status = 'accepted'
+    )
+  );
+CREATE POLICY "Delete shared events" ON calendar_events
+  FOR DELETE TO authenticated USING (
+    user_id = auth_app_user_id()
+    OR user_id IN (
+      SELECT owner_id FROM calendar_shares
+      WHERE viewer_id = auth_app_user_id() AND status = 'accepted'
+    )
+  );
