@@ -48,7 +48,6 @@ export default function ConfirmDialog({
   contentClassName,
 }: Props) {
   const [busy, setBusy] = useState(false);
-  const cancelRef = React.useRef<HTMLButtonElement>(null);
 
   const submit = async () => {
     setBusy(true);
@@ -59,14 +58,6 @@ export default function ConfirmDialog({
       setBusy(false);
     }
   };
-
-  // 다이얼로그 열림 시 취소 버튼에 포커스 — 뒤로가기 ← 가 자동 포커스되던 문제 해결.
-  // 위험 액션(destructive) 다이얼로그에서도 안전한 기본 선택지가 강조됨.
-  React.useEffect(() => {
-    if (!open) return;
-    const t = setTimeout(() => cancelRef.current?.focus(), 0);
-    return () => clearTimeout(t);
-  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -91,14 +82,16 @@ export default function ConfirmDialog({
           )}
         </div>
 
-        {/* 버튼 — 1:1 풀너비, 가운데 구분선. iOS Alert 의 시그니처 패턴. */}
+        {/* 버튼 — 1:1 풀너비, 가운데 구분선. iOS Alert 의 시그니처 패턴.
+            focus-visible 링 제거 — 하드웨어 back 버튼으로 다이얼로그가 열리면 :focus-visible
+            이 활성화되어 취소 버튼에 링이 남아 있는 문제 해결. tap 영역이 충분히 크고
+            텍스트로 "취소·종료"가 명확해서 별도 포커스 링 없어도 의도 전달에 문제 없음. */}
         <div className="grid grid-cols-2 border-t divide-x">
           <Button
-            ref={cancelRef}
             variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={busy}
-            className="h-11 rounded-none font-medium"
+            className="h-11 rounded-none font-medium focus-visible:ring-0 focus-visible:border-transparent"
           >
             {cancelLabel}
           </Button>
@@ -107,7 +100,7 @@ export default function ConfirmDialog({
             onClick={submit}
             disabled={busy}
             className={cn(
-              "h-11 rounded-none font-semibold",
+              "h-11 rounded-none font-semibold focus-visible:ring-0 focus-visible:border-transparent",
               destructive ? "text-destructive hover:bg-destructive/10" : "text-primary",
             )}
           >

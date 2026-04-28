@@ -18,13 +18,24 @@ let nextId = 1;
 let exitConfirmHandler: (() => void) | null = null;
 let isStandalonePwa = false;
 
-function detectStandalone(): boolean {
+export function detectStandalone(): boolean {
   if (typeof window === "undefined") return false;
   // Chrome/Edge/PWA: display-mode: standalone
   if (window.matchMedia("(display-mode: standalone)").matches) return true;
   // iOS Safari: navigator.standalone
   const nav = window.navigator as Navigator & { standalone?: boolean };
   return !!nav.standalone;
+}
+
+/** 가드 엔트리가 history 의 현재 상태가 아닐 경우에만 새로 push.
+ *  AppShell 에서 pathname 변경마다 호출하면 어느 페이지에서 back 을 눌러도
+ *  먼저 가드를 pop 하면서 종료 확인 다이얼로그가 떠 in-app 라우팅을 가로챔. */
+export function pushExitGuardIfNeeded() {
+  if (typeof window === "undefined") return;
+  if (!detectStandalone()) return;
+  const cur = window.history.state as { __exitGuard?: boolean } | null;
+  if (cur?.__exitGuard) return;
+  window.history.pushState({ __exitGuard: true }, "");
 }
 
 function ensureListener() {
