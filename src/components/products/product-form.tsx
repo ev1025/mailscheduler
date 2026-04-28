@@ -1,12 +1,18 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormField } from "@/components/ui/form-field";
-import { Trash2, HelpCircle, Crown } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
+import { Trash2, Crown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUserId } from "@/lib/current-user";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
@@ -27,7 +33,14 @@ interface PriceEntry {
   id?: string;
   price: string;
   site_url: string;
+  /** 구매일 — yyyy-MM-dd. 입력 없으면 오늘. */
+  purchased_at: string;
 }
+
+const todayIsoDate = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 interface Props {
   open: boolean;
@@ -59,40 +72,23 @@ export default function ProductForm({
   const [prices, setPrices] = useState<PriceEntry[]>([]);
   const [priceDraft, setPriceDraft] = useState("");
   const [siteDraft, setSiteDraft] = useState("");
+  const [dateDraft, setDateDraft] = useState(todayIsoDate());
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
-  const [fixedHelpOpen, setFixedHelpOpen] = useState(false);
-  const fixedHelpRef = useRef<HTMLDivElement>(null);
+  // 고정비 옵션 (isActive=true 일 때 노출)
+  const [paymentDay, setPaymentDay] = useState("11");
+  const [monthlyCostInput, setMonthlyCostInput] = useState("");
+  const [fixedCategoryId, setFixedCategoryId] = useState<string>("");
   const userId = useCurrentUserId();
-
-  // 고정비 도움말 외부 클릭 시 닫기
-  useEffect(() => {
-    if (!fixedHelpOpen) return;
-    const handler = (e: MouseEvent | TouchEvent) => {
-      if (fixedHelpRef.current && !fixedHelpRef.current.contains(e.target as Node)) {
-        setFixedHelpOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("touchstart", handler);
-    return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("touchstart", handler);
-    };
-  }, [fixedHelpOpen]);
 
   const { tags: subTags, addTag, deleteTag, updateTagColor } = useProductSubTags(category);
   const { upsertFixedFromProduct, deleteFixedByProduct } = useFixedExpenses();
-  // 카테고리 셀렉트 값으로 사용할 expense_categories 만 필요. transactions 자체는 이번 달
-  // 범위로 잠깐 가져오지만 결과는 안 씀(useTransactions 가 categories 를 함께 반환하므로
-  // 가벼운 호출). YYYY-MM-DD 시그니처에 맞춰 오늘 날짜 단일 일자로 호출.
-  const todayIso = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  })();
+  // 가계부 카테고리 셀렉트 값으로 사용. transactions 자체는 안 씀.
+  const todayIso = todayIsoDate();
   const { categories: expCategories } = useTransactions(todayIso, todayIso);
+  const expenseCategories = expCategories.filter((c) => c.type === "expense");
 
-  // 기존 제품 수정 시 DB에서 가격들 로드
+  // 기존 제품 수정 시 DB에서 가격들 + 기존 고정비 카테고리 로드
   useEffect(() => {
     if (!open) return;
     if (product) {
@@ -102,10 +98,12 @@ export default function ProductForm({
       setBrand(product.brand || "");
       setNotes(product.notes || "");
       setIsActive(product.is_active);
-      // 가격 이력 로드
+      setPaymentDay(String(product.default_payment_day ?? 11));
+      setMonthlyCostInput(product.monthly_cost ? String(product.monthly_cost) : "");
+      // 가격 이력 (구매일 포함) 로드
       supabase
         .from("product_purchases")
-        .select("id, total_price, link")
+        .select("id, total_price, link, purchased_at")
         .eq("product_id", product.id)
         .order("total_price")
         .then(({ data }) => {
@@ -115,11 +113,22 @@ export default function ProductForm({
                 id: p.id,
                 price: String(p.total_price),
                 site_url: p.link || "",
+                purchased_at: p.purchased_at || todayIsoDate(),
               }))
             );
           } else {
             setPrices([]);
           }
+        });
+      // 기존 고정비 행이 있으면 저장된 가계부 카테고리 ID 로드
+      supabase
+        .from("fixed_expenses")
+        .select("category_id")
+        .eq("product_id", product.id)
+        .eq("is_active", true)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data?.category_id) setFixedCategoryId(data.category_id as string);
         });
     } else {
       setName("");
@@ -129,22 +138,40 @@ export default function ProductForm({
       setNotes("");
       setIsActive(false);
       setPrices([]);
+      setPaymentDay("11");
+      setMonthlyCostInput("");
+      setFixedCategoryId("");
     }
     setPriceDraft("");
     setSiteDraft("");
+    setDateDraft(todayIsoDate());
     setEditingIdx(null);
   }, [product, open]);
+
+  // 가계부 카테고리 기본값 — 로드된 카테고리가 없으면 "기타지출" 또는 첫 expense.
+  useEffect(() => {
+    if (fixedCategoryId) return;
+    if (expenseCategories.length === 0) return;
+    const def =
+      expenseCategories.find((c) => c.name === "기타지출") || expenseCategories[0];
+    if (def) setFixedCategoryId(def.id);
+  }, [expenseCategories, fixedCategoryId]);
 
   const resetDraft = () => {
     setPriceDraft("");
     setSiteDraft("");
+    setDateDraft(todayIsoDate());
     setEditingIdx(null);
   };
 
   const commitPrice = () => {
     const priceNum = parseInt(priceDraft);
     if (!priceDraft || !(priceNum > 0)) return;
-    const entry: PriceEntry = { price: String(priceNum), site_url: siteDraft.trim() };
+    const entry: PriceEntry = {
+      price: String(priceNum),
+      site_url: siteDraft.trim(),
+      purchased_at: dateDraft || todayIsoDate(),
+    };
     if (editingIdx !== null) {
       setPrices((prev) =>
         prev.map((p, idx) => (idx === editingIdx ? { ...p, ...entry } : p))
@@ -159,6 +186,7 @@ export default function ProductForm({
     const p = prices[i];
     setPriceDraft(p.price);
     setSiteDraft(p.site_url);
+    setDateDraft(p.purchased_at || todayIsoDate());
     setEditingIdx(i);
   };
 
@@ -177,6 +205,12 @@ export default function ProductForm({
       ? Math.min(...validPrices.map((p) => parseInt(p.price)))
       : null;
 
+    // 사용자가 입력한 월 비용 우선, 없으면 최저가 폴백.
+    const userMonthlyCost = parseInt(monthlyCostInput);
+    const monthlyCost = userMonthlyCost > 0 ? userMonthlyCost : minPrice;
+    // 결제일 1~31 클램프.
+    const day = Math.min(31, Math.max(1, parseInt(paymentDay) || 11));
+
     const { error, data } = await onSave({
       name: name.trim(),
       category,
@@ -185,9 +219,9 @@ export default function ProductForm({
       notes: notes.trim() || null,
       link: validPrices[0]?.site_url || null,
       is_active: isActive,
-      monthly_cost: minPrice,
+      monthly_cost: monthlyCost,
       monthly_consumption: product?.monthly_consumption ?? 1,
-      default_payment_day: product?.default_payment_day ?? 11,
+      default_payment_day: day,
     });
     if (error || !data) {
       setSaving(false);
@@ -197,7 +231,7 @@ export default function ProductForm({
 
     const productId = data.id;
 
-    // 2. 가격 목록 업데이트 — 기존 것 삭제 후 새로 삽입
+    // 2. 가격 목록 업데이트 — 기존 것 삭제 후 새로 삽입 (구매일 보존).
     await supabase
       .from("product_purchases")
       .delete()
@@ -211,7 +245,7 @@ export default function ProductForm({
           points: 0,
           quantity: 1,
           quantity_unit: "개",
-          purchased_at: new Date().toISOString().split("T")[0],
+          purchased_at: p.purchased_at || todayIsoDate(),
           store: null,
           link: p.site_url.trim() || null,
           notes: null,
@@ -220,23 +254,15 @@ export default function ProductForm({
       );
     }
 
-    // 3. 고정비 등록/해제
-    if (isActive && minPrice) {
-      const expenseCat =
-        expCategories.find(
-          (c) =>
-            c.type === "expense" &&
-            (c.name === "기타지출" || c.name.includes("생활"))
-        ) || expCategories.find((c) => c.type === "expense");
-      if (expenseCat) {
-        await upsertFixedFromProduct({
-          productId,
-          productName: name.trim(),
-          monthlyCost: minPrice,
-          paymentDay: 11,
-          categoryId: expenseCat.id,
-        });
-      }
+    // 3. 고정비 등록/해제 — 사용자 선택 카테고리·결제일·월비용 사용.
+    if (isActive && monthlyCost && fixedCategoryId) {
+      await upsertFixedFromProduct({
+        productId,
+        productName: name.trim(),
+        monthlyCost,
+        paymentDay: day,
+        categoryId: fixedCategoryId,
+      });
     } else {
       await deleteFixedByProduct(productId);
     }
@@ -303,8 +329,8 @@ export default function ProductForm({
           </FormField>
 
           {/* 가격 입력 + 추가된 목록 */}
-          <FormField label="가격 / 사이트">
-            <div className="flex items-center gap-1.5 min-w-0">
+          <FormField label="가격 · 구매일 · 사이트">
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
               <Input
                 type="number"
                 value={priceDraft}
@@ -319,6 +345,12 @@ export default function ProductForm({
                 className={`${FORM_INPUT_COMPACT} w-24 shrink-0`}
               />
               <Input
+                type="date"
+                value={dateDraft}
+                onChange={(e) => setDateDraft(e.target.value)}
+                className={`${FORM_INPUT_COMPACT} w-[8.5rem] shrink-0`}
+              />
+              <Input
                 value={siteDraft}
                 onChange={(e) => setSiteDraft(e.target.value)}
                 onKeyDown={(e) => {
@@ -328,7 +360,7 @@ export default function ProductForm({
                   }
                 }}
                 placeholder="https://..."
-                className={`${FORM_INPUT_COMPACT} flex-1 min-w-0`}
+                className={`${FORM_INPUT_COMPACT} flex-1 min-w-[8rem]`}
               />
               <Button
                 type="button"
@@ -355,17 +387,21 @@ export default function ProductForm({
               const sorted = [...prices]
                 .map((p, originalIdx) => ({ p, originalIdx }))
                 .sort((a, b) => parseInt(a.p.price) - parseInt(b.p.price));
-              const minPrice = sorted[0]?.p.price;
+              const minPriceStr = sorted[0]?.p.price;
               return (
                 <ul className="rounded-lg border bg-muted/30 divide-y divide-border/60 overflow-hidden">
                   {sorted.map(({ p, originalIdx }) => {
-                    const isMin = p.price === minPrice;
+                    const isMin = p.price === minPriceStr;
                     const isEditing = editingIdx === originalIdx;
+                    // 구매일 표시: M/d (간결)
+                    const dateLabel = p.purchased_at
+                      ? `${parseInt(p.purchased_at.slice(5, 7))}/${parseInt(p.purchased_at.slice(8, 10))}`
+                      : "—";
                     return (
                       <li
                         key={originalIdx}
                         onClick={() => startEditPrice(originalIdx)}
-                        className={`group flex items-center gap-3 px-3 py-2 text-xs cursor-pointer transition-colors ${
+                        className={`group flex items-center gap-2 px-3 py-2 text-xs cursor-pointer transition-colors ${
                           isEditing ? "bg-primary/10" : "hover:bg-accent/50"
                         }`}
                       >
@@ -375,11 +411,14 @@ export default function ProductForm({
                           ) : null}
                         </span>
                         <span
-                          className={`tabular-nums font-semibold tracking-tight shrink-0 w-24 ${
+                          className={`tabular-nums font-semibold tracking-tight shrink-0 w-20 ${
                             isMin ? "text-yellow-700 dark:text-yellow-500" : "text-foreground"
                           }`}
                         >
                           {parseInt(p.price).toLocaleString()}원
+                        </span>
+                        <span className="tabular-nums text-muted-foreground shrink-0 w-10 text-center">
+                          {dateLabel}
                         </span>
                         <span className="flex-1 min-w-0 text-muted-foreground truncate">
                           {p.site_url || "—"}
@@ -403,9 +442,9 @@ export default function ProductForm({
             })()}
           </FormField>
 
-          {/* 고정비 등록 체크박스 */}
-          <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2 cursor-pointer">
+          {/* 고정비 등록 + 옵션 (결제일·월비용·가계부 카테고리 + 미리보기) */}
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 cursor-pointer w-fit">
               <input
                 type="checkbox"
                 checked={isActive}
@@ -414,24 +453,73 @@ export default function ProductForm({
               />
               <span className={FORM_HINT}>고정비에 추가</span>
             </label>
-            {/* 도움말 — label 바깥에 별도 버튼. 클릭해도 체크박스가 토글되지 않음 */}
-            <div className="relative" ref={fixedHelpRef}>
-              <button
-                type="button"
-                onClick={() => setFixedHelpOpen((o) => !o)}
-                aria-label="도움말"
-                className="flex items-center justify-center text-muted-foreground hover:text-foreground"
-              >
-                <HelpCircle className="h-3.5 w-3.5" />
-              </button>
-              {fixedHelpOpen && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max rounded-md bg-foreground px-2 py-1.5 text-xs text-background shadow-lg z-20 text-center leading-tight">
-                  고정비 등록시<br />
-                  매월 11일 결제로<br />
-                  등록됩니다.
+            {isActive && (() => {
+              const validPrices = prices
+                .map((p) => parseInt(p.price))
+                .filter((n) => Number.isFinite(n) && n > 0);
+              const minPrice = validPrices.length ? Math.min(...validPrices) : null;
+              const previewCost =
+                parseInt(monthlyCostInput) > 0
+                  ? parseInt(monthlyCostInput)
+                  : minPrice;
+              const dayNum = Math.min(31, Math.max(1, parseInt(paymentDay) || 11));
+              return (
+                <div className="ml-6 flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <FormField label="결제일">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={31}
+                        value={paymentDay}
+                        onChange={(e) => setPaymentDay(e.target.value)}
+                        className={FORM_INPUT_COMPACT}
+                      />
+                    </FormField>
+                    <FormField label="월 비용">
+                      <Input
+                        type="number"
+                        value={monthlyCostInput}
+                        onChange={(e) => setMonthlyCostInput(e.target.value)}
+                        placeholder={minPrice ? String(minPrice) : "0"}
+                        className={FORM_INPUT_COMPACT}
+                      />
+                    </FormField>
+                  </div>
+                  <FormField label="가계부 카테고리">
+                    <Select
+                      value={fixedCategoryId}
+                      onValueChange={(v) => setFixedCategoryId(v ?? "")}
+                    >
+                      <SelectTrigger className={FORM_INPUT_COMPACT}>
+                        {expenseCategories.find((c) => c.id === fixedCategoryId)?.name ||
+                          "선택"}
+                      </SelectTrigger>
+                      <SelectContent>
+                        {expenseCategories.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormField>
+                  <p className="text-xs text-muted-foreground leading-tight">
+                    {previewCost && previewCost > 0 ? (
+                      <>
+                        매월 <strong className="text-foreground">{dayNum}일</strong>에{" "}
+                        <strong className="text-foreground">
+                          ₩{previewCost.toLocaleString()}
+                        </strong>{" "}
+                        차감 예정
+                      </>
+                    ) : (
+                      "가격을 1개 이상 추가하면 월 비용이 자동 계산됩니다."
+                    )}
+                  </p>
                 </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
 
           <FormField label="메모">

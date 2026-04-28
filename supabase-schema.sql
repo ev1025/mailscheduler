@@ -668,3 +668,12 @@ CROSS JOIN (VALUES
   ('쇼핑',   '#06B6D4', 6)
 ) AS v(name, color, sort_order)
 ON CONFLICT (user_id, name) DO NOTHING;
+
+-- =============================================
+-- products.sort_order — 쇼핑기록 페이지 그룹 내 드래그 순서 영속화
+-- =============================================
+ALTER TABLE products ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_products_sort ON products(category, sub_category, sort_order);
+
+-- product_purchases 에 구매일 picker 활성용 — 이미 컬럼 있음 (purchased_at DATE NOT NULL DEFAULT CURRENT_DATE).
+-- 폼 UI 에서 노출만 추가.

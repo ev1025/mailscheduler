@@ -14,7 +14,6 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import SearchInput from "@/components/ui/search-input";
 import RowActionPopover from "@/components/ui/row-action-popover";
 import { useUrlStringParam } from "@/hooks/use-url-param";
@@ -43,19 +42,6 @@ import PageHeader from "@/components/layout/page-header";
 import PromptDialog from "@/components/ui/prompt-dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { PAGE_ACTION_BUTTON } from "@/lib/form-classes";
-
-const CATEGORY_COLORS: Record<string, string> = {
-  영양제: "#22C55E",
-  화장품: "#EC4899",
-  단백질: "#F59E0B",
-  음식: "#EF4444",
-  생필품: "#3B82F6",
-  구독: "#8B5CF6",
-  기타: "#6B7280",
-};
-
-// CATEGORY_COLORS의 키와 동일 — 기본 분류는 삭제 버튼을 숨기기 위한 체크용
-const BUILTIN_CATEGORIES = new Set(Object.keys(CATEGORY_COLORS));
 
 interface ProductStat {
   minPrice: number | null;
@@ -123,6 +109,12 @@ const ProductRow = memo(function ProductRow({
       </td>
       <td className="px-2 py-1.5 w-auto">
         <div className="flex items-center gap-1 min-w-0">
+          {p.is_active && (
+            <Wallet
+              className="h-3 w-3 text-amber-500 shrink-0"
+              aria-label="고정비 등록됨"
+            />
+          )}
           <span className="font-medium text-xs">{p.name}</span>
           {idx === 0 && stat?.minPrice && (
             <Crown className="h-3 w-3 text-yellow-500 shrink-0" />
@@ -150,9 +142,21 @@ export default function ProductsPage() {
 }
 
 function ProductsPageInner() {
-  const { products, loading, addProduct, updateProduct, deleteProduct } =
-    useProducts();
-  const { categories: midCategories, addCategory, deleteCategory: deleteMidCategory } = useProductCategories();
+  const {
+    products,
+    loading,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    batchUpdateSortOrder,
+  } = useProducts();
+  const {
+    categories: midCategories,
+    tags: categoryTags,
+    customCategories,
+    addCategory,
+    deleteCategory: deleteMidCategory,
+  } = useProductCategories();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   // 목록 드래그바 탭 → 삭제 메뉴 → 확인 다이얼로그 대상
@@ -164,10 +168,16 @@ function ProductsPageInner() {
   const [categoryFilter, setCategoryFilter] = useUrlStringParam("category", "전체");
   const [stats, setStats] = useState<Record<string, ProductStat>>({});
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
-  // 커스텀 순서 (sub-category별)
-  const [customOrder, setCustomOrder] = useState<Record<string, string[]>>({});
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [pendingDeleteCategory, setPendingDeleteCategory] = useState<string | null>(null);
+
+  // 카테고리 색상 — DB 의 product_categories.color 가 단일 source of truth.
+  // (이전엔 페이지 안에 하드코딩 맵이 있어 사용자가 색을 바꿔도 칩/섹션 헤더가 안 따라갔음.)
+  const categoryColors = useMemo(
+    () => Object.fromEntries(categoryTags.map((t) => [t.name, t.color])) as Record<string, string>,
+    [categoryTags],
+  );
+  const customCategorySet = useMemo(() => new Set(customCategories), [customCategories]);
 
   // 제품 ID별 최저 가격
   useEffect(() => {
@@ -220,31 +230,21 @@ function ProductsPageInner() {
       if (!g[cat][sub]) g[cat][sub] = [];
       g[cat][sub].push(p);
     }
-    // 정렬: 커스텀 순서 우선, 없으면 최저가순
+    // 정렬: sort_order 오름차순 (사용자 드래그 결과). 동률이면 최저가 오름차순.
     for (const cat of Object.keys(g)) {
       for (const sub of Object.keys(g[cat])) {
-        const key = `${cat}::${sub}`;
-        const order = customOrder[key];
-        if (order) {
-          g[cat][sub].sort((a, b) => {
-            const ai = order.indexOf(a.id);
-            const bi = order.indexOf(b.id);
-            if (ai === -1 && bi === -1) return 0;
-            if (ai === -1) return 1;
-            if (bi === -1) return -1;
-            return ai - bi;
-          });
-        } else {
-          g[cat][sub].sort((a, b) => {
-            const ap = stats[a.id]?.minPrice ?? Infinity;
-            const bp = stats[b.id]?.minPrice ?? Infinity;
-            return ap - bp;
-          });
-        }
+        g[cat][sub].sort((a, b) => {
+          const ao = a.sort_order ?? 0;
+          const bo = b.sort_order ?? 0;
+          if (ao !== bo) return ao - bo;
+          const ap = stats[a.id]?.minPrice ?? Infinity;
+          const bp = stats[b.id]?.minPrice ?? Infinity;
+          return ap - bp;
+        });
       }
     }
     return g;
-  }, [filtered, stats, customOrder]);
+  }, [filtered, stats]);
 
   const toggleGroup = (key: string) => {
     setExpandedGroups((prev) => {
@@ -255,16 +255,30 @@ function ProductsPageInner() {
     });
   };
 
+  // 그룹 펼침 정책:
+  //  - 첫 로드 시 모든 그룹 펼침 (사용자가 검색 안 하고 둘러볼 때 기본 노출)
+  //  - 검색어 변경 시 매칭 그룹 모두 펼침 (결과 강조)
+  //  - 카테고리 필터 변경은 기존 펼침 상태 보존 — 사용자가 닫아둔 그룹 유지.
+  const expansionInitialized = useRef(false);
   useEffect(() => {
+    if (expansionInitialized.current) return;
+    if (Object.keys(grouped).length === 0) return;
     const keys = new Set<string>();
     for (const cat of Object.keys(grouped)) {
-      for (const sub of Object.keys(grouped[cat])) {
-        keys.add(`${cat}::${sub}`);
-      }
+      for (const sub of Object.keys(grouped[cat])) keys.add(`${cat}::${sub}`);
+    }
+    setExpandedGroups(keys);
+    expansionInitialized.current = true;
+  }, [grouped]);
+  useEffect(() => {
+    if (!expansionInitialized.current) return;
+    const keys = new Set<string>();
+    for (const cat of Object.keys(grouped)) {
+      for (const sub of Object.keys(grouped[cat])) keys.add(`${cat}::${sub}`);
     }
     setExpandedGroups(keys);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryFilter, search]);
+  }, [search]);
 
   const handleSave = async (
     data: Omit<Product, "id" | "created_at" | "updated_at">
@@ -282,7 +296,7 @@ function ProductsPageInner() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
 
-  const handleDragEnd = (e: DragEndEvent, groupKey: string) => {
+  const handleDragEnd = async (e: DragEndEvent, groupKey: string) => {
     if (!e.over || e.active.id === e.over.id) return;
     const [cat, sub] = groupKey.split("::");
     const list = grouped[cat][sub];
@@ -290,10 +304,8 @@ function ProductsPageInner() {
     const newIdx = list.findIndex((p) => p.id === e.over!.id);
     if (oldIdx === -1 || newIdx === -1) return;
     const reordered = arrayMove(list, oldIdx, newIdx);
-    setCustomOrder((prev) => ({
-      ...prev,
-      [groupKey]: reordered.map((p) => p.id),
-    }));
+    // sort_order 0..n 으로 DB 영속화. fetchProducts() 호출되며 재정렬 반영.
+    await batchUpdateSortOrder(reordered.map((p) => p.id));
   };
 
   const [prodMenuOpen, setProdMenuOpen] = useState(false);
@@ -368,8 +380,8 @@ function ProductsPageInner() {
           </Button>
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1">
-          {/* 순서: 전체 → + 추가 → 나머지 분류 */}
-          {(["전체", "__add__", ...midCategories.filter((c) => c !== "전체")] as string[]).map((c) => {
+          {/* 순서: 전체 → 빌트인 분류 → 사용자 추가 분류 → +추가 (표준 패턴: 추가 액션은 끝) */}
+          {(["전체", ...midCategories.filter((c) => c !== "전체"), "__add__"] as string[]).map((c) => {
             if (c === "__add__") {
               return (
                 <button
@@ -377,14 +389,15 @@ function ProductsPageInner() {
                   type="button"
                   onClick={() => setAddCategoryOpen(true)}
                   className="shrink-0 rounded-full border border-dashed px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-foreground transition-colors"
+                  aria-label="분류 추가"
                 >
                   <Plus className="h-3 w-3" />
                 </button>
               );
             }
             const active = categoryFilter === c;
-            const color = c === "전체" ? "#6B7280" : CATEGORY_COLORS[c] || "#6B7280";
-            const canDelete = c !== "전체" && !BUILTIN_CATEGORIES.has(c);
+            const color = c === "전체" ? "#6B7280" : categoryColors[c] || "#6B7280";
+            const canDelete = c !== "전체" && customCategorySet.has(c);
             return (
               <div
                 key={c}
@@ -449,7 +462,7 @@ function ProductsPageInner() {
       ) : (
         <div className="flex flex-col gap-4">
           {Object.keys(grouped).map((cat) => {
-            const catColor = CATEGORY_COLORS[cat] || "#6B7280";
+            const catColor = categoryColors[cat] || "#6B7280";
             const subCats = Object.keys(grouped[cat]);
             return (
               <section key={cat} className="flex flex-col gap-2">
@@ -502,6 +515,15 @@ function ProductsPageInner() {
                                 <col className="hidden sm:table-column" />
                                 <col style={{ width: "1%" }} />
                               </colgroup>
+                              <thead className="bg-muted/40 text-[10px] font-medium text-muted-foreground">
+                                <tr>
+                                  <th className="px-1 py-1 text-center" aria-hidden></th>
+                                  <th className="px-1 py-1 text-center">순위</th>
+                                  <th className="px-2 py-1 text-left">제품</th>
+                                  <th className="hidden sm:table-cell px-2 py-1 text-left">브랜드</th>
+                                  <th className="px-2 py-1 text-right whitespace-nowrap">최저가</th>
+                                </tr>
+                              </thead>
                               <SortableContext
                                 items={list.map((p) => p.id)}
                                 strategy={verticalListSortingStrategy}

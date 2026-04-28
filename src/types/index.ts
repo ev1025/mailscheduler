@@ -66,6 +66,7 @@ export interface Product {
   monthly_consumption: number;
   default_payment_day: number;
   link: string | null;
+  sort_order?: number;
   created_at: string;
   updated_at: string;
 }

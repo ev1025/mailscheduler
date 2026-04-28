@@ -17,10 +17,13 @@ export function useProducts() {
       .select("*")
       .order("is_active", { ascending: false })
       .order("category")
+      .order("sub_category")
+      .order("sort_order")
       .order("name");
     if (userId) query = query.eq("user_id", userId);
     const { data, error } = await query;
     if (error) {
+      // sort_order 컬럼 없는 구 DB 폴백
       const fallback = await supabase
         .from("products")
         .select("*")
@@ -74,12 +77,23 @@ export function useProducts() {
     return { error };
   };
 
+  /** 그룹 내 드래그 정렬 결과를 sort_order 0..n 으로 일괄 반영. */
+  const batchUpdateSortOrder = async (ids: string[]) => {
+    await Promise.all(
+      ids.map((id, i) =>
+        supabase.from("products").update({ sort_order: i }).eq("id", id),
+      ),
+    );
+    await fetchProducts();
+  };
+
   return {
     products,
     loading,
     addProduct,
     updateProduct,
     deleteProduct,
+    batchUpdateSortOrder,
     refetch: fetchProducts,
   };
 }
