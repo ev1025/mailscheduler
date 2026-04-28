@@ -5,11 +5,9 @@ import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "./sidebar";
 import BottomNav from "./bottom-nav";
 import UserSwitcher from "./user-switcher";
-import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useSupabaseAuth } from "@/lib/auth-supabase";
 import { useCurrentUser, useAppUsers } from "@/lib/current-user";
 import { supabase } from "@/lib/supabase";
-import { setExitConfirmHandler, confirmExit, pushExitGuardIfNeeded } from "@/lib/dialog-stack";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -33,18 +31,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setHydrated(true);
   }, []);
-
-  // 스탠드얼론 PWA 에서 다이얼로그 없는 상태로 뒤로가기 누르면 보여줄 종료 확인.
-  const [exitConfirmOpen, setExitConfirmOpen] = useState(false);
-  useEffect(() => {
-    setExitConfirmHandler(() => setExitConfirmOpen(true));
-    return () => setExitConfirmHandler(null);
-  }, []);
-
-  // pathname 변경 시 가드는 push 하지 않음 — push 하면 in-app 탭 이동 back 이
-  // 무조건 종료 확인으로만 떨어져 사용자 의도와 충돌. 초기 가드 (ensureListener
-  // 안에서 한 번만 push) 만 두고, 탭 사이 back-nav 는 Next.js 가 자연스럽게 처리.
-  // 사용자가 history 끝(가드)까지 도달하면 그때 종료 확인 표시.
 
   // 비밀번호 재설정 메일 링크로 돌아왔을 때 자동으로 프로필 페이지의
   // 비밀번호 변경 다이얼로그로 유도 — AppShell은 항상 마운트돼 있으므로
@@ -125,19 +111,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           setGateOpen(o);
         }}
         allowClose={allowClose}
-      />
-
-      {/* 스탠드얼론 PWA 종료 확인 — 뒤로가기로 빠져나가려는 시점에 한번 더 묻기. */}
-      <ConfirmDialog
-        open={exitConfirmOpen}
-        onOpenChange={setExitConfirmOpen}
-        title="앱을 종료하시겠습니까?"
-        confirmLabel="종료"
-        destructive
-        onConfirm={() => {
-          setExitConfirmOpen(false);
-          confirmExit();
-        }}
       />
     </>
   );
