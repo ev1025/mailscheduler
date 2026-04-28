@@ -141,7 +141,16 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const holidayMap = useHolidayMap(year);
 
-  // 공휴일을 가상 이벤트로 변환해 달력에 빨간 바로 표시
+  const monthStart = startOfMonth(new Date(year, month - 1));
+  const monthEnd = endOfMonth(monthStart);
+  const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  const days = eachDayOfInterval({ start: calStart, end: calEnd });
+
+  // 공휴일을 가상 이벤트로 변환해 달력에 빨간 바로 표시.
+  // 스와이프로 월 전환 시 events 상태는 이전 월 데이터를 잠시 보유 — 새 월 grid 의
+  // trailing day 셀(예: 5월 그리드의 4/30)에 이전 월 일정이 깜빡이는 걸 막기 위해
+  // 표시 월(monthStart~monthEnd) 범위 안 일정만 통과시킴.
   const allEvents = useMemo(() => {
     const holidayEvents: CalendarEvent[] = Object.entries(holidayMap).map(([date, name]) => ({
       id: `__holiday__${date}`,
@@ -159,14 +168,15 @@ export default function CalendarView({
       created_at: "",
       user_id: "",
     }));
-    return [...holidayEvents, ...events];
-  }, [events, holidayMap]);
-
-  const monthStart = startOfMonth(new Date(year, month - 1));
-  const monthEnd = endOfMonth(monthStart);
-  const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
-  const days = eachDayOfInterval({ start: calStart, end: calEnd });
+    const monthEvents = events.filter((ev) => {
+      const s = parseISO(ev.start_date);
+      const e = ev.end_date ? parseISO(ev.end_date) : s;
+      return e >= monthStart && s <= monthEnd;
+    });
+    return [...holidayEvents, ...monthEvents];
+    // monthStart/monthEnd 는 매 렌더 새 Date 라 deps 로 못 씀 — year/month primitive 사용
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, holidayMap, year, month]);
 
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
   const [overDate, setOverDate] = useState<string | null>(null);
