@@ -162,7 +162,7 @@ CREATE TABLE travel_items (
   title TEXT NOT NULL,
   in_season BOOLEAN DEFAULT FALSE,
   region TEXT,
-  category TEXT NOT NULL CHECK (category IN ('자연', '숙소', '식당', '놀거리', '기타')),
+  category TEXT NOT NULL,
   visited BOOLEAN DEFAULT FALSE,
   tag TEXT,
   notes TEXT,

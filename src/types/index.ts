@@ -93,8 +93,7 @@ export type TravelCategory =
   | "놀거리"
   | "데이트"
   | "공연"
-  | "쇼핑"
-  | "기타";
+  | "쇼핑";
 
 export type TravelMood = "로맨틱" | "캐주얼" | "활동적" | "조용";
 

@@ -6,18 +6,17 @@ import { randomTagColor, readLocalJSON, writeLocalJSON } from "@/lib/tag-store";
 const CUSTOM_KEY = "travel_categories_custom";
 const COLOR_KEY = "travel-category-colors";
 
-export const BUILTIN_TRAVEL_CATEGORIES = ["자연", "숙소", "식당", "놀거리", "데이트", "공연", "쇼핑", "기타"];
+export const BUILTIN_TRAVEL_CATEGORIES = ["자연", "숙소", "식당", "놀거리", "데이트", "공연", "쇼핑"];
 const BUILTIN = BUILTIN_TRAVEL_CATEGORIES;
 
 const DEFAULT_COLORS: Record<string, string> = {
   자연: "#22C55E",
   숙소: "#A855F7",
-  식당: "#F59E0B",
+  식당: "#F50B0B",
   놀거리: "#3B82F6",
   데이트: "#EC4899",
-  공연: "#8B5CF6",
+  공연: "#E1D04E",
   쇼핑: "#06B6D4",
-  기타: "#6B7280",
 };
 
 export function useTravelCategories() {

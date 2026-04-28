@@ -14,7 +14,6 @@ const BUILTIN: { name: string; color: string }[] = [
   { name: "음식", color: "#EF4444" },
   { name: "생필품", color: "#3B82F6" },
   { name: "구독", color: "#8B5CF6" },
-  { name: "기타", color: "#6B7280" },
 ];
 
 export interface ProductCategoryTag {

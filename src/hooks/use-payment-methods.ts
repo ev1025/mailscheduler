@@ -9,8 +9,8 @@ import {
 } from "@/lib/tag-store";
 
 const STORAGE_KEY = "payment_methods";
-const DEFAULTS = ["카드", "현금", "계좌이체", "기타"];
-const SEED_COLORS = ["#3B82F6", "#22C55E", "#A855F7", "#F59E0B"];
+const DEFAULTS = ["카드", "현금", "계좌이체", "자동이체", "간편결제"];
+const SEED_COLORS = ["#3B82F6", "#22C55E", "#A855F7", "#F59E0B", "#E4D547"];
 
 export interface PaymentMethod {
   id: string;

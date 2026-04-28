@@ -24,12 +24,15 @@ interface Props {
   onAddToCalendar: (date: string, endDate: string | null, startTime: string | null, endTime: string | null) => Promise<void>;
 }
 
+// hook 의 DEFAULT_COLORS 와 동기화. hook 우선, 이 맵은 fallback.
 const CATEGORY_COLORS: Record<string, string> = {
   자연: "#22C55E",
   숙소: "#A855F7",
-  식당: "#F59E0B",
+  식당: "#F50B0B",
   놀거리: "#3B82F6",
-  기타: "#6B7280",
+  데이트: "#EC4899",
+  공연: "#E1D04E",
+  쇼핑: "#06B6D4",
 };
 
 export default function TravelToCalendarDialog({

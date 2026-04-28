@@ -53,12 +53,16 @@ type SortField = "title" | "category" | "region" | "tag" | "month";
 type SortDir = "asc" | "desc";
 type SortKey = { field: SortField; dir: SortDir };
 
+// hook 의 DEFAULT_COLORS 와 동일해야 함 — 카테고리 색이 표시 컴포넌트와 어긋나지 않게.
+// hook 이 우선이고 이 맵은 fallback 용 (사용자 정의 색 없을 때).
 const CATEGORY_COLORS: Record<string, string> = {
   자연: "#22C55E",
   숙소: "#A855F7",
-  식당: "#F59E0B",
+  식당: "#F50B0B",
   놀거리: "#3B82F6",
-  기타: "#6B7280",
+  데이트: "#EC4899",
+  공연: "#E1D04E",
+  쇼핑: "#06B6D4",
 };
 
 interface TravelRowProps {
