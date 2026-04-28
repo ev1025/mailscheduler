@@ -127,25 +127,33 @@ export function setExitConfirmHandler(cb: (() => void) | null) {
 }
 
 /**
- * 사용자가 "종료" 확인 → 다이얼로그 + 가드 엔트리 두 개를 빠져나가 history 의 첫
- * 엔트리(앱 진입점)로 이동. 그 상태에서 hardware back 한 번 더 누르면 브라우저가
- * 실제로 PWA 를 닫음 (스탠드얼론 표준 동작).
+ * 사용자가 "종료" 확인 → 실제 PWA 종료 시도.
  *
- * 주의: JS 로 PWA 를 강제 종료할 방법은 없음 (window.close 보통 거부됨).
- * 첫 back 은 다이얼로그 엔트리 pop, 두 번째 back 은 가드 엔트리 pop.
- * 두 popstate 모두 userConfirmedExit 플래그로 우리 핸들러가 가로채지 않게 함.
+ * 동작 원리:
+ *  1. userConfirmedExit 플래그로 우리 popstate 핸들러가 다시 가로채지 않도록.
+ *  2. window.close() 시도 — JS 로 연 창에서만 동작하지만 일부 PWA 환경에서는 닫힘.
+ *  3. history.go(-length) 로 모든 엔트리 pop → 진입점(index 0) 도달.
+ *  4. 100ms 후 다시 history.back() — 진입점에서 한 번 더 back 은 표준 PWA 의
+ *     "앱 닫기" 동작. Chrome/Edge PWA 가 종료시킴.
+ *
+ * 한계: 모든 단계 합쳐도 PWA 가 명시적으로 닫히지 않는 환경(특정 iOS 버전 등) 이
+ * 있을 수 있음. 그 경우 사용자는 진입점에 머물게 됨 — 다음 hardware back 으로 종료.
  */
 export function confirmExit() {
   if (typeof window === "undefined") return;
   userConfirmedExit = true;
-  window.history.back();
-  // 첫 back 은 다이얼로그 엔트리 pop (top.close 경로로 처리되어 flag 소비 안 됨).
-  // 50ms 후 한 번 더 — 가드 엔트리 pop. flag 이 그때 소비되며 user 가 진입점에 도달.
+  // 시도 1: window.close — PWA 환경에 따라 가능.
+  try { window.close(); } catch { /* noop */ }
+  // 시도 2: 모든 history 엔트리 빠져나가기. browser 가 index 0 에서 자동 cap.
+  // length 가 1 이면 go(0) = 새로고침이라 안전하지 않음 → -1 보장.
+  const depth = Math.max(1, window.history.length);
+  window.history.go(-depth);
+  // 시도 3: 진입점에서 한 번 더 back → 표준 standalone PWA 종료.
   setTimeout(() => {
     userConfirmedExit = true;
-    window.history.back();
     try { window.close(); } catch { /* noop */ }
-  }, 50);
+    window.history.back();
+  }, 100);
 }
 
 export function pushDialogEntry(close: () => void): number {
