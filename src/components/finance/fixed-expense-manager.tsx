@@ -5,6 +5,7 @@ import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import DeleteRecordDescription from "@/components/ui/delete-record-description";
 import FixedExpenseForm from "@/components/finance/fixed-expense-form";
 import type { ExpenseCategory } from "@/types";
 import type { FixedExpense } from "@/hooks/use-fixed-expenses";
@@ -168,7 +169,28 @@ export default function FixedExpenseManager({
             ? `${deletingFx.title || deletingFx.description || "고정비"} 삭제`
             : "고정비 삭제"
         }
-        description="이미 반영된 거래는 유지, 다음 달부터 자동 추가만 중지돼요."
+        description={
+          deletingFx ? (
+            <DeleteRecordDescription
+              fields={[
+                {
+                  label: "결제일",
+                  value: `매월 ${deletingFx.day_of_month}일`,
+                  valueClassName: "tabular-nums",
+                },
+                {
+                  label: "금액",
+                  value: `${deletingFx.type === "income" ? "+" : "-"}${formatWon(deletingFx.amount)}`,
+                  valueClassName: `tabular-nums ${deletingFx.type === "income" ? "text-finance-gain" : "text-finance-loss"}`,
+                },
+                ...(deletingFx.category?.name
+                  ? [{ label: "카테고리", value: deletingFx.category.name }]
+                  : []),
+              ]}
+              footnote="이미 반영된 거래는 유지, 다음 달부터 자동 추가만 중지돼요."
+            />
+          ) : null
+        }
         confirmLabel="삭제"
         destructive
         // FormPage(z-[70]) 내부에서 띄우므로 z-[80] 으로 올려야 backdrop 위에 보임.

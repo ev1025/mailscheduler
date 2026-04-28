@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
+import DeleteRecordDescription from "@/components/ui/delete-record-description";
 import type { Expense } from "@/types";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
@@ -128,24 +129,28 @@ export default function TransactionList({
         }
         description={
           deletingTx ? (
-            <span className="block">
-              <span className="block text-foreground tabular-nums">
-                {format(new Date(deletingTx.date + "T00:00:00"), "yyyy년 M월 d일 (EEE)", { locale: ko })}
-                {" · "}
-                <span className={deletingTx.type === "income" ? "text-finance-gain" : "text-finance-loss"}>
-                  {deletingTx.type === "income" ? "+" : "-"}
-                  {formatWon(deletingTx.amount)}
-                </span>
-                {deletingTx.category?.name && (
-                  <span className="text-muted-foreground"> · {deletingTx.category.name}</span>
-                )}
-              </span>
-              <span className="block mt-1.5 text-xs text-muted-foreground/70 break-keep">
-                {deletingTx.installment_id && deletingTx.installment_total && deletingTx.installment_total > 1
+            <DeleteRecordDescription
+              fields={[
+                {
+                  label: "일자",
+                  value: format(new Date(deletingTx.date + "T00:00:00"), "yyyy년 M월 d일 (EEE)", { locale: ko }),
+                  valueClassName: "tabular-nums",
+                },
+                {
+                  label: "금액",
+                  value: `${deletingTx.type === "income" ? "+" : "-"}${formatWon(deletingTx.amount)}`,
+                  valueClassName: `tabular-nums ${deletingTx.type === "income" ? "text-finance-gain" : "text-finance-loss"}`,
+                },
+                ...(deletingTx.category?.name
+                  ? [{ label: "카테고리", value: deletingTx.category.name }]
+                  : []),
+              ]}
+              footnote={
+                deletingTx.installment_id && deletingTx.installment_total && deletingTx.installment_total > 1
                   ? `${deletingTx.installment_total}개월 할부 묶음이라 모든 회차가 함께 삭제돼요.`
-                  : "삭제하면 되돌릴 수 없어요."}
-              </span>
-            </span>
+                  : "삭제하면 되돌릴 수 없어요."
+              }
+            />
           ) : null
         }
         confirmLabel="삭제"
