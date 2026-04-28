@@ -26,8 +26,9 @@ export default function SearchInput({
   size = "sm",
   autoFocus,
 }: Props) {
-  // 모바일은 16px(text-base) 이상으로 — iOS Safari 자동 줌 방지.
-  const heightCls = size === "md" ? "h-9 text-base md:text-sm" : "h-8 text-base md:text-xs";
+  // 폰트 크기 통일 — TagInput 의 검색 입력과 동일하게 (text-sm/text-xs).
+  // iOS 자동 줌 방지는 viewport meta 의 maximumScale 로 별도 처리됨.
+  const heightCls = size === "md" ? "h-9 text-sm" : "h-8 text-xs";
   // 아이콘 크기·위치·input padding 을 size 에 맞춰 비례 — 이전에는 size=md 에서도
   // 아이콘이 h-3.5(14px) 였고 pl-8(32px) 이라 큰 input 내 좌측 공백이 과하게 비어 보였음.
   const iconCls = size === "md" ? "left-3 h-4 w-4" : "left-2.5 h-3.5 w-3.5";
