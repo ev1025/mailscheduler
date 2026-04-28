@@ -1,105 +1,131 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { readLocalJSON, writeLocalJSON } from "@/lib/tag-store";
+import { supabase } from "@/lib/supabase";
+import { useCurrentUserId } from "@/lib/current-user";
 
-const CUSTOM_KEY = "product_mid_categories_custom"; // string[] (사용자 추가)
-const COLOR_KEY = "product_mid_categories_colors"; // Record<string, string>
-
-// 누구에게나 기본으로 보이는 분류 + 고정 기본 색상.
-const BUILTIN: { name: string; color: string }[] = [
-  { name: "영양제", color: "#22C55E" },
-  { name: "화장품", color: "#EC4899" },
-  { name: "단백질", color: "#F59E0B" },
-  { name: "음식", color: "#EF4444" },
-  { name: "생필품", color: "#3B82F6" },
-  { name: "구독", color: "#8B5CF6" },
-];
+/**
+ * 생필품 분류 — Supabase product_categories 테이블에서 조회/관리.
+ * 이전엔 localStorage 였으나 디바이스 동기화 위해 DB 로 이전.
+ *
+ * 빌트인 vs 사용자 추가 구분: is_builtin 컬럼.
+ * 시드(영양제/화장품/단백질/음식/생필품/구독)는 SQL 마이그레이션에서 모든 기존 유저에게 INSERT.
+ */
 
 export interface ProductCategoryTag {
-  id: string; // name 자체를 id로 사용
+  id: string; // DB row id
   name: string;
   color: string;
+  is_builtin?: boolean;
+  sort_order?: number;
 }
 
+const DEFAULT_SEED: { name: string; color: string; sort_order: number }[] = [
+  { name: "영양제", color: "#22C55E", sort_order: 0 },
+  { name: "화장품", color: "#EC4899", sort_order: 1 },
+  { name: "단백질", color: "#F59E0B", sort_order: 2 },
+  { name: "음식",   color: "#EF4444", sort_order: 3 },
+  { name: "생필품", color: "#3B82F6", sort_order: 4 },
+  { name: "구독",   color: "#8B5CF6", sort_order: 5 },
+];
+
 export function useProductCategories() {
-  const [custom, setCustom] = useState<string[]>([]);
-  const [colors, setColors] = useState<Record<string, string>>({});
+  const userId = useCurrentUserId();
+  const [tags, setTags] = useState<ProductCategoryTag[]>([]);
+
+  const fetchTags = useCallback(async () => {
+    if (!userId) {
+      setTags([]);
+      return;
+    }
+    const { data } = await supabase
+      .from("product_categories")
+      .select("id, name, color, is_builtin, sort_order")
+      .eq("user_id", userId)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (!data || data.length === 0) {
+      await supabase
+        .from("product_categories")
+        .insert(
+          DEFAULT_SEED.map((s) => ({ ...s, user_id: userId, is_builtin: true })),
+        );
+      const retry = await supabase
+        .from("product_categories")
+        .select("id, name, color, is_builtin, sort_order")
+        .eq("user_id", userId)
+        .order("sort_order", { ascending: true });
+      if (retry.data) setTags(retry.data as ProductCategoryTag[]);
+      return;
+    }
+    setTags(data as ProductCategoryTag[]);
+  }, [userId]);
 
   useEffect(() => {
-    setCustom(readLocalJSON<string[]>(CUSTOM_KEY, []));
-    setColors(readLocalJSON<Record<string, string>>(COLOR_KEY, {}));
-  }, []);
-
-  const builtinNames = BUILTIN.map((b) => b.name);
-
-  const tags: ProductCategoryTag[] = [
-    ...BUILTIN.map((b) => ({
-      id: b.name,
-      name: b.name,
-      color: colors[b.name] || b.color,
-    })),
-    ...custom
-      .filter((c) => !builtinNames.includes(c))
-      .map((c) => ({
-        id: c,
-        name: c,
-        color: colors[c] || "#6B7280",
-      })),
-  ];
+    fetchTags();
+  }, [fetchTags]);
 
   // name만 필요한 기존 소비자용
   const categories: string[] = tags.map((t) => t.name);
 
-  const addCategory = useCallback(async (name: string, color?: string) => {
-    const trimmed = name.trim();
-    if (!trimmed) return { error: null };
-    if (builtinNames.includes(trimmed)) return { error: null };
-    setCustom((prev) => {
-      if (prev.includes(trimmed)) return prev;
-      const next = [...prev, trimmed];
-      writeLocalJSON(CUSTOM_KEY, next);
-      return next;
-    });
-    if (color) {
-      setColors((prev) => {
-        const next = { ...prev, [trimmed]: color };
-        writeLocalJSON(COLOR_KEY, next);
-        return next;
+  const addCategory = useCallback(
+    async (name: string, color?: string) => {
+      const trimmed = name.trim();
+      if (!trimmed) return { error: null };
+      if (!userId) return { error: "no user" };
+      if (tags.some((t) => t.name === trimmed)) return { error: null };
+      const maxOrder = tags.reduce((m, t) => Math.max(m, t.sort_order ?? 0), -1);
+      const { error } = await supabase.from("product_categories").insert({
+        user_id: userId,
+        name: trimmed,
+        color: color || "#6B7280",
+        is_builtin: false,
+        sort_order: maxOrder + 1,
       });
-    }
-    return { error: null };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      if (!error) await fetchTags();
+      return { error };
+    },
+    [userId, tags, fetchTags],
+  );
 
-  const deleteCategory = useCallback(async (id: string) => {
-    if (builtinNames.includes(id)) return { error: "기본 분류는 삭제할 수 없습니다" };
-    setCustom((prev) => {
-      const next = prev.filter((c) => c !== id);
-      writeLocalJSON(CUSTOM_KEY, next);
-      return next;
-    });
-    return { error: null };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const deleteCategory = useCallback(
+    async (id: string) => {
+      // id 가 DB row id 가 아니라 name 으로 들어올 수 있어 (legacy API) 양쪽 매칭.
+      const target = tags.find((t) => t.id === id || t.name === id);
+      if (!target) return { error: "not found" };
+      if (target.is_builtin) return { error: "기본 분류는 삭제할 수 없습니다" };
+      const { error } = await supabase
+        .from("product_categories")
+        .delete()
+        .eq("id", target.id);
+      if (!error) await fetchTags();
+      return { error };
+    },
+    [tags, fetchTags],
+  );
 
-  const updateCategoryColor = useCallback(async (id: string, color: string) => {
-    setColors((prev) => {
-      const next = { ...prev, [id]: color };
-      writeLocalJSON(COLOR_KEY, next);
-      return next;
-    });
-    return { error: null };
-  }, []);
+  const updateCategoryColor = useCallback(
+    async (id: string, color: string) => {
+      const target = tags.find((t) => t.id === id || t.name === id);
+      if (!target) return { error: "not found" };
+      setTags((prev) => prev.map((t) => (t.id === target.id ? { ...t, color } : t)));
+      const { error } = await supabase
+        .from("product_categories")
+        .update({ color })
+        .eq("id", target.id);
+      if (error) await fetchTags();
+      return { error };
+    },
+    [tags, fetchTags],
+  );
 
   return {
     categories,
-    tags,
+    tags: tags.map((t) => ({ id: t.name, name: t.name, color: t.color })),
     addCategory,
     deleteCategory,
     updateCategoryColor,
-    // 구버전 호환
-    customCategories: custom,
+    customCategories: tags.filter((t) => !t.is_builtin).map((t) => t.name),
     removeCategory: deleteCategory,
   };
 }
