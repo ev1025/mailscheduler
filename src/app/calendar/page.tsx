@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   CalendarDays,
@@ -53,6 +53,9 @@ function CalendarPageInner() {
   const [month, setMonth] = useState(() =>
     mParam ? parseInt(mParam, 10) : now.getMonth() + 1
   );
+  // 캘린더 가로 스와이프 좌표 — capture 단계에서 저장. 이전엔 currentTarget 에
+  // 직접 dataset 으로 저장했는데 dnd-kit 셀 캡처와 충돌 가능. ref 가 안정적.
+  const swipeRef = useRef<{ x: number; y: number } | null>(null);
   useEffect(() => {
     if (yParam) {
       const y = parseInt(yParam, 10);
@@ -291,39 +294,41 @@ function CalendarPageInner() {
         // 데스크톱은 document 스크롤이라 부모가 h-auto → flex-1 이 0 이 되어 달력이 쪼그라듦.
         // calendar-md-height 는 globals.css 에 직접 정의된 @media (min-width:768px) 규칙으로
         // md+ 에서 height: 80vh 를 강제함. Tailwind arbitrary value 캐시 문제 회피.
+        //
+        // 스와이프 처리: 캘린더 셀에 dnd-kit useDraggable 이 적용돼 있어 이전엔
+        // currentTarget 의 dataset 으로 좌표 저장 → DOM 재구성·이벤트 위임 충돌 가능성.
+        // ref 를 컴포넌트 클로저에 두고 capture 단계로 touchstart 받아 첫 좌표 안정화.
+        // 가로 30px / 세로 30px 이내로 임계값 완화 + 단순 절댓값 비교.
         <div
           className="calendar-md-height"
-          onTouchStart={(e) => {
+          onTouchStartCapture={(e) => {
             const t = e.touches[0];
-            (e.currentTarget as HTMLDivElement & { _sx?: number; _sy?: number })._sx = t.clientX;
-            (e.currentTarget as HTMLDivElement & { _sx?: number; _sy?: number })._sy = t.clientY;
+            swipeRef.current = { x: t.clientX, y: t.clientY };
           }}
-          onTouchEnd={(e) => {
-            const el = e.currentTarget as HTMLDivElement & { _sx?: number; _sy?: number };
-            if (el._sx == null || el._sy == null) return;
+          onTouchEndCapture={(e) => {
+            const start = swipeRef.current;
+            swipeRef.current = null;
+            if (!start) return;
             const t = e.changedTouches[0];
-            const dx = t.clientX - el._sx;
-            const dy = t.clientY - el._sy;
-            el._sx = undefined;
-            el._sy = undefined;
-            // 가로 스와이프 — 60px 이상 & 세로 이동보다 2배 이상 커야 월 이동
-            if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
-              if (dx < 0) {
-                // 왼쪽으로 밀기 → 다음 월
-                if (month === 12) {
-                  setYear(year + 1);
-                  setMonth(1);
-                } else {
-                  setMonth(month + 1);
-                }
+            const dx = t.clientX - start.x;
+            const dy = t.clientY - start.y;
+            // 임계값 완화: 가로 40px 이상 & 세로 이동 50px 이내 (수직 스크롤·DnD 와 구분).
+            if (Math.abs(dx) < 40 || Math.abs(dy) > 50) return;
+            if (dx < 0) {
+              // 왼쪽으로 밀기 → 다음 월
+              if (month === 12) {
+                setYear(year + 1);
+                setMonth(1);
               } else {
-                // 오른쪽으로 밀기 → 이전 월
-                if (month === 1) {
-                  setYear(year - 1);
-                  setMonth(12);
-                } else {
-                  setMonth(month - 1);
-                }
+                setMonth(month + 1);
+              }
+            } else {
+              // 오른쪽으로 밀기 → 이전 월
+              if (month === 1) {
+                setYear(year - 1);
+                setMonth(12);
+              } else {
+                setMonth(month - 1);
               }
             }
           }}

@@ -17,6 +17,11 @@ let suppressCount = 0;
 let nextId = 1;
 let exitConfirmHandler: (() => void) | null = null;
 let isStandalonePwa = false;
+// URL 추적 — popstate 시 "실제 라우트 이동인지 vs 단순 가드 pop인지" 구분.
+// pushState/replaceState 를 패치해 모든 URL 변화를 잡음.
+let lastTrackedUrl = "";
+// "사용자가 종료 확인했음" 플래그 — 다음 popstate 한 번은 가로채지 않고 통과.
+let userConfirmedExit = false;
 
 export function detectStandalone(): boolean {
   if (typeof window === "undefined") return false;
@@ -49,6 +54,23 @@ function ensureListener() {
   if (bound || typeof window === "undefined") return;
   bound = true;
   isStandalonePwa = detectStandalone();
+  lastTrackedUrl = window.location.href;
+
+  // pushState / replaceState 패치 — 모든 URL 변화를 lastTrackedUrl 에 반영.
+  // Next.js router.push 는 내부에서 pushState 를 호출하므로 라우트 이동 시 자동 추적.
+  const origPushState = window.history.pushState;
+  window.history.pushState = function (...args) {
+    const result = origPushState.apply(this, args);
+    lastTrackedUrl = window.location.href;
+    return result;
+  };
+  const origReplaceState = window.history.replaceState;
+  window.history.replaceState = function (...args) {
+    const result = origReplaceState.apply(this, args);
+    lastTrackedUrl = window.location.href;
+    return result;
+  };
+
   // 스탠드얼론 PWA: 첫 가드 엔트리 push — 뒤로가기 한 번은 popstate 로 잡혀서
   // 앱 종료 확인 표시 가능. 일반 브라우저는 push 안 함 (표준 뒤로가기 보존).
   if (isStandalonePwa) {
@@ -57,7 +79,12 @@ function ensureListener() {
       window.history.pushState({ __exitGuard: true }, "");
     }
   }
+
   window.addEventListener("popstate", () => {
+    const currentUrl = window.location.href;
+    const urlChanged = currentUrl !== lastTrackedUrl;
+    lastTrackedUrl = currentUrl;
+
     if (suppressCount > 0) {
       suppressCount--;
       return;
@@ -67,10 +94,27 @@ function ensureListener() {
       top.close();
       return;
     }
-    // 스택 비었음 — 다이얼로그 없는 상태에서 뒤로가기.
-    // 스탠드얼론 PWA 라면 종료 확인. 가드 재push 해서 사용자가 취소 후 다시 누를 수 있게.
+
+    // 사용자가 방금 "종료" 확정한 직후의 popstate 한 번은 통과.
+    if (userConfirmedExit) {
+      userConfirmedExit = false;
+      return;
+    }
+
+    // URL 이 바뀌었으면 in-app 라우트 이동 — Next.js 가 처리하니 우리는 개입 안 함.
+    if (urlChanged) {
+      return;
+    }
+
+    // URL 동일 + 스택 비어있음 = 사용자가 가드 엔트리에서 back 누름 = 종료 의도.
     if (isStandalonePwa && exitConfirmHandler) {
-      window.history.pushState({ __exitGuard: true }, "");
+      // 가드 재push 해서 종료 취소 시 다시 가드 위에 머물도록.
+      const cur = (window.history.state || {}) as Record<string, unknown> & {
+        __exitGuard?: boolean;
+      };
+      if (!cur.__exitGuard) {
+        window.history.pushState({ ...cur, __exitGuard: true }, "");
+      }
       exitConfirmHandler();
     }
   });
@@ -82,16 +126,24 @@ export function setExitConfirmHandler(cb: (() => void) | null) {
   ensureListener();
 }
 
-/** 사용자가 종료를 확인했을 때 호출 — 가드 엔트리를 빠져나가 앱 종료 시도. */
+/**
+ * 사용자가 "종료" 확인 → 다이얼로그 + 가드 엔트리 두 개를 빠져나가 history 의 첫
+ * 엔트리(앱 진입점)로 이동. 그 상태에서 hardware back 한 번 더 누르면 브라우저가
+ * 실제로 PWA 를 닫음 (스탠드얼론 표준 동작).
+ *
+ * 주의: JS 로 PWA 를 강제 종료할 방법은 없음 (window.close 보통 거부됨).
+ * 첫 back 은 다이얼로그 엔트리 pop, 두 번째 back 은 가드 엔트리 pop.
+ * 두 popstate 모두 userConfirmedExit 플래그로 우리 핸들러가 가로채지 않게 함.
+ */
 export function confirmExit() {
   if (typeof window === "undefined") return;
-  // 가드 엔트리 두 개를 한 번에 pop — 처음 push + 재push.
-  // suppressCount 로 popstate 핸들러가 가드를 또 재push 하는 것을 막는다.
-  suppressCount++;
-  window.history.go(-2);
-  // 일부 브라우저는 history 가 부족하면 그냥 멈춤. window.close 시도는 보통
-  // 거부되지만 PWA 일부 환경에선 닫힘. (문서 권한 부족하면 무시됨.)
+  userConfirmedExit = true;
+  window.history.back();
+  // 첫 back 은 다이얼로그 엔트리 pop (top.close 경로로 처리되어 flag 소비 안 됨).
+  // 50ms 후 한 번 더 — 가드 엔트리 pop. flag 이 그때 소비되며 user 가 진입점에 도달.
   setTimeout(() => {
+    userConfirmedExit = true;
+    window.history.back();
     try { window.close(); } catch { /* noop */ }
   }, 50);
 }

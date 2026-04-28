@@ -104,7 +104,7 @@ export default function CategoryChart({
             </svg>
           </div>
 
-          {/* 범례 — 컴팩트 (text-xs, py-0.5) */}
+          {/* 범례 — text-sm + py-1.5 로 탭 영역 확보. 다른 페이지 폰트와 일관성 (14px). */}
           <div className="flex flex-col gap-0.5 flex-1 w-full">
             {slices.map((slice) => {
               const isActive = activeCategory === slice.name;
@@ -115,20 +115,20 @@ export default function CategoryChart({
                   type="button"
                   onClick={() => onSelectCategory?.(isActive ? null : slice.name)}
                   disabled={!onSelectCategory}
-                  className={`flex items-center justify-between text-xs rounded-md px-2 py-0.5 -mx-2 transition-colors ${
+                  className={`flex items-center justify-between text-sm rounded-md px-2 py-1.5 -mx-2 transition-colors ${
                     isActive ? "bg-accent" : "hover:bg-accent/50"
                   } ${dim} disabled:cursor-default disabled:hover:bg-transparent`}
                 >
-                  <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0">
                     <span
-                      className="inline-block h-2.5 w-2.5 rounded-full shrink-0"
+                      className="inline-block h-3 w-3 rounded-full shrink-0"
                       style={{ backgroundColor: slice.color }}
                     />
                     <span className={`truncate ${isActive ? "font-semibold" : "font-medium"}`}>
                       {slice.name}
                     </span>
                   </div>
-                  <span className="text-muted-foreground tabular-nums shrink-0 ml-2">
+                  <span className="text-xs text-muted-foreground tabular-nums shrink-0 ml-2">
                     {formatWon(slice.amount)} ({(slice.pct * 100).toFixed(0)}%)
                   </span>
                 </button>
