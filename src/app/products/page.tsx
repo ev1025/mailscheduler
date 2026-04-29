@@ -4,7 +4,6 @@ import { Suspense, memo, useState, useMemo, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
-  Crown,
   ChevronDown,
   ChevronRight,
   Wallet,
@@ -12,6 +11,7 @@ import {
   Menu,
   Trash2,
   Repeat,
+  Check,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,8 @@ import { supabase } from "@/lib/supabase";
 import {
   DndContext,
   closestCenter,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -59,8 +60,8 @@ interface ProductStat {
   minPrice: number | null;
 }
 
-// 행 한 줄 — 좌측 드래그바(메뉴: 고정비 추가/삭제), 본문 탭 = 편집.
-// RowActionPopover 의 grip 트리거는 탭=메뉴, 드래그=정렬 둘 다 수행. 우측 휴지통 제거.
+// 행 한 줄 — 좌측 드래그바(메뉴: 구매 토글·고정비 추가·삭제), 본문 탭 = 편집.
+// 드래그=정렬, 탭=메뉴. 구매 표시(지갑) 는 product.is_active 토글.
 const ProductRow = memo(function ProductRow({
   p,
   idx,
@@ -68,6 +69,7 @@ const ProductRow = memo(function ProductRow({
   onEdit,
   onDelete,
   onAddFixed,
+  onTogglePurchased,
 }: {
   p: Product;
   idx: number;
@@ -75,6 +77,7 @@ const ProductRow = memo(function ProductRow({
   onEdit: (p: Product) => void;
   onDelete: (p: Product) => void;
   onAddFixed: (p: Product) => void;
+  onTogglePurchased: (p: Product) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: p.id });
@@ -91,13 +94,22 @@ const ProductRow = memo(function ProductRow({
       className="border-t hover:bg-accent/50 cursor-pointer group"
       onClick={() => onEdit(p)}
     >
-      {/* 드래그바 메뉴 — 탭하면 메뉴(고정비 추가·삭제), 드래그하면 정렬. */}
+      {/* 드래그바 메뉴 — 탭하면 메뉴, 드래그(마우스 5px / 터치 200ms) 하면 정렬. */}
       <td className="px-0.5 py-1 w-7" onClick={(e) => e.stopPropagation()}>
         <RowActionPopover
           triggerLabel="제품 메뉴"
           dragAttributes={attributes as unknown as React.HTMLAttributes<HTMLElement>}
           dragListeners={listeners as unknown as React.HTMLAttributes<HTMLElement>}
           items={[
+            {
+              icon: p.is_active ? (
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              ) : (
+                <Check className="h-3.5 w-3.5 text-amber-600" />
+              ),
+              label: p.is_active ? "구매 취소" : "구매 표시",
+              onClick: () => onTogglePurchased(p),
+            },
             {
               icon: <Repeat className="h-3.5 w-3.5 text-blue-600" />,
               label: "고정비에 추가",
@@ -128,21 +140,18 @@ const ProductRow = memo(function ProductRow({
           {idx + 1}
         </span>
       </td>
-      {/* 제품명 + 브랜드 */}
+      {/* 제품명 + 브랜드 + (구매 표시 시) 지갑 — 왕관 자리에 위치. */}
       <td className="px-2 py-1.5">
         <div className="flex items-center gap-1 min-w-0">
-          {p.is_active && (
-            <Wallet
-              className="h-3 w-3 text-amber-500 shrink-0"
-              aria-label="고정비 등록됨"
-            />
-          )}
           <span className="font-medium text-xs truncate">{p.name}</span>
           {p.brand && (
             <span className="text-[10px] text-muted-foreground shrink-0">· {p.brand}</span>
           )}
-          {idx === 0 && stat?.minPrice && (
-            <Crown className="h-3 w-3 text-yellow-500 shrink-0" />
+          {p.is_active && (
+            <Wallet
+              className="h-3 w-3 text-amber-500 shrink-0"
+              aria-label="구매됨"
+            />
           )}
         </div>
       </td>
@@ -334,8 +343,12 @@ function ProductsPageInner() {
     }
   };
 
+  // 데스크탑(마우스): 5px 움직이면 드래그. 모바일(터치): 200ms 길게 누르면 드래그.
+  // PointerSensor 단독 시 모바일에서 vertical 스크롤도 5px 임계로 드래그 시작 → 탭/스크롤
+  // 구분 어색했음. 분리.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
   );
 
   const handleDragEnd = async (e: DragEndEvent, groupKey: string) => {
@@ -575,6 +588,11 @@ function ProductsPageInner() {
                                       }}
                                       onDelete={(prod) => setDeletingProduct(prod)}
                                       onAddFixed={(prod) => setFixedProduct(prod)}
+                                      onTogglePurchased={async (prod) => {
+                                        await updateProduct(prod.id, {
+                                          is_active: !prod.is_active,
+                                        });
+                                      }}
                                     />
                                   ))}
                                 </tbody>
