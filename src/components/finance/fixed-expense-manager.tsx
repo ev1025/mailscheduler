@@ -1,27 +1,28 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
-import { Trash2, Plus, CalendarMinus, CalendarClock } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Trash2, Plus } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import MonthPicker from "@/components/layout/month-picker";
 import FixedExpenseForm from "@/components/finance/fixed-expense-form";
 import type { ExpenseCategory } from "@/types";
 import type { FixedExpense } from "@/hooks/use-fixed-expenses";
-
-type Scope = "this-month" | "next-month";
 
 interface FixedExpenseManagerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   fixedExpenses: FixedExpense[];
   categories: ExpenseCategory[];
+  /** 다이얼로그의 기본 시작 월 — 보통 가계부에서 현재 보고 있는 월. */
+  defaultYear?: number;
+  defaultMonth?: number;
   onAdd: (
     item: Omit<FixedExpense, "id" | "created_at" | "category" | "is_active">,
     repeatMonths?: number,
@@ -31,18 +32,16 @@ interface FixedExpenseManagerProps {
     updates: Partial<Omit<FixedExpense, "id" | "created_at" | "category">>
   ) => Promise<{ error: unknown }>;
   onDelete: (id: string) => Promise<{ error: unknown }>;
-  /** 이번달 자동 적용된 거래까지 함께 삭제할지 선택. */
+  /** 사용자가 고른 (year, month) 1일부터 미래 거래까지 함께 삭제 + 고정비 비활성화. */
   onDeleteWithScope?: (
     id: string,
-    scope: Scope,
     year: number,
     month: number,
   ) => Promise<{ error: unknown }>;
-  /** 금액 변경 시 이번달 거래를 새 금액으로 갱신할지 선택. */
+  /** 사용자가 고른 (year, month) 1일부터 미래 거래까지 함께 갱신 + 고정비 row 갱신. */
   onUpdateWithScope?: (
     id: string,
     updates: Partial<Omit<FixedExpense, "id" | "created_at" | "category">>,
-    scope: Scope,
     year: number,
     month: number,
   ) => Promise<{ error: unknown }>;
@@ -69,6 +68,8 @@ export default function FixedExpenseManager({
   onOpenChange,
   fixedExpenses,
   categories,
+  defaultYear,
+  defaultMonth,
   onAdd,
   onUpdate,
   onDelete,
@@ -91,10 +92,10 @@ export default function FixedExpenseManager({
   // 카테고리별 펼침 상태 — 기본 닫힘. 펼친 그룹 id 만 Set 에 보관.
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
 
-  // "이번달" 기준 — today.
+  // 다이얼로그 default 월 — 페이지에서 보고 있는 월(없으면 today).
   const today = new Date();
-  const thisYear = today.getFullYear();
-  const thisMonth = today.getMonth() + 1;
+  const baseYear = defaultYear ?? today.getFullYear();
+  const baseMonth = defaultMonth ?? today.getMonth() + 1;
 
   // 카테고리별 그룹화. 카테고리명 → 항목 배열. 미분류는 "(미분류)" 키.
   const grouped = useMemo(() => {
@@ -173,10 +174,10 @@ export default function FixedExpenseManager({
     return await onAdd(data, repeatMonths);
   };
 
-  const applyDeleteScope = async (scope: Scope) => {
+  const applyDelete = async (year: number, month: number) => {
     if (!deletingFx) return;
     if (onDeleteWithScope) {
-      await onDeleteWithScope(deletingFx.id, scope, thisYear, thisMonth);
+      await onDeleteWithScope(deletingFx.id, year, month);
     } else {
       // 폴백: 기존 deleteFixed (이번달 자동 거래는 안 건드림)
       await onDelete(deletingFx.id);
@@ -184,19 +185,13 @@ export default function FixedExpenseManager({
     setDeletingFx(null);
   };
 
-  const applyUpdateScope = async (scope: Scope) => {
+  const applyUpdate = async (year: number, month: number) => {
     if (!pendingUpdate || !onUpdateWithScope) return;
     // repeat_months 도 함께 보존.
     const newData = pendingUpdate.repeatMonths !== undefined
       ? { ...pendingUpdate.newData, repeat_months: pendingUpdate.repeatMonths }
       : pendingUpdate.newData;
-    await onUpdateWithScope(
-      pendingUpdate.oldFx.id,
-      newData,
-      scope,
-      thisYear,
-      thisMonth,
-    );
+    await onUpdateWithScope(pendingUpdate.oldFx.id, newData, year, month);
     // 반복 N 이 있으면 미래 거래도 보장.
     if (
       pendingUpdate.repeatMonths !== undefined &&
@@ -327,9 +322,9 @@ export default function FixedExpenseManager({
         onUpdateCategoryColor={onUpdateCategoryColor}
       />
 
-      {/* 삭제 — "이번달부터 / 다음달부터" 선택 다이얼로그.
-          이번달부터: 이번달 자동 등록된 거래도 삭제. 다음달부터: 이번달 거래는 유지. */}
-      <ScopeChoiceDialog
+      {/* 삭제 — 사용자가 시작 월(year/month) 을 자유롭게 골라 그 월부터 미래 매칭 거래
+          모두 삭제 + 고정비 비활성화. 캘린더에서 쓰는 MonthPicker 재사용. */}
+      <MonthChoiceDialog
         open={!!deletingFx}
         onOpenChange={(o) => {
           if (!o) setDeletingFx(null);
@@ -349,16 +344,15 @@ export default function FixedExpenseManager({
             </>
           ) : null
         }
-        question="어느 시점부터 삭제할까요?"
-        thisMonthLabel="이번달부터 삭제"
-        thisMonthHint={`이번달(${thisMonth}월) 자동 등록된 거래도 함께 삭제`}
-        nextMonthLabel="다음달부터 삭제"
-        nextMonthHint="이번달 거래는 유지, 다음 달부터 자동 추가만 중지"
+        question="어느 월부터 삭제할까요?"
+        confirmLabel="삭제"
+        defaultYear={baseYear}
+        defaultMonth={baseMonth}
         destructive
-        onPick={applyDeleteScope}
+        onConfirm={applyDelete}
       />
 
-      {/* 수정 — "이번달부터 / 다음달부터" 선택 다이얼로그. 변경 종류(금액/결제일/둘 다) 에 따라 문구 분기. */}
+      {/* 수정 — 변경 종류(금액/결제일/둘 다) 에 따라 문구 분기 + 사용자 임의 시작 월 선택. */}
       {(() => {
         const u = pendingUpdate;
         const name = u
@@ -368,15 +362,13 @@ export default function FixedExpenseManager({
         const dayChanged = !!u && u.newData.day_of_month !== undefined && u.newData.day_of_month !== u.oldFx.day_of_month;
 
         let title = `${name} 수정`;
-        let question = "어느 시점부터 적용할까요?";
+        let question = "어느 월부터 적용할까요?";
         let info: React.ReactNode = null;
-        let thisHint = `이번달(${thisMonth}월) 거래도 새 값으로 갱신`;
-        let nextHint = "이번달 거래는 기존 값 유지, 다음달부터 새 값";
 
         if (u) {
           if (amountChanged && dayChanged) {
             title = `${name} 금액·결제일 변경`;
-            question = "변경된 값을 어느 시점부터 적용할까요?";
+            question = "변경된 값을 어느 월부터 적용할까요?";
             info = (
               <>
                 <span className="block tabular-nums">
@@ -387,33 +379,27 @@ export default function FixedExpenseManager({
                 </span>
               </>
             );
-            thisHint = `이번달(${thisMonth}월) 거래의 금액·날짜도 새 값으로 갱신`;
-            nextHint = "이번달 거래는 기존 값 유지, 다음달부터 새 값";
           } else if (amountChanged) {
             title = `${name} 금액 변경`;
-            question = "변경된 금액을 어느 시점부터 적용할까요?";
+            question = "변경된 금액을 어느 월부터 적용할까요?";
             info = (
               <span className="block tabular-nums">
                 {formatWon(u.oldFx.amount)} → {formatWon(u.newData.amount ?? 0)}
               </span>
             );
-            thisHint = `이번달(${thisMonth}월) 자동 등록된 거래도 새 금액으로 갱신`;
-            nextHint = "이번달 거래는 기존 금액 유지, 다음달부터 새 금액";
           } else if (dayChanged) {
             title = `${name} 결제일 변경`;
-            question = "변경된 결제일을 어느 시점부터 적용할까요?";
+            question = "변경된 결제일을 어느 월부터 적용할까요?";
             info = (
               <span className="block tabular-nums">
                 매월 {u.oldFx.day_of_month}일 → {u.newData.day_of_month}일
               </span>
             );
-            thisHint = `이번달(${thisMonth}월) 거래의 날짜도 새 결제일로 갱신`;
-            nextHint = "이번달 거래는 기존 날짜 유지, 다음달부터 새 결제일";
           }
         }
 
         return (
-          <ScopeChoiceDialog
+          <MonthChoiceDialog
             open={!!pendingUpdate}
             onOpenChange={(o) => {
               if (!o) setPendingUpdate(null);
@@ -421,11 +407,10 @@ export default function FixedExpenseManager({
             title={title}
             info={info}
             question={question}
-            thisMonthLabel="이번달부터 적용"
-            thisMonthHint={thisHint}
-            nextMonthLabel="다음달부터 적용"
-            nextMonthHint={nextHint}
-            onPick={applyUpdateScope}
+            confirmLabel="적용"
+            defaultYear={baseYear}
+            defaultMonth={baseMonth}
+            onConfirm={applyUpdate}
           />
         );
       })()}
@@ -433,50 +418,62 @@ export default function FixedExpenseManager({
   );
 }
 
-/* ── 이번달 / 다음달 선택 다이얼로그 ──
-   카드형 옵션 버튼 (아이콘 + 라벨 + 힌트) → iOS Action Sheet 보다 시각 위계 명확.
-   파괴적 액션(삭제) 은 destructive 톤, 일반(수정) 은 primary 톤. */
-interface ScopeChoiceProps {
+/* ── 시작 월 선택 다이얼로그 ──
+   사용자가 (year, month) 를 자유롭게 골라 "그 월부터 적용/삭제" — 이전 "이번달/다음달"
+   2지선다보다 자유도 높음. MonthPicker 는 캘린더 페이지에서 사용 중인 동일 컴포넌트.
+   파괴적(삭제) = destructive 톤, 일반(수정) = primary 톤. */
+interface MonthChoiceProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
   info?: React.ReactNode;
   question: string;
-  thisMonthLabel: string;
-  thisMonthHint: string;
-  nextMonthLabel: string;
-  nextMonthHint: string;
+  confirmLabel: string;
+  defaultYear: number;
+  defaultMonth: number;
   destructive?: boolean;
-  onPick: (scope: Scope) => void | Promise<void>;
+  onConfirm: (year: number, month: number) => void | Promise<void>;
 }
 
-function ScopeChoiceDialog({
+function MonthChoiceDialog({
   open,
   onOpenChange,
   title,
   info,
   question,
-  thisMonthLabel,
-  thisMonthHint,
-  nextMonthLabel,
-  nextMonthHint,
+  confirmLabel,
+  defaultYear,
+  defaultMonth,
   destructive,
-  onPick,
-}: ScopeChoiceProps) {
+  onConfirm,
+}: MonthChoiceProps) {
+  const [year, setYear] = useState(defaultYear);
+  const [month, setMonth] = useState(defaultMonth);
   const [busy, setBusy] = useState(false);
-  const handle = async (scope: Scope) => {
+
+  // 다이얼로그 오픈 시점에 default 로 리셋 — 이전 선택값이 남아있지 않도록.
+  // (open 동안 defaultYear/Month 가 바뀌어도 유저 선택은 보존하므로 deps 는 open 만.)
+  useEffect(() => {
+    if (open) {
+      setYear(defaultYear);
+      setMonth(defaultMonth);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  const handle = async () => {
     setBusy(true);
     try {
-      await onPick(scope);
+      await onConfirm(year, month);
       onOpenChange(false);
     } finally {
       setBusy(false);
     }
   };
 
-  // 강조 색 토큰 — 파괴적 = destructive, 일반 = primary.
-  const accentText = destructive ? "text-destructive" : "text-primary";
-  const accentBorder = destructive ? "border-destructive/40 hover:border-destructive/70 hover:bg-destructive/5" : "border-primary/40 hover:border-primary/70 hover:bg-primary/5";
+  const accent = destructive
+    ? "bg-destructive text-white hover:bg-destructive/90"
+    : "bg-primary text-primary-foreground hover:bg-primary/90";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -495,50 +492,38 @@ function ScopeChoiceDialog({
           <p className="text-xs text-muted-foreground mt-1.5 font-medium">{question}</p>
         </div>
 
-        {/* 옵션 카드 — 2개 stacked. 아이콘 + 라벨 + 힌트. */}
-        <div className="px-3 pb-3 flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={() => handle("this-month")}
-            disabled={busy}
-            className={cn(
-              "flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-all disabled:opacity-50",
-              accentBorder,
-            )}
-          >
-            <CalendarMinus className={cn("h-5 w-5 mt-0.5 shrink-0", accentText)} />
-            <div className="flex-1 min-w-0">
-              <div className={cn("text-sm font-semibold", accentText)}>{thisMonthLabel}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5 break-keep leading-relaxed">
-                {thisMonthHint}
-              </div>
-            </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => handle("next-month")}
-            disabled={busy}
-            className="flex items-start gap-3 rounded-lg border-2 border-border/60 p-3 text-left transition-all hover:border-foreground/30 hover:bg-accent/40 disabled:opacity-50"
-          >
-            <CalendarClock className="h-5 w-5 mt-0.5 shrink-0 text-muted-foreground" />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold">{nextMonthLabel}</div>
-              <div className="text-[11px] text-muted-foreground mt-0.5 break-keep leading-relaxed">
-                {nextMonthHint}
-              </div>
-            </div>
-          </button>
+        {/* MonthPicker — 캘린더 페이지와 동일 UI */}
+        <div className="px-3 pb-3 flex flex-col items-center gap-2">
+          <div className="flex justify-center">
+            <MonthPicker
+              year={year}
+              month={month}
+              onYearChange={setYear}
+              onMonthChange={setMonth}
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground break-keep leading-relaxed text-center">
+            {year}년 {month}월 1일부터 미래 모든 매칭 거래에 적용됩니다.
+          </p>
         </div>
 
-        {/* 취소 — 푸터, 차분한 회색. */}
-        <div className="border-t">
+        {/* 액션 푸터 — 좌:취소 / 우:확정 */}
+        <div className="border-t flex">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
             disabled={busy}
-            className="w-full px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-accent/40 disabled:opacity-50"
+            className="flex-1 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-accent/40 disabled:opacity-50"
           >
             취소
+          </button>
+          <button
+            type="button"
+            onClick={handle}
+            disabled={busy}
+            className={`flex-1 px-4 py-3 text-sm font-semibold transition-colors disabled:opacity-50 ${accent}`}
+          >
+            {confirmLabel}
           </button>
         </div>
       </DialogContent>

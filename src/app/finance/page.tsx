@@ -332,6 +332,8 @@ function FinancePageInner() {
         onOpenChange={setFixedOpen}
         fixedExpenses={fixedExpenses}
         categories={categories}
+        defaultYear={year}
+        defaultMonth={month}
         onAdd={async (item, repeatMonths) => {
           const r = await addFixed(item, repeatMonths);
           if (!r.error) await refetchTransactions();
@@ -347,13 +349,13 @@ function FinancePageInner() {
           if (!r.error) await refetchTransactions();
           return r;
         }}
-        onDeleteWithScope={async (id, scope, y, m) => {
-          const r = await deleteFixedWithScope(id, scope, y, m);
+        onDeleteWithScope={async (id, y, m) => {
+          const r = await deleteFixedWithScope(id, y, m);
           if (!r.error) await refetchTransactions();
           return r;
         }}
-        onUpdateWithScope={async (id, updates, scope, y, m) => {
-          const r = await updateFixedWithScope(id, updates, scope, y, m);
+        onUpdateWithScope={async (id, updates, y, m) => {
+          const r = await updateFixedWithScope(id, updates, y, m);
           if (!r.error) await refetchTransactions();
           return r;
         }}

@@ -157,15 +157,14 @@ export function useFixedExpenses() {
 
   /**
    * 고정비 비활성화 + 매칭되는 거래(amount+description) 일괄 삭제.
-   * scope = "this-month": 이번달(year/month) 1일부터 미래 모두 삭제
-   * scope = "next-month": 다음달 1일부터 미래 모두 삭제 (이번달은 유지)
+   * (year, month) 의 1일부터 미래 모두 삭제. 사용자가 임의의 시작 월을 고를 수 있도록
+   * scope 분기 제거 — 캘린더 month picker 와 동일 UX.
    *
    * 매칭 키: amount + description. 같은 amount/desc 의 다른 거래도 영향 받을 수 있으나
    * 일반적으로 고정비 자동 등록 외엔 충돌 적음. 정확히 따로 추적하려면 별도 fk 컬럼 필요.
    */
   const deleteFixedWithScope = async (
     id: string,
-    scope: "this-month" | "next-month",
     year: number,
     month: number,
   ) => {
@@ -177,13 +176,7 @@ export function useFixedExpenses() {
       .eq("id", id);
     if (r1.error) return { error: r1.error };
 
-    // 삭제 시작일 — this-month: 이번달 1일 / next-month: 다음달 1일.
-    const startDate =
-      scope === "this-month"
-        ? `${year}-${String(month).padStart(2, "0")}-01`
-        : month === 12
-          ? `${year + 1}-01-01`
-          : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
 
     let q = supabase
       .from("expenses")
@@ -200,9 +193,8 @@ export function useFixedExpenses() {
   };
 
   /**
-   * 고정비 수정 + 매칭되는 거래(이번달/다음달부터 미래) 일괄 갱신.
-   * scope = "this-month": 이번달 1일부터 미래 모두 propagate
-   * scope = "next-month": 다음달 1일부터 미래 모두 propagate (이번달은 유지)
+   * 고정비 수정 + 매칭되는 거래(선택한 시작 월부터 미래) 일괄 갱신.
+   * (year, month) 1일부터 미래 모두 propagate. 사용자가 임의의 시작 월을 고를 수 있음.
    *
    * 전파되는 필드: amount, description, title, category_id, payment_method, day_of_month.
    * day_of_month 변경 시 매칭 tx 의 date 도 그 달의 새 day 로 갱신 (월말 클램프 포함).
@@ -210,20 +202,13 @@ export function useFixedExpenses() {
   const updateFixedWithScope = async (
     id: string,
     updates: Partial<Omit<FixedExpense, "id" | "created_at" | "category">>,
-    scope: "this-month" | "next-month",
     year: number,
     month: number,
   ) => {
     const fx = fixedExpenses.find((f) => f.id === id);
     if (!fx) return { error: "고정비를 찾을 수 없습니다" };
 
-    // 시작일은 scope 에 따라.
-    const startDate =
-      scope === "this-month"
-        ? `${year}-${String(month).padStart(2, "0")}-01`
-        : month === 12
-          ? `${year + 1}-01-01`
-          : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
 
     // 1+2 병렬: fixed_expense update + 매칭 거래 fetch (서로 독립).
     let txQ = supabase
