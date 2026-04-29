@@ -72,23 +72,25 @@ export default function MonthlySummary({
     color?: string;
     action?: React.ReactNode;
   }) => (
-    <div className="rounded-lg border bg-card px-2.5 py-2 flex flex-col gap-0.5 min-w-0">
-      <div className="flex items-center justify-between gap-1 min-h-[1rem]">
-        <span className="text-[10px] md:text-[11px] text-muted-foreground truncate">
+    // 데스크탑: 가로 2컬럼(좌 스코어카드 / 우 차트) 레이아웃에서 차트 높이에 맞추도록
+    // h-full + justify-between. 폰트/패딩도 md+ 에서 키워 시각적 무게 확보.
+    <div className="rounded-lg border bg-card px-2.5 py-2 md:px-4 md:py-3.5 flex flex-col gap-0.5 md:gap-1 min-w-0 md:h-full md:justify-between">
+      <div className="flex items-center justify-between gap-1 min-h-[1rem] md:min-h-[1.25rem]">
+        <span className="text-[10px] md:text-xs text-muted-foreground truncate">
           {label}
         </span>
         {action}
       </div>
-      <div className={`text-sm font-semibold truncate tabular-nums ${color || "text-foreground"}`}>
+      <div className={`text-sm md:text-xl font-semibold truncate tabular-nums ${color || "text-foreground"}`}>
         {value}
       </div>
     </div>
   );
 
   return (
-    <div className="flex flex-col gap-1.5 md:gap-2">
+    <div className="flex flex-col gap-1.5 md:gap-3 md:h-full">
       {/* 1층: 월급 | 고정비 — 각 카드 우상단에 ✏️ 액션 */}
-      <div className="grid gap-1.5 md:gap-2 grid-cols-2">
+      <div className="grid gap-1.5 md:gap-3 grid-cols-2 md:flex-1 md:min-h-0">
         <Cell
           label="월급"
           action={
@@ -117,7 +119,7 @@ export default function MonthlySummary({
                   if (e.key === "Escape") setEditingIncome(false);
                 }}
                 autoFocus
-                className="h-7 text-xs w-full min-w-0"
+                className="h-7 md:h-9 text-xs md:text-base w-full min-w-0"
               />
             ) : (
               formatWon(monthlyIncome)
@@ -141,7 +143,7 @@ export default function MonthlySummary({
       </div>
 
       {/* 2층: 이번달 수입 | 지출 — 각 카드 우상단에 + 액션 (해당 type 으로 폼 열림) */}
-      <div className="grid gap-1.5 md:gap-2 grid-cols-2">
+      <div className="grid gap-1.5 md:gap-3 grid-cols-2 md:flex-1 md:min-h-0">
         <Cell
           label="이번달 수입"
           color="text-finance-gain"

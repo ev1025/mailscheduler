@@ -198,22 +198,25 @@ function FinancePageInner() {
 
       {(
         <div className="flex flex-col gap-3 md:gap-4">
-          <MonthlySummary
-            totalIncome={totalIncome}
-            totalExpense={totalExpense}
-            onOpenFixed={() => setFixedOpen(true)}
-            onAddTransaction={(t) => {
-              setEditing(null);
-              setFormDefaultType(t);
-              setFormOpen(true);
-            }}
-          />
-          <CategoryChart
-            expenseByCategory={expenseByCategory}
-            totalExpense={totalExpense}
-            onSelectCategory={setCategoryFilter}
-            activeCategory={categoryFilter}
-          />
+          {/* 데스크탑(md+): 좌 스코어카드 / 우 카테고리 차트 2단. 모바일: 세로 스택. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 md:items-stretch">
+            <MonthlySummary
+              totalIncome={totalIncome}
+              totalExpense={totalExpense}
+              onOpenFixed={() => setFixedOpen(true)}
+              onAddTransaction={(t) => {
+                setEditing(null);
+                setFormDefaultType(t);
+                setFormOpen(true);
+              }}
+            />
+            <CategoryChart
+              expenseByCategory={expenseByCategory}
+              totalExpense={totalExpense}
+              onSelectCategory={setCategoryFilter}
+              activeCategory={categoryFilter}
+            />
+          </div>
 
           {/* 거래 목록 헤더 — 한 줄에 [필터 칩 + 건수·합계] | [고정비 포함 체크박스]
               항상 노출되어 정보 일관. 필터 칩은 카테고리 색을 적용해 차트와 시각 연결. */}

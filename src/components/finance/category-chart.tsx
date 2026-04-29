@@ -44,9 +44,9 @@ export default function CategoryChart({
   });
 
   return (
-    <Card size="sm">
+    <Card size="sm" className="md:h-full">
       <CardHeader className="pb-1.5">
-        <CardTitle className="text-xs font-medium text-muted-foreground">
+        <CardTitle className="text-xs md:text-sm font-medium text-muted-foreground">
           카테고리별 지출
         </CardTitle>
       </CardHeader>
