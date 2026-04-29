@@ -11,7 +11,6 @@ import {
   Menu,
   Trash2,
   Repeat,
-  Check,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -102,12 +101,8 @@ const ProductRow = memo(function ProductRow({
           dragListeners={listeners as unknown as React.HTMLAttributes<HTMLElement>}
           items={[
             {
-              icon: p.is_active ? (
-                <X className="h-3.5 w-3.5 text-muted-foreground" />
-              ) : (
-                <Check className="h-3.5 w-3.5 text-amber-600" />
-              ),
-              label: p.is_active ? "구매 취소" : "구매 표시",
+              icon: <Wallet className="h-3.5 w-3.5 text-amber-500" />,
+              label: p.is_active ? "구매 취소" : "구매",
               onClick: () => onTogglePurchased(p),
             },
             {
