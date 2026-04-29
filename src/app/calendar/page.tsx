@@ -242,53 +242,73 @@ function CalendarPageInner() {
       />
     <div className="flex flex-col min-h-0 h-[calc(100%-3.5rem)] overflow-hidden px-2 py-2 md:h-auto md:overflow-visible md:min-h-0 md:p-6">
 
-      <div className="mb-2 flex justify-center items-center shrink-0">
-        <MonthPicker
-          year={year}
-          month={month}
-          onYearChange={setYear}
-          onMonthChange={setMonth}
-        />
-      </div>
-      {/* 사용자 필터: 달력 탭에서만 노출 — 여기서 선택한 값이 일정목록에도 자동 적용 */}
-      {view === "calendar" && viewableUserIds.length > 1 && (
-        <div className="mb-2 flex flex-wrap items-center justify-center gap-1.5 shrink-0">
-          {users
-            .filter((u) => viewableUserIds.includes(u.id))
-            .map((u) => {
-              const active = visibleUserIds.includes(u.id);
-              return (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => toggleVisible(u.id)}
-                  className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all"
-                  style={
-                    active
-                      ? {
-                          borderColor: u.color,
-                          backgroundColor: u.color + "20",
-                          color: u.color,
-                        }
-                      : { opacity: 0.4 }
-                  }
-                >
-                  {u.avatar_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={u.avatar_url}
-                      alt={u.name}
-                      className="h-4 w-4 rounded-full object-cover"
-                    />
-                  ) : (
-                    <span>{u.emoji || u.name[0]}</span>
-                  )}
-                  <span className="font-medium">{u.name}</span>
-                </button>
-              );
-            })}
-        </div>
-      )}
+      {/* 데스크탑: MonthPicker(가운데) + 사용자 필터(우측 끝) 한 행.
+          모바일: MonthPicker 만 한 행, 필터는 그 아래 별도 행 — 좁은 화면에서 가로 공간 부족. */}
+      {(() => {
+        const userChips =
+          view === "calendar" && viewableUserIds.length > 1
+            ? users
+                .filter((u) => viewableUserIds.includes(u.id))
+                .map((u) => {
+                  const active = visibleUserIds.includes(u.id);
+                  return (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => toggleVisible(u.id)}
+                      className="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all"
+                      style={
+                        active
+                          ? {
+                              borderColor: u.color,
+                              backgroundColor: u.color + "20",
+                              color: u.color,
+                            }
+                          : { opacity: 0.4 }
+                      }
+                    >
+                      {u.avatar_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={u.avatar_url}
+                          alt={u.name}
+                          className="h-4 w-4 rounded-full object-cover"
+                        />
+                      ) : (
+                        <span>{u.emoji || u.name[0]}</span>
+                      )}
+                      <span className="font-medium">{u.name}</span>
+                    </button>
+                  );
+                })
+            : null;
+
+        return (
+          <>
+            <div className="mb-2 flex items-center shrink-0">
+              {/* 좌측 spacer — MonthPicker 가운데 정렬용 (데스크탑) */}
+              <div className="hidden md:block flex-1" />
+              <div className="flex-1 md:flex-none flex justify-center">
+                <MonthPicker
+                  year={year}
+                  month={month}
+                  onYearChange={setYear}
+                  onMonthChange={setMonth}
+                />
+              </div>
+              {/* 우측: 사용자 필터 (데스크탑만 같은 행). 모바일은 별도 행. */}
+              <div className="hidden md:flex flex-1 justify-end flex-wrap items-center gap-1.5">
+                {userChips}
+              </div>
+            </div>
+            {userChips && (
+              <div className="md:hidden mb-2 flex flex-wrap items-center justify-center gap-1.5 shrink-0">
+                {userChips}
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {view === "calendar" ? (
         // 데스크톱은 document 스크롤이라 부모가 h-auto → flex-1 이 0 이 되어 달력이 쪼그라듦.
