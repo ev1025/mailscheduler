@@ -113,7 +113,7 @@ function SortableTaskRow({
 }
 
 export default function PlanDetail({ planId, onBack }: Props) {
-  const { plans, updatePlan } = useTravelPlans();
+  const { plans, loading: plansLoading, updatePlan } = useTravelPlans();
   const plan = plans.find((p) => p.id === planId);
   const { tasks, addTask, updateTask, deleteTask } = useTravelPlanTasks(planId);
 
@@ -256,9 +256,12 @@ export default function PlanDetail({ planId, onBack }: Props) {
   }, [days, sorted]);
 
   if (!plan) {
+    // 아직 plans fetch 중이면 빈 상태로(스피너 텍스트), 끝났는데도 못 찾으면 정확히 안내.
     return (
       <div className="flex items-center justify-center h-full">
-        <p className="text-sm text-muted-foreground">계획을 찾을 수 없습니다.</p>
+        <p className="text-sm text-muted-foreground">
+          {plansLoading ? "불러오는 중..." : "계획을 찾을 수 없습니다."}
+        </p>
       </div>
     );
   }
