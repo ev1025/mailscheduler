@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUserId } from "@/lib/current-user";
+import { syncPlanCalendarEvents } from "@/lib/travel/calendar-sync";
 import type { TravelPlan } from "@/types";
 
 /**
@@ -93,7 +94,17 @@ export function useTravelPlans(visibleUserIds?: string[]) {
       .from("travel_plans")
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq("id", id);
-    if (!error) await fetchPlans();
+    if (!error) {
+      await fetchPlans();
+      // start_date/end_date 가 바뀌면 day_index → 실제 날짜 매핑이 변하므로
+      // 이미 등록된 calendar_events 도 다시 빌드해야 함. 등록 안 된 plan 은 no-op.
+      if (
+        Object.prototype.hasOwnProperty.call(updates, "start_date") ||
+        Object.prototype.hasOwnProperty.call(updates, "end_date")
+      ) {
+        await syncPlanCalendarEvents({ planId: id, userId });
+      }
+    }
     return { error };
   };
 

@@ -2,14 +2,27 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { syncPlanCalendarEvents } from "@/lib/travel/calendar-sync";
+import { useCurrentUserId } from "@/lib/current-user";
 import type { TravelPlanTask } from "@/types";
 
 // 특정 plan_id 의 travel_plan_tasks CRUD.
 // 정렬 기준: day_index → start_time(있으면) → manual_order.
+//
+// task 가 변경되면 (이 plan 으로 "달력에 추가" 한 적 있을 때 한해)
+// calendar_events 를 자동 재빌드 — 사용자가 별도 동기화 액션 안 해도 일정이 따라옴.
 
 export function useTravelPlanTasks(planId: string | null) {
+  const userId = useCurrentUserId();
   const [tasks, setTasks] = useState<TravelPlanTask[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // task 변경 후 호출. 이 plan 이 calendar_events 를 가지고 있을 때만 재동기화.
+  // 카드뷰의 hasCalendarEvents 표시는 plan-list 가 별도로 갱신.
+  const syncCalendar = useCallback(async () => {
+    if (!planId) return;
+    await syncPlanCalendarEvents({ planId, userId });
+  }, [planId, userId]);
 
   const fetchTasks = useCallback(async () => {
     if (!planId) {
@@ -54,7 +67,10 @@ export function useTravelPlanTasks(planId: string | null) {
       .insert(input)
       .select("*")
       .single();
-    if (!error) await fetchTasks();
+    if (!error) {
+      await fetchTasks();
+      await syncCalendar();
+    }
     return { data, error };
   };
 
@@ -63,13 +79,19 @@ export function useTravelPlanTasks(planId: string | null) {
       .from("travel_plan_tasks")
       .update(updates)
       .eq("id", id);
-    if (!error) await fetchTasks();
+    if (!error) {
+      await fetchTasks();
+      await syncCalendar();
+    }
     return { error };
   };
 
   const deleteTask = async (id: string) => {
     const { error } = await supabase.from("travel_plan_tasks").delete().eq("id", id);
-    if (!error) await fetchTasks();
+    if (!error) {
+      await fetchTasks();
+      await syncCalendar();
+    }
     return { error };
   };
 
@@ -77,7 +99,10 @@ export function useTravelPlanTasks(planId: string | null) {
   const bulkInsert = async (rows: Omit<TravelPlanTask, "id" | "created_at">[]) => {
     if (rows.length === 0) return { error: null };
     const { error } = await supabase.from("travel_plan_tasks").insert(rows);
-    if (!error) await fetchTasks();
+    if (!error) {
+      await fetchTasks();
+      await syncCalendar();
+    }
     return { error };
   };
 

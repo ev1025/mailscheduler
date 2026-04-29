@@ -108,12 +108,12 @@ function PlanCard({ plan, dragEnabled, hasCalendarEvents, onSelect, onDelete, on
             // 달력에 이미 추가된 상태면 "삭제"만, 아니면 "추가"만 노출 (둘 중 하나).
             hasCalendarEvents
               ? {
-                  icon: <CalendarMinus className="h-3.5 w-3.5" />,
+                  icon: <CalendarMinus className="h-3.5 w-3.5 text-rose-600" />,
                   label: "달력에서 삭제",
                   onClick: onRemoveFromCalendar,
                 }
               : {
-                  icon: <CalendarPlus className="h-3.5 w-3.5" />,
+                  icon: <CalendarPlus className="h-3.5 w-3.5 text-blue-600" />,
                   label: "달력에 추가",
                   onClick: onAddToCalendar,
                 },
@@ -475,13 +475,8 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
         title={addToCalState ? `"${addToCalState.plan.title}"을 달력에 추가` : "달력에 추가"}
         description={
           addToCalState ? (
-            <span className="block space-y-1">
-              <span className="block">
-                일정: {formatPlanRange(addToCalState.plan)}
-              </span>
-              <span className="block text-xs text-muted-foreground/70">
-                {addToCalState.tasks.count}개 일정 · 시작시간 + 체류시간 = 종료시간
-              </span>
+            <span className="block">
+              일정: {formatPlanRange(addToCalState.plan)}
             </span>
           ) : null
         }

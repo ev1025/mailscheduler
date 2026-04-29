@@ -37,7 +37,7 @@ function TravelPlansPageInner() {
       <div className="flex flex-col min-h-0">
         <PlanDetail
           planId={planId}
-          onBack={() => router.replace("/travel/plans", { scroll: false })}
+          onBack={() => router.push("/travel/plans", { scroll: false })}
         />
       </div>
     );
