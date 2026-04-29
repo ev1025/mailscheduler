@@ -35,8 +35,10 @@ interface Props {
 }
 
 export default function DeleteRecordDescription({ fields, footnote }: Props) {
+  // ConfirmDialog 본문이 flex-col items-center text-center 라 description 이 기본적으로
+  // 가운데로 몰림. w-full + text-left 로 좌측 정렬·전폭 강제 → 라벨/값이 깔끔하게 정렬.
   return (
-    <span className="block">
+    <span className="block w-full text-left">
       <span className="block space-y-0.5">
         {fields.map((f, i) => (
           <span key={i} className="flex items-baseline gap-2 text-foreground">

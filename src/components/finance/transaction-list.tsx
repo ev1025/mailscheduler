@@ -148,7 +148,7 @@ export default function TransactionList({
               footnote={
                 deletingTx.installment_id && deletingTx.installment_total && deletingTx.installment_total > 1
                   ? `${deletingTx.installment_total}개월 할부 묶음이라 모든 회차가 함께 삭제돼요.`
-                  : "삭제하면 되돌릴 수 없어요."
+                  : undefined
               }
             />
           ) : null
