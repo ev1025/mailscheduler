@@ -358,33 +358,77 @@ export default function FixedExpenseManager({
         onPick={applyDeleteScope}
       />
 
-      {/* 금액 변경 — "이번달부터 / 다음달부터" 선택 다이얼로그. */}
-      <ScopeChoiceDialog
-        open={!!pendingUpdate}
-        onOpenChange={(o) => {
-          if (!o) setPendingUpdate(null);
-        }}
-        title={
-          pendingUpdate
-            ? `${pendingUpdate.oldFx.title || pendingUpdate.oldFx.description || "고정비"} 금액 변경`
-            : "고정비 수정"
-        }
-        info={
-          pendingUpdate ? (
-            <>
+      {/* 수정 — "이번달부터 / 다음달부터" 선택 다이얼로그. 변경 종류(금액/결제일/둘 다) 에 따라 문구 분기. */}
+      {(() => {
+        const u = pendingUpdate;
+        const name = u
+          ? u.oldFx.title || u.oldFx.description || "고정비"
+          : "고정비";
+        const amountChanged = !!u && u.newData.amount !== undefined && u.newData.amount !== u.oldFx.amount;
+        const dayChanged = !!u && u.newData.day_of_month !== undefined && u.newData.day_of_month !== u.oldFx.day_of_month;
+
+        let title = `${name} 수정`;
+        let question = "어느 시점부터 적용할까요?";
+        let info: React.ReactNode = null;
+        let thisHint = `이번달(${thisMonth}월) 거래도 새 값으로 갱신`;
+        let nextHint = "이번달 거래는 기존 값 유지, 다음달부터 새 값";
+
+        if (u) {
+          if (amountChanged && dayChanged) {
+            title = `${name} 금액·결제일 변경`;
+            question = "변경된 값을 어느 시점부터 적용할까요?";
+            info = (
+              <>
+                <span className="block tabular-nums">
+                  {formatWon(u.oldFx.amount)} → {formatWon(u.newData.amount ?? 0)}
+                </span>
+                <span className="block tabular-nums">
+                  매월 {u.oldFx.day_of_month}일 → {u.newData.day_of_month}일
+                </span>
+              </>
+            );
+            thisHint = `이번달(${thisMonth}월) 거래의 금액·날짜도 새 값으로 갱신`;
+            nextHint = "이번달 거래는 기존 값 유지, 다음달부터 새 값";
+          } else if (amountChanged) {
+            title = `${name} 금액 변경`;
+            question = "변경된 금액을 어느 시점부터 적용할까요?";
+            info = (
               <span className="block tabular-nums">
-                {formatWon(pendingUpdate.oldFx.amount)} → {formatWon(pendingUpdate.newData.amount ?? 0)}
+                {formatWon(u.oldFx.amount)} → {formatWon(u.newData.amount ?? 0)}
               </span>
-            </>
-          ) : null
+            );
+            thisHint = `이번달(${thisMonth}월) 자동 등록된 거래도 새 금액으로 갱신`;
+            nextHint = "이번달 거래는 기존 금액 유지, 다음달부터 새 금액";
+          } else if (dayChanged) {
+            title = `${name} 결제일 변경`;
+            question = "변경된 결제일을 어느 시점부터 적용할까요?";
+            info = (
+              <span className="block tabular-nums">
+                매월 {u.oldFx.day_of_month}일 → {u.newData.day_of_month}일
+              </span>
+            );
+            thisHint = `이번달(${thisMonth}월) 거래의 날짜도 새 결제일로 갱신`;
+            nextHint = "이번달 거래는 기존 날짜 유지, 다음달부터 새 결제일";
+          }
         }
-        question="변경된 금액을 어느 시점부터 적용할까요?"
-        thisMonthLabel="이번달부터 적용"
-        thisMonthHint={`이번달(${thisMonth}월) 자동 등록된 거래도 새 금액으로 갱신`}
-        nextMonthLabel="다음달부터 적용"
-        nextMonthHint="이번달 거래는 기존 금액 유지, 다음 달부터 새 금액"
-        onPick={applyUpdateScope}
-      />
+
+        return (
+          <ScopeChoiceDialog
+            open={!!pendingUpdate}
+            onOpenChange={(o) => {
+              if (!o) setPendingUpdate(null);
+            }}
+            title={title}
+            info={info}
+            question={question}
+            thisMonthLabel="이번달부터 적용"
+            thisMonthHint={thisHint}
+            nextMonthLabel="다음달부터 적용"
+            nextMonthHint={nextHint}
+            onPick={applyUpdateScope}
+          />
+        );
+      })()}
     </>
   );
 }
