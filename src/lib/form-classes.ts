@@ -8,8 +8,9 @@
 //   <Input className={FORM_INPUT_PRIMARY} />
 
 // 제목·주요 입력 (다이얼로그 최상단의 "제목 *" 같은 입력).
-// 14px(text-sm). TagInput 트리거는 좁은 컬럼 대응을 위해 text-xs(12px)로 별도 운용.
-export const FORM_INPUT_PRIMARY = "h-9 text-sm"
+// 폼 전체 입력은 12px(text-xs) 로 통일 — TagInput 트리거(text-xs) 와 placeholder
+// 예시들("예: 오메가3", "브랜드명", "35000" 등) 의 글씨 크기·스타일이 동일하도록.
+export const FORM_INPUT_PRIMARY = "h-9 text-xs"
 
 // 모든 폼 입력은 PRIMARY 와 동일 — 한 폼 안에서 input/select/picker 의 폰트·높이가
 // 제각각이던 문제 해결. 토큰 이름은 호환을 위해 유지(과거 호출처 다수).
@@ -21,8 +22,8 @@ export const FORM_LABEL = "text-xs text-muted-foreground"
 // 힌트·작은 설명·툴팁 (input 이 아닌 일반 텍스트 — 자동 줌 무관)
 export const FORM_HINT = "text-xs"
 
-// Textarea 본문(플레이스홀더 포함). 다른 입력과 동일하게 14px 통일.
-export const FORM_TEXTAREA = "text-sm"
+// Textarea 본문(플레이스홀더 포함). 다른 입력과 동일하게 12px 통일.
+export const FORM_TEXTAREA = "text-xs"
 
 // 인라인 보조 버튼(같은 행에서 Input과 나란히 쓰는 "추가/취소" 등)
 // FORM_INPUT_COMPACT(h-8)와 같은 행에 놓일 때 높이를 맞추기 위함.
