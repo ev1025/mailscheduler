@@ -79,6 +79,7 @@ function FinancePageInner() {
     deleteFixed,
     deleteFixedWithScope,
     updateFixedWithScope,
+    ensureFixedMonths,
     applyFixedToMonth,
   } = useFixedExpenses();
 
@@ -326,6 +327,11 @@ function FinancePageInner() {
         }}
         onUpdateWithScope={async (id, updates, scope, y, m) => {
           const r = await updateFixedWithScope(id, updates, scope, y, m);
+          if (!r.error) await refetchTransactions();
+          return r;
+        }}
+        onEnsureFixedMonths={async (id, repeat) => {
+          const r = await ensureFixedMonths(id, repeat);
           if (!r.error) await refetchTransactions();
           return r;
         }}

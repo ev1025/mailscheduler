@@ -63,8 +63,10 @@ export default function FixedExpenseForm({
   const [dayOfMonth, setDayOfMonth] = useState("1");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
-  // 반복 개월 수 — 신규 등록 시에만 사용. 1=이번달만, -1=계속(120개월).
-  const [repeatMonths, setRepeatMonths] = useState<number>(1);
+  // 반복 개월 수.
+  //  - 신규: default = -1 (계속 = 120개월 일괄)
+  //  - 수정: default = 1 (이번달만, 명시적으로 늘려야 미래 거래 추가)
+  const [repeatMonths, setRepeatMonths] = useState<number>(-1);
 
   useEffect(() => {
     if (!open) return;
@@ -76,6 +78,8 @@ export default function FixedExpenseForm({
       setDescription(fixed.description || "");
       setDayOfMonth(String(fixed.day_of_month));
       setPaymentMethod(fixed.payment_method || "");
+      // 수정: default 1 (이번달만). 사용자가 늘리면 그만큼 미래 거래 추가됨.
+      setRepeatMonths(1);
     } else {
       setType("expense");
       setTitle("");
@@ -84,7 +88,8 @@ export default function FixedExpenseForm({
       setDescription("");
       setDayOfMonth("1");
       setPaymentMethod("");
-      setRepeatMonths(1);
+      // 신규: default -1 (계속 = 120개월 일괄).
+      setRepeatMonths(-1);
     }
   }, [open, fixed]);
 
@@ -103,8 +108,8 @@ export default function FixedExpenseForm({
         type,
         payment_method: paymentMethod || "계좌이체",
       },
-      // 신규일 때만 의미. 수정 시엔 manager 가 무시.
-      fixed ? undefined : repeatMonths,
+      // 신규: N개월 일괄 생성. 수정: N개월 미래 거래 보장(중복은 dedup).
+      repeatMonths,
     );
     setSaving(false);
     if (error) {
@@ -173,8 +178,8 @@ export default function FixedExpenseForm({
           </button>
         </div>
 
-        {/* 금액 + 매월 결제일 + 반복 — 한 행. 신규 등록 시만 반복 노출, 수정 시엔 2-col. */}
-        <div className={fixed ? "grid grid-cols-2 gap-2" : "grid grid-cols-3 gap-2"}>
+        {/* 금액 + 매월 결제일 + 반복 — 한 행 (신규/수정 동일 3-col). */}
+        <div className="grid grid-cols-3 gap-2">
           <FormField label="금액" required>
             <Input
               type="number"
@@ -204,20 +209,18 @@ export default function FixedExpenseForm({
               className={FORM_INPUT_PRIMARY}
             />
           </FormField>
-          {!fixed && (
-            <FormField label="반복">
-              <div className="flex items-center gap-1">
-                <NumberWheel
-                  value={repeatMonths}
-                  onChange={setRepeatMonths}
-                  min={1}
-                  max={120}
-                  allowInfinity
-                />
-                <span className="text-xs text-muted-foreground">개월</span>
-              </div>
-            </FormField>
-          )}
+          <FormField label="반복">
+            <div className="flex items-center gap-1">
+              <NumberWheel
+                value={repeatMonths}
+                onChange={setRepeatMonths}
+                min={1}
+                max={120}
+                allowInfinity
+              />
+              <span className="text-xs text-muted-foreground">개월</span>
+            </div>
+          </FormField>
         </div>
         <p className="text-[11px] text-muted-foreground -mt-2 leading-snug">
           29~31일은 해당 일자가 없는 달(2월 등)엔 월말에 자동 반영돼요.

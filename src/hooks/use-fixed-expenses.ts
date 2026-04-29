@@ -327,6 +327,79 @@ export function useFixedExpenses() {
     return count;
   };
 
+  /**
+   * 기존 fx 의 미래 N개월 거래 일괄 보장 (중복은 dedup) — 수정 폼에서 반복 늘릴 때 사용.
+   *  - 이번달 포함 N개월 (N=1 → 이번달만, N=-1 → 120개월)
+   *  - 같은 (amount, description, date) 조합이 이미 있으면 skip
+   *  - 줄이는 동작은 안 함 (이미 등록된 미래 거래는 그대로)
+   */
+  const ensureFixedMonths = async (
+    fxId: string,
+    repeatMonths: number,
+  ) => {
+    const fx = fixedExpenses.find((f) => f.id === fxId);
+    if (!fx) return { error: "고정비를 찾을 수 없습니다" };
+    const months = repeatMonths === -1 ? 120 : Math.max(1, repeatMonths);
+    if (months <= 1) return { error: null }; // 이번달만이면 추가 거래 없음
+
+    const today = new Date();
+    const baseYear = today.getFullYear();
+    const baseMonth = today.getMonth() + 1;
+
+    // 대상 기간(이번달 ~ +months) 의 기존 거래를 한 번에 조회 → set 으로 dedup.
+    const startDate = `${baseYear}-${String(baseMonth).padStart(2, "0")}-01`;
+    const endT = new Date(baseYear, baseMonth - 1 + months, 1);
+    const endDate = `${endT.getFullYear()}-${String(endT.getMonth() + 1).padStart(2, "0")}-01`;
+    let existQ = supabase
+      .from("expenses")
+      .select("amount, description, date")
+      .gte("date", startDate)
+      .lt("date", endDate);
+    if (userId) existQ = existQ.eq("user_id", userId);
+    const { data: existing } = await existQ;
+    const set = new Set(
+      (existing as { amount: number; description: string | null; date: string }[] | null)?.map(
+        (t) => `${t.amount}|${t.description ?? ""}|${t.date}`,
+      ) ?? [],
+    );
+
+    const txsToInsert: Record<string, unknown>[] = [];
+    for (let i = 0; i < months; i++) {
+      const t = new Date(baseYear, baseMonth - 1 + i, 1);
+      const yi = t.getFullYear();
+      const mi = t.getMonth() + 1;
+      const lastDay = new Date(yi, mi, 0).getDate();
+      const day = Math.min(fx.day_of_month, lastDay);
+      const date = `${yi}-${String(mi).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const key = `${fx.amount}|${fx.description ?? ""}|${date}`;
+      if (set.has(key)) continue;
+      txsToInsert.push({
+        title: fx.title,
+        amount: fx.amount,
+        category_id: fx.category_id,
+        description: fx.description,
+        date,
+        type: fx.type,
+        payment_method: fx.payment_method,
+        user_id: userId,
+      });
+    }
+
+    if (txsToInsert.length > 0) {
+      const ins = await supabase.from("expenses").insert(txsToInsert);
+      if (ins.error) {
+        const fallback = txsToInsert.map((t) => {
+          const { title, user_id, ...rest } = t as { title?: unknown; user_id?: unknown } & Record<string, unknown>;
+          void title;
+          void user_id;
+          return rest;
+        });
+        await supabase.from("expenses").insert(fallback);
+      }
+    }
+    return { error: null };
+  };
+
   return {
     fixedExpenses,
     loading,
@@ -336,6 +409,7 @@ export function useFixedExpenses() {
     deleteFixedByProduct,
     deleteFixedWithScope,
     updateFixedWithScope,
+    ensureFixedMonths,
     upsertFixedFromProduct,
     applyFixedToMonth,
     refetch: fetchFixed,

@@ -600,7 +600,6 @@ function ProductsPageInner() {
         }}
         product={editing}
         onSave={handleSave}
-        onDelete={(p) => setDeletingProduct(p)}
       />
 
       {/* 제품 삭제 확인 — 목록 드래그바 → 삭제 경로 */}

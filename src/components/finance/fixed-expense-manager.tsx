@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, CalendarMinus, CalendarClock } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -45,6 +46,11 @@ interface FixedExpenseManagerProps {
     year: number,
     month: number,
   ) => Promise<{ error: unknown }>;
+  /** 수정 시 반복 N개월에 미래 거래가 부족하면 채워주는 콜백. dedup 포함. */
+  onEnsureFixedMonths?: (
+    id: string,
+    repeatMonths: number,
+  ) => Promise<{ error: unknown }>;
   onAddCategory?: (
     name: string,
     type: "income" | "expense",
@@ -68,6 +74,7 @@ export default function FixedExpenseManager({
   onDelete,
   onDeleteWithScope,
   onUpdateWithScope,
+  onEnsureFixedMonths,
   onAddCategory,
   onDeleteCategory,
   onUpdateCategoryColor,
@@ -79,6 +86,7 @@ export default function FixedExpenseManager({
   const [pendingUpdate, setPendingUpdate] = useState<{
     oldFx: FixedExpense;
     newData: Parameters<NonNullable<FixedExpenseManagerProps["onUpdate"]>>[1];
+    repeatMonths?: number;
   } | null>(null);
   // 카테고리별 펼침 상태 — 기본 닫힘. 펼친 그룹 id 만 Set 에 보관.
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
@@ -139,12 +147,22 @@ export default function FixedExpenseManager({
   ) => {
     if (editing && onUpdate) {
       // 금액이 바뀌었고 onUpdateWithScope 가 주어지면 적용 시점 다이얼로그 후 저장.
-      // 폼은 일단 닫히고(에러 없음 반환) 다이얼로그 응답에 따라 실제 update 수행.
+      // repeatMonths 도 같이 보존해서 scope 결정 후 미래 거래 확장에 사용.
       if (onUpdateWithScope && data.amount !== editing.amount) {
-        setPendingUpdate({ oldFx: editing, newData: data });
+        setPendingUpdate({ oldFx: editing, newData: data, repeatMonths });
         return { error: null };
       }
-      return await onUpdate(editing.id, data);
+      const r = await onUpdate(editing.id, data);
+      // 반복이 1보다 크면 미래 거래 보장 (dedup 포함).
+      if (
+        !r.error &&
+        repeatMonths !== undefined &&
+        (repeatMonths > 1 || repeatMonths === -1) &&
+        onEnsureFixedMonths
+      ) {
+        await onEnsureFixedMonths(editing.id, repeatMonths);
+      }
+      return r;
     }
     return await onAdd(data, repeatMonths);
   };
@@ -169,6 +187,14 @@ export default function FixedExpenseManager({
       thisYear,
       thisMonth,
     );
+    // 반복 N 이 있으면 미래 거래도 보장.
+    if (
+      pendingUpdate.repeatMonths !== undefined &&
+      (pendingUpdate.repeatMonths > 1 || pendingUpdate.repeatMonths === -1) &&
+      onEnsureFixedMonths
+    ) {
+      await onEnsureFixedMonths(pendingUpdate.oldFx.id, pendingUpdate.repeatMonths);
+    }
     setPendingUpdate(null);
   };
 
@@ -353,7 +379,9 @@ export default function FixedExpenseManager({
   );
 }
 
-/* ── 이번달 / 다음달 선택 다이얼로그 ── */
+/* ── 이번달 / 다음달 선택 다이얼로그 ──
+   카드형 옵션 버튼 (아이콘 + 라벨 + 힌트) → iOS Action Sheet 보다 시각 위계 명확.
+   파괴적 액션(삭제) 은 destructive 톤, 일반(수정) 은 primary 톤. */
 interface ScopeChoiceProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -392,12 +420,17 @@ function ScopeChoiceDialog({
     }
   };
 
+  // 강조 색 토큰 — 파괴적 = destructive, 일반 = primary.
+  const accentText = destructive ? "text-destructive" : "text-primary";
+  const accentBorder = destructive ? "border-destructive/40 hover:border-destructive/70 hover:bg-destructive/5" : "border-primary/40 hover:border-primary/70 hover:bg-primary/5";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         showBackButton={false}
-        className="max-w-[calc(100%-3rem)] sm:max-w-sm p-0 gap-0 overflow-hidden z-[80]"
+        className="max-w-[calc(100%-3rem)] sm:max-w-md p-0 gap-0 overflow-hidden z-[80]"
       >
+        {/* Header: 제목 + 정보 + 질문 */}
         <div className="px-5 pt-5 pb-3 flex flex-col items-center text-center gap-1.5">
           <DialogHeader className="contents">
             <DialogTitle className="text-base font-semibold leading-snug break-keep">
@@ -405,41 +438,51 @@ function ScopeChoiceDialog({
             </DialogTitle>
           </DialogHeader>
           {info && <div className="text-[13px] text-foreground/80 leading-relaxed">{info}</div>}
-          <p className="text-xs text-muted-foreground mt-1">{question}</p>
+          <p className="text-xs text-muted-foreground mt-1.5 font-medium">{question}</p>
         </div>
-        {/* iOS Action Sheet 스타일 — 버튼 vertical stack, 위 두 옵션 + 마지막 취소. */}
-        <div className="border-t divide-y">
+
+        {/* 옵션 카드 — 2개 stacked. 아이콘 + 라벨 + 힌트. */}
+        <div className="px-3 pb-3 flex flex-col gap-2">
           <button
             type="button"
             onClick={() => handle("this-month")}
             disabled={busy}
-            className={`w-full px-4 py-3 text-sm font-semibold flex flex-col items-center gap-0.5 transition-colors hover:bg-accent/50 disabled:opacity-50 ${
-              destructive ? "text-destructive" : "text-primary"
-            }`}
+            className={cn(
+              "flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-all disabled:opacity-50",
+              accentBorder,
+            )}
           >
-            <span>{thisMonthLabel}</span>
-            <span className="text-[11px] font-normal text-muted-foreground break-keep">
-              {thisMonthHint}
-            </span>
+            <CalendarMinus className={cn("h-5 w-5 mt-0.5 shrink-0", accentText)} />
+            <div className="flex-1 min-w-0">
+              <div className={cn("text-sm font-semibold", accentText)}>{thisMonthLabel}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5 break-keep leading-relaxed">
+                {thisMonthHint}
+              </div>
+            </div>
           </button>
           <button
             type="button"
             onClick={() => handle("next-month")}
             disabled={busy}
-            className={`w-full px-4 py-3 text-sm font-semibold flex flex-col items-center gap-0.5 transition-colors hover:bg-accent/50 disabled:opacity-50 ${
-              destructive ? "text-destructive" : "text-primary"
-            }`}
+            className="flex items-start gap-3 rounded-lg border-2 border-border/60 p-3 text-left transition-all hover:border-foreground/30 hover:bg-accent/40 disabled:opacity-50"
           >
-            <span>{nextMonthLabel}</span>
-            <span className="text-[11px] font-normal text-muted-foreground break-keep">
-              {nextMonthHint}
-            </span>
+            <CalendarClock className="h-5 w-5 mt-0.5 shrink-0 text-muted-foreground" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold">{nextMonthLabel}</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5 break-keep leading-relaxed">
+                {nextMonthHint}
+              </div>
+            </div>
           </button>
+        </div>
+
+        {/* 취소 — 푸터, 차분한 회색. */}
+        <div className="border-t">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
             disabled={busy}
-            className="w-full px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-accent/50 disabled:opacity-50"
+            className="w-full px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-accent/40 disabled:opacity-50"
           >
             취소
           </button>

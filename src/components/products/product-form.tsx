@@ -2,12 +2,10 @@
 
 import { useState, useEffect } from "react";
 import FormPage from "@/components/ui/form-page";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormField } from "@/components/ui/form-field";
 import DatePicker from "@/components/ui/date-picker";
-import { Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUserId } from "@/lib/current-user";
 import { useProductCategories } from "@/hooks/use-product-categories";
@@ -32,8 +30,6 @@ interface Props {
   onSave: (
     data: Omit<Product, "id" | "created_at" | "updated_at">
   ) => Promise<{ error: unknown; data?: Product | null }>;
-  /** 편집 모드일 때 footer 좌측 "삭제" 버튼이 호출하는 콜백. 미설정 시 버튼 미노출. */
-  onDelete?: (product: Product) => void;
 }
 
 /**
@@ -56,7 +52,6 @@ export default function ProductForm({
   onOpenChange,
   product,
   onSave,
-  onDelete,
 }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ProductCategory>("영양제");
@@ -176,19 +171,6 @@ export default function ProductForm({
       submitDisabled={!name.trim()}
       saving={saving}
       onSubmit={handleSubmit}
-      footerStart={
-        product && onDelete ? (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onDelete(product)}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-          >
-            <Trash2 className="h-4 w-4 mr-1" />
-            삭제
-          </Button>
-        ) : undefined
-      }
     >
       <div className="flex flex-col gap-4">
         {/* 1행: 제품명 */}
