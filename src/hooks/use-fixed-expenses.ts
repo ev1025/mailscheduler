@@ -217,26 +217,27 @@ export function useFixedExpenses() {
     const fx = fixedExpenses.find((f) => f.id === id);
     if (!fx) return { error: "고정비를 찾을 수 없습니다" };
 
-    // 1. fixed_expense update
-    const r1 = await updateFixed(id, updates);
-    if (r1.error) return { error: r1.error };
-
-    // 2. 매칭 거래 fetch — 시작일은 scope 에 따라.
+    // 시작일은 scope 에 따라.
     const startDate =
       scope === "this-month"
         ? `${year}-${String(month).padStart(2, "0")}-01`
         : month === 12
           ? `${year + 1}-01-01`
           : `${year}-${String(month + 1).padStart(2, "0")}-01`;
-    let q = supabase
+
+    // 1+2 병렬: fixed_expense update + 매칭 거래 fetch (서로 독립).
+    let txQ = supabase
       .from("expenses")
       .select("id, date")
       .gte("date", startDate)
       .eq("amount", fx.amount);
-    if (fx.description === null) q = q.is("description", null);
-    else q = q.eq("description", fx.description);
-    if (userId) q = q.eq("user_id", userId);
-    const { data: txs } = await q;
+    if (fx.description === null) txQ = txQ.is("description", null);
+    else txQ = txQ.eq("description", fx.description);
+    if (userId) txQ = txQ.eq("user_id", userId);
+
+    const [r1, txsRes] = await Promise.all([updateFixed(id, updates), txQ]);
+    if (r1.error) return { error: r1.error };
+    const txs = txsRes.data;
 
     if (!txs || txs.length === 0) return { error: null };
 
@@ -392,12 +393,6 @@ export function useFixedExpenses() {
     fxId: string,
     repeatMonths: number,
   ) => {
-    const { data: fx, error: fxErr } = await supabase
-      .from("fixed_expenses")
-      .select("*")
-      .eq("id", fxId)
-      .single();
-    if (fxErr || !fx) return { error: fxErr || "고정비를 찾을 수 없습니다" };
     const months = repeatMonths === -1 ? 120 : Math.max(1, repeatMonths);
     if (months <= 1) return { error: null }; // 이번달만이면 추가 거래 없음
 
@@ -415,7 +410,16 @@ export function useFixedExpenses() {
       .gte("date", startDate)
       .lt("date", endDate);
     if (userId) existQ = existQ.eq("user_id", userId);
-    const { data: existing } = await existQ;
+
+    // fx 와 existing 동시 fetch — 둘 다 필요하지만 서로 독립적.
+    const [fxRes, existRes] = await Promise.all([
+      supabase.from("fixed_expenses").select("*").eq("id", fxId).single(),
+      existQ,
+    ]);
+    if (fxRes.error || !fxRes.data)
+      return { error: fxRes.error || "고정비를 찾을 수 없습니다" };
+    const fx = fxRes.data;
+    const existing = existRes.data;
     const set = new Set(
       (existing as { amount: number; description: string | null; date: string }[] | null)?.map(
         (t) => `${t.amount}|${t.description ?? ""}|${t.date}`,
