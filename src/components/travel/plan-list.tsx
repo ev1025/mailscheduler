@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Trash2, Copy, CalendarPlus, CalendarMinus } from "lucide-react";
 import RowActionPopover from "@/components/ui/row-action-popover";
 import SearchInput from "@/components/ui/search-input";
@@ -68,15 +67,8 @@ interface PlanCardProps {
 }
 
 function PlanCard({ plan, dragEnabled, hasCalendarEvents, onSelect, onDelete, onDuplicate, onAddToCalendar, onRemoveFromCalendar }: PlanCardProps) {
-  const router = useRouter();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: plan.id, disabled: !dragEnabled });
-
-  // 카드 등장 시 상세 라우트 prefetch — 사용자가 탭하면 이미 RSC payload 준비돼 있어
-  // 지연/리로드 체감 제거.
-  useEffect(() => {
-    router.prefetch(`/travel/plans/${plan.id}`);
-  }, [plan.id, router]);
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -113,19 +105,18 @@ function PlanCard({ plan, dragEnabled, hasCalendarEvents, onSelect, onDelete, on
           side="bottom"
           align="end"
           items={[
-            {
-              icon: <CalendarPlus className="h-3.5 w-3.5" />,
-              label: "달력에 추가",
-              onClick: onAddToCalendar,
-            },
-            // "달력에서 삭제" 는 이 plan 으로 추가한 calendar_events 가 실제 있을 때만 노출.
-            ...(hasCalendarEvents
-              ? [{
+            // 달력에 이미 추가된 상태면 "삭제"만, 아니면 "추가"만 노출 (둘 중 하나).
+            hasCalendarEvents
+              ? {
                   icon: <CalendarMinus className="h-3.5 w-3.5" />,
                   label: "달력에서 삭제",
                   onClick: onRemoveFromCalendar,
-                }]
-              : []),
+                }
+              : {
+                  icon: <CalendarPlus className="h-3.5 w-3.5" />,
+                  label: "달력에 추가",
+                  onClick: onAddToCalendar,
+                },
             {
               icon: <Copy className="h-3.5 w-3.5" />,
               label: "복제",

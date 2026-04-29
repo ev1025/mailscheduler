@@ -1,18 +1,47 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Plane, Route } from "lucide-react";
 import PageHeader from "@/components/layout/page-header";
 import HeaderViewMenu from "@/components/layout/header-view-menu";
 import PlanList from "@/components/travel/plan-list";
+import PlanDetail from "@/components/travel/plan-detail";
 import { useVisibleUserIds } from "@/hooks/use-visible-user-ids";
 
+/**
+ * 여행 계획 페이지 — 목록 / 상세를 같은 라우트에서 ?id 쿼리로 토글.
+ *
+ * 이전엔 /travel/plans (목록) 와 /travel/plans/[planId] (상세) 가 분리된 라우트라
+ * 카드 탭 시 페이지 전체가 unmount/remount → "리로드" 처럼 보였음.
+ * 이제 같은 페이지 안에서 쿼리 파라미터만 바뀌어 PageHeader/AppShell 이 유지됨.
+ */
 export default function TravelPlansPage() {
+  return (
+    <Suspense fallback={null}>
+      <TravelPlansPageInner />
+    </Suspense>
+  );
+}
+
+function TravelPlansPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const planId = searchParams.get("id");
   const { visibleUserIds } = useVisibleUserIds();
-  // "+ 새 계획" 아이콘 → PlanList 내부 다이얼로그 트리거 신호
   const [newSignal, setNewSignal] = useState(0);
+
+  // 상세 모드 — query 만 바뀌므로 페이지 자체는 그대로 유지.
+  if (planId) {
+    return (
+      <div className="flex flex-col min-h-0">
+        <PlanDetail
+          planId={planId}
+          onBack={() => router.replace("/travel/plans", { scroll: false })}
+        />
+      </div>
+    );
+  }
 
   return (
     <>
@@ -53,7 +82,9 @@ export default function TravelPlansPage() {
         <PlanList
           visibleUserIds={visibleUserIds}
           newSignal={newSignal}
-          onSelectPlan={(id) => router.push(`/travel/plans/${id}`)}
+          onSelectPlan={(id) =>
+            router.replace(`/travel/plans?id=${id}`, { scroll: false })
+          }
         />
       </div>
     </>

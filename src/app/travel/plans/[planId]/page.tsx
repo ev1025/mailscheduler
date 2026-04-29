@@ -1,24 +1,24 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import PlanDetail from "@/components/travel/plan-detail";
 
-export default function TravelPlanDetailPage() {
+/**
+ * 옛 라우트 호환 — /travel/plans/[planId] 는 모두 /travel/plans?id=... 로 redirect.
+ * 페이지 분리되어 있던 시절의 북마크/공유 링크 보존용. 이후 모든 진입은 한 페이지(query) 모드로.
+ */
+export default function TravelPlanDetailRedirect() {
   const router = useRouter();
   const params = useParams<{ planId: string }>();
   const planId = params?.planId;
 
-  if (!planId) {
-    // 방어 코드 — 동적 라우트 특성상 planId 는 항상 존재하지만 타입 내로잉용.
-    return null;
-  }
+  useEffect(() => {
+    if (planId) {
+      router.replace(`/travel/plans?id=${planId}`, { scroll: false });
+    } else {
+      router.replace("/travel/plans");
+    }
+  }, [planId, router]);
 
-  return (
-    <div className="flex flex-col min-h-0">
-      <PlanDetail
-        planId={planId}
-        onBack={() => router.push("/travel/plans")}
-      />
-    </div>
-  );
+  return null;
 }
