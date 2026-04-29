@@ -39,13 +39,16 @@ export function useCalendarEvents(
       setLoading(false);
       return;
     }
-    // visibleUserIds는 이미 상위(useCalendarShares)에서 "볼 수 있는 권한이 있는" 사용자만 포함
+    // 표시 월과 겹치는 일정 모두 fetch — 단지 "이번 달에 시작한 일정"만 가져오면
+    // 크로스월 일정(예: 5/31~6/1) 이 6월 달력에서 누락됨.
+    // 조건: start_date < endDate AND (end_date >= startDate OR end_date IS NULL AND start_date >= startDate)
+    // PostgREST .or() 로 표현. 첫 .lt 가 메인 컷, 그 안에서 끝나는 시점 검사를 OR 로.
     const { data } = await supabase
       .from("calendar_events")
       .select("*")
       .in("user_id", visibleUserIds)
-      .gte("start_date", startDate)
       .lt("start_date", endDate)
+      .or(`end_date.gte.${startDate},and(end_date.is.null,start_date.gte.${startDate})`)
       .order("start_date")
       .order("sort_order")
       .order("created_at");

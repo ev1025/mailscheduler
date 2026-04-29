@@ -107,7 +107,7 @@ const ProductRow = memo(function ProductRow({
           {idx + 1}
         </span>
       </td>
-      <td className="px-2 py-1.5 w-auto">
+      <td className="px-2 py-1.5 w-auto" colSpan={2}>
         <div className="flex items-center gap-1 min-w-0">
           {p.is_active && (
             <Wallet
@@ -115,14 +115,14 @@ const ProductRow = memo(function ProductRow({
               aria-label="고정비 등록됨"
             />
           )}
-          <span className="font-medium text-xs">{p.name}</span>
+          <span className="font-medium text-xs truncate">{p.name}</span>
+          {p.brand && (
+            <span className="text-[10px] text-muted-foreground shrink-0">· {p.brand}</span>
+          )}
           {idx === 0 && stat?.minPrice && (
             <Crown className="h-3 w-3 text-yellow-500 shrink-0" />
           )}
         </div>
-      </td>
-      <td className="px-2 py-1.5 text-xs text-muted-foreground hidden sm:table-cell whitespace-nowrap">
-        {p.brand || "-"}
       </td>
       <td className="px-2 py-1.5 text-right whitespace-nowrap text-xs font-semibold">
         {stat?.minPrice
@@ -512,15 +512,13 @@ function ProductsPageInner() {
                                 <col style={{ width: "1.5rem" }} />
                                 <col style={{ width: "2.5rem" }} />
                                 <col />
-                                <col className="hidden sm:table-column" />
                                 <col style={{ width: "1%" }} />
                               </colgroup>
                               <thead className="bg-muted/40 text-[10px] font-medium text-muted-foreground">
                                 <tr>
                                   <th className="px-1 py-1 text-center" aria-hidden></th>
                                   <th className="px-1 py-1 text-center">순위</th>
-                                  <th className="px-2 py-1 text-left">제품</th>
-                                  <th className="hidden sm:table-cell px-2 py-1 text-left">브랜드</th>
+                                  <th className="px-2 py-1 text-left">제품 · 브랜드</th>
                                   <th className="px-2 py-1 text-right whitespace-nowrap">최저가</th>
                                 </tr>
                               </thead>

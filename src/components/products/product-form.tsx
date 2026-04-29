@@ -416,14 +416,11 @@ export default function ProductForm({
                           ) : null}
                         </span>
                         <span
-                          className={`tabular-nums font-semibold tracking-tight shrink-0 w-20 ${
+                          className={`tabular-nums font-semibold tracking-tight flex-1 ${
                             isMin ? "text-yellow-700 dark:text-yellow-500" : "text-foreground"
                           }`}
                         >
                           {parseInt(p.price).toLocaleString()}원
-                        </span>
-                        <span className="flex-1 min-w-0 text-muted-foreground truncate">
-                          {p.site_url || "—"}
                         </span>
                         <button
                           type="button"
