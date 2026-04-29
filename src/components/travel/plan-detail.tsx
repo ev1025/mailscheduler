@@ -122,6 +122,9 @@ export default function PlanDetail({ planId, onBack }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [sheetTask, setSheetTask] = useState<TravelPlanTask | null>(null);
   const [sheetDayIndex, setSheetDayIndex] = useState(0);
+  // task 의 start_time 이 비어있고 체인 계산된 시간이 있으면 sheet 에 fallback 으로 전달.
+  // ⚠️ 훅 규칙: early return (`if (!plan)` 블록) 보다 위에 선언해야 함.
+  const [sheetDefaultStartTime, setSheetDefaultStartTime] = useState<string | null>(null);
 
   const sorted = useMemo(() => sortTasks(tasks), [tasks]);
   const expectedTimes = useMemo(() => computeExpectedTimes(sorted), [sorted]);
@@ -273,7 +276,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
 
   // task 의 start_time 이 비어있고 체인 계산된 시간이 있으면 sheet 에 fallback 으로 전달.
   // 사용자가 그 시간 그대로 저장하면 DB 영속화 → 다음에 열어도 입력란에 채워져 있음.
-  const [sheetDefaultStartTime, setSheetDefaultStartTime] = useState<string | null>(null);
+  // (state 선언 자체는 early return 위로 옮겼음 — 훅 규칙)
   const openEditSheet = (task: TravelPlanTask) => {
     setSheetTask(task);
     setSheetDayIndex(task.day_index);
