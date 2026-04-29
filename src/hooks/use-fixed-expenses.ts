@@ -149,9 +149,12 @@ export function useFixedExpenses() {
   };
 
   /**
-   * 고정비 비활성화 + 이번달에 자동 적용된 거래 함께 삭제 옵션.
-   * scope = "this-month": 이번달(year/month) 의 amount+description+day_of_month 매칭 거래도 삭제
-   * scope = "next-month": fixed_expenses 만 비활성화 (기존 deleteFixed 와 동일)
+   * 고정비 비활성화 + 매칭되는 거래(amount+description) 일괄 삭제.
+   * scope = "this-month": 이번달(year/month) 1일부터 미래 모두 삭제
+   * scope = "next-month": 다음달 1일부터 미래 모두 삭제 (이번달은 유지)
+   *
+   * 매칭 키: amount + description. 같은 amount/desc 의 다른 거래도 영향 받을 수 있으나
+   * 일반적으로 고정비 자동 등록 외엔 충돌 적음. 정확히 따로 추적하려면 별도 fk 컬럼 필요.
    */
   const deleteFixedWithScope = async (
     id: string,
@@ -167,18 +170,24 @@ export function useFixedExpenses() {
       .eq("id", id);
     if (r1.error) return { error: r1.error };
 
-    if (scope === "this-month") {
-      const day = Math.min(fx.day_of_month, new Date(year, month, 0).getDate());
-      const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      let q = supabase
-        .from("expenses")
-        .delete()
-        .eq("amount", fx.amount)
-        .eq("date", date);
-      if (fx.description === null) q = q.is("description", null);
-      else q = q.eq("description", fx.description);
-      await q;
-    }
+    // 삭제 시작일 — this-month: 이번달 1일 / next-month: 다음달 1일.
+    const startDate =
+      scope === "this-month"
+        ? `${year}-${String(month).padStart(2, "0")}-01`
+        : month === 12
+          ? `${year + 1}-01-01`
+          : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+
+    let q = supabase
+      .from("expenses")
+      .delete()
+      .gte("date", startDate)
+      .eq("amount", fx.amount);
+    if (fx.description === null) q = q.is("description", null);
+    else q = q.eq("description", fx.description);
+    if (userId) q = q.eq("user_id", userId);
+    await q;
+
     await fetchFixed();
     return { error: null };
   };
