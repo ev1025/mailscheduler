@@ -14,7 +14,7 @@ import type { TravelPlan } from "@/types";
 import {
   DndContext,
   closestCenter,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -84,8 +84,10 @@ function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate, onAddToC
       style={style}
       {...dragBindings}
       onClick={onSelect}
-      className={`group relative rounded-lg border p-3 hover:bg-accent/50 transition-colors touch-none ${
-        dragEnabled ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+      // touch-action: pan-y 로 모바일 vertical 스크롤 허용. TouchSensor 는 delay 200ms 후
+      // 활성화되므로 빠른 스크롤·탭은 자연스럽게 처리되고 길게 누를 때만 드래그.
+      className={`group relative rounded-lg border p-3 hover:bg-accent/50 transition-colors ${
+        dragEnabled ? "touch-pan-y cursor-grab active:cursor-grabbing" : "cursor-pointer"
       }`}
     >
       <h3 className="text-sm font-semibold truncate pr-8">{plan.title}</h3>
@@ -151,8 +153,13 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
     if (newSignal && newSignal > 0) setNewOpen(true);
   }, [newSignal]);
 
+  // 데스크탑(마우스) 와 모바일(터치) 의 활성화 조건 분리:
+  //  - MouseSensor: 5px 움직이면 드래그 (퀵)
+  //  - TouchSensor: 200ms 길게 누르면 드래그 (모바일 스크롤·탭과 충돌 방지)
+  // 이전에 PointerSensor 를 같이 쓰던 것이 모바일 vertical 스와이프(스크롤 의도)도
+  // 5px 임계로 드래그를 시작시켜 카드 탭 → 화면이 흔들리는 듯한 "리로드" 체감을 유발.
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } })
   );
 
