@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Trash2, Copy, CalendarPlus, CalendarMinus } from "lucide-react";
 import RowActionPopover from "@/components/ui/row-action-popover";
 import SearchInput from "@/components/ui/search-input";
@@ -57,6 +58,8 @@ interface Props {
 interface PlanCardProps {
   plan: TravelPlan;
   dragEnabled: boolean;
+  /** 이 계획에서 calendar_events 로 추가된 일정이 있는지. true 일 때만 "달력에서 삭제" 메뉴 노출. */
+  hasCalendarEvents: boolean;
   onSelect: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -64,9 +67,16 @@ interface PlanCardProps {
   onRemoveFromCalendar: () => void;
 }
 
-function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate, onAddToCalendar, onRemoveFromCalendar }: PlanCardProps) {
+function PlanCard({ plan, dragEnabled, hasCalendarEvents, onSelect, onDelete, onDuplicate, onAddToCalendar, onRemoveFromCalendar }: PlanCardProps) {
+  const router = useRouter();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: plan.id, disabled: !dragEnabled });
+
+  // 카드 등장 시 상세 라우트 prefetch — 사용자가 탭하면 이미 RSC payload 준비돼 있어
+  // 지연/리로드 체감 제거.
+  useEffect(() => {
+    router.prefetch(`/travel/plans/${plan.id}`);
+  }, [plan.id, router]);
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -108,11 +118,14 @@ function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate, onAddToC
               label: "달력에 추가",
               onClick: onAddToCalendar,
             },
-            {
-              icon: <CalendarMinus className="h-3.5 w-3.5" />,
-              label: "달력에서 삭제",
-              onClick: onRemoveFromCalendar,
-            },
+            // "달력에서 삭제" 는 이 plan 으로 추가한 calendar_events 가 실제 있을 때만 노출.
+            ...(hasCalendarEvents
+              ? [{
+                  icon: <CalendarMinus className="h-3.5 w-3.5" />,
+                  label: "달력에서 삭제",
+                  onClick: onRemoveFromCalendar,
+                }]
+              : []),
             {
               icon: <Copy className="h-3.5 w-3.5" />,
               label: "복제",
@@ -302,6 +315,7 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
     setAddToCalLoading(false);
     toast.success(`${addToCalState.tasks.count}개 일정을 달력에 추가했습니다`);
     setAddToCalState(null);
+    refreshPlansWithEvents();
   };
 
   // "달력에서 삭제" — 이 plan 으로부터 추가했던 calendar_events 일괄 삭제.
@@ -310,6 +324,22 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
     | null
   >(null);
   const [removeLoading, setRemoveLoading] = useState(false);
+  // 이 사용자가 "달력에 추가" 한 적 있는 plan 들의 ID 집합. 메뉴에 "달력에서 삭제" 노출 여부.
+  const [plansWithCalEvents, setPlansWithCalEvents] = useState<Set<string>>(new Set());
+
+  const refreshPlansWithEvents = async () => {
+    const { data, error } = await supabase
+      .from("calendar_events")
+      .select("plan_id")
+      .not("plan_id", "is", null);
+    if (error) return; // plan_id 컬럼 없는 구 DB → 빈 set 유지 → 메뉴도 안 보임
+    setPlansWithCalEvents(
+      new Set((data as { plan_id: string | null }[]).map((e) => e.plan_id).filter((x): x is string => !!x)),
+    );
+  };
+  useEffect(() => {
+    refreshPlansWithEvents();
+  }, []);
 
   const requestRemoveFromCalendar = async (plan: TravelPlan) => {
     const { count, error } = await supabase
@@ -342,6 +372,7 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
       toast.success(`${removeFromCalState.count}개 일정을 달력에서 삭제했습니다`);
     }
     setRemoveFromCalState(null);
+    refreshPlansWithEvents();
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -402,6 +433,7 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
                     key={p.id}
                     plan={p}
                     dragEnabled={dragEnabled}
+                    hasCalendarEvents={plansWithCalEvents.has(p.id)}
                     onSelect={() => onSelectPlan(p.id)}
                     onDelete={() => setDeletingId(p.id)}
                     onDuplicate={async () => {
