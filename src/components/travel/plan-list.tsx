@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Trash2, Copy, CalendarPlus } from "lucide-react";
+import { Trash2, Copy, CalendarPlus, CalendarMinus } from "lucide-react";
 import RowActionPopover from "@/components/ui/row-action-popover";
 import SearchInput from "@/components/ui/search-input";
 import PromptDialog from "@/components/ui/prompt-dialog";
@@ -61,9 +61,10 @@ interface PlanCardProps {
   onDelete: () => void;
   onDuplicate: () => void;
   onAddToCalendar: () => void;
+  onRemoveFromCalendar: () => void;
 }
 
-function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate, onAddToCalendar }: PlanCardProps) {
+function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate, onAddToCalendar, onRemoveFromCalendar }: PlanCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: plan.id, disabled: !dragEnabled });
   const style = {
@@ -104,6 +105,11 @@ function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate, onAddToC
               icon: <CalendarPlus className="h-3.5 w-3.5" />,
               label: "달력에 추가",
               onClick: onAddToCalendar,
+            },
+            {
+              icon: <CalendarMinus className="h-3.5 w-3.5" />,
+              label: "달력에서 삭제",
+              onClick: onRemoveFromCalendar,
             },
             {
               icon: <Copy className="h-3.5 w-3.5" />,
@@ -251,6 +257,7 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
         end_time: endTime,
         color,
         user_id: userId,
+        plan_id: plan.id, // "달력에서 삭제" 시 일괄 매칭하기 위한 출처 표시.
       };
     });
     return { count: events.length, events };
@@ -268,13 +275,66 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
     const { error } = await supabase
       .from("calendar_events")
       .insert(addToCalState.tasks.events);
-    setAddToCalLoading(false);
     if (error) {
-      toast.error("달력 추가 실패: " + (error.message || "알 수 없는 오류"));
-    } else {
-      toast.success(`${addToCalState.tasks.count}개 일정을 달력에 추가했습니다`);
+      // plan_id 컬럼 없는 구버전 DB 폴백 — 컬럼 빼고 재삽입.
+      const fallback = addToCalState.tasks.events.map((e) => {
+        const { plan_id: _omit, ...rest } = e as { plan_id?: unknown } & Record<string, unknown>;
+        void _omit;
+        return rest;
+      });
+      const retry = await supabase.from("calendar_events").insert(fallback);
+      setAddToCalLoading(false);
+      if (retry.error) {
+        toast.error("달력 추가 실패: " + (retry.error.message || "알 수 없는 오류"));
+      } else {
+        toast.success(`${addToCalState.tasks.count}개 일정을 달력에 추가했습니다`);
+      }
+      setAddToCalState(null);
+      return;
     }
+    setAddToCalLoading(false);
+    toast.success(`${addToCalState.tasks.count}개 일정을 달력에 추가했습니다`);
     setAddToCalState(null);
+  };
+
+  // "달력에서 삭제" — 이 plan 으로부터 추가했던 calendar_events 일괄 삭제.
+  const [removeFromCalState, setRemoveFromCalState] = useState<
+    | { plan: TravelPlan; count: number }
+    | null
+  >(null);
+  const [removeLoading, setRemoveLoading] = useState(false);
+
+  const requestRemoveFromCalendar = async (plan: TravelPlan) => {
+    const { count, error } = await supabase
+      .from("calendar_events")
+      .select("id", { count: "exact", head: true })
+      .eq("plan_id", plan.id);
+    if (error) {
+      // plan_id 컬럼 없으면 DB 마이그 안 된 상태.
+      toast.error("DB 마이그레이션 필요: calendar_events.plan_id 컬럼");
+      return;
+    }
+    if (!count || count === 0) {
+      toast.message("이 계획에서 추가한 일정이 없습니다");
+      return;
+    }
+    setRemoveFromCalState({ plan, count });
+  };
+
+  const confirmRemoveFromCalendar = async () => {
+    if (!removeFromCalState) return;
+    setRemoveLoading(true);
+    const { error } = await supabase
+      .from("calendar_events")
+      .delete()
+      .eq("plan_id", removeFromCalState.plan.id);
+    setRemoveLoading(false);
+    if (error) {
+      toast.error("달력에서 삭제 실패: " + (error.message || "알 수 없는 오류"));
+    } else {
+      toast.success(`${removeFromCalState.count}개 일정을 달력에서 삭제했습니다`);
+    }
+    setRemoveFromCalState(null);
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -341,6 +401,7 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
                       await duplicatePlan(p.id);
                     }}
                     onAddToCalendar={() => requestAddToCalendar(p)}
+                    onRemoveFromCalendar={() => requestRemoveFromCalendar(p)}
                   />
                 ))}
               </div>
@@ -381,15 +442,60 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
         onOpenChange={(o) => {
           if (!o && !addToCalLoading) setAddToCalState(null);
         }}
-        title="달력에 추가"
+        title={addToCalState ? `"${addToCalState.plan.title}"을 달력에 추가` : "달력에 추가"}
         description={
-          addToCalState
-            ? `"${addToCalState.plan.title}" 의 ${addToCalState.tasks.count}개 일정을 달력에 등록할까요? 시작시간과 체류시간 합계가 종료시간으로 들어갑니다.`
-            : ""
+          addToCalState ? (
+            <span className="block space-y-1">
+              <span className="block">
+                일정: {formatPlanRange(addToCalState.plan)}
+              </span>
+              <span className="block text-xs text-muted-foreground/70">
+                {addToCalState.tasks.count}개 일정 · 시작시간 + 체류시간 = 종료시간
+              </span>
+            </span>
+          ) : null
         }
         confirmLabel={addToCalLoading ? "추가 중..." : "추가"}
         onConfirm={confirmAddToCalendar}
       />
+
+      <ConfirmDialog
+        open={!!removeFromCalState}
+        onOpenChange={(o) => {
+          if (!o && !removeLoading) setRemoveFromCalState(null);
+        }}
+        title={
+          removeFromCalState
+            ? `"${removeFromCalState.plan.title}"을 달력에서 삭제`
+            : "달력에서 삭제"
+        }
+        description={
+          removeFromCalState ? (
+            <span className="block space-y-1">
+              <span className="block">
+                일정: {formatPlanRange(removeFromCalState.plan)}
+              </span>
+              <span className="block text-xs text-muted-foreground/70">
+                {removeFromCalState.count}개 일정이 달력에서 삭제됩니다
+              </span>
+            </span>
+          ) : null
+        }
+        confirmLabel={removeLoading ? "삭제 중..." : "삭제"}
+        destructive
+        onConfirm={confirmRemoveFromCalendar}
+      />
     </div>
   );
+}
+
+/** "2026-04-24" → "4/24". null 이면 "-". 시작·종료 같으면 단일. */
+function formatPlanRange(plan: TravelPlan): string {
+  const fmt = (s: string | null | undefined) =>
+    s ? `${parseInt(s.slice(5, 7))}/${parseInt(s.slice(8, 10))}` : "-";
+  const a = fmt(plan.start_date);
+  const b = fmt(plan.end_date);
+  if (a === "-" && b === "-") return "기간 미정";
+  if (b === "-" || a === b) return a;
+  return `${a} ~ ${b}`;
 }

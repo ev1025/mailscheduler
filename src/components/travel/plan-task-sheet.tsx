@@ -36,6 +36,8 @@ interface Props {
   // 작성 세션 draft 를 구분할 키 (보통 planId). 같은 task/신규 슬롯에 대해
   // 시트 닫았다 다시 열어도 로컬에 저장된 입력 값을 복원.
   planId: string;
+  /** task.start_time 이 비어있을 때 폼 입력란에 채울 fallback 시간 — 보통 체인 계산된 도착시간. */
+  defaultStartTime?: string | null;
 }
 
 interface SheetDraft {
@@ -94,6 +96,7 @@ export default function PlanTaskSheet({
   onAddNewDay,
   onSave,
   planId,
+  defaultStartTime,
 }: Props) {
   const draftKey = draftKeyFor(planId, task, defaultDayIndex);
   // 분류(단일) · 태그(복수) 분리. 분류 풀은 localStorage, 태그 풀은 event_tags(DB).
@@ -123,7 +126,10 @@ export default function PlanTaskSheet({
     if (!open) return;
     if (task) {
       setDayIndex(task.day_index);
-      setStartTime(task.start_time ? task.start_time.slice(0, 5) : "");
+      // task.start_time 이 비어있고 체인 계산된 도착시간(defaultStartTime)이 있으면
+      // 그 값을 폼에 미리 채움 — 사용자가 저장하면 그대로 DB 에 영속화됨.
+      const stored = task.start_time ? task.start_time.slice(0, 5) : "";
+      setStartTime(stored || (defaultStartTime ?? ""));
       setStayMinutes(String(task.stay_minutes || ""));
       setPlaceName(task.place_name);
       setPlaceAddress(task.place_address);

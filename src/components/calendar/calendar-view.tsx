@@ -220,7 +220,11 @@ export default function CalendarView({
     return r;
   }, [days]);
 
-  /* 주별 greedy 슬롯 배치 */
+  /* 주별 greedy 슬롯 배치
+     크로스월 일정(예: 5/31~6/1)은 각 달력에서 해당 월에 속한 날짜만 표시:
+       - 5월 달력: 5/31 만 (6/1 trailing 셀에 표시 안 함)
+       - 6월 달력: 6/1 만 (5/31 leading 셀에 표시 안 함)
+     주 단위 클립 후 monthStart/monthEnd 로 한 번 더 클립. */
   const weekSegs = useMemo<Seg[][]>(() => {
     return weeks.map((week) => {
       const ws = week[0], we = week[6];
@@ -230,8 +234,15 @@ export default function CalendarView({
         const s = parseISO(ev.start_date);
         const e = ev.end_date ? parseISO(ev.end_date) : s;
         if (e < ws || s > we) continue;
-        const ss = s < ws ? ws : s;
-        const se = e > we ? we : e;
+        // 1차: 주 범위 클립
+        let ss = s < ws ? ws : s;
+        let se = e > we ? we : e;
+        // 2차: 표시 월 범위 클립 — leading/trailing 셀에서 cross-month 일정 표시 차단.
+        // (공휴일은 sort_order=-1 식으로 표시 처리되며 본 일정 흐름과 같이 처리)
+        if (ss < monthStart) ss = monthStart;
+        if (se > monthEnd) se = monthEnd;
+        // 클립 결과가 역순이면 이 주에선 표시 안 함.
+        if (se < ss) continue;
         drafts.push({
           event: ev,
           startCol: ss.getDay(),

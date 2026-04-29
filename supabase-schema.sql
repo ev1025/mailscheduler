@@ -675,5 +675,13 @@ ON CONFLICT (user_id, name) DO NOTHING;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_products_sort ON products(category, sub_category, sort_order);
 
+-- =============================================
+-- calendar_events.plan_id — 여행계획에서 "달력에 추가" 한 일정의 출처 추적
+-- 같은 plan 에서 추가한 모든 calendar_events 를 한 번에 "달력에서 삭제" 가능.
+-- =============================================
+ALTER TABLE calendar_events
+  ADD COLUMN IF NOT EXISTS plan_id UUID REFERENCES travel_plans(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_calendar_events_plan ON calendar_events(plan_id);
+
 -- product_purchases 에 구매일 picker 활성용 — 이미 컬럼 있음 (purchased_at DATE NOT NULL DEFAULT CURRENT_DATE).
 -- 폼 UI 에서 노출만 추가.

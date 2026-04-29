@@ -271,9 +271,16 @@ export default function PlanDetail({ planId, onBack }: Props) {
     setSheetOpen(true);
   };
 
+  // task 의 start_time 이 비어있고 체인 계산된 시간이 있으면 sheet 에 fallback 으로 전달.
+  // 사용자가 그 시간 그대로 저장하면 DB 영속화 → 다음에 열어도 입력란에 채워져 있음.
+  const [sheetDefaultStartTime, setSheetDefaultStartTime] = useState<string | null>(null);
   const openEditSheet = (task: TravelPlanTask) => {
     setSheetTask(task);
     setSheetDayIndex(task.day_index);
+    const predicted = expectedTimes[task.id];
+    setSheetDefaultStartTime(
+      !task.start_time && predicted?.predicted ? predicted.time : null,
+    );
     setSheetOpen(true);
   };
 
@@ -468,6 +475,7 @@ export default function PlanDetail({ planId, onBack }: Props) {
         formatDayLabel={formatDayLabel}
         onAddNewDay={handleAddNewDay}
         onSave={handleSheetSave}
+        defaultStartTime={sheetDefaultStartTime}
       />
     </div>
   );
