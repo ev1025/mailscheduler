@@ -11,11 +11,11 @@ import {
   ShoppingBag,
   Menu,
   Trash2,
+  GripVertical,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SearchInput from "@/components/ui/search-input";
-import RowActionPopover from "@/components/ui/row-action-popover";
 import { useUrlStringParam } from "@/hooks/use-url-param";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -47,7 +47,10 @@ interface ProductStat {
   minPrice: number | null;
 }
 
-// 큰 리스트 항목 — props 안 변하면 리렌더 스킵 (memo).
+// 행 한 줄 — 좌측 드래그핸들, 본문 탭 = 편집, 우측 휴지통 = 삭제.
+// 이전엔 좌측 핸들이 동시에 "드래그 + 삭제 메뉴 트리거" 라 의미가 충돌하고
+// 메뉴 안에 삭제 1개뿐이라 한 단계 클릭 더 필요했음. 표준(노션·iOS Files) 패턴인
+// "핸들=정렬 / 좌측 영역=메인 액션 / 우측 trash=삭제" 로 분리.
 const ProductRow = memo(function ProductRow({
   p,
   idx,
@@ -76,22 +79,19 @@ const ProductRow = memo(function ProductRow({
       className="border-t hover:bg-accent/50 cursor-pointer group"
       onClick={() => onEdit(p)}
     >
-      <td className="text-center px-1 py-2 whitespace-nowrap w-8" onClick={(e) => e.stopPropagation()}>
-        <RowActionPopover
-          triggerLabel="제품 메뉴"
-          triggerClassName="inline-flex items-center justify-center"
-          dragAttributes={attributes as unknown as React.HTMLAttributes<HTMLElement>}
-          dragListeners={listeners as unknown as React.HTMLAttributes<HTMLElement>}
-          items={[
-            {
-              icon: <Trash2 className="h-3.5 w-3.5" />,
-              label: "삭제",
-              destructive: true,
-              onClick: () => onDelete(p),
-            },
-          ]}
-        />
+      {/* 드래그 핸들 — 정렬 전용. 탭만으로는 아무 일도 안 일어남. */}
+      <td className="px-0.5 py-1 w-7" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          {...listeners}
+          {...attributes}
+          aria-label="순서 변경"
+          className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent transition-colors cursor-grab active:cursor-grabbing touch-none"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
       </td>
+      {/* 순위 배지 — 1·2·3 위는 메달 색. */}
       <td className="text-center px-1 py-1.5 whitespace-nowrap w-8">
         <span
           className={`inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold ${
@@ -107,7 +107,8 @@ const ProductRow = memo(function ProductRow({
           {idx + 1}
         </span>
       </td>
-      <td className="px-2 py-1.5 w-auto" colSpan={2}>
+      {/* 제품명 + 브랜드 */}
+      <td className="px-2 py-1.5">
         <div className="flex items-center gap-1 min-w-0">
           {p.is_active && (
             <Wallet
@@ -124,10 +125,20 @@ const ProductRow = memo(function ProductRow({
           )}
         </div>
       </td>
-      <td className="px-2 py-1.5 text-right whitespace-nowrap text-xs font-semibold">
-        {stat?.minPrice
-          ? `₩${stat.minPrice.toLocaleString()}`
-          : "-"}
+      {/* 최저가 */}
+      <td className="px-2 py-1.5 text-right whitespace-nowrap text-xs font-semibold tabular-nums">
+        {stat?.minPrice ? `₩${stat.minPrice.toLocaleString()}` : "-"}
+      </td>
+      {/* 휴지통 — 모바일은 항상 노출, 데스크탑은 hover 시. */}
+      <td className="px-0.5 py-1 w-7" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          onClick={() => onDelete(p)}
+          aria-label="삭제"
+          className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all md:opacity-0 md:group-hover:opacity-100"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </td>
     </tr>
   );
@@ -508,20 +519,15 @@ function ProductsPageInner() {
                             onDragEnd={(e) => handleDragEnd(e, groupKey)}
                           >
                             <table className="w-full text-xs" style={{ tableLayout: "auto" }}>
+                              {/* thead 제거 — 모바일에서 4컬럼 좁아 헤더 정렬이 어색했음.
+                                  Crown 아이콘 + 순위 배지 + ₩ 통화기호로 의미 자명. */}
                               <colgroup>
-                                <col style={{ width: "1.5rem" }} />
-                                <col style={{ width: "2.5rem" }} />
+                                <col style={{ width: "1.75rem" }} />
+                                <col style={{ width: "2rem" }} />
                                 <col />
                                 <col style={{ width: "1%" }} />
+                                <col style={{ width: "1.75rem" }} />
                               </colgroup>
-                              <thead className="bg-muted/40 text-[10px] font-medium text-muted-foreground">
-                                <tr>
-                                  <th className="px-1 py-1 text-center" aria-hidden></th>
-                                  <th className="px-1 py-1 text-center">순위</th>
-                                  <th className="px-2 py-1 text-left">제품 · 브랜드</th>
-                                  <th className="px-2 py-1 text-right whitespace-nowrap">최저가</th>
-                                </tr>
-                              </thead>
                               <SortableContext
                                 items={list.map((p) => p.id)}
                                 strategy={verticalListSortingStrategy}
@@ -563,6 +569,7 @@ function ProductsPageInner() {
         }}
         product={editing}
         onSave={handleSave}
+        onDelete={(p) => setDeletingProduct(p)}
       />
 
       {/* 제품 삭제 확인 — 목록 드래그바 → 삭제 경로 */}
@@ -599,6 +606,9 @@ function ProductsPageInner() {
               toast.error(msg);
             } else {
               setStatsTick((t) => t + 1);
+              // 폼 안에서 삭제했을 수 있으니 폼도 닫음.
+              setFormOpen(false);
+              setEditing(null);
             }
           }
           setDeletingProduct(null);

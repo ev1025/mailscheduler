@@ -13,7 +13,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import DatePicker from "@/components/ui/date-picker";
-import { Trash2, Crown } from "lucide-react";
+import { Trash2, Crown, Plus } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUserId } from "@/lib/current-user";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
@@ -50,6 +50,8 @@ interface Props {
   onSave: (
     data: Omit<Product, "id" | "created_at" | "updated_at">
   ) => Promise<{ error: unknown; data?: Product | null }>;
+  /** 편집 모드일 때 footer 좌측 "삭제" 버튼이 호출하는 콜백. 미설정 시 버튼 미노출. */
+  onDelete?: (product: Product) => void;
 }
 
 export default function ProductForm({
@@ -57,6 +59,7 @@ export default function ProductForm({
   onOpenChange,
   product,
   onSave,
+  onDelete,
 }: Props) {
   const [name, setName] = useState("");
   const [category, setCategory] = useState<ProductCategory>("영양제");
@@ -281,6 +284,19 @@ export default function ProductForm({
       submitDisabled={!name.trim()}
       saving={saving}
       onSubmit={handleSubmit}
+      footerStart={
+        product && onDelete ? (
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onDelete(product)}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4 mr-1" />
+            삭제
+          </Button>
+        ) : undefined
+      }
     >
         <div className="flex flex-col gap-4">
           <FormField label="제품명" required htmlFor="product-name">
@@ -319,18 +335,35 @@ export default function ProductForm({
             </FormField>
           </div>
 
-          {/* 가격 정보 zone — 한 테두리에 두 행: 브랜드|가격 / 구매일|URL.
-              구매일 컬럼은 좁게(8rem) 잡아 URL 에 더 많은 가로 공간을 할당. */}
-          <div className="rounded-lg border bg-muted/20 p-3 flex flex-col gap-2.5">
+          {/* 브랜드 — product-level 메타 정보. 분류 다음 행에 배치. */}
+          <FormField label="브랜드">
+            <Input
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              placeholder="브랜드명"
+              className={FORM_INPUT_COMPACT}
+            />
+          </FormField>
+
+          {/* ── 가격 추가 sub-form ──
+              이전엔 브랜드까지 같은 zone 안에 있어 "추가" 버튼 의미가 모호했음.
+              가격 entry 전용 영역으로 분리. 테두리 대신 옅은 배경 + 라벨로 시각 구분. */}
+          <div className="flex flex-col gap-2.5 rounded-lg bg-muted/30 p-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                가격 추가
+              </h4>
+              {editingIdx !== null && (
+                <button
+                  type="button"
+                  onClick={resetDraft}
+                  className="text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                  새 가격 입력
+                </button>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-2">
-              <FormField label="브랜드">
-                <Input
-                  value={brand}
-                  onChange={(e) => setBrand(e.target.value)}
-                  placeholder="브랜드명"
-                  className={FORM_INPUT_COMPACT}
-                />
-              </FormField>
               <FormField label="가격">
                 <Input
                   type="number"
@@ -346,8 +379,6 @@ export default function ProductForm({
                   className={FORM_INPUT_COMPACT}
                 />
               </FormField>
-            </div>
-            <div className="grid grid-cols-[8rem_1fr] gap-2">
               <FormField label="구매일">
                 <DatePicker
                   value={dateDraft}
@@ -355,50 +386,51 @@ export default function ProductForm({
                   className={`${FORM_INPUT_COMPACT} w-full min-w-0`}
                 />
               </FormField>
-              <FormField label="URL">
-                <Input
-                  value={siteDraft}
-                  onChange={(e) => setSiteDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      commitPrice();
-                    }
-                  }}
-                  placeholder="https://..."
-                  className={FORM_INPUT_COMPACT}
-                />
-              </FormField>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Button
-                type="button"
-                variant={editingIdx !== null ? "default" : "outline"}
-                onClick={commitPrice}
-                disabled={!priceDraft || !(parseInt(priceDraft) > 0)}
-                className={`${FORM_BUTTON_INLINE} flex-1`}
-              >
-                {editingIdx !== null ? "수정" : "가격 추가"}
-              </Button>
-              {editingIdx !== null && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={resetDraft}
-                  className={`${FORM_BUTTON_INLINE} shrink-0`}
-                >
-                  취소
-                </Button>
+            <FormField label="URL">
+              <Input
+                value={siteDraft}
+                onChange={(e) => setSiteDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    commitPrice();
+                  }
+                }}
+                placeholder="https://..."
+                className={FORM_INPUT_COMPACT}
+              />
+            </FormField>
+            <Button
+              type="button"
+              variant={editingIdx !== null ? "default" : "outline"}
+              size="sm"
+              onClick={commitPrice}
+              disabled={!priceDraft || !(parseInt(priceDraft) > 0)}
+              className="w-full"
+            >
+              {editingIdx !== null ? (
+                "이 가격 수정"
+              ) : (
+                <>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> 가격 추가
+                </>
               )}
-            </div>
+            </Button>
+          </div>
 
-            {prices.length > 0 && (() => {
-              const sorted = [...prices]
-                .map((p, originalIdx) => ({ p, originalIdx }))
-                .sort((a, b) => parseInt(a.p.price) - parseInt(b.p.price));
-              const minPriceStr = sorted[0]?.p.price;
-              return (
-                <ul className="rounded-lg border bg-muted/30 divide-y divide-border/60 overflow-hidden">
+          {/* 등록된 가격 — sub-form 밖으로 분리해 시각 무게 줄임. 비어 있으면 영역 자체 숨김. */}
+          {prices.length > 0 && (() => {
+            const sorted = [...prices]
+              .map((p, originalIdx) => ({ p, originalIdx }))
+              .sort((a, b) => parseInt(a.p.price) - parseInt(b.p.price));
+            const minPriceStr = sorted[0]?.p.price;
+            return (
+              <div className="flex flex-col gap-1.5">
+                <h4 className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+                  등록된 가격 ({prices.length})
+                </h4>
+                <ul className="rounded-lg border bg-card divide-y divide-border/60 overflow-hidden">
                   {sorted.map(({ p, originalIdx }) => {
                     const isMin = p.price === minPriceStr;
                     const isEditing = editingIdx === originalIdx;
@@ -437,9 +469,9 @@ export default function ProductForm({
                     );
                   })}
                 </ul>
-              );
-            })()}
-          </div>
+              </div>
+            );
+          })()}
 
           {/* 고정비 등록 + 옵션 (결제일·월비용·가계부 카테고리 + 미리보기) */}
           <div className="flex flex-col gap-2">
