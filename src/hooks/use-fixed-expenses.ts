@@ -376,13 +376,21 @@ export function useFixedExpenses() {
    *  - 이번달 포함 N개월 (N=1 → 이번달만, N=-1 → 120개월)
    *  - 같은 (amount, description, date) 조합이 이미 있으면 skip
    *  - 줄이는 동작은 안 함 (이미 등록된 미래 거래는 그대로)
+   *
+   * 주의: fx 는 항상 DB 에서 fresh 로 fetch 함 — 호출자가 직전 update 후 호출하면
+   * 로컬 state(fixedExpenses) 가 stale 일 수 있어 잘못된 day_of_month 로 빈 자리를
+   * 채워 중복 거래가 생기는 버그가 있었음.
    */
   const ensureFixedMonths = async (
     fxId: string,
     repeatMonths: number,
   ) => {
-    const fx = fixedExpenses.find((f) => f.id === fxId);
-    if (!fx) return { error: "고정비를 찾을 수 없습니다" };
+    const { data: fx, error: fxErr } = await supabase
+      .from("fixed_expenses")
+      .select("*")
+      .eq("id", fxId)
+      .single();
+    if (fxErr || !fx) return { error: fxErr || "고정비를 찾을 수 없습니다" };
     const months = repeatMonths === -1 ? 120 : Math.max(1, repeatMonths);
     if (months <= 1) return { error: null }; // 이번달만이면 추가 거래 없음
 
