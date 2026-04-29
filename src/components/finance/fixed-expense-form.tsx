@@ -173,8 +173,8 @@ export default function FixedExpenseForm({
           </button>
         </div>
 
-        {/* 금액 + 결제일 */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* 금액 + 매월 결제일 + 반복 — 한 행. 신규 등록 시만 반복 노출, 수정 시엔 2-col. */}
+        <div className={fixed ? "grid grid-cols-2 gap-2" : "grid grid-cols-3 gap-2"}>
           <FormField label="금액" required>
             <Input
               type="number"
@@ -204,27 +204,24 @@ export default function FixedExpenseForm({
               className={FORM_INPUT_PRIMARY}
             />
           </FormField>
+          {!fixed && (
+            <FormField label="반복">
+              <div className="flex items-center gap-1">
+                <NumberWheel
+                  value={repeatMonths}
+                  onChange={setRepeatMonths}
+                  min={1}
+                  max={120}
+                  allowInfinity
+                />
+                <span className="text-xs text-muted-foreground">개월</span>
+              </div>
+            </FormField>
+          )}
         </div>
         <p className="text-[11px] text-muted-foreground -mt-2 leading-snug">
           29~31일은 해당 일자가 없는 달(2월 등)엔 월말에 자동 반영돼요.
         </p>
-
-        {/* 반복 개월 수 — 신규 등록 시만. 캘린더 일정의 "반복 횟수" 와 동일.
-            1 = 이번달만, "계속"(-1) = 120개월(10년) 일괄 생성. */}
-        {!fixed && (
-          <FormField label="반복">
-            <div className="flex items-center gap-2">
-              <NumberWheel
-                value={repeatMonths}
-                onChange={setRepeatMonths}
-                min={1}
-                max={120}
-                allowInfinity
-              />
-              <span className="text-xs text-muted-foreground">개월 (이번달부터)</span>
-            </div>
-          </FormField>
-        )}
 
         {/* 카테고리 */}
         <FormField label="카테고리" required>

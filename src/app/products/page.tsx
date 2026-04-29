@@ -100,7 +100,7 @@ const ProductRow = memo(function ProductRow({
           items={[
             {
               icon: <Repeat className="h-3.5 w-3.5 text-blue-600" />,
-              label: p.is_active ? "고정비 변경" : "고정비에 추가",
+              label: "고정비에 추가",
               onClick: () => onAddFixed(p),
             },
             {
@@ -685,41 +685,33 @@ function ProductsPageInner() {
           showBackButton={false}
           className="max-w-[calc(100%-3rem)] sm:max-w-sm p-0 gap-0 overflow-hidden"
         >
-          <DialogHeader className="px-5 pt-5 pb-2">
+          <DialogHeader className="px-5 pt-5 pb-3">
             <DialogTitle className="text-base font-semibold">
               {fixedProduct ? `${fixedProduct.name} 고정비 추가` : "고정비 추가"}
             </DialogTitle>
-            {fixedProduct && (
-              <p className="text-xs text-muted-foreground mt-1">
-                매월 자동 등록 — 가격 ₩{fixedProduct.monthly_cost?.toLocaleString() || "0"}
-              </p>
-            )}
           </DialogHeader>
-          <div className="px-5 pb-4 flex flex-col gap-3">
-            <div className="grid grid-cols-2 gap-2">
-              <FormField label="결제일">
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={31}
-                  value={fixedDay}
-                  onChange={(e) => setFixedDay(e.target.value)}
-                  className={FORM_INPUT_COMPACT}
-                />
-              </FormField>
-              <FormField label="반복">
-                <div className="flex items-center gap-2">
-                  <NumberWheel
-                    value={fixedRepeat}
-                    onChange={setFixedRepeat}
-                    min={1}
-                    max={120}
-                    allowInfinity
-                  />
-                  <span className="text-xs text-muted-foreground">개월</span>
-                </div>
-              </FormField>
+          <div className="px-5 pb-4">
+            {/* 결제일 + 반복 한 행 — 라벨 인라인. */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground shrink-0">결제일</span>
+              <Input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={31}
+                value={fixedDay}
+                onChange={(e) => setFixedDay(e.target.value)}
+                className={`${FORM_INPUT_COMPACT} w-16 text-center shrink-0`}
+              />
+              <span className="text-xs text-muted-foreground shrink-0">반복</span>
+              <NumberWheel
+                value={fixedRepeat}
+                onChange={setFixedRepeat}
+                min={1}
+                max={120}
+                allowInfinity
+              />
+              <span className="text-xs text-muted-foreground shrink-0">개월</span>
             </div>
           </div>
           <div className="grid grid-cols-2 border-t divide-x">

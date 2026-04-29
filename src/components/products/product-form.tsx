@@ -7,19 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormField } from "@/components/ui/form-field";
 import DatePicker from "@/components/ui/date-picker";
-import NumberWheel from "@/components/ui/number-wheel";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUserId } from "@/lib/current-user";
-import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
-import { useTransactions } from "@/hooks/use-transactions";
 import { useProductCategories } from "@/hooks/use-product-categories";
 import { useProductSubTags } from "@/hooks/use-product-subtags";
 import TagInput from "@/components/ui/tag-input";
 import { toast } from "sonner";
 import type { Product, ProductCategory } from "@/types";
 import {
-  FORM_HINT,
   FORM_INPUT_PRIMARY,
   FORM_INPUT_COMPACT,
 } from "@/lib/form-classes";
@@ -73,23 +69,14 @@ export default function ProductForm({
   const [subCategory, setSubCategory] = useState("");
   const [brand, setBrand] = useState("");
   const [notes, setNotes] = useState("");
-  const [isActive, setIsActive] = useState(false);
   // 단일 가격 + 구매일 + URL.
   const [price, setPrice] = useState("");
   const [purchasedAt, setPurchasedAt] = useState(todayIsoDate());
   const [siteUrl, setSiteUrl] = useState("");
-  const [paymentDay, setPaymentDay] = useState("11");
-  // 고정비 추가 시 일괄 생성할 거래 개월 수 (캘린더 반복 횟수와 동일 의미).
-  const [repeatMonths, setRepeatMonths] = useState<number>(1);
   const [saving, setSaving] = useState(false);
   const userId = useCurrentUserId();
 
   const { tags: subTags, addTag, deleteTag, updateTagColor } = useProductSubTags(category);
-  const { addFixed, deleteFixedByProduct } = useFixedExpenses();
-  // expense_categories 룩업용 — 분류 이름 매칭 후 fallback "기타지출".
-  const todayIso = todayIsoDate();
-  const { categories: expCategories } = useTransactions(todayIso, todayIso);
-  const expenseCategories = expCategories.filter((c) => c.type === "expense");
 
   // 폼 열릴 때 product 값으로 초기화 + 가격 1행 로드.
   useEffect(() => {
@@ -100,10 +87,7 @@ export default function ProductForm({
       setSubCategory(product.sub_category || "");
       setBrand(product.brand || "");
       setNotes(product.notes || "");
-      setIsActive(product.is_active);
-      setPaymentDay(String(product.default_payment_day ?? 11));
       setPrice(product.monthly_cost ? String(product.monthly_cost) : "");
-      setRepeatMonths(1);
       // 가격 이력 → 가장 최근 1행만 사용
       supabase
         .from("product_purchases")
@@ -128,12 +112,9 @@ export default function ProductForm({
       setSubCategory("");
       setBrand("");
       setNotes("");
-      setIsActive(false);
       setPrice("");
       setSiteUrl("");
       setPurchasedAt(todayIsoDate());
-      setPaymentDay("11");
-      setRepeatMonths(1);
     }
   }, [product, open]);
 
@@ -142,9 +123,8 @@ export default function ProductForm({
     setSaving(true);
 
     const priceNum = parseInt(price) || null;
-    const day = Math.min(31, Math.max(1, parseInt(paymentDay) || 11));
 
-    // 1. 제품 저장
+    // 1. 제품 저장 — 고정비 관련 필드는 기존 값 유지 (드래그바 메뉴에서 별도 관리).
     const { error, data } = await onSave({
       name: name.trim(),
       category,
@@ -152,10 +132,10 @@ export default function ProductForm({
       brand: brand.trim() || null,
       notes: notes.trim() || null,
       link: siteUrl.trim() || null,
-      is_active: isActive,
+      is_active: product?.is_active ?? false,
       monthly_cost: priceNum,
       monthly_consumption: product?.monthly_consumption ?? 1,
-      default_payment_day: day,
+      default_payment_day: product?.default_payment_day ?? 11,
     });
     if (error || !data) {
       setSaving(false);
@@ -181,57 +161,6 @@ export default function ProductForm({
       });
     }
 
-    // 3. 고정비 등록/해제.
-    //  - 가계부 카테고리: product.category 동명 expense_category → 없으면 "기타지출".
-    //  - 월 비용: 입력한 가격.
-    //  - 신규 활성화일 때만 N개월 거래 일괄 생성. 기존 활성이면 업데이트만.
-    const wasActive = product?.is_active ?? false;
-    if (isActive && priceNum) {
-      const expCat =
-        expenseCategories.find((c) => c.name === category) ||
-        expenseCategories.find((c) => c.name === "기타지출") ||
-        expenseCategories[0];
-      if (expCat) {
-        if (!wasActive) {
-          // 신규: addFixed 가 fixed_expenses + N개월 expenses 일괄 생성.
-          await addFixed(
-            {
-              title: name.trim(),
-              amount: priceNum,
-              category_id: expCat.id,
-              description: name.trim(),
-              day_of_month: day,
-              type: "expense",
-              payment_method: "카드",
-              product_id: productId,
-            },
-            repeatMonths,
-          );
-        } else {
-          // 기존 활성: fixed_expenses 만 업데이트 (이번달 거래는 그대로).
-          const { data: existing } = await supabase
-            .from("fixed_expenses")
-            .select("id")
-            .eq("product_id", productId)
-            .eq("is_active", true)
-            .maybeSingle();
-          if (existing) {
-            await supabase
-              .from("fixed_expenses")
-              .update({
-                amount: priceNum,
-                day_of_month: day,
-                description: name.trim(),
-                category_id: expCat.id,
-              })
-              .eq("id", existing.id);
-          }
-        }
-      }
-    } else if (!isActive && wasActive) {
-      await deleteFixedByProduct(productId);
-    }
-
     setSaving(false);
     onOpenChange(false);
   };
@@ -241,6 +170,9 @@ export default function ProductForm({
       open={open}
       onOpenChange={onOpenChange}
       title={product ? "제품 수정" : "제품 추가"}
+      // 분류·세부분류·가격 3-col 행이 들어가므로 데스크탑에서 더 넓은 max-width.
+      // 기본 lg(512px) 에선 TagInput 트리거가 좁아져 chip + 입력 wrap → 높이 변동(찌그러짐).
+      desktopMaxWidth="md:max-w-2xl"
       submitDisabled={!name.trim()}
       saving={saving}
       onSubmit={handleSubmit}
@@ -289,8 +221,9 @@ export default function ProductForm({
           </FormField>
         </div>
 
-        {/* 3행: 분류 │ 세부분류 │ 가격 */}
-        <div className="grid grid-cols-3 gap-2">
+        {/* 3행: 분류 │ 세부분류 │ 가격 — TagInput 두 컬럼은 넓게, 가격은 fixed 7rem.
+            분류/세부분류 컬럼이 좁으면 chip + 입력 폭 부족으로 wrap → 트리거 높이 변동. */}
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_7rem] gap-2">
           <FormField label="분류">
             <TagInput
               selectedTags={category ? [category] : []}
@@ -345,76 +278,7 @@ export default function ProductForm({
           />
         </FormField>
 
-        {/* 고정비에 추가 — 체크 시 결제일 + 반복 개월 수만 입력.
-            카테고리는 위의 "분류" 와 같은 이름으로 자동 매핑(없으면 "기타지출"). 월 비용은 위 가격 사용. */}
-        <div className="flex flex-col gap-2">
-          <label className="flex items-center gap-2 cursor-pointer w-fit">
-            <input
-              type="checkbox"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="h-4 w-4 rounded"
-            />
-            <span className={FORM_HINT}>고정비에 추가</span>
-          </label>
-          {isActive && (() => {
-            const previewCost = parseInt(price) || 0;
-            const dayNum = Math.min(31, Math.max(1, parseInt(paymentDay) || 11));
-            const wasActive = product?.is_active ?? false;
-            return (
-              <div className="ml-6 flex flex-col gap-2 rounded-lg border bg-muted/30 p-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <FormField label="결제일">
-                    <Input
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={31}
-                      value={paymentDay}
-                      onChange={(e) => setPaymentDay(e.target.value)}
-                      className={FORM_INPUT_COMPACT}
-                    />
-                  </FormField>
-                  {!wasActive && (
-                    <FormField label="반복">
-                      <div className="flex items-center gap-2">
-                        <NumberWheel
-                          value={repeatMonths}
-                          onChange={setRepeatMonths}
-                          min={1}
-                          max={120}
-                          allowInfinity
-                        />
-                        <span className="text-xs text-muted-foreground">개월</span>
-                      </div>
-                    </FormField>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground leading-tight">
-                  {previewCost > 0 ? (
-                    <>
-                      매월 <strong className="text-foreground">{dayNum}일</strong>에{" "}
-                      <strong className="text-foreground">
-                        ₩{previewCost.toLocaleString()}
-                      </strong>
-                      {!wasActive && (
-                        <>
-                          {" "}—{" "}
-                          <strong className="text-foreground">
-                            {repeatMonths === -1 ? "120" : repeatMonths}개월
-                          </strong>{" "}
-                          일괄 등록
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    "가격을 입력하면 월 비용이 자동 계산됩니다."
-                  )}
-                </p>
-              </div>
-            );
-          })()}
-        </div>
+        {/* 고정비 등록은 행 드래그바 메뉴 "고정비에 추가" 에서 처리. 폼에는 노출 안 함. */}
       </div>
     </FormPage>
   );
