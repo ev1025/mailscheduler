@@ -67,7 +67,7 @@ function FinancePageInner() {
     transactions, categories, loading: txLoading,
     addTransaction, addInstallment, updateTransaction, deleteTransaction,
     addCategory, deleteCategory, updateCategoryColor,
-    totalIncome, totalExpense, expenseByCategory,
+    expenseByCategory,
     refetch: refetchTransactions,
   } = useTransactions(startDate, endDate);
 
@@ -115,14 +115,41 @@ function FinancePageInner() {
 
   const isFromFixed = (tx: Expense) => fixedSet.has(`${tx.amount}|${tx.description ?? ""}`);
 
+  // includeFixed 만 적용한 베이스 — 스코어카드(이번달 수입/지출) + 카테고리별 차트의 기준.
+  // (categoryFilter 는 거래 목록에만 적용되어야 함 — 차트 자체가 카테고리 선택의 출발점이므로
+  // 차트가 자기 자신에 의해 필터되면 단일 카테고리만 보이는 비정상 상태가 됨.)
+  const baseTransactions = useMemo(() => {
+    if (includeFixed) return allTransactions;
+    return allTransactions.filter((tx) => !isFromFixed(tx));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allTransactions, includeFixed, fixedSet]);
+
+  const baseTotalIncome = useMemo(
+    () => baseTransactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
+    [baseTransactions],
+  );
+  const baseTotalExpense = useMemo(
+    () => baseTransactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
+    [baseTransactions],
+  );
+  const baseExpenseByCategory = useMemo(() => {
+    return baseTransactions
+      .filter((t) => t.type === "expense" && t.category)
+      .reduce((acc, t) => {
+        const catName = t.category!.name;
+        const catColor = t.category!.color;
+        if (!acc[catName]) acc[catName] = { amount: 0, color: catColor };
+        acc[catName].amount += t.amount;
+        return acc;
+      }, {} as Record<string, { amount: number; color: string }>);
+  }, [baseTransactions]);
+
   const filteredTransactions = useMemo(() => {
-    return allTransactions.filter((tx) => {
+    return baseTransactions.filter((tx) => {
       if (categoryFilter && tx.category?.name !== categoryFilter) return false;
-      if (!includeFixed && isFromFixed(tx)) return false;
       return true;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allTransactions, categoryFilter, includeFixed, fixedSet]);
+  }, [baseTransactions, categoryFilter]);
 
   // 필터링된 거래의 합계 (UI 표시용)
   const filteredTotal = useMemo(
@@ -194,8 +221,8 @@ function FinancePageInner() {
           {/* 데스크탑(md+): 좌 스코어카드 / 우 카테고리 차트 2단. 모바일: 세로 스택. */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 md:items-stretch">
             <MonthlySummary
-              totalIncome={totalIncome}
-              totalExpense={totalExpense}
+              totalIncome={baseTotalIncome}
+              totalExpense={baseTotalExpense}
               totalFixed={totalFixed}
               onOpenFixed={() => setFixedOpen(true)}
               onAddTransaction={(t) => {
@@ -205,8 +232,8 @@ function FinancePageInner() {
               }}
             />
             <CategoryChart
-              expenseByCategory={expenseByCategory}
-              totalExpense={totalExpense}
+              expenseByCategory={baseExpenseByCategory}
+              totalExpense={baseTotalExpense}
               onSelectCategory={setCategoryFilter}
               activeCategory={categoryFilter}
             />
