@@ -88,8 +88,21 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
   const start = parseISO(startDate);
   const end = parseISO(endDate);
 
-  // 좌우 화살표 — 현재 구간 길이만큼 이동.
+  // 좌우 화살표 — 현재 구간이 "월 단위(1일~말일)" 면 한 달씩, 아니면 일수만큼 이동.
+  // 이전엔 일수 단위로만 이동해서 "2026년 4월(30일)" → "2026.05.01 - 2026.05.30" 처럼
+  // 한 달 끝부터 30일치 어긋난 구간이 됐음.
+  const isMonthRange =
+    start.getDate() === 1 &&
+    isSameDay(end, endOfMonth(end)) &&
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth();
+
   const goPrev = () => {
+    if (isMonthRange) {
+      const prev = new Date(start.getFullYear(), start.getMonth() - 1, 1);
+      onChange(toISODate(prev), toISODate(endOfMonth(prev)));
+      return;
+    }
     const days = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
     const newStart = new Date(start);
     newStart.setDate(newStart.getDate() - days);
@@ -98,6 +111,11 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
     onChange(toISODate(newStart), toISODate(newEnd));
   };
   const goNext = () => {
+    if (isMonthRange) {
+      const next = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+      onChange(toISODate(next), toISODate(endOfMonth(next)));
+      return;
+    }
     const days = Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
     const newStart = new Date(start);
     newStart.setDate(newStart.getDate() + days);
@@ -271,7 +289,7 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
             })}
           </div>
 
-          {/* 프리셋 + 확인 — 같은 행에 둬서 시각적 일관성. 확인은 primary 색으로 구분. */}
+          {/* 프리셋 — 칩 행 (필터). */}
           <div className="mt-3 flex flex-wrap items-center gap-1 pt-2 border-t">
             <button
               type="button"
@@ -319,22 +337,41 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
             >
               최근 30일
             </button>
-            {/* 확인 — pendingStart 가 있을 때만 활성. ml-auto 로 우측 정렬. */}
-            <button
-              type="button"
-              onClick={handleConfirm}
-              disabled={!pendingStart}
-              className="ml-auto px-3 py-1 text-[11px] rounded-full bg-primary text-primary-foreground font-semibold transition-opacity disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90"
-            >
-              확인
-            </button>
           </div>
 
-          {pendingStart && !pendingEnd && (
-            <p className="mt-2 text-[11px] text-muted-foreground text-center">
-              종료일을 선택하거나 [확인]
-            </p>
-          )}
+          {/* 푸터 — 안내 문구 좌측 + 취소/확인 우측. iOS DatePicker 패턴.
+              이전엔 확인 버튼이 프리셋 칩 행 우측 끝에 끼어 있어 액션과 필터가
+              한 행에 섞여 시각적으로 어색했음. */}
+          <div className="mt-2 flex items-center justify-between gap-2 pt-2 border-t">
+            <span className="text-[11px] text-muted-foreground truncate">
+              {pendingStart && !pendingEnd
+                ? "종료일 선택 또는 확인"
+                : pendingStart && pendingEnd
+                  ? "변경 미리보기 중"
+                  : ""}
+            </span>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingStart(null);
+                  setPendingEnd(null);
+                  setOpen(false);
+                }}
+                className="px-3 py-1.5 text-xs rounded-md hover:bg-accent transition-colors"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={!pendingStart}
+                className="px-4 py-1.5 text-xs rounded-md bg-primary text-primary-foreground font-semibold transition-opacity disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90"
+              >
+                확인
+              </button>
+            </div>
+          </div>
         </PopoverContent>
       </Popover>
 

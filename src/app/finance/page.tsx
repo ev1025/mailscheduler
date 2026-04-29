@@ -77,30 +77,27 @@ function FinancePageInner() {
     addFixed,
     updateFixed,
     deleteFixed,
+    deleteFixedWithScope,
+    updateFixedWithScope,
     applyFixedToMonth,
   } = useFixedExpenses();
 
-  // 월 진입 시 고정비를 실제 거래로 자동 반영 — 이전의 "확정 저장" 수동 단계 제거.
-  // applyFixedToMonth 내부에서 (amount·description·date) 중복 체크 후 insert 하므로
-  // 재호출되어도 중복 생성되지 않는다. appliedKey ref 로 한 번만 시도하도록 가드.
-  const appliedKey = useRef<string>("");
+  // 고정비 자동 반영 — 페이지 마운트 시 1회 + "현재 실제 월" 을 보고 있을 때만.
+  // 이전엔 월을 < / > 로 이동할 때마다 재시도되어 중복 등록 체감 발생.
+  // 사용자 요구: 화살표 누를 때마다 재등록되는 동작 제거.
+  const initialApplied = useRef(false);
   useEffect(() => {
+    if (initialApplied.current) return;
     if (txLoading || fxLoading) return;
     if (fixedExpenses.length === 0) return;
-    const key = `${year}-${month}`;
-    if (appliedKey.current === key) return;
-    appliedKey.current = key;
+    const today = new Date();
+    if (year !== today.getFullYear() || month !== today.getMonth() + 1) return;
+    initialApplied.current = true;
     void (async () => {
       const count = await applyFixedToMonth(year, month, transactions);
       if (count > 0) await refetchTransactions();
     })();
   }, [year, month, fixedExpenses, txLoading, fxLoading, transactions, applyFixedToMonth, refetchTransactions]);
-
-  // 고정비 등록/수정/삭제 후 현재 월에 다시 자동 적용될 수 있게 key 리셋.
-  // fixedExpenses 배열 자체가 바뀌면 다음 useEffect 때 재적용됨.
-  useEffect(() => {
-    appliedKey.current = "";
-  }, [fixedExpenses]);
 
   const allTransactions = [...transactions].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -314,6 +311,8 @@ function FinancePageInner() {
         onAdd={addFixed}
         onUpdate={updateFixed}
         onDelete={deleteFixed}
+        onDeleteWithScope={deleteFixedWithScope}
+        onUpdateWithScope={updateFixedWithScope}
         onAddCategory={addCategory}
         onDeleteCategory={deleteCategory}
         onUpdateCategoryColor={updateCategoryColor}

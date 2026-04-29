@@ -102,6 +102,86 @@ export function useFixedExpenses() {
     return { error };
   };
 
+  /**
+   * 고정비 비활성화 + 이번달에 자동 적용된 거래 함께 삭제 옵션.
+   * scope = "this-month": 이번달(year/month) 의 amount+description+day_of_month 매칭 거래도 삭제
+   * scope = "next-month": fixed_expenses 만 비활성화 (기존 deleteFixed 와 동일)
+   */
+  const deleteFixedWithScope = async (
+    id: string,
+    scope: "this-month" | "next-month",
+    year: number,
+    month: number,
+  ) => {
+    const fx = fixedExpenses.find((f) => f.id === id);
+    if (!fx) return { error: "고정비를 찾을 수 없습니다" };
+    const r1 = await supabase
+      .from("fixed_expenses")
+      .update({ is_active: false })
+      .eq("id", id);
+    if (r1.error) return { error: r1.error };
+
+    if (scope === "this-month") {
+      const day = Math.min(fx.day_of_month, new Date(year, month, 0).getDate());
+      const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      let q = supabase
+        .from("expenses")
+        .delete()
+        .eq("amount", fx.amount)
+        .eq("date", date);
+      if (fx.description === null) q = q.is("description", null);
+      else q = q.eq("description", fx.description);
+      await q;
+    }
+    await fetchFixed();
+    return { error: null };
+  };
+
+  /**
+   * 고정비 수정 + 이번달 자동 적용 거래도 함께 갱신 옵션.
+   * scope = "this-month": 이번달 거래의 amount/title/description/category 등을 새 값으로 update
+   * scope = "next-month": fixed_expenses 만 update — 이번달 기존 거래는 그대로
+   */
+  const updateFixedWithScope = async (
+    id: string,
+    updates: Partial<Omit<FixedExpense, "id" | "created_at" | "category">>,
+    scope: "this-month" | "next-month",
+    year: number,
+    month: number,
+  ) => {
+    const fx = fixedExpenses.find((f) => f.id === id);
+    if (!fx) return { error: "고정비를 찾을 수 없습니다" };
+
+    // 1. fixed_expense update
+    const r1 = await updateFixed(id, updates);
+    if (r1.error) return { error: r1.error };
+
+    // 2. 이번달 거래 매칭 시 update (변경이 의미 있는 컬럼만 전파).
+    if (scope === "this-month") {
+      const day = Math.min(fx.day_of_month, new Date(year, month, 0).getDate());
+      const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const txUpdates: Record<string, unknown> = {};
+      if (updates.amount !== undefined && updates.amount !== fx.amount)
+        txUpdates.amount = updates.amount;
+      if (updates.title !== undefined) txUpdates.title = updates.title;
+      if (updates.description !== undefined) txUpdates.description = updates.description;
+      if (updates.category_id !== undefined) txUpdates.category_id = updates.category_id;
+      if (updates.payment_method !== undefined)
+        txUpdates.payment_method = updates.payment_method;
+      if (Object.keys(txUpdates).length > 0) {
+        let q = supabase
+          .from("expenses")
+          .update(txUpdates)
+          .eq("amount", fx.amount)
+          .eq("date", date);
+        if (fx.description === null) q = q.is("description", null);
+        else q = q.eq("description", fx.description);
+        await q;
+      }
+    }
+    return { error: null };
+  };
+
   const deleteFixedByProduct = async (productId: string) => {
     const { error } = await supabase
       .from("fixed_expenses")
@@ -208,6 +288,8 @@ export function useFixedExpenses() {
     updateFixed,
     deleteFixed,
     deleteFixedByProduct,
+    deleteFixedWithScope,
+    updateFixedWithScope,
     upsertFixedFromProduct,
     applyFixedToMonth,
     refetch: fetchFixed,

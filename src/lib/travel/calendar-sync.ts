@@ -18,7 +18,7 @@ import type { TravelPlan, TravelPlanTask } from "@/types";
 interface BuildEventInput {
   plan: Pick<TravelPlan, "id" | "title" | "start_date">;
   tasks: TravelPlanTask[];
-  /** travel_categories.name → color 룩업 (없으면 기본 색). */
+  /** travel_categories.name → color 룩업 (없으면 기본 색). 팔레트가 우선이라 현재 미사용. */
   categoryColors?: Record<string, string>;
   userId: string | null;
 }
@@ -27,6 +27,26 @@ interface BuildResult {
   count: number;
   events: Record<string, unknown>[];
 }
+
+/**
+ * 달력 색 팔레트 — 여행 계획에서 추가한 일정에 순차적으로 순환 적용.
+ * 같은 카테고리의 task 들도 시각적으로 구분되도록 카테고리 색 대신 사용.
+ * 12색이라 12개를 넘어가면 순환되지만 인접한 task 끼리는 항상 다른 색.
+ */
+const PLAN_EVENT_PALETTE = [
+  "#3B82F6", // blue
+  "#22C55E", // green
+  "#F59E0B", // amber
+  "#EF4444", // red
+  "#A855F7", // purple
+  "#EC4899", // pink
+  "#06B6D4", // cyan
+  "#84CC16", // lime
+  "#F97316", // orange
+  "#14B8A6", // teal
+  "#8B5CF6", // violet
+  "#6366F1", // indigo
+];
 
 /**
  * task 들을 calendar_events insert payload 로 변환.
@@ -42,7 +62,7 @@ interface BuildResult {
  * plan.start_date 가 없으면 null 반환 (등록 불가).
  */
 export function buildCalendarEvents(input: BuildEventInput): BuildResult | null {
-  const { plan, tasks, categoryColors = {}, userId } = input;
+  const { plan, tasks, userId } = input;
   if (!plan.start_date) return null;
   if (tasks.length === 0) return { count: 0, events: [] };
 
@@ -51,7 +71,7 @@ export function buildCalendarEvents(input: BuildEventInput): BuildResult | null 
   const expected = computeExpectedTimes(sorted);
 
   const baseDate = new Date(plan.start_date + "T00:00:00");
-  const events = sorted.map((t) => {
+  const events = sorted.map((t, idx) => {
     const d = new Date(baseDate);
     d.setDate(d.getDate() + (t.day_index ?? 0));
     const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -72,7 +92,9 @@ export function buildCalendarEvents(input: BuildEventInput): BuildResult | null 
       const em = total % 60;
       endTime = `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
     }
-    const color = (t.category && categoryColors[t.category]) || "#3B82F6";
+    // 색상: 팔레트 순환 적용 — 같은 카테고리여도 task 별로 색이 달라지도록.
+    // 인접 task 끼리는 항상 다른 색, 12개 초과 시에만 반복.
+    const color = PLAN_EVENT_PALETTE[idx % PLAN_EVENT_PALETTE.length];
     return {
       title: t.place_name || "(이름 없음)",
       description: t.content || null,

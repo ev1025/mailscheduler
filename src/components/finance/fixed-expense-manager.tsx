@@ -4,11 +4,17 @@ import { useMemo, useState } from "react";
 import FormPage from "@/components/ui/form-page";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
-import ConfirmDialog from "@/components/ui/confirm-dialog";
-import DeleteRecordDescription from "@/components/ui/delete-record-description";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import FixedExpenseForm from "@/components/finance/fixed-expense-form";
 import type { ExpenseCategory } from "@/types";
 import type { FixedExpense } from "@/hooks/use-fixed-expenses";
+
+type Scope = "this-month" | "next-month";
 
 interface FixedExpenseManagerProps {
   open: boolean;
@@ -23,6 +29,21 @@ interface FixedExpenseManagerProps {
     updates: Partial<Omit<FixedExpense, "id" | "created_at" | "category">>
   ) => Promise<{ error: unknown }>;
   onDelete: (id: string) => Promise<{ error: unknown }>;
+  /** 이번달 자동 적용된 거래까지 함께 삭제할지 선택. */
+  onDeleteWithScope?: (
+    id: string,
+    scope: Scope,
+    year: number,
+    month: number,
+  ) => Promise<{ error: unknown }>;
+  /** 금액 변경 시 이번달 거래를 새 금액으로 갱신할지 선택. */
+  onUpdateWithScope?: (
+    id: string,
+    updates: Partial<Omit<FixedExpense, "id" | "created_at" | "category">>,
+    scope: Scope,
+    year: number,
+    month: number,
+  ) => Promise<{ error: unknown }>;
   onAddCategory?: (
     name: string,
     type: "income" | "expense",
@@ -44,6 +65,8 @@ export default function FixedExpenseManager({
   onAdd,
   onUpdate,
   onDelete,
+  onDeleteWithScope,
+  onUpdateWithScope,
   onAddCategory,
   onDeleteCategory,
   onUpdateCategoryColor,
@@ -51,8 +74,18 @@ export default function FixedExpenseManager({
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<FixedExpense | null>(null);
   const [deletingFx, setDeletingFx] = useState<FixedExpense | null>(null);
+  // 금액 변경 적용 시점 다이얼로그 — editing 이 있고 amount 가 바뀌었을 때 트리거.
+  const [pendingUpdate, setPendingUpdate] = useState<{
+    oldFx: FixedExpense;
+    newData: Parameters<NonNullable<FixedExpenseManagerProps["onUpdate"]>>[1];
+  } | null>(null);
   // 카테고리별 펼침 상태 — 기본 닫힘. 펼친 그룹 id 만 Set 에 보관.
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set());
+
+  // "이번달" 기준 — today.
+  const today = new Date();
+  const thisYear = today.getFullYear();
+  const thisMonth = today.getMonth() + 1;
 
   // 카테고리별 그룹화. 카테고리명 → 항목 배열. 미분류는 "(미분류)" 키.
   const grouped = useMemo(() => {
@@ -101,9 +134,38 @@ export default function FixedExpenseManager({
     payment_method: string;
   }) => {
     if (editing && onUpdate) {
+      // 금액이 바뀌었고 onUpdateWithScope 가 주어지면 적용 시점 다이얼로그 후 저장.
+      // 폼은 일단 닫히고(에러 없음 반환) 다이얼로그 응답에 따라 실제 update 수행.
+      if (onUpdateWithScope && data.amount !== editing.amount) {
+        setPendingUpdate({ oldFx: editing, newData: data });
+        return { error: null };
+      }
       return await onUpdate(editing.id, data);
     }
     return await onAdd(data);
+  };
+
+  const applyDeleteScope = async (scope: Scope) => {
+    if (!deletingFx) return;
+    if (onDeleteWithScope) {
+      await onDeleteWithScope(deletingFx.id, scope, thisYear, thisMonth);
+    } else {
+      // 폴백: 기존 deleteFixed (이번달 자동 거래는 안 건드림)
+      await onDelete(deletingFx.id);
+    }
+    setDeletingFx(null);
+  };
+
+  const applyUpdateScope = async (scope: Scope) => {
+    if (!pendingUpdate || !onUpdateWithScope) return;
+    await onUpdateWithScope(
+      pendingUpdate.oldFx.id,
+      pendingUpdate.newData,
+      scope,
+      thisYear,
+      thisMonth,
+    );
+    setPendingUpdate(null);
   };
 
   return (
@@ -225,7 +287,9 @@ export default function FixedExpenseManager({
         onUpdateCategoryColor={onUpdateCategoryColor}
       />
 
-      <ConfirmDialog
+      {/* 삭제 — "이번달부터 / 다음달부터" 선택 다이얼로그.
+          이번달부터: 이번달 자동 등록된 거래도 삭제. 다음달부터: 이번달 거래는 유지. */}
+      <ScopeChoiceDialog
         open={!!deletingFx}
         onOpenChange={(o) => {
           if (!o) setDeletingFx(null);
@@ -235,38 +299,148 @@ export default function FixedExpenseManager({
             ? `${deletingFx.title || deletingFx.description || "고정비"} 삭제`
             : "고정비 삭제"
         }
-        description={
+        info={
           deletingFx ? (
-            <DeleteRecordDescription
-              fields={[
-                {
-                  label: "결제일",
-                  value: `매월 ${deletingFx.day_of_month}일`,
-                  valueClassName: "tabular-nums",
-                },
-                {
-                  label: "금액",
-                  value: `${deletingFx.type === "income" ? "+" : "-"}${formatWon(deletingFx.amount)}`,
-                  valueClassName: `tabular-nums ${deletingFx.type === "income" ? "text-finance-gain" : "text-finance-loss"}`,
-                },
-                ...(deletingFx.category?.name
-                  ? [{ label: "카테고리", value: deletingFx.category.name }]
-                  : []),
-              ]}
-              footnote="이미 반영된 거래는 유지, 다음 달부터 자동 추가만 중지돼요."
-            />
+            <>
+              <span className="block">매월 {deletingFx.day_of_month}일 · {formatWon(deletingFx.amount)}</span>
+              {deletingFx.category?.name && (
+                <span className="block text-muted-foreground/70">{deletingFx.category.name}</span>
+              )}
+            </>
           ) : null
         }
-        confirmLabel="삭제"
+        question="어느 시점부터 삭제할까요?"
+        thisMonthLabel="이번달부터 삭제"
+        thisMonthHint={`이번달(${thisMonth}월) 자동 등록된 거래도 함께 삭제`}
+        nextMonthLabel="다음달부터 삭제"
+        nextMonthHint="이번달 거래는 유지, 다음 달부터 자동 추가만 중지"
         destructive
-        // FormPage(z-[70]) 내부에서 띄우므로 z-[80] 으로 올려야 backdrop 위에 보임.
-        // 이전엔 z-50 이라 FormPage 오버레이에 가려져 클릭 자체가 안 됐음.
-        contentClassName="z-[80]"
-        onConfirm={async () => {
-          if (deletingFx) await onDelete(deletingFx.id);
-          setDeletingFx(null);
+        onPick={applyDeleteScope}
+      />
+
+      {/* 금액 변경 — "이번달부터 / 다음달부터" 선택 다이얼로그. */}
+      <ScopeChoiceDialog
+        open={!!pendingUpdate}
+        onOpenChange={(o) => {
+          if (!o) setPendingUpdate(null);
         }}
+        title={
+          pendingUpdate
+            ? `${pendingUpdate.oldFx.title || pendingUpdate.oldFx.description || "고정비"} 금액 변경`
+            : "고정비 수정"
+        }
+        info={
+          pendingUpdate ? (
+            <>
+              <span className="block tabular-nums">
+                {formatWon(pendingUpdate.oldFx.amount)} → {formatWon(pendingUpdate.newData.amount ?? 0)}
+              </span>
+            </>
+          ) : null
+        }
+        question="변경된 금액을 어느 시점부터 적용할까요?"
+        thisMonthLabel="이번달부터 적용"
+        thisMonthHint={`이번달(${thisMonth}월) 자동 등록된 거래도 새 금액으로 갱신`}
+        nextMonthLabel="다음달부터 적용"
+        nextMonthHint="이번달 거래는 기존 금액 유지, 다음 달부터 새 금액"
+        onPick={applyUpdateScope}
       />
     </>
+  );
+}
+
+/* ── 이번달 / 다음달 선택 다이얼로그 ── */
+interface ScopeChoiceProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  info?: React.ReactNode;
+  question: string;
+  thisMonthLabel: string;
+  thisMonthHint: string;
+  nextMonthLabel: string;
+  nextMonthHint: string;
+  destructive?: boolean;
+  onPick: (scope: Scope) => void | Promise<void>;
+}
+
+function ScopeChoiceDialog({
+  open,
+  onOpenChange,
+  title,
+  info,
+  question,
+  thisMonthLabel,
+  thisMonthHint,
+  nextMonthLabel,
+  nextMonthHint,
+  destructive,
+  onPick,
+}: ScopeChoiceProps) {
+  const [busy, setBusy] = useState(false);
+  const handle = async (scope: Scope) => {
+    setBusy(true);
+    try {
+      await onPick(scope);
+      onOpenChange(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        showBackButton={false}
+        className="max-w-[calc(100%-3rem)] sm:max-w-sm p-0 gap-0 overflow-hidden z-[80]"
+      >
+        <div className="px-5 pt-5 pb-3 flex flex-col items-center text-center gap-1.5">
+          <DialogHeader className="contents">
+            <DialogTitle className="text-base font-semibold leading-snug break-keep">
+              {title}
+            </DialogTitle>
+          </DialogHeader>
+          {info && <div className="text-[13px] text-foreground/80 leading-relaxed">{info}</div>}
+          <p className="text-xs text-muted-foreground mt-1">{question}</p>
+        </div>
+        {/* iOS Action Sheet 스타일 — 버튼 vertical stack, 위 두 옵션 + 마지막 취소. */}
+        <div className="border-t divide-y">
+          <button
+            type="button"
+            onClick={() => handle("this-month")}
+            disabled={busy}
+            className={`w-full px-4 py-3 text-sm font-semibold flex flex-col items-center gap-0.5 transition-colors hover:bg-accent/50 disabled:opacity-50 ${
+              destructive ? "text-destructive" : "text-primary"
+            }`}
+          >
+            <span>{thisMonthLabel}</span>
+            <span className="text-[11px] font-normal text-muted-foreground break-keep">
+              {thisMonthHint}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handle("next-month")}
+            disabled={busy}
+            className={`w-full px-4 py-3 text-sm font-semibold flex flex-col items-center gap-0.5 transition-colors hover:bg-accent/50 disabled:opacity-50 ${
+              destructive ? "text-destructive" : "text-primary"
+            }`}
+          >
+            <span>{nextMonthLabel}</span>
+            <span className="text-[11px] font-normal text-muted-foreground break-keep">
+              {nextMonthHint}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            disabled={busy}
+            className="w-full px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-accent/50 disabled:opacity-50"
+          >
+            취소
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
