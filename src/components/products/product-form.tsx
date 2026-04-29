@@ -319,7 +319,8 @@ export default function ProductForm({
             </FormField>
           </div>
 
-          {/* 가격 정보 zone — 브랜드/가격/구매일/URL 한 테두리. 추가 버튼 + 가격 이력 동봉. */}
+          {/* 가격 정보 zone — 한 테두리에 두 행: 브랜드|가격 / 구매일|URL.
+              구매일 컬럼은 좁게(8rem) 잡아 URL 에 더 많은 가로 공간을 할당. */}
           <div className="rounded-lg border bg-muted/20 p-3 flex flex-col gap-2.5">
             <div className="grid grid-cols-2 gap-2">
               <FormField label="브랜드">
@@ -345,11 +346,13 @@ export default function ProductForm({
                   className={FORM_INPUT_COMPACT}
                 />
               </FormField>
+            </div>
+            <div className="grid grid-cols-[8rem_1fr] gap-2">
               <FormField label="구매일">
                 <DatePicker
                   value={dateDraft}
                   onChange={setDateDraft}
-                  className={FORM_INPUT_COMPACT}
+                  className={`${FORM_INPUT_COMPACT} w-full min-w-0`}
                 />
               </FormField>
               <FormField label="URL">
@@ -399,10 +402,6 @@ export default function ProductForm({
                   {sorted.map(({ p, originalIdx }) => {
                     const isMin = p.price === minPriceStr;
                     const isEditing = editingIdx === originalIdx;
-                    // 구매일 표시: M/d (간결)
-                    const dateLabel = p.purchased_at
-                      ? `${parseInt(p.purchased_at.slice(5, 7))}/${parseInt(p.purchased_at.slice(8, 10))}`
-                      : "—";
                     return (
                       <li
                         key={originalIdx}
@@ -422,9 +421,6 @@ export default function ProductForm({
                           }`}
                         >
                           {parseInt(p.price).toLocaleString()}원
-                        </span>
-                        <span className="tabular-nums text-muted-foreground shrink-0 w-10 text-center">
-                          {dateLabel}
                         </span>
                         <span className="flex-1 min-w-0 text-muted-foreground truncate">
                           {p.site_url || "—"}
