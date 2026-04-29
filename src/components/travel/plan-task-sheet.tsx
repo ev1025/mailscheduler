@@ -311,7 +311,7 @@ export default function PlanTaskSheet({
             <TimePicker
               value={startTime}
               onChange={setStartTime}
-              className="h-8 text-xs px-2"
+              className="h-8 text-xs px-2 w-[4.5rem]"
             />
 
             {/* 체류시간: 분/시간 토글 + 입력 */}
