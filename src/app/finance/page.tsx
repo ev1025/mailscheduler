@@ -305,8 +305,8 @@ function FinancePageInner() {
         onOpenChange={setFixedOpen}
         fixedExpenses={fixedExpenses}
         categories={categories}
-        onAdd={async (item) => {
-          const r = await addFixed(item);
+        onAdd={async (item, repeatMonths) => {
+          const r = await addFixed(item, repeatMonths);
           if (!r.error) await refetchTransactions();
           return r;
         }}
