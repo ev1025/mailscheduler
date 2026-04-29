@@ -11,11 +11,12 @@ import {
   ShoppingBag,
   Menu,
   Trash2,
-  GripVertical,
+  Repeat,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SearchInput from "@/components/ui/search-input";
+import RowActionPopover from "@/components/ui/row-action-popover";
 import { useUrlStringParam } from "@/hooks/use-url-param";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
@@ -36,33 +37,44 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useProducts } from "@/hooks/use-products";
 import { useProductCategories } from "@/hooks/use-product-categories";
+import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
+import { useTransactions } from "@/hooks/use-transactions";
 import ProductForm from "@/components/products/product-form";
 import type { Product } from "@/types";
 import PageHeader from "@/components/layout/page-header";
 import PromptDialog from "@/components/ui/prompt-dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
-import { PAGE_ACTION_BUTTON } from "@/lib/form-classes";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { FormField } from "@/components/ui/form-field";
+import NumberWheel from "@/components/ui/number-wheel";
+import { PAGE_ACTION_BUTTON, FORM_INPUT_COMPACT } from "@/lib/form-classes";
 
 interface ProductStat {
   minPrice: number | null;
 }
 
-// 행 한 줄 — 좌측 드래그핸들, 본문 탭 = 편집, 우측 휴지통 = 삭제.
-// 이전엔 좌측 핸들이 동시에 "드래그 + 삭제 메뉴 트리거" 라 의미가 충돌하고
-// 메뉴 안에 삭제 1개뿐이라 한 단계 클릭 더 필요했음. 표준(노션·iOS Files) 패턴인
-// "핸들=정렬 / 좌측 영역=메인 액션 / 우측 trash=삭제" 로 분리.
+// 행 한 줄 — 좌측 드래그바(메뉴: 고정비 추가/삭제), 본문 탭 = 편집.
+// RowActionPopover 의 grip 트리거는 탭=메뉴, 드래그=정렬 둘 다 수행. 우측 휴지통 제거.
 const ProductRow = memo(function ProductRow({
   p,
   idx,
   stat,
   onEdit,
   onDelete,
+  onAddFixed,
 }: {
   p: Product;
   idx: number;
   stat?: ProductStat;
   onEdit: (p: Product) => void;
   onDelete: (p: Product) => void;
+  onAddFixed: (p: Product) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: p.id });
@@ -79,17 +91,26 @@ const ProductRow = memo(function ProductRow({
       className="border-t hover:bg-accent/50 cursor-pointer group"
       onClick={() => onEdit(p)}
     >
-      {/* 드래그 핸들 — 정렬 전용. 탭만으로는 아무 일도 안 일어남. */}
+      {/* 드래그바 메뉴 — 탭하면 메뉴(고정비 추가·삭제), 드래그하면 정렬. */}
       <td className="px-0.5 py-1 w-7" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          {...listeners}
-          {...attributes}
-          aria-label="순서 변경"
-          className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground/40 hover:text-muted-foreground hover:bg-accent transition-colors cursor-grab active:cursor-grabbing touch-none"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
+        <RowActionPopover
+          triggerLabel="제품 메뉴"
+          dragAttributes={attributes as unknown as React.HTMLAttributes<HTMLElement>}
+          dragListeners={listeners as unknown as React.HTMLAttributes<HTMLElement>}
+          items={[
+            {
+              icon: <Repeat className="h-3.5 w-3.5 text-blue-600" />,
+              label: p.is_active ? "고정비 변경" : "고정비에 추가",
+              onClick: () => onAddFixed(p),
+            },
+            {
+              icon: <Trash2 className="h-3.5 w-3.5" />,
+              label: "삭제",
+              destructive: true,
+              onClick: () => onDelete(p),
+            },
+          ]}
+        />
       </td>
       {/* 순위 배지 — 1·2·3 위는 메달 색. */}
       <td className="text-center px-1 py-1.5 whitespace-nowrap w-8">
@@ -129,17 +150,6 @@ const ProductRow = memo(function ProductRow({
       <td className="px-2 py-1.5 text-right whitespace-nowrap text-xs font-semibold tabular-nums">
         {stat?.minPrice ? `₩${stat.minPrice.toLocaleString()}` : "-"}
       </td>
-      {/* 휴지통 — 모바일은 항상 노출, 데스크탑은 hover 시. */}
-      <td className="px-0.5 py-1 w-7" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          onClick={() => onDelete(p)}
-          aria-label="삭제"
-          className="flex h-7 w-7 items-center justify-center rounded text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all md:opacity-0 md:group-hover:opacity-100"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </td>
     </tr>
   );
 });
@@ -172,6 +182,27 @@ function ProductsPageInner() {
   const [editing, setEditing] = useState<Product | null>(null);
   // 목록 드래그바 탭 → 삭제 메뉴 → 확인 다이얼로그 대상
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  // 드래그바 메뉴 "고정비에 추가" → 결제일·반복 다이얼로그 대상
+  const [fixedProduct, setFixedProduct] = useState<Product | null>(null);
+  const [fixedDay, setFixedDay] = useState("11");
+  const [fixedRepeat, setFixedRepeat] = useState(1);
+  const [fixedSaving, setFixedSaving] = useState(false);
+
+  // fixedProduct 가 바뀌면 기본값(제품의 default_payment_day) 으로 초기화.
+  useEffect(() => {
+    if (fixedProduct) {
+      setFixedDay(String(fixedProduct.default_payment_day ?? 11));
+      setFixedRepeat(1);
+    }
+  }, [fixedProduct]);
+
+  const { addFixed } = useFixedExpenses();
+  // expense_categories 룩업 (분류 → 가계부 카테고리 매핑).
+  const todayIso = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  })();
+  const { categories: expCategories } = useTransactions(todayIso, todayIso);
   const [statsTick, setStatsTick] = useState(0);
   const [search, setSearch] = useState("");
   const router = useRouter();
@@ -519,14 +550,13 @@ function ProductsPageInner() {
                             onDragEnd={(e) => handleDragEnd(e, groupKey)}
                           >
                             <table className="w-full text-xs" style={{ tableLayout: "auto" }}>
-                              {/* thead 제거 — 모바일에서 4컬럼 좁아 헤더 정렬이 어색했음.
-                                  Crown 아이콘 + 순위 배지 + ₩ 통화기호로 의미 자명. */}
+                              {/* thead 제거 — 4컬럼: [드래그바] [순위] [제품·브랜드] [최저가].
+                                  드래그바는 탭=메뉴(고정비 추가/삭제), 드래그=정렬. */}
                               <colgroup>
                                 <col style={{ width: "1.75rem" }} />
                                 <col style={{ width: "2rem" }} />
                                 <col />
                                 <col style={{ width: "1%" }} />
-                                <col style={{ width: "1.75rem" }} />
                               </colgroup>
                               <SortableContext
                                 items={list.map((p) => p.id)}
@@ -544,6 +574,7 @@ function ProductsPageInner() {
                                         setFormOpen(true);
                                       }}
                                       onDelete={(prod) => setDeletingProduct(prod)}
+                                      onAddFixed={(prod) => setFixedProduct(prod)}
                                     />
                                   ))}
                                 </tbody>
@@ -642,6 +673,115 @@ function ProductsPageInner() {
           setPendingDeleteCategory(null);
         }}
       />
+
+      {/* 드래그바 "고정비에 추가" 다이얼로그 — 결제일 + 반복 개월 수 입력. */}
+      <Dialog
+        open={!!fixedProduct}
+        onOpenChange={(o) => {
+          if (!o && !fixedSaving) setFixedProduct(null);
+        }}
+      >
+        <DialogContent
+          showBackButton={false}
+          className="max-w-[calc(100%-3rem)] sm:max-w-sm p-0 gap-0 overflow-hidden"
+        >
+          <DialogHeader className="px-5 pt-5 pb-2">
+            <DialogTitle className="text-base font-semibold">
+              {fixedProduct ? `${fixedProduct.name} 고정비 추가` : "고정비 추가"}
+            </DialogTitle>
+            {fixedProduct && (
+              <p className="text-xs text-muted-foreground mt-1">
+                매월 자동 등록 — 가격 ₩{fixedProduct.monthly_cost?.toLocaleString() || "0"}
+              </p>
+            )}
+          </DialogHeader>
+          <div className="px-5 pb-4 flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              <FormField label="결제일">
+                <Input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={31}
+                  value={fixedDay}
+                  onChange={(e) => setFixedDay(e.target.value)}
+                  className={FORM_INPUT_COMPACT}
+                />
+              </FormField>
+              <FormField label="반복">
+                <div className="flex items-center gap-2">
+                  <NumberWheel
+                    value={fixedRepeat}
+                    onChange={setFixedRepeat}
+                    min={1}
+                    max={120}
+                    allowInfinity
+                  />
+                  <span className="text-xs text-muted-foreground">개월</span>
+                </div>
+              </FormField>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 border-t divide-x">
+            <Button
+              variant="ghost"
+              onClick={() => setFixedProduct(null)}
+              disabled={fixedSaving}
+              className="h-11 rounded-none font-medium"
+            >
+              취소
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={async () => {
+                if (!fixedProduct) return;
+                const price = fixedProduct.monthly_cost;
+                if (!price || price <= 0) {
+                  toast.error("이 제품의 가격이 설정되어 있지 않아요. 폼에서 가격을 입력해주세요.");
+                  return;
+                }
+                const day = Math.min(31, Math.max(1, parseInt(fixedDay) || 11));
+                // 분류 → 가계부 카테고리 매핑 (없으면 "기타지출", 그것도 없으면 첫 번째).
+                const expCat =
+                  expCategories.find((c) => c.type === "expense" && c.name === fixedProduct.category) ||
+                  expCategories.find((c) => c.name === "기타지출") ||
+                  expCategories.find((c) => c.type === "expense");
+                if (!expCat) {
+                  toast.error("가계부 카테고리를 찾을 수 없습니다.");
+                  return;
+                }
+                setFixedSaving(true);
+                const r = await addFixed(
+                  {
+                    title: fixedProduct.name,
+                    amount: price,
+                    category_id: expCat.id,
+                    description: fixedProduct.name,
+                    day_of_month: day,
+                    type: "expense",
+                    payment_method: "카드",
+                    product_id: fixedProduct.id,
+                  },
+                  fixedRepeat,
+                );
+                if (!r.error) {
+                  // 제품도 is_active=true 로 표시.
+                  await updateProduct(fixedProduct.id, { is_active: true });
+                  toast.success("고정비에 추가되었습니다");
+                } else {
+                  toast.error("추가 실패");
+                }
+                setFixedSaving(false);
+                setFixedProduct(null);
+              }}
+              disabled={fixedSaving}
+              className="h-11 rounded-none font-semibold text-primary"
+            >
+              {fixedSaving ? "추가 중..." : "추가"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
     </div>
     </>

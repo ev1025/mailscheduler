@@ -6,6 +6,7 @@ import FormPage from "@/components/ui/form-page";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import TagInput from "@/components/ui/tag-input";
+import NumberWheel from "@/components/ui/number-wheel";
 import { FormField } from "@/components/ui/form-field";
 import { FORM_INPUT_PRIMARY } from "@/lib/form-classes";
 import { usePaymentMethods } from "@/hooks/use-payment-methods";
@@ -18,15 +19,19 @@ interface Props {
   /** 기존 항목 수정이면 값 주입, 없으면 신규. */
   fixed: FixedExpense | null;
   categories: ExpenseCategory[];
-  onSave: (data: {
-    title: string | null;
-    amount: number;
-    category_id: string;
-    description: string | null;
-    day_of_month: number;
-    type: "income" | "expense";
-    payment_method: string;
-  }) => Promise<{ error: unknown }>;
+  /** 신규 추가 시: 두 번째 인자로 반복 개월 수 (1=이번달만, -1=계속/120). 수정 시엔 무시. */
+  onSave: (
+    data: {
+      title: string | null;
+      amount: number;
+      category_id: string;
+      description: string | null;
+      day_of_month: number;
+      type: "income" | "expense";
+      payment_method: string;
+    },
+    repeatMonths?: number,
+  ) => Promise<{ error: unknown }>;
   /** 카테고리 TagInput mutation */
   onAddCategory?: (
     name: string,
@@ -58,6 +63,8 @@ export default function FixedExpenseForm({
   const [dayOfMonth, setDayOfMonth] = useState("1");
   const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
+  // 반복 개월 수 — 신규 등록 시에만 사용. 1=이번달만, -1=계속(120개월).
+  const [repeatMonths, setRepeatMonths] = useState<number>(1);
 
   useEffect(() => {
     if (!open) return;
@@ -77,6 +84,7 @@ export default function FixedExpenseForm({
       setDescription("");
       setDayOfMonth("1");
       setPaymentMethod("");
+      setRepeatMonths(1);
     }
   }, [open, fixed]);
 
@@ -85,15 +93,19 @@ export default function FixedExpenseForm({
   const handleSubmit = async () => {
     if (!amount || !categoryId) return;
     setSaving(true);
-    const { error } = await onSave({
-      title: title.trim() || null,
-      amount: parseInt(amount, 10),
-      category_id: categoryId,
-      description: description.trim() || null,
-      day_of_month: parseInt(dayOfMonth, 10) || 1,
-      type,
-      payment_method: paymentMethod || "계좌이체",
-    });
+    const { error } = await onSave(
+      {
+        title: title.trim() || null,
+        amount: parseInt(amount, 10),
+        category_id: categoryId,
+        description: description.trim() || null,
+        day_of_month: parseInt(dayOfMonth, 10) || 1,
+        type,
+        payment_method: paymentMethod || "계좌이체",
+      },
+      // 신규일 때만 의미. 수정 시엔 manager 가 무시.
+      fixed ? undefined : repeatMonths,
+    );
     setSaving(false);
     if (error) {
       // 침묵 실패 방지 — DB 제약(예: payment_method CHECK) 위반 등을 사용자에게 표시.
@@ -196,6 +208,23 @@ export default function FixedExpenseForm({
         <p className="text-[11px] text-muted-foreground -mt-2 leading-snug">
           29~31일은 해당 일자가 없는 달(2월 등)엔 월말에 자동 반영돼요.
         </p>
+
+        {/* 반복 개월 수 — 신규 등록 시만. 캘린더 일정의 "반복 횟수" 와 동일.
+            1 = 이번달만, "계속"(-1) = 120개월(10년) 일괄 생성. */}
+        {!fixed && (
+          <FormField label="반복">
+            <div className="flex items-center gap-2">
+              <NumberWheel
+                value={repeatMonths}
+                onChange={setRepeatMonths}
+                min={1}
+                max={120}
+                allowInfinity
+              />
+              <span className="text-xs text-muted-foreground">개월 (이번달부터)</span>
+            </div>
+          </FormField>
+        )}
 
         {/* 카테고리 */}
         <FormField label="카테고리" required>

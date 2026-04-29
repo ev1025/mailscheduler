@@ -417,8 +417,8 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
         </Button>
         {/* 모바일에선 다음 행으로 — 빈 가로 spacer 한 번에 줄바꿈 트리거 */}
         <div className="basis-full md:hidden" />
-        {/* 필터 그룹 — md+ 에서는 같은 행 우측 끝, 모바일은 다음 행. */}
-        <div className="flex items-center gap-2 flex-wrap md:ml-auto md:flex-nowrap">
+        {/* 필터 그룹 — md+ 에서는 같은 행 우측 끝, 모바일은 다음 행 우측 정렬. */}
+        <div className="flex items-center gap-2 flex-wrap justify-end w-full md:w-auto md:ml-auto md:flex-nowrap">
           <button
             type="button"
             onClick={() => updateShowVisited(!showVisited)}

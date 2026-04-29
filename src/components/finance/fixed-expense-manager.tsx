@@ -22,7 +22,8 @@ interface FixedExpenseManagerProps {
   fixedExpenses: FixedExpense[];
   categories: ExpenseCategory[];
   onAdd: (
-    item: Omit<FixedExpense, "id" | "created_at" | "category" | "is_active">
+    item: Omit<FixedExpense, "id" | "created_at" | "category" | "is_active">,
+    repeatMonths?: number,
   ) => Promise<{ error: unknown }>;
   onUpdate?: (
     id: string,
@@ -124,15 +125,18 @@ export default function FixedExpenseManager({
     setFormOpen(true);
   };
 
-  const handleSave = async (data: {
-    title: string | null;
-    amount: number;
-    category_id: string;
-    description: string | null;
-    day_of_month: number;
-    type: "income" | "expense";
-    payment_method: string;
-  }) => {
+  const handleSave = async (
+    data: {
+      title: string | null;
+      amount: number;
+      category_id: string;
+      description: string | null;
+      day_of_month: number;
+      type: "income" | "expense";
+      payment_method: string;
+    },
+    repeatMonths?: number,
+  ) => {
     if (editing && onUpdate) {
       // 금액이 바뀌었고 onUpdateWithScope 가 주어지면 적용 시점 다이얼로그 후 저장.
       // 폼은 일단 닫히고(에러 없음 반환) 다이얼로그 응답에 따라 실제 update 수행.
@@ -142,7 +146,7 @@ export default function FixedExpenseManager({
       }
       return await onUpdate(editing.id, data);
     }
-    return await onAdd(data);
+    return await onAdd(data, repeatMonths);
   };
 
   const applyDeleteScope = async (scope: Scope) => {

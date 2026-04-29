@@ -53,47 +53,65 @@ export function useFixedExpenses() {
     fetchFixed();
   }, [fetchFixed]);
 
+  /**
+   * 고정비 추가 + 이번달부터 N개월 거래 일괄 생성.
+   * - repeatMonths = 1 : 이번달만 (기본)
+   * - repeatMonths = N : 이번달 포함 N개월 연속
+   * - repeatMonths = -1 (계속) : 120개월(10년) 까지
+   *
+   * 캘린더 일정의 "반복 횟수" 와 동일한 의미. 페이지 마운트 자동 적용은 제거되어
+   * 있으므로 거래는 여기서만 생성됨 → 중복 없음.
+   */
   const addFixed = async (
-    item: Omit<FixedExpense, "id" | "created_at" | "category" | "is_active">
+    item: Omit<FixedExpense, "id" | "created_at" | "category" | "is_active">,
+    repeatMonths: number = 1,
   ) => {
     const { error } = await supabase
       .from("fixed_expenses")
       .insert({ ...item, user_id: userId });
     if (error) {
-      // title/user_id 컬럼 없는 DB 대비 두 필드 제거 후 재시도.
       const { title, ...rest } = item;
       void title;
       const retry = await supabase.from("fixed_expenses").insert(rest);
       if (retry.error) return { error: retry.error };
     }
 
-    // 이번달 거래도 즉시 생성 — 사용자가 "추가" 한 시점에 1회 적용.
-    // (자동 재적용 useEffect 는 제거되어 있으므로 여기서만 생성, 중복 없음.)
+    // N개월 거래 일괄 생성. 무한(-1) → 120개월 (캘린더 monthly 무한과 동일).
+    const months = repeatMonths === -1 ? 120 : Math.max(1, repeatMonths);
     const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth() + 1;
-    const day = Math.min(
-      item.day_of_month,
-      new Date(year, month, 0).getDate(),
-    );
-    const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const txPayload = {
-      title: item.title,
-      amount: item.amount,
-      category_id: item.category_id,
-      description: item.description,
-      date,
-      type: item.type,
-      payment_method: item.payment_method,
-      user_id: userId,
-    };
-    const txInsert = await supabase.from("expenses").insert(txPayload);
-    if (txInsert.error) {
-      // user_id/title 미지원 구 DB 폴백
-      const { title, user_id, ...txRest } = txPayload;
-      void title;
-      void user_id;
-      await supabase.from("expenses").insert(txRest);
+    const baseYear = today.getFullYear();
+    const baseMonth = today.getMonth() + 1; // 1-indexed
+    const txs: Record<string, unknown>[] = [];
+    for (let i = 0; i < months; i++) {
+      const t = new Date(baseYear, baseMonth - 1 + i, 1);
+      const yi = t.getFullYear();
+      const mi = t.getMonth() + 1;
+      const lastDay = new Date(yi, mi, 0).getDate();
+      const day = Math.min(item.day_of_month, lastDay);
+      const date = `${yi}-${String(mi).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      txs.push({
+        title: item.title,
+        amount: item.amount,
+        category_id: item.category_id,
+        description: item.description,
+        date,
+        type: item.type,
+        payment_method: item.payment_method,
+        user_id: userId,
+      });
+    }
+    if (txs.length > 0) {
+      const ins = await supabase.from("expenses").insert(txs);
+      if (ins.error) {
+        // user_id/title 미지원 구 DB 폴백
+        const fallback = txs.map((t) => {
+          const { title, user_id, ...rest } = t as { title?: unknown; user_id?: unknown } & Record<string, unknown>;
+          void title;
+          void user_id;
+          return rest;
+        });
+        await supabase.from("expenses").insert(fallback);
+      }
     }
     await fetchFixed();
     return { error: null };
