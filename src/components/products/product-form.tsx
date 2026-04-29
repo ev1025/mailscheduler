@@ -12,6 +12,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from "@/components/ui/select";
+import DatePicker from "@/components/ui/date-picker";
 import { Trash2, Crown } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUserId } from "@/lib/current-user";
@@ -318,58 +319,63 @@ export default function ProductForm({
             </FormField>
           </div>
 
-          {/* 브랜드 — 별도 행 */}
-          <FormField label="브랜드">
-            <Input
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-              placeholder="브랜드명"
-              className={FORM_INPUT_COMPACT}
-            />
-          </FormField>
-
-          {/* 가격 입력 + 추가된 목록 */}
-          <FormField label="가격 · 구매일 · 사이트">
-            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
-              <Input
-                type="number"
-                value={priceDraft}
-                onChange={(e) => setPriceDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    commitPrice();
-                  }
-                }}
-                placeholder="35000"
-                className={`${FORM_INPUT_COMPACT} w-24 shrink-0`}
-              />
-              <Input
-                type="date"
-                value={dateDraft}
-                onChange={(e) => setDateDraft(e.target.value)}
-                className={`${FORM_INPUT_COMPACT} w-[8.5rem] shrink-0`}
-              />
-              <Input
-                value={siteDraft}
-                onChange={(e) => setSiteDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    commitPrice();
-                  }
-                }}
-                placeholder="https://..."
-                className={`${FORM_INPUT_COMPACT} flex-1 min-w-[8rem]`}
-              />
+          {/* 가격 정보 zone — 브랜드/가격/구매일/URL 한 테두리. 추가 버튼 + 가격 이력 동봉. */}
+          <div className="rounded-lg border bg-muted/20 p-3 flex flex-col gap-2.5">
+            <div className="grid grid-cols-2 gap-2">
+              <FormField label="브랜드">
+                <Input
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  placeholder="브랜드명"
+                  className={FORM_INPUT_COMPACT}
+                />
+              </FormField>
+              <FormField label="가격">
+                <Input
+                  type="number"
+                  value={priceDraft}
+                  onChange={(e) => setPriceDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitPrice();
+                    }
+                  }}
+                  placeholder="35000"
+                  className={FORM_INPUT_COMPACT}
+                />
+              </FormField>
+              <FormField label="구매일">
+                <DatePicker
+                  value={dateDraft}
+                  onChange={setDateDraft}
+                  className={FORM_INPUT_COMPACT}
+                />
+              </FormField>
+              <FormField label="URL">
+                <Input
+                  value={siteDraft}
+                  onChange={(e) => setSiteDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      commitPrice();
+                    }
+                  }}
+                  placeholder="https://..."
+                  className={FORM_INPUT_COMPACT}
+                />
+              </FormField>
+            </div>
+            <div className="flex items-center gap-1.5">
               <Button
                 type="button"
                 variant={editingIdx !== null ? "default" : "outline"}
                 onClick={commitPrice}
                 disabled={!priceDraft || !(parseInt(priceDraft) > 0)}
-                className={`${FORM_BUTTON_INLINE} shrink-0`}
+                className={`${FORM_BUTTON_INLINE} flex-1`}
               >
-                {editingIdx !== null ? "수정" : "추가"}
+                {editingIdx !== null ? "수정" : "가격 추가"}
               </Button>
               {editingIdx !== null && (
                 <Button
@@ -440,7 +446,7 @@ export default function ProductForm({
                 </ul>
               );
             })()}
-          </FormField>
+          </div>
 
           {/* 고정비 등록 + 옵션 (결제일·월비용·가계부 카테고리 + 미리보기) */}
           <div className="flex flex-col gap-2">

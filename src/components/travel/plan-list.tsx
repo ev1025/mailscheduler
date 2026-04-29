@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Trash2, Copy } from "lucide-react";
+import { Trash2, Copy, CalendarPlus } from "lucide-react";
 import RowActionPopover from "@/components/ui/row-action-popover";
 import SearchInput from "@/components/ui/search-input";
 import PromptDialog from "@/components/ui/prompt-dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useTravelPlans } from "@/hooks/use-travel-plans";
+import { supabase } from "@/lib/supabase";
+import { useCurrentUserId } from "@/lib/current-user";
+import { toast } from "sonner";
 import type { TravelPlan } from "@/types";
 import {
   DndContext,
@@ -57,9 +60,10 @@ interface PlanCardProps {
   onSelect: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onAddToCalendar: () => void;
 }
 
-function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate }: PlanCardProps) {
+function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate, onAddToCalendar }: PlanCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: plan.id, disabled: !dragEnabled });
   const style = {
@@ -97,6 +101,11 @@ function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate }: PlanCa
           align="end"
           items={[
             {
+              icon: <CalendarPlus className="h-3.5 w-3.5" />,
+              label: "달력에 추가",
+              onClick: onAddToCalendar,
+            },
+            {
               icon: <Copy className="h-3.5 w-3.5" />,
               label: "복제",
               onClick: onDuplicate,
@@ -116,10 +125,17 @@ function PlanCard({ plan, dragEnabled, onSelect, onDelete, onDuplicate }: PlanCa
 
 export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Props) {
   const { plans, loading, addPlan, deletePlan, duplicatePlan } = useTravelPlans(visibleUserIds);
+  const userId = useCurrentUserId();
   const [newOpen, setNewOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [customOrder, setCustomOrder] = useState<string[]>([]);
+  // "달력에 추가" 확인 다이얼로그 — 등록될 일정 수를 미리 안내.
+  const [addToCalState, setAddToCalState] = useState<
+    | { plan: TravelPlan; tasks: { count: number; events: Record<string, unknown>[] } }
+    | null
+  >(null);
+  const [addToCalLoading, setAddToCalLoading] = useState(false);
 
   useEffect(() => {
     setCustomOrder(loadCustomOrder());
@@ -174,6 +190,92 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
   }, [filtered, customOrder, search]);
 
   const dragEnabled = !search.trim();
+
+  /**
+   * 여행 계획의 모든 task 를 달력 일정으로 미리 변환.
+   * - 날짜: plan.start_date + day_index 일
+   * - 시간: task.start_time (있으면). 종료시간은 start_time + stay_minutes (둘 다 있을 때만).
+   * - 색상: task.category 가 travel_categories 의 빌트인 이름이면 해당 색, 아니면 기본 파랑.
+   * - 이동수단/체류 자체는 본문에 안 담음 (사용자 요구).
+   */
+  const buildCalendarEventsFromPlan = async (plan: TravelPlan) => {
+    if (!plan.start_date) {
+      toast.error("계획에 시작일이 없습니다. 먼저 시작일을 설정해주세요.");
+      return null;
+    }
+    const { data: tasks, error } = await supabase
+      .from("travel_plan_tasks")
+      .select("*")
+      .eq("plan_id", plan.id)
+      .order("day_index")
+      .order("start_time", { nullsFirst: false })
+      .order("manual_order");
+    if (error || !tasks || tasks.length === 0) {
+      toast.error(tasks && tasks.length === 0 ? "추가할 일정이 없습니다" : "일정 조회 실패");
+      return null;
+    }
+    // 카테고리 색상 룩업 (현재 유저).
+    let colorMap: Record<string, string> = {};
+    if (userId) {
+      const { data: cats } = await supabase
+        .from("travel_categories")
+        .select("name, color")
+        .eq("user_id", userId);
+      if (cats) {
+        colorMap = Object.fromEntries(
+          (cats as { name: string; color: string }[]).map((c) => [c.name, c.color]),
+        );
+      }
+    }
+    const baseDate = new Date(plan.start_date + "T00:00:00");
+    const events = tasks.map((t) => {
+      const d = new Date(baseDate);
+      d.setDate(d.getDate() + (t.day_index ?? 0));
+      const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const startTime: string | null = t.start_time ? String(t.start_time).slice(0, 5) : null;
+      let endTime: string | null = null;
+      if (startTime && t.stay_minutes && t.stay_minutes > 0) {
+        const [h, m] = startTime.split(":").map(Number);
+        const total = h * 60 + m + t.stay_minutes;
+        const eh = Math.floor(total / 60) % 24;
+        const em = total % 60;
+        endTime = `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
+      }
+      const color = (t.category && colorMap[t.category]) || "#3B82F6";
+      return {
+        title: t.place_name || "(이름 없음)",
+        description: t.content || null,
+        start_date: date,
+        end_date: null,
+        start_time: startTime,
+        end_time: endTime,
+        color,
+        user_id: userId,
+      };
+    });
+    return { count: events.length, events };
+  };
+
+  const requestAddToCalendar = async (plan: TravelPlan) => {
+    const result = await buildCalendarEventsFromPlan(plan);
+    if (!result) return;
+    setAddToCalState({ plan, tasks: result });
+  };
+
+  const confirmAddToCalendar = async () => {
+    if (!addToCalState) return;
+    setAddToCalLoading(true);
+    const { error } = await supabase
+      .from("calendar_events")
+      .insert(addToCalState.tasks.events);
+    setAddToCalLoading(false);
+    if (error) {
+      toast.error("달력 추가 실패: " + (error.message || "알 수 없는 오류"));
+    } else {
+      toast.success(`${addToCalState.tasks.count}개 일정을 달력에 추가했습니다`);
+    }
+    setAddToCalState(null);
+  };
 
   const handleDragEnd = (e: DragEndEvent) => {
     if (!e.over || e.active.id === e.over.id) return;
@@ -238,6 +340,7 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
                     onDuplicate={async () => {
                       await duplicatePlan(p.id);
                     }}
+                    onAddToCalendar={() => requestAddToCalendar(p)}
                   />
                 ))}
               </div>
@@ -271,6 +374,21 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
           if (deletingId) await deletePlan(deletingId);
           setDeletingId(null);
         }}
+      />
+
+      <ConfirmDialog
+        open={!!addToCalState}
+        onOpenChange={(o) => {
+          if (!o && !addToCalLoading) setAddToCalState(null);
+        }}
+        title="달력에 추가"
+        description={
+          addToCalState
+            ? `"${addToCalState.plan.title}" 의 ${addToCalState.tasks.count}개 일정을 달력에 등록할까요? 시작시간과 체류시간 합계가 종료시간으로 들어갑니다.`
+            : ""
+        }
+        confirmLabel={addToCalLoading ? "추가 중..." : "추가"}
+        onConfirm={confirmAddToCalendar}
       />
     </div>
   );

@@ -1,157 +1,118 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Clock } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * 시간 입력 — 24시간제 "HH:MM" 형식.
+ *
+ * UX:
+ *  - 사용자가 숫자 입력 → 2자리 시간 입력되면 자동으로 ":" 삽입 + 커서가 분 영역으로 이동.
+ *  - HH 0–23, MM 0–59 범위 자동 클램프.
+ *  - 4자리 입력 완료 시 onChange 호출. 부분 입력 중에는 로컬 state 만 변경.
+ *  - 비우면 onChange("") 호출.
+ *
+ * 이전 버전은 휠 형태 popover 였음. 모바일에서 한 손 입력 어려움 + 데스크탑에서도 클릭 횟수 많음.
+ * 입력형식이 빠르고 키보드 친화적.
+ */
 interface TimePickerProps {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  placeholder?: string;
 }
 
-const ITEM_HEIGHT = 36;
-const VISIBLE_ITEMS = 3;
-
-function WheelColumn({ items, selected, onSelect }: {
-  items: string[];
-  selected: string;
-  onSelect: (val: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const scrollTimeout = useRef<ReturnType<typeof setTimeout>>(null);
-  const selectedIdx = items.indexOf(selected);
-
-  useEffect(() => {
-    if (ref.current && selectedIdx >= 0) {
-      ref.current.scrollTop = selectedIdx * ITEM_HEIGHT;
-    }
-  }, [selectedIdx]);
-
-  const handleScroll = useCallback(() => {
-    if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
-    scrollTimeout.current = setTimeout(() => {
-      if (!ref.current) return;
-      const idx = Math.round(ref.current.scrollTop / ITEM_HEIGHT);
-      const clamped = Math.max(0, Math.min(idx, items.length - 1));
-      ref.current.scrollTo({ top: clamped * ITEM_HEIGHT, behavior: "smooth" });
-      onSelect(items[clamped]);
-    }, 80);
-  }, [items, onSelect]);
-
-  return (
-    <div
-      ref={ref}
-      className="relative overflow-y-auto scrollbar-none flex-1"
-      style={{ height: ITEM_HEIGHT * VISIBLE_ITEMS }}
-      onScroll={handleScroll}
-    >
-      <div style={{ height: ITEM_HEIGHT }} />
-      {items.map((item, i) => {
-        const isSelected = item === selected;
-        return (
-          <div
-            key={i}
-            className={cn(
-              "flex items-center justify-center text-sm transition-all cursor-pointer select-none",
-              isSelected ? "text-foreground font-semibold scale-105" : "text-muted-foreground/50"
-            )}
-            style={{ height: ITEM_HEIGHT }}
-            onClick={() => {
-              onSelect(item);
-              ref.current?.scrollTo({ top: items.indexOf(item) * ITEM_HEIGHT, behavior: "smooth" });
-            }}
-          >
-            {item}
-          </div>
-        );
-      })}
-      <div style={{ height: ITEM_HEIGHT }} />
-    </div>
-  );
+function digitsOnly(s: string): string {
+  return s.replace(/\D/g, "");
 }
 
-export default function TimePicker({ value, onChange, className }: TimePickerProps) {
-  const [open, setOpen] = useState(false);
+/** "1729" → "17:29",  "172" → "17:2",  "17" → "17",  "1" → "1" */
+function formatTime(digits: string): string {
+  if (digits.length === 0) return "";
+  if (digits.length <= 2) return digits;
+  return digits.slice(0, 2) + ":" + digits.slice(2, 4);
+}
 
-  const parseValue = (v: string) => {
-    if (!v) return { period: "AM", hour: "12", min: "00" };
-    const [hStr, mStr] = v.split(":");
-    let h = parseInt(hStr);
-    const period = h >= 12 ? "PM" : "AM";
-    if (h === 0) h = 12;
-    else if (h > 12) h -= 12;
-    return { period, hour: String(h), min: mStr || "00" };
-  };
+/** HH(0–23)/MM(0–59) 클램프. 불완전 입력은 그대로 통과. */
+function clampDigits(raw: string): string {
+  const d = digitsOnly(raw).slice(0, 4);
+  if (d.length < 2) return d;
+  let hh = parseInt(d.slice(0, 2));
+  if (hh > 23) hh = 23;
+  let out = String(hh).padStart(2, "0");
+  if (d.length === 2) return out;
+  let mm = parseInt(d.slice(2));
+  if (d.length === 4 && mm > 59) mm = 59;
+  out += d.length === 3 ? d.slice(2, 3) : String(mm).padStart(2, "0");
+  return out;
+}
 
-  const { period, hour, min } = parseValue(value);
-  const [selPeriod, setSelPeriod] = useState(period);
-  const [selHour, setSelHour] = useState(hour);
-  const [selMin, setSelMin] = useState(min);
+export default function TimePicker({ value, onChange, className, placeholder = "HH:MM" }: TimePickerProps) {
+  const [text, setText] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  // 부모로부터 value 가 바뀌면 동기화 (예: 폼 reset).
   useEffect(() => {
-    if (open) {
-      const now = new Date();
-      const currentTime = value || `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-      const { period: p, hour: h, min: m } = parseValue(currentTime);
-      setSelPeriod(p);
-      setSelHour(h);
-      setSelMin(m);
+    setText(value);
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    const clamped = clampDigits(raw);
+    const formatted = formatTime(clamped);
+    setText(formatted);
+
+    // 커서 위치: 숫자 입력 직후 자동 ":" 삽입 시 분 영역으로 이동시키기 위해 항상 끝으로.
+    // 사용자가 중간 클릭 후 입력하는 케이스는 흔치 않아 단순 처리.
+    requestAnimationFrame(() => {
+      if (inputRef.current && document.activeElement === inputRef.current) {
+        const len = formatted.length;
+        inputRef.current.setSelectionRange(len, len);
+      }
+    });
+
+    if (clamped.length === 4) {
+      onChange(formatted);
+    } else if (clamped.length === 0) {
+      onChange("");
     }
-  }, [open, value]);
-
-  const buildTime = (p: string, h: string, m: string) => {
-    let hr = parseInt(h);
-    if (p === "AM" && hr === 12) hr = 0;
-    else if (p === "PM" && hr !== 12) hr += 12;
-    return `${String(hr).padStart(2, "0")}:${m}`;
+    // 부분 입력 (1~3자리) 시에는 부모에 안 알림 — 저장 시점에서 4자리만 유효로 인정.
   };
 
-  const handleConfirm = () => {
-    onChange(buildTime(selPeriod, selHour, selMin));
-    setOpen(false);
+  const handleBlur = () => {
+    // blur 시 4자리 미만이면 빈 값 처리 (저장 시 혼란 방지).
+    const d = digitsOnly(text);
+    if (d.length === 0) {
+      if (value !== "") onChange("");
+      return;
+    }
+    if (d.length < 4) {
+      // 미완성 입력은 0 패딩으로 자동 완성. 예: "9" → "09:00", "09:3" → "09:30".
+      const hh = String(parseInt(d.slice(0, 2) || d) || 0).padStart(2, "0");
+      const mm = (d.slice(2) || "00").padEnd(2, "0").slice(0, 2);
+      const completed = `${hh.slice(0, 2)}:${mm}`;
+      setText(completed);
+      onChange(completed);
+    }
   };
-
-  const hours = Array.from({ length: 12 }, (_, i) => String(i + 1));
-  const mins = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        className={cn(
-          "flex items-center justify-center gap-1.5 rounded-md border px-2.5 text-sm transition-colors hover:bg-accent cursor-pointer",
-          !value && "text-muted-foreground",
-          className
-        )}
-      >
-        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-        {value || `${String(new Date().getHours()).padStart(2, "0")}:${String(new Date().getMinutes()).padStart(2, "0")}`}
-      </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0" align="start" side="bottom">
-        <div className="flex items-center relative">
-          <div
-            className="absolute left-2 border-t border-b pointer-events-none z-10"
-            style={{ top: ITEM_HEIGHT, height: ITEM_HEIGHT, right: 48 }}
-          />
-          <WheelColumn items={["AM", "PM"]} selected={selPeriod} onSelect={setSelPeriod} />
-          <WheelColumn items={hours} selected={selHour} onSelect={setSelHour} />
-          <div className="flex items-center justify-center text-sm font-semibold text-muted-foreground" style={{ height: ITEM_HEIGHT * VISIBLE_ITEMS }}>:</div>
-          <WheelColumn items={mins} selected={selMin} onSelect={setSelMin} />
-          <button
-            type="button"
-            onClick={handleConfirm}
-            className="flex items-center justify-center px-3 text-sm font-semibold hover:text-blue-600 transition-colors"
-            style={{ height: ITEM_HEIGHT * VISIBLE_ITEMS }}
-          >
-            선택
-          </button>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <input
+      ref={inputRef}
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={text}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      maxLength={5}
+      className={cn(
+        "rounded-md border bg-background px-2.5 text-sm tabular-nums transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring",
+        !text && "text-muted-foreground",
+        className,
+      )}
+      aria-label="시간"
+    />
   );
 }

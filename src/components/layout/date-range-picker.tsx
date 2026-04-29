@@ -79,8 +79,10 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
   const [open, setOpen] = useState(false);
   // 캘린더 안에서 보고 있는 달 — 시작일 기준으로 초기화.
   const [viewMonth, setViewMonth] = useState<Date>(() => startOfMonth(parseISO(startDate)));
-  // 첫 클릭 후 두 번째 클릭 대기 중인 임시 시작일.
+  // 임시 선택 — 사용자가 캘린더에서 두 번째 날짜 클릭해도 즉시 적용 안 하고 "확인" 버튼 클릭 시 반영.
+  // pendingStart 만 있으면 아직 종료일 미선택. 둘 다 있으면 미리보기 상태.
   const [pendingStart, setPendingStart] = useState<Date | null>(null);
+  const [pendingEnd, setPendingEnd] = useState<Date | null>(null);
 
   const today = new Date();
   const start = parseISO(startDate);
@@ -106,22 +108,35 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
 
   const handlePickDate = (d: Date) => {
     if (!pendingStart) {
-      // 첫 번째 클릭 — start 후보로 둠. end 는 아직 선택 안 됨.
+      // 첫 번째 클릭 — start 후보로 둠.
       setPendingStart(d);
+      setPendingEnd(null);
       return;
     }
-    // 두 번째 클릭 — end 결정. 시간 순서 자동 정렬.
+    // 두 번째(또는 후속) 클릭 — pendingEnd 갱신. 시간 순서 자동 정렬. onChange 는 호출 안 함.
     let s = pendingStart;
     let e = d;
     if (e < s) [s, e] = [e, s];
-    onChange(toISODate(s), toISODate(e));
+    setPendingStart(s);
+    setPendingEnd(e);
+  };
+
+  const handleConfirm = () => {
+    if (pendingStart && pendingEnd) {
+      onChange(toISODate(pendingStart), toISODate(pendingEnd));
+    } else if (pendingStart && !pendingEnd) {
+      // 종료일 미선택 — 단일 날짜로 적용.
+      onChange(toISODate(pendingStart), toISODate(pendingStart));
+    }
     setPendingStart(null);
+    setPendingEnd(null);
     setOpen(false);
   };
 
   const setPreset = (s: Date, e: Date) => {
     onChange(toISODate(s), toISODate(e));
     setPendingStart(null);
+    setPendingEnd(null);
     setOpen(false);
   };
 
@@ -138,13 +153,22 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
   while (cells.length < totalCells) cells.push(null);
 
   const isInRange = (d: Date): boolean => {
+    if (pendingStart && pendingEnd) {
+      // 미리보기: 임시 시작/종료 사이 강조.
+      return d >= pendingStart && d <= pendingEnd;
+    }
     if (pendingStart) {
-      // 1차 선택 후 hover 가 없으니 임시로 pendingStart 단독 표시만.
+      // 시작만 선택된 단계 — 별도 range 강조 없음.
       return false;
     }
     return d >= start && d <= end;
   };
   const isEndpoint = (d: Date): "start" | "end" | null => {
+    if (pendingStart && pendingEnd) {
+      if (isSameDay(d, pendingStart)) return "start";
+      if (isSameDay(d, pendingEnd)) return "end";
+      return null;
+    }
     if (pendingStart && isSameDay(d, pendingStart)) return "start";
     if (!pendingStart && isSameDay(d, start)) return "start";
     if (!pendingStart && isSameDay(d, end)) return "end";
@@ -157,7 +181,16 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
-      <Popover open={open} onOpenChange={(o) => { setOpen(o); if (!o) setPendingStart(null); }}>
+      <Popover
+        open={open}
+        onOpenChange={(o) => {
+          setOpen(o);
+          if (!o) {
+            setPendingStart(null);
+            setPendingEnd(null);
+          }
+        }}
+      >
         <PopoverTrigger className="rounded-md px-2 py-1 text-base md:text-lg font-bold hover:bg-accent transition-colors cursor-pointer tabular-nums">
           {formatRangeLabel(startDate, endDate)}
         </PopoverTrigger>
@@ -238,8 +271,8 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
             })}
           </div>
 
-          {/* 프리셋 — 자주 쓰는 구간 빠른 선택. */}
-          <div className="mt-3 flex flex-wrap gap-1 pt-2 border-t">
+          {/* 프리셋 + 확인 — 같은 행에 둬서 시각적 일관성. 확인은 primary 색으로 구분. */}
+          <div className="mt-3 flex flex-wrap items-center gap-1 pt-2 border-t">
             <button
               type="button"
               onClick={() => {
@@ -286,11 +319,20 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
             >
               최근 30일
             </button>
+            {/* 확인 — pendingStart 가 있을 때만 활성. ml-auto 로 우측 정렬. */}
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={!pendingStart}
+              className="ml-auto px-3 py-1 text-[11px] rounded-full bg-primary text-primary-foreground font-semibold transition-opacity disabled:opacity-30 disabled:cursor-not-allowed hover:opacity-90"
+            >
+              확인
+            </button>
           </div>
 
-          {pendingStart && (
+          {pendingStart && !pendingEnd && (
             <p className="mt-2 text-[11px] text-muted-foreground text-center">
-              종료일을 선택하세요
+              종료일을 선택하거나 [확인]
             </p>
           )}
         </PopoverContent>

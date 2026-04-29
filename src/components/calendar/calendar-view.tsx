@@ -29,11 +29,14 @@ import type { CalendarEvent, WeatherData } from "@/types";
 import WeatherIcon from "./weather-icon";
 import { useHolidayMap } from "@/lib/holidays";
 
-/* ── 레이아웃 상수 ── */
+/* ── 레이아웃 상수 ──
+   모바일에서 1셀 ~70px 안에 3건 표시되도록 BAR_H/BAR_STEP/top 오프셋 조정.
+   font-size 도 공휴일/일정 통일(10px). */
 const MAX_VISIBLE_SLOTS = 3;
-const BAR_H = 12;
+const BAR_H = 11;
 const BAR_GAP = 1;
 const BAR_STEP = BAR_H + BAR_GAP;
+const BAR_FONT = 10;
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 interface CalendarViewProps {
@@ -60,7 +63,6 @@ interface Seg {
 /* ── 드래그 바 ── */
 function DraggableBar({ seg, onClickDate }: { seg: Seg; onClickDate: (d: string) => void }) {
   const { event, startCol, spanDays, isEventStart, isEventEnd, slot, endLabel } = seg;
-  const isHoliday = event.id.startsWith("__holiday__");
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${event.id}__bar`,
     data: { event },
@@ -90,7 +92,7 @@ function DraggableBar({ seg, onClickDate }: { seg: Seg; onClickDate: (d: string)
         borderBottomLeftRadius: isEventStart ? 3 : 0,
         borderTopRightRadius: isEventEnd ? 3 : 0,
         borderBottomRightRadius: isEventEnd ? 3 : 0,
-        fontSize: isHoliday ? 7 : 10,
+        fontSize: BAR_FONT,
         lineHeight: `${BAR_H}px`,
         whiteSpace: "nowrap",
       }}
@@ -147,36 +149,46 @@ export default function CalendarView({
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const days = eachDayOfInterval({ start: calStart, end: calEnd });
 
-  // 공휴일을 가상 이벤트로 변환해 달력에 빨간 바로 표시.
-  // 스와이프로 월 전환 시 events 상태는 이전 월 데이터를 잠시 보유 — 새 월 grid 의
-  // trailing day 셀(예: 5월 그리드의 4/30)에 이전 월 일정이 깜빡이는 걸 막기 위해
-  // 표시 월(monthStart~monthEnd) 범위 안 일정만 통과시킴.
+  // 표시 중인 월의 ISO 경계 — 문자열 비교로 통일.
+  // (parseISO + Date 비교는 timezone 변환 가능성 있어 월 전환 시 깜빡임 원인 가능. ISO YYYY-MM-DD 는
+  //  사전식 비교가 정확.)
+  const monthStartIso = `${year}-${String(month).padStart(2, "0")}-01`;
+  const monthEndIso =
+    month === 12
+      ? `${year + 1}-01-01`
+      : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+
+  // 공휴일 + 일정 모두 표시 월 범위와 겹치는 것만 통과.
+  // 월 전환 (예: 5월→6월) 시 events 상태가 잠시 이전 월 데이터를 보유해도, 표시 월과
+  // 안 겹치면 렌더 안 됨 → 깜빡임 방지. 공휴일도 같은 필터로 통일 (이전엔 holidays 만 통과
+  // → 5월 5일 어린이날 같은 인근 월 공휴일이 잠깐 보일 수 있었음).
   const allEvents = useMemo(() => {
-    const holidayEvents: CalendarEvent[] = Object.entries(holidayMap).map(([date, name]) => ({
-      id: `__holiday__${date}`,
-      title: name,
-      description: null,
-      start_date: date,
-      end_date: null,
-      start_time: null,
-      end_time: null,
-      color: "#EF4444",
-      tag: null,
-      repeat: null,
-      series_id: null,
-      sort_order: -1,
-      created_at: "",
-      user_id: "",
-    }));
-    const monthEvents = events.filter((ev) => {
-      const s = parseISO(ev.start_date);
-      const e = ev.end_date ? parseISO(ev.end_date) : s;
-      return e >= monthStart && s <= monthEnd;
-    });
+    const overlaps = (start: string, end: string | null) => {
+      const e = end ?? start;
+      // [start..e] 와 [monthStartIso..monthEndIso) 겹침 검사.
+      return e >= monthStartIso && start < monthEndIso;
+    };
+    const holidayEvents: CalendarEvent[] = Object.entries(holidayMap)
+      .filter(([date]) => overlaps(date, null))
+      .map(([date, name]) => ({
+        id: `__holiday__${date}`,
+        title: name,
+        description: null,
+        start_date: date,
+        end_date: null,
+        start_time: null,
+        end_time: null,
+        color: "#EF4444",
+        tag: null,
+        repeat: null,
+        series_id: null,
+        sort_order: -1,
+        created_at: "",
+        user_id: "",
+      }));
+    const monthEvents = events.filter((ev) => overlaps(ev.start_date, ev.end_date));
     return [...holidayEvents, ...monthEvents];
-    // monthStart/monthEnd 는 매 렌더 새 Date 라 deps 로 못 씀 — year/month primitive 사용
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, holidayMap, year, month]);
+  }, [events, holidayMap, monthStartIso, monthEndIso]);
 
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
   const [overDate, setOverDate] = useState<string | null>(null);
@@ -190,8 +202,9 @@ export default function CalendarView({
     if (!el) return;
     const calc = () => {
       const h = el.getBoundingClientRect().height;
-      // 사용 가능 높이 = 행 높이 - 헤더 영역(~36px) - +N 표시(~14px)
-      const available = h - 30 - 10;
+      // 사용 가능 높이 = 행 높이 - 헤더(약 22px) - +N 영역(약 6px).
+      // 이전엔 -40px 차감으로 모바일 작은 행에서 최대 2건만 들어갔음 → 3건 표시되도록 완화.
+      const available = h - 22 - 6;
       const fits = Math.max(0, Math.min(MAX_VISIBLE_SLOTS, Math.floor(available / BAR_STEP)));
       setDynamicMax(fits);
     };
@@ -293,13 +306,19 @@ export default function CalendarView({
           ))}
         </div>
 
-        {/* 주 행 */}
-        <div className="flex min-h-0 flex-1 flex-col">
+        {/* 주 행 — 키보드/채팅창 등으로 viewport 가 축소될 때 행 높이가 너무 작아져
+            헤더와 바가 겹치는 "찌그러짐" 방지: minHeight 2.5rem 보장 + 부모는 필요 시 스크롤. */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
           {weeks.map((week, wi) => {
             const segs = weekSegs[wi];
             const hidden = weekHidden[wi];
             return (
-              <div key={wi} ref={wi === 0 ? rowRef : undefined} className="relative grid min-h-0 flex-1 grid-cols-7 overflow-hidden [&>*:nth-child(7)]:border-r-0">
+              <div
+                key={wi}
+                ref={wi === 0 ? rowRef : undefined}
+                className="relative grid flex-1 grid-cols-7 overflow-hidden [&>*:nth-child(7)]:border-r-0"
+                style={{ minHeight: "2.5rem" }}
+              >
                 {/* ── 셀 레이어: 날짜·날씨·공휴일·+N ── */}
                 {week.map((day, di) => {
                   const ds = format(day, "yyyy-MM-dd");
@@ -335,9 +354,10 @@ export default function CalendarView({
                   );
                 })}
 
-                {/* ── 바 오버레이: grid-column span으로 너비, 텍스트 중앙정렬 ── */}
+                {/* ── 바 오버레이: grid-column span으로 너비, 텍스트 중앙정렬 ──
+                    헤더(날짜 18~20px + pt-1) 바로 아래 시작. 이전 28/32px 에서 6px 위로 조정. */}
                 <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[28px] md:top-[32px]"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[22px] md:top-[26px]"
                   style={{ gridAutoRows: 0 }}
                 >
                   {segs
