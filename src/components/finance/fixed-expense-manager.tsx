@@ -45,10 +45,14 @@ interface FixedExpenseManagerProps {
     year: number,
     month: number,
   ) => Promise<{ error: unknown }>;
-  /** 수정 시 반복 N개월에 미래 거래가 부족하면 채워주는 콜백. dedup 포함. */
+  /** 수정 시 반복 N개월에 미래 거래가 부족하면 채워주는 콜백. dedup 포함.
+   *  fromYear/fromMonth 미지정 시 today 부터 채움. 수정 시엔 scope 월을 넘겨
+   *  scope 이전 월은 건드리지 않게 해야 함 (안 그러면 보존 월에 새 day 로 중복 추가). */
   onEnsureFixedMonths?: (
     id: string,
     repeatMonths: number,
+    fromYear?: number,
+    fromMonth?: number,
   ) => Promise<{ error: unknown }>;
   onAddCategory?: (
     name: string,
@@ -192,13 +196,14 @@ export default function FixedExpenseManager({
       ? { ...pendingUpdate.newData, repeat_months: pendingUpdate.repeatMonths }
       : pendingUpdate.newData;
     await onUpdateWithScope(pendingUpdate.oldFx.id, newData, year, month);
-    // 반복 N 이 있으면 미래 거래도 보장.
+    // 반복 N 이 있으면 미래 거래도 보장 — 단, scope 이전 월은 건드리면 안 되므로
+    // 사용자가 고른 (year, month) 부터 채움.
     if (
       pendingUpdate.repeatMonths !== undefined &&
       (pendingUpdate.repeatMonths > 1 || pendingUpdate.repeatMonths === -1) &&
       onEnsureFixedMonths
     ) {
-      await onEnsureFixedMonths(pendingUpdate.oldFx.id, pendingUpdate.repeatMonths);
+      await onEnsureFixedMonths(pendingUpdate.oldFx.id, pendingUpdate.repeatMonths, year, month);
     }
     setPendingUpdate(null);
   };
@@ -500,6 +505,8 @@ function MonthChoiceDialog({
               month={month}
               onYearChange={setYear}
               onMonthChange={setMonth}
+              // Dialog z-[80] 위로 띄움 — 안 그러면 popover 가 다이얼로그 뒤로 깔려 클릭 불가.
+              popoverPositionerClassName="z-[90]"
             />
           </div>
           <p className="text-[11px] text-muted-foreground break-keep leading-relaxed text-center">

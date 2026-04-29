@@ -366,24 +366,30 @@ export function useFixedExpenses() {
 
   /**
    * 기존 fx 의 미래 N개월 거래 일괄 보장 (중복은 dedup) — 수정 폼에서 반복 늘릴 때 사용.
-   *  - 이번달 포함 N개월 (N=1 → 이번달만, N=-1 → 120개월)
+   *  - fromYear/fromMonth 부터 N개월 (없으면 today 부터). N=1 → 그 달만, N=-1 → 120개월
    *  - 같은 (amount, description, date) 조합이 이미 있으면 skip
    *  - 줄이는 동작은 안 함 (이미 등록된 미래 거래는 그대로)
    *
-   * 주의: fx 는 항상 DB 에서 fresh 로 fetch 함 — 호출자가 직전 update 후 호출하면
-   * 로컬 state(fixedExpenses) 가 stale 일 수 있어 잘못된 day_of_month 로 빈 자리를
-   * 채워 중복 거래가 생기는 버그가 있었음.
+   * 주의 1: fx 는 항상 DB 에서 fresh 로 fetch 함 — 호출자가 직전 update 후 호출하면
+   *   로컬 state(fixedExpenses) 가 stale 일 수 있어 잘못된 day_of_month 로 빈 자리를
+   *   채워 중복 거래가 생기는 버그가 있었음.
+   * 주의 2: scope 월 (사용자가 고른 시작월) 을 넘기지 않으면 today 부터 채우는데,
+   *   이 경우 사용자가 scope 외(예: 과거) 월을 보존하려 해도 today 가 그 안에 있으면
+   *   오늘이 속한 달부터 새 day 로 row 가 추가되어 중복 발생. 수정 흐름에서는 항상
+   *   scope (fromYear/fromMonth) 을 넘기는 것이 안전.
    */
   const ensureFixedMonths = async (
     fxId: string,
     repeatMonths: number,
+    fromYear?: number,
+    fromMonth?: number,
   ) => {
     const months = repeatMonths === -1 ? 120 : Math.max(1, repeatMonths);
-    if (months <= 1) return { error: null }; // 이번달만이면 추가 거래 없음
+    if (months <= 1) return { error: null }; // 그 달만이면 추가 거래 없음
 
     const today = new Date();
-    const baseYear = today.getFullYear();
-    const baseMonth = today.getMonth() + 1;
+    const baseYear = fromYear ?? today.getFullYear();
+    const baseMonth = fromMonth ?? today.getMonth() + 1;
 
     // 대상 기간(이번달 ~ +months) 의 기존 거래를 한 번에 조회 → set 으로 dedup.
     const startDate = `${baseYear}-${String(baseMonth).padStart(2, "0")}-01`;

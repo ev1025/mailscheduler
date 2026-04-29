@@ -359,8 +359,8 @@ function FinancePageInner() {
           if (!r.error) await refetchTransactions();
           return r;
         }}
-        onEnsureFixedMonths={async (id, repeat) => {
-          const r = await ensureFixedMonths(id, repeat);
+        onEnsureFixedMonths={async (id, repeat, fromY, fromM) => {
+          const r = await ensureFixedMonths(id, repeat, fromY, fromM);
           if (!r.error) await refetchTransactions();
           return r;
         }}

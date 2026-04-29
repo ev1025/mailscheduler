@@ -14,6 +14,10 @@ interface MonthPickerProps {
   month: number;
   onYearChange: (year: number) => void;
   onMonthChange: (month: number) => void;
+  /** 다이얼로그 안에서 쓸 때 z-index 를 올려야 popover 가 가려지지 않음.
+   *  Positioner 의 isolate stacking context 를 덮어쓰는 클래스. 예) "z-[90]" — Dialog 의
+   *  z-[80] 보다 높게. */
+  popoverPositionerClassName?: string;
 }
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -23,6 +27,7 @@ export default function MonthPicker({
   month,
   onYearChange,
   onMonthChange,
+  popoverPositionerClassName,
 }: MonthPickerProps) {
   const [yearOpen, setYearOpen] = useState(false);
   const [monthOpen, setMonthOpen] = useState(false);
@@ -52,7 +57,7 @@ export default function MonthPicker({
         <PopoverTrigger className="rounded-md px-1.5 py-1 text-lg font-bold hover:bg-accent transition-colors cursor-pointer">
           {year}년
         </PopoverTrigger>
-        <PopoverContent className="w-[180px] p-2" align="center" side="bottom">
+        <PopoverContent className="w-[180px] p-2" positionerClassName={popoverPositionerClassName} align="center" side="bottom">
           <div className="grid grid-cols-3 gap-1">
             {years.map((y) => (
               <button
@@ -79,7 +84,7 @@ export default function MonthPicker({
         <PopoverTrigger className="rounded-md px-1.5 py-1 text-lg font-bold hover:bg-accent transition-colors cursor-pointer">
           {String(month).padStart(2, "0")}월
         </PopoverTrigger>
-        <PopoverContent className="w-[180px] p-2" align="center" side="bottom">
+        <PopoverContent className="w-[180px] p-2" positionerClassName={popoverPositionerClassName} align="center" side="bottom">
           <div className="grid grid-cols-4 gap-1">
             {MONTHS.map((m) => (
               <button

@@ -15,6 +15,7 @@ function PopoverTrigger({ ...props }: PopoverPrimitive.Trigger.Props) {
 
 function PopoverContent({
   className,
+  positionerClassName,
   align = "center",
   alignOffset = 0,
   side = "bottom",
@@ -25,7 +26,12 @@ function PopoverContent({
   Pick<
     PopoverPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "collisionAvoidance"
-  >) {
+  > & {
+    /** Positioner 의 className override — Positioner 가 isolate 로 stacking context 를
+     *  만들기 때문에 popover 가 다이얼로그(z-50/80) 위로 떠야 할 때는 popup 이 아니라
+     *  Positioner 의 z-index 를 올려야 함. 예: "z-[90]" */
+    positionerClassName?: string
+  }) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Positioner
@@ -34,7 +40,7 @@ function PopoverContent({
         side={side}
         sideOffset={sideOffset}
         collisionAvoidance={collisionAvoidance}
-        className="isolate z-[75]"
+        className={cn("isolate z-[75]", positionerClassName)}
       >
         <PopoverPrimitive.Popup
           data-slot="popover-content"
