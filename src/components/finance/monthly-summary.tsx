@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Pencil, Plus } from "lucide-react";
 import { useAppSetting } from "@/hooks/use-app-settings";
-import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
 
 interface MonthlySummaryProps {
   totalIncome: number;
   totalExpense: number;
+  /** 고정비 합계 — 부모에서 page.tsx 의 useFixedExpenses 와 동일 인스턴스를 공유.
+   *  이전엔 monthly-summary 안에서 별도 훅을 호출해 변경이 즉시 반영 안 되었음. */
+  totalFixed: number;
   /** 고정비 카드 우상단 ✏️ — 클릭 시 FixedExpenseManager 열기. */
   onOpenFixed?: () => void;
   /** 수입/지출 카드 우상단 + — 거래 폼을 해당 type 으로 미리 세팅한 채 열기. */
@@ -22,6 +24,7 @@ function formatWon(amount: number) {
 export default function MonthlySummary({
   totalIncome,
   totalExpense,
+  totalFixed,
   onOpenFixed,
   onAddTransaction,
 }: MonthlySummaryProps) {
@@ -30,8 +33,6 @@ export default function MonthlySummary({
     "0"
   );
   const monthlyIncome = parseInt(incomeStr) || 0;
-  const { fixedExpenses } = useFixedExpenses();
-  const totalFixed = fixedExpenses.reduce((s, f) => s + f.amount, 0);
 
   const [editingIncome, setEditingIncome] = useState(false);
   const [draft, setDraft] = useState("");

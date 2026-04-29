@@ -64,8 +64,36 @@ export function useFixedExpenses() {
       const { title, ...rest } = item;
       void title;
       const retry = await supabase.from("fixed_expenses").insert(rest);
-      if (!retry.error) await fetchFixed();
-      return { error: retry.error };
+      if (retry.error) return { error: retry.error };
+    }
+
+    // 이번달 거래도 즉시 생성 — 사용자가 "추가" 한 시점에 1회 적용.
+    // (자동 재적용 useEffect 는 제거되어 있으므로 여기서만 생성, 중복 없음.)
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth() + 1;
+    const day = Math.min(
+      item.day_of_month,
+      new Date(year, month, 0).getDate(),
+    );
+    const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    const txPayload = {
+      title: item.title,
+      amount: item.amount,
+      category_id: item.category_id,
+      description: item.description,
+      date,
+      type: item.type,
+      payment_method: item.payment_method,
+      user_id: userId,
+    };
+    const txInsert = await supabase.from("expenses").insert(txPayload);
+    if (txInsert.error) {
+      // user_id/title 미지원 구 DB 폴백
+      const { title, user_id, ...txRest } = txPayload;
+      void title;
+      void user_id;
+      await supabase.from("expenses").insert(txRest);
     }
     await fetchFixed();
     return { error: null };

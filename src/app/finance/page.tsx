@@ -82,22 +82,17 @@ function FinancePageInner() {
     applyFixedToMonth,
   } = useFixedExpenses();
 
-  // 고정비 자동 반영 — 페이지 마운트 시 1회 + "현재 실제 월" 을 보고 있을 때만.
-  // 이전엔 월을 < / > 로 이동할 때마다 재시도되어 중복 등록 체감 발생.
-  // 사용자 요구: 화살표 누를 때마다 재등록되는 동작 제거.
-  const initialApplied = useRef(false);
-  useEffect(() => {
-    if (initialApplied.current) return;
-    if (txLoading || fxLoading) return;
-    if (fixedExpenses.length === 0) return;
-    const today = new Date();
-    if (year !== today.getFullYear() || month !== today.getMonth() + 1) return;
-    initialApplied.current = true;
-    void (async () => {
-      const count = await applyFixedToMonth(year, month, transactions);
-      if (count > 0) await refetchTransactions();
-    })();
-  }, [year, month, fixedExpenses, txLoading, fxLoading, transactions, applyFixedToMonth, refetchTransactions]);
+  // monthly-summary 가 자체 훅 인스턴스를 쓰면 변경이 즉시 반영 안 되므로
+  // 여기서 합계 계산해 prop 으로 내려보냄.
+  const totalFixed = useMemo(
+    () => fixedExpenses.reduce((s, f) => s + f.amount, 0),
+    [fixedExpenses],
+  );
+
+  // 자동 적용 useEffect 제거 — 페이지 마운트마다 트리거되어 사용자가 수동으로
+  // 거래를 지워도 다음 진입 시 다시 등록되는 문제 + 고정비 삭제 후 재추가 시 중복
+  // 등록되는 문제의 근본 원인이었음. 이제 사용자가 명시적으로 트리거 (고정비 추가 시
+  // 다이얼로그, 또는 매니저의 "이번달 자동 적용" 버튼) 할 때만 적용됨.
 
   const allTransactions = [...transactions].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -200,6 +195,7 @@ function FinancePageInner() {
             <MonthlySummary
               totalIncome={totalIncome}
               totalExpense={totalExpense}
+              totalFixed={totalFixed}
               onOpenFixed={() => setFixedOpen(true)}
               onAddTransaction={(t) => {
                 setEditing(null);
@@ -308,11 +304,31 @@ function FinancePageInner() {
         onOpenChange={setFixedOpen}
         fixedExpenses={fixedExpenses}
         categories={categories}
-        onAdd={addFixed}
-        onUpdate={updateFixed}
-        onDelete={deleteFixed}
-        onDeleteWithScope={deleteFixedWithScope}
-        onUpdateWithScope={updateFixedWithScope}
+        onAdd={async (item) => {
+          const r = await addFixed(item);
+          if (!r.error) await refetchTransactions();
+          return r;
+        }}
+        onUpdate={async (id, updates) => {
+          const r = await updateFixed(id, updates);
+          if (!r.error) await refetchTransactions();
+          return r;
+        }}
+        onDelete={async (id) => {
+          const r = await deleteFixed(id);
+          if (!r.error) await refetchTransactions();
+          return r;
+        }}
+        onDeleteWithScope={async (id, scope, y, m) => {
+          const r = await deleteFixedWithScope(id, scope, y, m);
+          if (!r.error) await refetchTransactions();
+          return r;
+        }}
+        onUpdateWithScope={async (id, updates, scope, y, m) => {
+          const r = await updateFixedWithScope(id, updates, scope, y, m);
+          if (!r.error) await refetchTransactions();
+          return r;
+        }}
         onAddCategory={addCategory}
         onDeleteCategory={deleteCategory}
         onUpdateCategoryColor={updateCategoryColor}
