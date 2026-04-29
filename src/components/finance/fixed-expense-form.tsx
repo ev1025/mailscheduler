@@ -64,8 +64,9 @@ export default function FixedExpenseForm({
   const [paymentMethod, setPaymentMethod] = useState("");
   const [saving, setSaving] = useState(false);
   // 반복 개월 수.
-  //  - 신규: default = -1 (계속 = 120개월 일괄)
-  //  - 수정: default = 1 (이번달만, 명시적으로 늘려야 미래 거래 추가)
+  //  - 신규/수정 default 모두 -1 (계속). 사용자 멘탈 모델 = "이 고정비는 계속 적용".
+  //  - 수정 시엔 ensureFixedMonths 가 dedup 으로 이미 있는 달은 skip → 안전.
+  //  - 한정된 기간만 원하면 사용자가 N 으로 변경.
   const [repeatMonths, setRepeatMonths] = useState<number>(-1);
 
   useEffect(() => {
@@ -78,8 +79,8 @@ export default function FixedExpenseForm({
       setDescription(fixed.description || "");
       setDayOfMonth(String(fixed.day_of_month));
       setPaymentMethod(fixed.payment_method || "");
-      // 수정: default 1 (이번달만). 사용자가 늘리면 그만큼 미래 거래 추가됨.
-      setRepeatMonths(1);
+      // 수정 default: "계속" (-1). 신규와 동일 — dedup 덕분에 안전.
+      setRepeatMonths(-1);
     } else {
       setType("expense");
       setTitle("");
@@ -88,7 +89,6 @@ export default function FixedExpenseForm({
       setDescription("");
       setDayOfMonth("1");
       setPaymentMethod("");
-      // 신규: default -1 (계속 = 120개월 일괄).
       setRepeatMonths(-1);
     }
   }, [open, fixed]);
