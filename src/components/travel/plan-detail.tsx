@@ -277,16 +277,15 @@ export default function PlanDetail({ planId, onBack }: Props) {
     setSheetOpen(true);
   };
 
-  // task 의 start_time 이 비어있고 체인 계산된 시간이 있으면 sheet 에 fallback 으로 전달.
-  // 사용자가 그 시간 그대로 저장하면 DB 영속화 → 다음에 열어도 입력란에 채워져 있음.
-  // (state 선언 자체는 early return 위로 옮겼음 — 훅 규칙)
+  // 중간 task (predicted=true) 는 stored start_time 이 있어도 체인 계산값을 폼에 전달.
+  // 출발지 시간을 바꾸면 도착지 폼도 자동 갱신되도록 — 목록 표시와 동일 규칙.
+  // 첫 task (anchor) 는 defaultStartTime=null → 폼이 stored 값 사용.
+  // (state 선언은 early return 위 — 훅 규칙)
   const openEditSheet = (task: TravelPlanTask) => {
     setSheetTask(task);
     setSheetDayIndex(task.day_index);
     const predicted = expectedTimes[task.id];
-    setSheetDefaultStartTime(
-      !task.start_time && predicted?.predicted ? predicted.time : null,
-    );
+    setSheetDefaultStartTime(predicted?.predicted ? predicted.time : null);
     setSheetOpen(true);
   };
 

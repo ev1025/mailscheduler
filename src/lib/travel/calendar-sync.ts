@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase";
+import { sortTasks } from "@/lib/travel/sort-tasks";
+import { computeExpectedTimes } from "@/lib/travel/expected-time";
 import type { TravelPlan, TravelPlanTask } from "@/types";
 
 /**
@@ -26,18 +28,42 @@ interface BuildResult {
   events: Record<string, unknown>[];
 }
 
-/** task 들을 calendar_events insert payload 로 변환. plan.start_date 가 없으면 null 반환. */
+/**
+ * task 들을 calendar_events insert payload 로 변환.
+ *
+ * 시간 규칙(목록 표시와 동일):
+ *  - 첫 task (anchor): stored start_time 사용
+ *  - 중간 task (predicted): 체인 계산된 도착시간 사용 (= 이전 task 의 도착 + 체류 + 이동시간)
+ *  - 종료시간(end_time):
+ *      stay_minutes > 0 이면 start + stay
+ *      stay_minutes = 0 이면 null (시작시간만 등록)
+ *  - start_time 자체가 없으면 종료시간도 null.
+ *
+ * plan.start_date 가 없으면 null 반환 (등록 불가).
+ */
 export function buildCalendarEvents(input: BuildEventInput): BuildResult | null {
   const { plan, tasks, categoryColors = {}, userId } = input;
   if (!plan.start_date) return null;
   if (tasks.length === 0) return { count: 0, events: [] };
 
+  // 체인 계산 시간 룩업 (taskId → predicted time). 정렬은 동일 규칙으로.
+  const sorted = sortTasks(tasks);
+  const expected = computeExpectedTimes(sorted);
+
   const baseDate = new Date(plan.start_date + "T00:00:00");
-  const events = tasks.map((t) => {
+  const events = sorted.map((t) => {
     const d = new Date(baseDate);
     d.setDate(d.getDate() + (t.day_index ?? 0));
     const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const startTime: string | null = t.start_time ? String(t.start_time).slice(0, 5) : null;
+    // 시작시간: 중간 task 는 체인 결과, 첫 task 는 stored.
+    const exp = expected[t.id];
+    let startTime: string | null;
+    if (exp?.predicted) {
+      startTime = exp.time;
+    } else {
+      startTime = t.start_time ? String(t.start_time).slice(0, 5) : null;
+    }
+    // 종료시간: 체류시간 양수일 때만 start + stay.
     let endTime: string | null = null;
     if (startTime && t.stay_minutes && t.stay_minutes > 0) {
       const [h, m] = startTime.split(":").map(Number);

@@ -9,8 +9,9 @@ import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useTravelPlans } from "@/hooks/use-travel-plans";
 import { supabase } from "@/lib/supabase";
 import { useCurrentUserId } from "@/lib/current-user";
+import { buildCalendarEvents } from "@/lib/travel/calendar-sync";
 import { toast } from "sonner";
-import type { TravelPlan } from "@/types";
+import type { TravelPlan, TravelPlanTask } from "@/types";
 import {
   DndContext,
   closestCenter,
@@ -209,11 +210,8 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
   const dragEnabled = !search.trim();
 
   /**
-   * 여행 계획의 모든 task 를 달력 일정으로 미리 변환.
-   * - 날짜: plan.start_date + day_index 일
-   * - 시간: task.start_time (있으면). 종료시간은 start_time + stay_minutes (둘 다 있을 때만).
-   * - 색상: task.category 가 travel_categories 의 빌트인 이름이면 해당 색, 아니면 기본 파랑.
-   * - 이동수단/체류 자체는 본문에 안 담음 (사용자 요구).
+   * 여행 계획의 task → 달력 일정 변환. 시간 규칙은 calendar-sync.ts buildCalendarEvents 참조
+   * (출발지 stored / 도착지 체인 계산 / 체류 양수일 때만 종료시간).
    */
   const buildCalendarEventsFromPlan = async (plan: TravelPlan) => {
     if (!plan.start_date) {
@@ -223,55 +221,31 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
     const { data: tasks, error } = await supabase
       .from("travel_plan_tasks")
       .select("*")
-      .eq("plan_id", plan.id)
-      .order("day_index")
-      .order("start_time", { nullsFirst: false })
-      .order("manual_order");
+      .eq("plan_id", plan.id);
     if (error || !tasks || tasks.length === 0) {
       toast.error(tasks && tasks.length === 0 ? "추가할 일정이 없습니다" : "일정 조회 실패");
       return null;
     }
-    // 카테고리 색상 룩업 (현재 유저).
-    let colorMap: Record<string, string> = {};
+    // 카테고리 색상 룩업.
+    let categoryColors: Record<string, string> = {};
     if (userId) {
       const { data: cats } = await supabase
         .from("travel_categories")
         .select("name, color")
         .eq("user_id", userId);
       if (cats) {
-        colorMap = Object.fromEntries(
+        categoryColors = Object.fromEntries(
           (cats as { name: string; color: string }[]).map((c) => [c.name, c.color]),
         );
       }
     }
-    const baseDate = new Date(plan.start_date + "T00:00:00");
-    const events = tasks.map((t) => {
-      const d = new Date(baseDate);
-      d.setDate(d.getDate() + (t.day_index ?? 0));
-      const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      const startTime: string | null = t.start_time ? String(t.start_time).slice(0, 5) : null;
-      let endTime: string | null = null;
-      if (startTime && t.stay_minutes && t.stay_minutes > 0) {
-        const [h, m] = startTime.split(":").map(Number);
-        const total = h * 60 + m + t.stay_minutes;
-        const eh = Math.floor(total / 60) % 24;
-        const em = total % 60;
-        endTime = `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
-      }
-      const color = (t.category && colorMap[t.category]) || "#3B82F6";
-      return {
-        title: t.place_name || "(이름 없음)",
-        description: t.content || null,
-        start_date: date,
-        end_date: null,
-        start_time: startTime,
-        end_time: endTime,
-        color,
-        user_id: userId,
-        plan_id: plan.id, // "달력에서 삭제" 시 일괄 매칭하기 위한 출처 표시.
-      };
+    const built = buildCalendarEvents({
+      plan,
+      tasks: tasks as TravelPlanTask[],
+      categoryColors,
+      userId,
     });
-    return { count: events.length, events };
+    return built; // null 또는 { count, events }
   };
 
   const requestAddToCalendar = async (plan: TravelPlan) => {

@@ -126,10 +126,11 @@ export default function PlanTaskSheet({
     if (!open) return;
     if (task) {
       setDayIndex(task.day_index);
-      // task.start_time 이 비어있고 체인 계산된 도착시간(defaultStartTime)이 있으면
-      // 그 값을 폼에 미리 채움 — 사용자가 저장하면 그대로 DB 에 영속화됨.
+      // defaultStartTime 이 주어지면 stored start_time 보다 우선 — 출발지 시간 변경에
+      // 자동 동기화되도록(체인 계산이 source of truth). 첫 task(anchor)는 defaultStartTime
+      // null 이라 stored 값을 그대로 씀.
       const stored = task.start_time ? task.start_time.slice(0, 5) : "";
-      setStartTime(stored || (defaultStartTime ?? ""));
+      setStartTime(defaultStartTime ?? stored);
       setStayMinutes(String(task.stay_minutes || ""));
       setPlaceName(task.place_name);
       setPlaceAddress(task.place_address);
