@@ -256,19 +256,26 @@ export function useFixedExpenses() {
     // day_of_month 가 안 바뀌었고 다른 필드 변경도 없으면 스킵.
     if (!dayChanged && Object.keys(baseUpdate).length === 0) return { error: null };
 
-    for (const tx of txs as { id: string; date: string }[]) {
-      const u = { ...baseUpdate };
-      if (dayChanged && updates.day_of_month !== undefined) {
+    // 최적화: dayChanged 가 없으면 baseUpdate 만 있는 단일 bulk UPDATE 한 번으로 끝.
+    if (!dayChanged) {
+      const ids = (txs as { id: string }[]).map((t) => t.id);
+      await supabase.from("expenses").update(baseUpdate).in("id", ids);
+      return { error: null };
+    }
+
+    // dayChanged: 거래마다 새 date 가 다르므로 per-tx update. Promise.all 로 병렬화.
+    // 이전엔 sequential await 라 120개월 변경 시 한참 걸렸음.
+    await Promise.all(
+      (txs as { id: string; date: string }[]).map((tx) => {
+        const u = { ...baseUpdate };
         const txYear = parseInt(tx.date.slice(0, 4));
         const txMonth = parseInt(tx.date.slice(5, 7));
         const lastDay = new Date(txYear, txMonth, 0).getDate();
-        const newDay = Math.min(updates.day_of_month, lastDay);
+        const newDay = Math.min(updates.day_of_month!, lastDay);
         u.date = `${txYear}-${String(txMonth).padStart(2, "0")}-${String(newDay).padStart(2, "0")}`;
-      }
-      if (Object.keys(u).length > 0) {
-        await supabase.from("expenses").update(u).eq("id", tx.id);
-      }
-    }
+        return supabase.from("expenses").update(u).eq("id", tx.id);
+      }),
+    );
     return { error: null };
   };
 
