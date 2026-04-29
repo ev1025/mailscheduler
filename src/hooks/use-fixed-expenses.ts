@@ -18,6 +18,8 @@ export interface FixedExpense {
   payment_method: string;
   is_active: boolean;
   product_id?: string | null;
+  /** 반복 등록 개월 수. 1=이번달만, -1=계속(120), N=N개월. 폼에서 그대로 표시. */
+  repeat_months?: number | null;
   created_at: string;
   category?: ExpenseCategory;
 }
@@ -66,12 +68,15 @@ export function useFixedExpenses() {
     item: Omit<FixedExpense, "id" | "created_at" | "category" | "is_active">,
     repeatMonths: number = 1,
   ) => {
+    // repeat_months 컬럼에 같이 저장 — 수정 폼에서 그대로 표시.
     const { error } = await supabase
       .from("fixed_expenses")
-      .insert({ ...item, user_id: userId });
+      .insert({ ...item, user_id: userId, repeat_months: repeatMonths });
     if (error) {
-      const { title, ...rest } = item;
+      // repeat_months 컬럼 없는 구 DB 폴백.
+      const { title, repeat_months, ...rest } = item as typeof item & { repeat_months?: number };
       void title;
+      void repeat_months;
       const retry = await supabase.from("fixed_expenses").insert(rest);
       if (retry.error) return { error: retry.error };
     }
@@ -126,8 +131,10 @@ export function useFixedExpenses() {
       .update(updates)
       .eq("id", id);
     if (error) {
-      const { title, ...rest } = updates;
+      // title / repeat_months 미지원 구 DB 폴백
+      const { title, repeat_months, ...rest } = updates as typeof updates & { repeat_months?: number };
       void title;
+      void repeat_months;
       const retry = await supabase
         .from("fixed_expenses")
         .update(rest)

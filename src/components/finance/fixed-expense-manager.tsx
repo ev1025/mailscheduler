@@ -152,7 +152,11 @@ export default function FixedExpenseManager({
         setPendingUpdate({ oldFx: editing, newData: data, repeatMonths });
         return { error: null };
       }
-      const r = await onUpdate(editing.id, data);
+      // repeat_months 도 함께 갱신.
+      const updateData = repeatMonths !== undefined
+        ? { ...data, repeat_months: repeatMonths }
+        : data;
+      const r = await onUpdate(editing.id, updateData);
       // 반복이 1보다 크면 미래 거래 보장 (dedup 포함).
       if (
         !r.error &&
@@ -180,9 +184,13 @@ export default function FixedExpenseManager({
 
   const applyUpdateScope = async (scope: Scope) => {
     if (!pendingUpdate || !onUpdateWithScope) return;
+    // repeat_months 도 함께 보존.
+    const newData = pendingUpdate.repeatMonths !== undefined
+      ? { ...pendingUpdate.newData, repeat_months: pendingUpdate.repeatMonths }
+      : pendingUpdate.newData;
     await onUpdateWithScope(
       pendingUpdate.oldFx.id,
-      pendingUpdate.newData,
+      newData,
       scope,
       thisYear,
       thisMonth,

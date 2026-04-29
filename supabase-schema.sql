@@ -685,3 +685,11 @@ CREATE INDEX IF NOT EXISTS idx_calendar_events_plan ON calendar_events(plan_id);
 
 -- product_purchases 에 구매일 picker 활성용 — 이미 컬럼 있음 (purchased_at DATE NOT NULL DEFAULT CURRENT_DATE).
 -- 폼 UI 에서 노출만 추가.
+
+-- =============================================
+-- fixed_expenses.repeat_months — 반복 등록 개월 수 추적
+-- =============================================
+-- 캘린더 일정의 "반복 횟수" 와 동일 의미. 1=이번달만, -1=계속(120개월), N=N개월.
+-- 수정 폼 진입 시 사용자가 등록할 때 골랐던 값을 그대로 보여주기 위해 필요.
+ALTER TABLE fixed_expenses
+  ADD COLUMN IF NOT EXISTS repeat_months INTEGER DEFAULT -1;

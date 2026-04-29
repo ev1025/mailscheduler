@@ -10,8 +10,6 @@ import NumberWheel from "@/components/ui/number-wheel";
 import { FormField } from "@/components/ui/form-field";
 import { FORM_INPUT_PRIMARY } from "@/lib/form-classes";
 import { usePaymentMethods } from "@/hooks/use-payment-methods";
-import { supabase } from "@/lib/supabase";
-import { useCurrentUserId } from "@/lib/current-user";
 import type { ExpenseCategory } from "@/types";
 import type { FixedExpense } from "@/hooks/use-fixed-expenses";
 
@@ -56,7 +54,6 @@ export default function FixedExpenseForm({
 }: Props) {
   const { methods: paymentMethods, addMethod, deleteMethod, updateMethodColor } =
     usePaymentMethods();
-  const userId = useCurrentUserId();
 
   const [type, setType] = useState<"income" | "expense">("expense");
   const [title, setTitle] = useState("");
@@ -83,28 +80,12 @@ export default function FixedExpenseForm({
       setDescription(fixed.description || "");
       setDayOfMonth(String(fixed.day_of_month));
       setPaymentMethod(fixed.payment_method || "");
-      // 수정 default: 우선 -1 표시 후, 매칭되는 미래 거래 개월 수를 추정해 갱신.
-      setRepeatMonths(-1);
-      void (async () => {
-        const today = new Date();
-        const startDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-01`;
-        let q = supabase
-          .from("expenses")
-          .select("date")
-          .gte("date", startDate)
-          .eq("amount", fixed.amount);
-        if (fixed.description === null) q = q.is("description", null);
-        else q = q.eq("description", fixed.description);
-        if (userId) q = q.eq("user_id", userId);
-        const { data } = await q;
-        const distinctMonths = new Set(
-          (data as { date: string }[] | null)?.map((r) => r.date.slice(0, 7)) ?? [],
-        );
-        const count = distinctMonths.size;
-        if (count === 0) setRepeatMonths(1);
-        else if (count >= 120) setRepeatMonths(-1);
-        else setRepeatMonths(count);
-      })();
+      // DB 의 repeat_months 그대로 사용. null/undefined 면 -1 (계속) 폴백.
+      setRepeatMonths(
+        fixed.repeat_months !== null && fixed.repeat_months !== undefined
+          ? fixed.repeat_months
+          : -1,
+      );
     } else {
       setType("expense");
       setTitle("");
