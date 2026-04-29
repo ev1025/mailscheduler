@@ -11,6 +11,7 @@ import {
   Menu,
   Trash2,
   Repeat,
+  Copy,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,7 @@ import { useProducts } from "@/hooks/use-products";
 import { useProductCategories } from "@/hooks/use-product-categories";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
 import { useTransactions } from "@/hooks/use-transactions";
+import { useCurrentUserId } from "@/lib/current-user";
 import ProductForm from "@/components/products/product-form";
 import type { Product } from "@/types";
 import PageHeader from "@/components/layout/page-header";
@@ -69,6 +71,7 @@ const ProductRow = memo(function ProductRow({
   onDelete,
   onAddFixed,
   onTogglePurchased,
+  onDuplicate,
 }: {
   p: Product;
   idx: number;
@@ -77,6 +80,7 @@ const ProductRow = memo(function ProductRow({
   onDelete: (p: Product) => void;
   onAddFixed: (p: Product) => void;
   onTogglePurchased: (p: Product) => void;
+  onDuplicate: (p: Product) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: p.id });
@@ -109,6 +113,11 @@ const ProductRow = memo(function ProductRow({
               icon: <Repeat className="h-3.5 w-3.5 text-blue-600" />,
               label: "고정비에 추가",
               onClick: () => onAddFixed(p),
+            },
+            {
+              icon: <Copy className="h-3.5 w-3.5" />,
+              label: "복제",
+              onClick: () => onDuplicate(p),
             },
             {
               icon: <Trash2 className="h-3.5 w-3.5" />,
@@ -201,6 +210,36 @@ function ProductsPageInner() {
   }, [fixedProduct]);
 
   const { addFixed } = useFixedExpenses();
+  const userId = useCurrentUserId();
+
+  // 행 메뉴의 "복제" — 제품 + 구매기록 모두 복사. 이름은 그대로 두고 사용자가 필요 시 수정.
+  // (suffix 자동 부여하면 매번 "(복제)" 가 붙어 검색·정렬 지저분해짐.)
+  const handleDuplicate = async (p: Product) => {
+    const { id, created_at, updated_at, sort_order, ...rest } = p;
+    void id; void created_at; void updated_at; void sort_order;
+    const { data: newProduct, error } = await addProduct(rest);
+    if (error || !newProduct) {
+      toast.error("복제 실패");
+      return;
+    }
+    // 구매기록도 함께 복제 — 최저가 표시·가격 추이가 의미 있게 남도록.
+    const { data: purchases } = await supabase
+      .from("product_purchases")
+      .select("total_price, points, quantity, quantity_unit, purchased_at, store, link, notes")
+      .eq("product_id", p.id);
+    if (purchases && purchases.length > 0) {
+      await supabase.from("product_purchases").insert(
+        purchases.map((row) => ({
+          ...row,
+          product_id: newProduct.id,
+          ...(userId ? { user_id: userId } : {}),
+        })),
+      );
+    }
+    setStatsTick((t) => t + 1);
+    toast.success("복제됨");
+  };
+
   // expense_categories 룩업 (분류 → 가계부 카테고리 매핑).
   const todayIso = (() => {
     const d = new Date();
@@ -588,6 +627,7 @@ function ProductsPageInner() {
                                           is_active: !prod.is_active,
                                         });
                                       }}
+                                      onDuplicate={handleDuplicate}
                                     />
                                   ))}
                                 </tbody>
@@ -622,15 +662,10 @@ function ProductsPageInner() {
         title={deletingProduct ? `${deletingProduct.name} 삭제` : "제품 삭제"}
         description={
           deletingProduct ? (
-            <span className="block">
-              <span className="block text-foreground">
-                {deletingProduct.category}
-                {deletingProduct.sub_category ? ` · ${deletingProduct.sub_category}` : ""}
-                {deletingProduct.brand ? ` · ${deletingProduct.brand}` : ""}
-              </span>
-              <span className="block mt-1.5 text-xs text-muted-foreground/70 break-keep">
-                구매 기록도 함께 삭제돼요. 되돌릴 수 없어요.
-              </span>
+            <span className="block text-foreground">
+              {deletingProduct.category}
+              {deletingProduct.sub_category ? ` · ${deletingProduct.sub_category}` : ""}
+              {deletingProduct.brand ? ` · ${deletingProduct.brand}` : ""}
             </span>
           ) : (
             "삭제하면 되돌릴 수 없어요."
