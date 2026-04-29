@@ -8,7 +8,7 @@
 //   <Input className={FORM_INPUT_PRIMARY} />
 
 // 제목·주요 입력 (다이얼로그 최상단의 "제목 *" 같은 입력).
-// TagInput 의 "검색·추가" 와 동일한 14px(text-sm) 로 통일 — 시각적 일관성.
+// 14px(text-sm). TagInput 트리거는 좁은 컬럼 대응을 위해 text-xs(12px)로 별도 운용.
 export const FORM_INPUT_PRIMARY = "h-9 text-sm"
 
 // 모든 폼 입력은 PRIMARY 와 동일 — 한 폼 안에서 input/select/picker 의 폰트·높이가

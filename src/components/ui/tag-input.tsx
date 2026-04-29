@@ -403,8 +403,8 @@ export default function TagInput({
   // 트리거 내부에 들어갈 컨텐츠 (모바일 button / 데스크탑 PopoverTrigger 공통)
   const triggerContent =
     selectedTags.length === 0 ? (
-      <span className="flex items-center gap-2 text-muted-foreground px-1">
-        <Search className="h-3 w-3" />
+      <span className="flex items-center gap-1.5 text-muted-foreground px-1 whitespace-nowrap">
+        <Search className="h-3 w-3 shrink-0" />
         {placeholder}
       </span>
     ) : (
@@ -427,8 +427,10 @@ export default function TagInput({
 
   // Input 컴포넌트와 동일 룩으로 통일 — 같은 폼 안에서 Input/Select/TagInput 모두
   // 같은 높이·라운드·테두리 톤으로 보이도록.
+  // 트리거 폰트는 text-xs (12px) — 내부 chip Badge 이 text-xs 라 일관성 유지 +
+  // 좁은 컬럼(예: 3-col 그리드의 1fr)에서 placeholder "검색·추가" 줄바꿈 방지.
   const triggerClass =
-    "flex items-center flex-wrap gap-1 min-h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-left transition-colors hover:bg-accent/30 dark:bg-input/30";
+    "flex items-center flex-wrap gap-1 min-h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs text-left transition-colors hover:bg-accent/30 dark:bg-input/30";
 
   return (
     <div className="flex flex-col gap-1.5">
