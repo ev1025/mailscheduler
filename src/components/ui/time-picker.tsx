@@ -108,7 +108,7 @@ export default function TimePicker({ value, onChange, className, placeholder = "
       placeholder={placeholder}
       maxLength={5}
       className={cn(
-        "rounded-md border bg-background px-2.5 text-sm tabular-nums transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring",
+        "rounded-md border bg-background px-2.5 text-sm tabular-nums text-center transition-colors hover:bg-accent focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-center",
         !text && "text-muted-foreground",
         className,
       )}

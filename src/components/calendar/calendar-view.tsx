@@ -31,12 +31,12 @@ import { useHolidayMap } from "@/lib/holidays";
 
 /* ── 레이아웃 상수 ──
    모바일에서 1셀 ~70px 안에 3건 표시되도록 BAR_H/BAR_STEP/top 오프셋 조정.
-   font-size 도 공휴일/일정 통일(10px). */
+   font-size 는 공휴일 크기(7px)로 통일 — 사용자가 명시한 작은 사이즈. */
 const MAX_VISIBLE_SLOTS = 3;
 const BAR_H = 11;
 const BAR_GAP = 1;
 const BAR_STEP = BAR_H + BAR_GAP;
-const BAR_FONT = 10;
+const BAR_FONT = 7;
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"];
 
 interface CalendarViewProps {
@@ -202,9 +202,9 @@ export default function CalendarView({
     if (!el) return;
     const calc = () => {
       const h = el.getBoundingClientRect().height;
-      // 사용 가능 높이 = 행 높이 - 헤더(약 22px) - +N 영역(약 6px).
-      // 이전엔 -40px 차감으로 모바일 작은 행에서 최대 2건만 들어갔음 → 3건 표시되도록 완화.
-      const available = h - 22 - 6;
+      // 사용 가능 높이 = 행 높이 - 헤더+상단여백(약 25px) - +N 영역(약 6px).
+      // 이전 -40px 차감으로 모바일 작은 행에서 최대 2건만 들어가던 걸 -31 로 완화 → 3건.
+      const available = h - 25 - 6;
       const fits = Math.max(0, Math.min(MAX_VISIBLE_SLOTS, Math.floor(available / BAR_STEP)));
       setDynamicMax(fits);
     };
@@ -355,9 +355,9 @@ export default function CalendarView({
                 })}
 
                 {/* ── 바 오버레이: grid-column span으로 너비, 텍스트 중앙정렬 ──
-                    헤더(날짜 18~20px + pt-1) 바로 아래 시작. 이전 28/32px 에서 6px 위로 조정. */}
+                    이전 28/32px 에서 너무 위로 올렸던 22/26 을 절반만 적용 → 25/29. */}
                 <div
-                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[22px] md:top-[26px]"
+                  className="pointer-events-none absolute inset-x-0 bottom-0 grid grid-cols-7 top-[25px] md:top-[29px]"
                   style={{ gridAutoRows: 0 }}
                 >
                   {segs
