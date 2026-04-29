@@ -200,9 +200,12 @@ export function useFixedExpenses() {
   };
 
   /**
-   * 고정비 수정 + 이번달 자동 적용 거래도 함께 갱신 옵션.
-   * scope = "this-month": 이번달 거래의 amount/title/description/category 등을 새 값으로 update
-   * scope = "next-month": fixed_expenses 만 update — 이번달 기존 거래는 그대로
+   * 고정비 수정 + 매칭되는 거래(이번달/다음달부터 미래) 일괄 갱신.
+   * scope = "this-month": 이번달 1일부터 미래 모두 propagate
+   * scope = "next-month": 다음달 1일부터 미래 모두 propagate (이번달은 유지)
+   *
+   * 전파되는 필드: amount, description, title, category_id, payment_method, day_of_month.
+   * day_of_month 변경 시 매칭 tx 의 date 도 그 달의 새 day 로 갱신 (월말 클램프 포함).
    */
   const updateFixedWithScope = async (
     id: string,
@@ -218,27 +221,52 @@ export function useFixedExpenses() {
     const r1 = await updateFixed(id, updates);
     if (r1.error) return { error: r1.error };
 
-    // 2. 이번달 거래 매칭 시 update (변경이 의미 있는 컬럼만 전파).
-    if (scope === "this-month") {
-      const day = Math.min(fx.day_of_month, new Date(year, month, 0).getDate());
-      const date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      const txUpdates: Record<string, unknown> = {};
-      if (updates.amount !== undefined && updates.amount !== fx.amount)
-        txUpdates.amount = updates.amount;
-      if (updates.title !== undefined) txUpdates.title = updates.title;
-      if (updates.description !== undefined) txUpdates.description = updates.description;
-      if (updates.category_id !== undefined) txUpdates.category_id = updates.category_id;
-      if (updates.payment_method !== undefined)
-        txUpdates.payment_method = updates.payment_method;
-      if (Object.keys(txUpdates).length > 0) {
-        let q = supabase
-          .from("expenses")
-          .update(txUpdates)
-          .eq("amount", fx.amount)
-          .eq("date", date);
-        if (fx.description === null) q = q.is("description", null);
-        else q = q.eq("description", fx.description);
-        await q;
+    // 2. 매칭 거래 fetch — 시작일은 scope 에 따라.
+    const startDate =
+      scope === "this-month"
+        ? `${year}-${String(month).padStart(2, "0")}-01`
+        : month === 12
+          ? `${year + 1}-01-01`
+          : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    let q = supabase
+      .from("expenses")
+      .select("id, date")
+      .gte("date", startDate)
+      .eq("amount", fx.amount);
+    if (fx.description === null) q = q.is("description", null);
+    else q = q.eq("description", fx.description);
+    if (userId) q = q.eq("user_id", userId);
+    const { data: txs } = await q;
+
+    if (!txs || txs.length === 0) return { error: null };
+
+    // 3. 변경된 필드만 추려 per-tx update. day_of_month 변경 시 date 계산.
+    const dayChanged =
+      updates.day_of_month !== undefined && updates.day_of_month !== fx.day_of_month;
+    const baseUpdate: Record<string, unknown> = {};
+    if (updates.amount !== undefined && updates.amount !== fx.amount)
+      baseUpdate.amount = updates.amount;
+    if (updates.title !== undefined) baseUpdate.title = updates.title;
+    if (updates.description !== undefined) baseUpdate.description = updates.description;
+    if (updates.category_id !== undefined && updates.category_id !== fx.category_id)
+      baseUpdate.category_id = updates.category_id;
+    if (updates.payment_method !== undefined && updates.payment_method !== fx.payment_method)
+      baseUpdate.payment_method = updates.payment_method;
+
+    // day_of_month 가 안 바뀌었고 다른 필드 변경도 없으면 스킵.
+    if (!dayChanged && Object.keys(baseUpdate).length === 0) return { error: null };
+
+    for (const tx of txs as { id: string; date: string }[]) {
+      const u = { ...baseUpdate };
+      if (dayChanged && updates.day_of_month !== undefined) {
+        const txYear = parseInt(tx.date.slice(0, 4));
+        const txMonth = parseInt(tx.date.slice(5, 7));
+        const lastDay = new Date(txYear, txMonth, 0).getDate();
+        const newDay = Math.min(updates.day_of_month, lastDay);
+        u.date = `${txYear}-${String(txMonth).padStart(2, "0")}-${String(newDay).padStart(2, "0")}`;
+      }
+      if (Object.keys(u).length > 0) {
+        await supabase.from("expenses").update(u).eq("id", tx.id);
       }
     }
     return { error: null };

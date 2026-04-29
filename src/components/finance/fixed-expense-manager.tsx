@@ -146,9 +146,11 @@ export default function FixedExpenseManager({
     repeatMonths?: number,
   ) => {
     if (editing && onUpdate) {
-      // 금액이 바뀌었고 onUpdateWithScope 가 주어지면 적용 시점 다이얼로그 후 저장.
-      // repeatMonths 도 같이 보존해서 scope 결정 후 미래 거래 확장에 사용.
-      if (onUpdateWithScope && data.amount !== editing.amount) {
+      // 금액 또는 결제일이 바뀌면 scope 다이얼로그 (이번달/다음달부터). 미래 거래에도 전파됨.
+      // repeatMonths 는 dialog 응답 후에도 ensureFixedMonths 호출에 사용.
+      const txAffectingChange =
+        data.amount !== editing.amount || data.day_of_month !== editing.day_of_month;
+      if (onUpdateWithScope && txAffectingChange) {
         setPendingUpdate({ oldFx: editing, newData: data, repeatMonths });
         return { error: null };
       }
