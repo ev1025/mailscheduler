@@ -139,9 +139,10 @@ function ProfilePageInner() {
           </>
         }
       />
-      {/* 세로 센터 대신 상단 고정 — 이미지/이모지 토글 시 컨텐츠 높이가 달라져도
-          편집 영역 시작 위치가 흔들리지 않게. */}
-      <div className="px-4 pt-6 pb-6 md:px-6 md:pt-8 md:pb-10">
+      {/* PageHeader 와 (모바일 하단 nav) 사이의 공간을 flex-1 로 채워서 세로 중앙 정렬.
+          살짝 위쪽 바이어스(pt:pb = 1:1.6) — 정확히 가운데보다 살짝 위가 아바타 시선
+          위치로 자연스러움. */}
+      <div className="flex-1 flex flex-col justify-center px-4 pt-4 pb-10 md:px-6 md:pt-6 md:pb-16">
         <div className="w-full max-w-xl mx-auto flex flex-col gap-3.5">
         {/* 헤더 — 아바타 + 이름 + 이메일 (압축) */}
         <div className="flex flex-col items-center gap-2">
