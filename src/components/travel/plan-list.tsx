@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Trash2, Copy, CalendarPlus, CalendarMinus, Plus } from "lucide-react";
 import RowActionPopover from "@/components/ui/row-action-popover";
 import SearchInput from "@/components/ui/search-input";
+import { Button } from "@/components/ui/button";
 import PromptDialog from "@/components/ui/prompt-dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import { useTravelPlans } from "@/hooks/use-travel-plans";
@@ -355,8 +356,8 @@ export default function PlanList({ onSelectPlan, visibleUserIds }: Props) {
     // 모바일: 부모(main) 이 fixed h-dvh 내부 스크롤이므로 h-full + flex 체인 유지.
     // 데스크탑: document 스크롤이므로 h/overflow 제거, 자연 흐름.
     <div className="flex flex-col h-full md:h-auto">
-      {/* 상단 검색 + 새 계획 추가 — sticky. + 버튼은 검색 우측에 인라인.
-          이전엔 PageHeader actions 에 있어 검색-액션 거리감이 컸음. */}
+      {/* 상단 검색 + 새 계획 추가 — sticky. 추가 버튼은 여행 목록 페이지의 추가
+          버튼과 동일 스타일(Button size=sm h-8 + 아이콘 + 라벨)로 통일. */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur p-3 border-b">
         <div className="flex items-center gap-2">
           <SearchInput
@@ -364,15 +365,14 @@ export default function PlanList({ onSelectPlan, visibleUserIds }: Props) {
             onChange={setSearch}
             placeholder="계획 제목·날짜 검색"
           />
-          <button
-            type="button"
+          <Button
+            size="sm"
+            className="h-8 shrink-0"
             onClick={() => setNewOpen(true)}
-            aria-label="새 계획"
-            title="새 계획"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-background text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
           >
-            <Plus className="h-4 w-4" strokeWidth={1.8} />
-          </button>
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            추가
+          </Button>
         </div>
       </div>
 
@@ -388,7 +388,7 @@ export default function PlanList({ onSelectPlan, visibleUserIds }: Props) {
             </p>
             {plans.length === 0 && (
               <p className="text-xs text-muted-foreground/70">
-                검색창 옆 + 버튼을 눌러 첫 여행 계획을 세워보세요
+                검색창 옆 추가 버튼을 눌러 첫 여행 계획을 세워보세요
               </p>
             )}
           </div>
