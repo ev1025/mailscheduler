@@ -23,6 +23,8 @@ interface FixedExpenseManagerProps {
   /** 다이얼로그의 기본 시작 월 — 보통 가계부에서 현재 보고 있는 월. */
   defaultYear?: number;
   defaultMonth?: number;
+  /** 매니저 오픈 시 자동으로 편집 폼을 띄울 fx id — "고정비 거래 클릭 → 전체 수정" 진입 경로. */
+  initialEditingId?: string;
   onAdd: (
     item: Omit<FixedExpense, "id" | "created_at" | "category" | "is_active">,
     repeatMonths?: number,
@@ -74,6 +76,7 @@ export default function FixedExpenseManager({
   categories,
   defaultYear,
   defaultMonth,
+  initialEditingId,
   onAdd,
   onUpdate,
   onDelete,
@@ -100,6 +103,22 @@ export default function FixedExpenseManager({
   const today = new Date();
   const baseYear = defaultYear ?? today.getFullYear();
   const baseMonth = defaultMonth ?? today.getMonth() + 1;
+
+  // "고정비 거래 클릭 → 전체 수정" 진입 시 자동으로 그 fx 편집 폼 오픈.
+  // open 전이 시점에만 트리거되도록 (open 동안 fx 목록 변경에 반응하지 않게).
+  useEffect(() => {
+    if (!open || !initialEditingId) return;
+    const fx = fixedExpenses.find((f) => f.id === initialEditingId);
+    if (fx) {
+      setEditing(fx);
+      setFormOpen(true);
+      // 카테고리 그룹도 펼쳐 두면 편집 폼 닫은 후 컨텍스트 보임.
+      if (fx.category?.name) {
+        setExpandedCats((p) => new Set(p).add(fx.category!.name));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialEditingId]);
 
   // 카테고리별 그룹화. 카테고리명 → 항목 배열. 미분류는 "(미분류)" 키.
   const grouped = useMemo(() => {

@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, ShoppingBag, Menu, X, Check } from "lucide-react";
+import { Wallet, ShoppingBag, Menu, X, Check, Repeat } from "lucide-react";
 import DateRangePicker from "@/components/layout/date-range-picker";
 import PageHeader from "@/components/layout/page-header";
 import { useTransactions } from "@/hooks/use-transactions";
@@ -13,6 +13,12 @@ import TransactionList from "@/components/finance/transaction-list";
 import TransactionForm from "@/components/finance/transaction-form";
 import CategoryChart from "@/components/finance/category-chart";
 import FixedExpenseManager from "@/components/finance/fixed-expense-manager";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Expense } from "@/types";
 
 export default function FinancePage() {
@@ -57,6 +63,10 @@ function FinancePageInner() {
   const [fixedOpen, setFixedOpen] = useState(false);
   /** 카드 +수입 / +지출 클릭 시 폼 type 미리 세팅용. 신규 작성 시에만 의미. */
   const [formDefaultType, setFormDefaultType] = useState<"income" | "expense">("expense");
+  /** 고정비 거래 클릭 시 "이 달만 / 전체 고정비" 분기 다이얼로그 대상. */
+  const [fixedTxChoice, setFixedTxChoice] = useState<Expense | null>(null);
+  /** 매니저 오픈 시 자동으로 편집 폼을 띄울 fx id (전체 고정비 수정 진입). */
+  const [managerInitialEditingId, setManagerInitialEditingId] = useState<string | undefined>(undefined);
 
   const handleRangeChange = (s: string, e: string) => {
     setStartDate(s);
@@ -114,6 +124,21 @@ function FinancePageInner() {
   }, [fixedExpenses]);
 
   const isFromFixed = (tx: Expense) => fixedSet.has(`${tx.amount}|${tx.description ?? ""}`);
+  /** 거래 → 매칭되는 고정비 row. amount + description 매칭. */
+  const findFixedFor = (tx: Expense) =>
+    fixedExpenses.find(
+      (fx) => fx.amount === tx.amount && (fx.description ?? "") === (tx.description ?? ""),
+    );
+
+  /** 거래 카드 클릭 핸들러 — 고정비 매칭이면 분기 다이얼로그, 아니면 바로 편집 폼. */
+  const handleTxClick = (tx: Expense) => {
+    if (isFromFixed(tx)) {
+      setFixedTxChoice(tx);
+      return;
+    }
+    setEditing(tx);
+    setFormOpen(true);
+  };
 
   // includeFixed 만 적용한 베이스 — 스코어카드(이번달 수입/지출) + 카테고리별 차트의 기준.
   // (categoryFilter 는 거래 목록에만 적용되어야 함 — 차트 자체가 카테고리 선택의 출발점이므로
@@ -309,7 +334,7 @@ function FinancePageInner() {
           ) : (
             <TransactionList
               transactions={filteredTransactions}
-              onEdit={(tx) => { setEditing(tx); setFormOpen(true); }}
+              onEdit={handleTxClick}
               onDelete={async (id) => { await deleteTransaction(id); }}
             />
           )}
@@ -329,11 +354,16 @@ function FinancePageInner() {
       />
       <FixedExpenseManager
         open={fixedOpen}
-        onOpenChange={setFixedOpen}
+        onOpenChange={(o) => {
+          setFixedOpen(o);
+          // 매니저 닫힐 때 initialEditingId 도 초기화 — 다음에 일반 진입 시 자동 편집 안 되도록.
+          if (!o) setManagerInitialEditingId(undefined);
+        }}
         fixedExpenses={fixedExpenses}
         categories={categories}
         defaultYear={year}
         defaultMonth={month}
+        initialEditingId={managerInitialEditingId}
         onAdd={async (item, repeatMonths) => {
           // addFixed 는 fx row INSERT(1 RTT) 만 await 하고 즉시 반환 → 폼 즉시 닫힘.
           // expense bulk INSERT 는 bulkDone 으로 fire-and-forget. 끝나면 transactions 도
@@ -377,6 +407,80 @@ function FinancePageInner() {
         onDeleteCategory={deleteCategory}
         onUpdateCategoryColor={updateCategoryColor}
       />
+
+      {/* 고정비 매칭 거래 클릭 시 — "이 달만 / 전체" 분기 다이얼로그.
+          전체 선택 시 매니저 열리며 그 fx 의 편집 폼이 자동으로 뜸. */}
+      <Dialog
+        open={!!fixedTxChoice}
+        onOpenChange={(o) => { if (!o) setFixedTxChoice(null); }}
+      >
+        <DialogContent
+          showBackButton={false}
+          className="max-w-[calc(100%-3rem)] sm:max-w-sm p-0 gap-0 overflow-hidden"
+        >
+          <div className="px-5 pt-5 pb-3 flex flex-col items-center text-center gap-1.5">
+            <DialogHeader className="contents">
+              <DialogTitle className="text-base font-semibold leading-snug break-keep">
+                고정비 거래 수정
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-[13px] text-muted-foreground leading-relaxed break-keep">
+              이 거래는 고정비에서 자동 등록된 항목이에요.
+              <br />어떻게 수정할까요?
+            </p>
+          </div>
+
+          {/* 옵션 카드 — 2개 stacked. 위가 한정적(이 달만), 아래가 광범위(전체) 순. */}
+          <div className="px-3 pb-3 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (fixedTxChoice) {
+                  setEditing(fixedTxChoice);
+                  setFormOpen(true);
+                }
+                setFixedTxChoice(null);
+              }}
+              className="rounded-lg border-2 border-border/60 p-3 text-left transition-all hover:border-foreground/30 hover:bg-accent/40"
+            >
+              <div className="text-sm font-semibold">이 달의 거래만 수정</div>
+              <div className="text-[11px] text-muted-foreground mt-0.5 break-keep leading-relaxed">
+                다른 달과 고정비 자체에는 영향 없음
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const fx = fixedTxChoice ? findFixedFor(fixedTxChoice) : null;
+                if (fx) {
+                  setManagerInitialEditingId(fx.id);
+                  setFixedOpen(true);
+                }
+                setFixedTxChoice(null);
+              }}
+              className="flex items-start gap-3 rounded-lg border-2 border-primary/40 p-3 text-left transition-all hover:border-primary/70 hover:bg-primary/5"
+            >
+              <Repeat className="h-5 w-5 mt-0.5 shrink-0 text-primary" />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-primary">고정비 전체 수정</div>
+                <div className="text-[11px] text-muted-foreground mt-0.5 break-keep leading-relaxed">
+                  고정비 수정 화면으로 이동 — 적용 시작 월도 선택 가능
+                </div>
+              </div>
+            </button>
+          </div>
+
+          <div className="border-t">
+            <button
+              type="button"
+              onClick={() => setFixedTxChoice(null)}
+              className="w-full px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-accent/40"
+            >
+              취소
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
     </div>
     </>
