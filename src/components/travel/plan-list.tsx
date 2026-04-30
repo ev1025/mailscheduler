@@ -356,9 +356,11 @@ export default function PlanList({ onSelectPlan, visibleUserIds }: Props) {
     // 모바일: 부모(main) 이 fixed h-dvh 내부 스크롤이므로 h-full + flex 체인 유지.
     // 데스크탑: document 스크롤이므로 h/overflow 제거, 자연 흐름.
     <div className="flex flex-col h-full md:h-auto">
-      {/* 상단 검색 + 새 계획 추가 — sticky. 추가 버튼은 여행 목록 페이지의 추가
-          버튼과 동일 스타일(Button size=sm h-8 + 아이콘 + 라벨)로 통일. */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur p-3 border-b">
+      {/* 상단 검색 + 새 계획 추가 — sticky. 패딩은 페이지 wrapper(px-2 py-2 md:p-6)
+          가 책임지고 sticky 자체는 padding 없음 (이전엔 p-3 가 중복 적용돼 다른
+          페이지보다 12~24px 더 들어가 어색했음). 스크롤 시 가시성을 위한 backdrop
+          + 하단 border 만 유지. */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur pb-3 border-b">
         <div className="flex items-center gap-2">
           <SearchInput
             value={search}
@@ -376,7 +378,7 @@ export default function PlanList({ onSelectPlan, visibleUserIds }: Props) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto p-4 md:flex-none md:overflow-visible">
+      <div className="flex-1 min-h-0 overflow-y-auto pt-3 md:flex-none md:overflow-visible">
         {loading ? (
           <p className="text-xs text-muted-foreground text-center py-8">불러오는 중…</p>
         ) : ordered.length === 0 ? (

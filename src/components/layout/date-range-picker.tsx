@@ -209,7 +209,7 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
           }
         }}
       >
-        <PopoverTrigger className="rounded-md px-2 py-1 text-base md:text-lg font-bold hover:bg-accent transition-colors cursor-pointer tabular-nums">
+        <PopoverTrigger className="rounded-md px-2 py-1 text-lg font-bold hover:bg-accent transition-colors cursor-pointer tabular-nums">
           {formatRangeLabel(startDate, endDate)}
         </PopoverTrigger>
         <PopoverContent className="w-[280px] p-3" align="center" side="bottom">
