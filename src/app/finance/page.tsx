@@ -212,8 +212,8 @@ function FinancePageInner() {
         }
       />
     <div className="flex flex-col h-[calc(100%-3.5rem)]">
-    <div className="flex-1 overflow-y-auto p-4 md:p-6">
-      <div className="mb-3 flex justify-center">
+    <div className="flex-1 overflow-y-auto px-2 py-2 md:p-6">
+      <div className="mb-2 flex justify-center">
         <DateRangePicker startDate={startDate} endDate={endDate} onChange={handleRangeChange} />
       </div>
 

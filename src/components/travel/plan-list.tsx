@@ -358,9 +358,8 @@ export default function PlanList({ onSelectPlan, visibleUserIds }: Props) {
     <div className="flex flex-col h-full md:h-auto">
       {/* 상단 검색 + 새 계획 추가 — sticky. 패딩은 페이지 wrapper(px-2 py-2 md:p-6)
           가 책임지고 sticky 자체는 padding 없음 (이전엔 p-3 가 중복 적용돼 다른
-          페이지보다 12~24px 더 들어가 어색했음). 스크롤 시 가시성을 위한 backdrop
-          + 하단 border 만 유지. */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur pb-3 border-b">
+          페이지보다 12~24px 더 들어갔음). 스크롤 시 가시성을 위한 backdrop 만 유지. */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur pb-3">
         <div className="flex items-center gap-2">
           <SearchInput
             value={search}

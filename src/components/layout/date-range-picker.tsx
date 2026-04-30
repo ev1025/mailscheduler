@@ -66,7 +66,8 @@ function formatRangeLabel(start: string, end: string): string {
   const eIsLast = isSameDay(e, endOfMonth(e));
   const sameMonth = s.getFullYear() === e.getFullYear() && s.getMonth() === e.getMonth();
   if (sIsFirst && eIsLast && sameMonth) {
-    return `${s.getFullYear()}년 ${s.getMonth() + 1}월`;
+    // MonthPicker(달력) 와 동일하게 월 두 자리 0-padding — 시각 폭·비주얼 통일.
+    return `${s.getFullYear()}년 ${String(s.getMonth() + 1).padStart(2, "0")}월`;
   }
   const fmt = (d: Date) =>
     `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
@@ -209,7 +210,7 @@ export default function DateRangePicker({ startDate, endDate, onChange }: Props)
           }
         }}
       >
-        <PopoverTrigger className="rounded-md px-2 py-1 text-lg font-bold hover:bg-accent transition-colors cursor-pointer tabular-nums">
+        <PopoverTrigger className="rounded-md px-1.5 py-1 text-lg font-bold hover:bg-accent transition-colors cursor-pointer tabular-nums">
           {formatRangeLabel(startDate, endDate)}
         </PopoverTrigger>
         <PopoverContent className="w-[280px] p-3" align="center" side="bottom">
