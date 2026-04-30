@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useState, useEffect, useRef, useMemo } from "react";
+import { Suspense, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Wallet, ShoppingBag, Menu, X, Check, Repeat } from "lucide-react";
+import { Wallet, ShoppingBag, X, Check, Repeat } from "lucide-react";
 import DateRangePicker from "@/components/layout/date-range-picker";
 import PageHeader from "@/components/layout/page-header";
 import { useTransactions } from "@/hooks/use-transactions";
@@ -48,17 +48,6 @@ function FinancePageInner() {
   const month = startObj.getMonth() + 1;
 
   const [formOpen, setFormOpen] = useState(false);
-  const [finMenuOpen, setFinMenuOpen] = useState(false);
-  const finMenuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!finMenuOpen) return;
-    const handler = (e: MouseEvent | TouchEvent) => {
-      if (finMenuRef.current && !finMenuRef.current.contains(e.target as Node)) setFinMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("touchstart", handler);
-    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("touchstart", handler); };
-  }, [finMenuOpen]);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [fixedOpen, setFixedOpen] = useState(false);
   /** 카드 +수입 / +지출 클릭 시 폼 type 미리 세팅용. 신규 작성 시에만 의미. */
@@ -202,33 +191,25 @@ function FinancePageInner() {
       <PageHeader
         title="가계부"
         actions={
-          <div className="relative" ref={finMenuRef}>
+          // 햄버거 → 두 아이콘 직접 노출 (가계부 활성/쇼핑기록 비활성).
+          // 발견성 ↑ + 한 탭 전환 — 항목 2개에 햄버거는 과한 hidden nav.
+          <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setFinMenuOpen((o) => !o)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-              aria-label="메뉴"
+              aria-label="가계부"
+              aria-current="page"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-primary bg-primary/10"
             >
-              <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
+              <Wallet className="h-[20px] w-[20px]" strokeWidth={1.8} />
             </button>
-            {finMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => setFinMenuOpen(false)}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm bg-accent font-medium"
-                  >
-                    <Wallet className="h-4 w-4" /> 가계부
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setFinMenuOpen(false); router.push("/products"); }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent/50"
-                  >
-                    <ShoppingBag className="h-4 w-4" /> 쇼핑기록
-                  </button>
-                </div>
-            )}
+            <button
+              type="button"
+              onClick={() => router.push("/products")}
+              aria-label="쇼핑기록"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
+            >
+              <ShoppingBag className="h-[20px] w-[20px]" strokeWidth={1.6} />
+            </button>
           </div>
         }
       />
