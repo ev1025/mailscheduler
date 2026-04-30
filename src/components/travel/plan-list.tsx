@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Trash2, Copy, CalendarPlus, CalendarMinus } from "lucide-react";
+import { Trash2, Copy, CalendarPlus, CalendarMinus, Plus } from "lucide-react";
 import RowActionPopover from "@/components/ui/row-action-popover";
 import SearchInput from "@/components/ui/search-input";
 import PromptDialog from "@/components/ui/prompt-dialog";
@@ -50,7 +50,6 @@ function saveCustomOrder(ids: string[]) {
 
 interface Props {
   onSelectPlan: (id: string) => void;
-  newSignal?: number;
   /** 달력 탭 상단에서 선택된 "볼 사용자들" — 공유된 계획 포함 */
   visibleUserIds?: string[];
 }
@@ -136,7 +135,7 @@ function PlanCard({ plan, dragEnabled, hasCalendarEvents, onSelect, onDelete, on
   );
 }
 
-export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Props) {
+export default function PlanList({ onSelectPlan, visibleUserIds }: Props) {
   const { plans, loading, addPlan, deletePlan, duplicatePlan } = useTravelPlans(visibleUserIds);
   const userId = useCurrentUserId();
   const [newOpen, setNewOpen] = useState(false);
@@ -153,10 +152,6 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
   useEffect(() => {
     setCustomOrder(loadCustomOrder());
   }, []);
-
-  useEffect(() => {
-    if (newSignal && newSignal > 0) setNewOpen(true);
-  }, [newSignal]);
 
   // 데스크탑(마우스) 와 모바일(터치) 의 활성화 조건 분리:
   //  - MouseSensor: 5px 움직이면 드래그 (퀵)
@@ -360,13 +355,25 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
     // 모바일: 부모(main) 이 fixed h-dvh 내부 스크롤이므로 h-full + flex 체인 유지.
     // 데스크탑: document 스크롤이므로 h/overflow 제거, 자연 흐름.
     <div className="flex flex-col h-full md:h-auto">
-      {/* 상단 검색 — sticky */}
+      {/* 상단 검색 + 새 계획 추가 — sticky. + 버튼은 검색 우측에 인라인.
+          이전엔 PageHeader actions 에 있어 검색-액션 거리감이 컸음. */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur p-3 border-b">
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="계획 제목·날짜 검색"
-        />
+        <div className="flex items-center gap-2">
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="계획 제목·날짜 검색"
+          />
+          <button
+            type="button"
+            onClick={() => setNewOpen(true)}
+            aria-label="새 계획"
+            title="새 계획"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border bg-background text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+          >
+            <Plus className="h-4 w-4" strokeWidth={1.8} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto p-4 md:flex-none md:overflow-visible">
@@ -381,7 +388,7 @@ export default function PlanList({ onSelectPlan, newSignal, visibleUserIds }: Pr
             </p>
             {plans.length === 0 && (
               <p className="text-xs text-muted-foreground/70">
-                우상단 + 버튼을 눌러 첫 여행 계획을 세워보세요
+                검색창 옆 + 버튼을 눌러 첫 여행 계획을 세워보세요
               </p>
             )}
           </div>
