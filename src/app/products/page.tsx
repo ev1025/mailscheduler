@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Wallet,
   ShoppingBag,
-  Menu,
   Trash2,
   Repeat,
   Copy,
@@ -44,6 +43,7 @@ import { useCurrentUserId } from "@/lib/current-user";
 import ProductForm from "@/components/products/product-form";
 import type { Product } from "@/types";
 import PageHeader from "@/components/layout/page-header";
+import HeaderViewMenu from "@/components/layout/header-view-menu";
 import PromptDialog from "@/components/ui/prompt-dialog";
 import ConfirmDialog from "@/components/ui/confirm-dialog";
 import {
@@ -397,51 +397,28 @@ function ProductsPageInner() {
     await batchUpdateSortOrder(reordered.map((p) => p.id));
   };
 
-  const [prodMenuOpen, setProdMenuOpen] = useState(false);
-  const prodMenuRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!prodMenuOpen) return;
-    const handler = (e: MouseEvent | TouchEvent) => {
-      if (prodMenuRef.current && !prodMenuRef.current.contains(e.target as Node)) setProdMenuOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("touchstart", handler);
-    return () => { document.removeEventListener("mousedown", handler); document.removeEventListener("touchstart", handler); };
-  }, [prodMenuOpen]);
-
   return (
     <>
       <PageHeader
         title="쇼핑기록"
         actions={
-          <div className="relative" ref={prodMenuRef}>
-            <button
-              type="button"
-              onClick={() => setProdMenuOpen((o) => !o)}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-              aria-label="메뉴"
-            >
-              <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
-            </button>
-            {prodMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={() => { setProdMenuOpen(false); router.push("/finance"); }}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent/50"
-                  >
-                    <Wallet className="h-4 w-4" /> 가계부
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setProdMenuOpen(false)}
-                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm bg-accent font-medium"
-                  >
-                    <ShoppingBag className="h-4 w-4" /> 쇼핑기록
-                  </button>
-                </div>
-            )}
-          </div>
+          <HeaderViewMenu
+            items={[
+              {
+                key: "finance",
+                label: "가계부",
+                icon: Wallet,
+                onSelect: () => router.push("/finance"),
+              },
+              {
+                key: "products",
+                label: "쇼핑기록",
+                icon: ShoppingBag,
+                active: true,
+                onSelect: () => {},
+              },
+            ]}
+          />
         }
       />
     <div className="flex flex-col h-[calc(100%-3.5rem)]">

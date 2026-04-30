@@ -1,8 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Menu } from "lucide-react";
-
 export interface HeaderViewMenuItem {
   key: string;
   label: string;
@@ -11,56 +8,34 @@ export interface HeaderViewMenuItem {
   onSelect: () => void;
 }
 
-// PageHeader actions 슬롯에 사용하는 햄버거 드롭다운.
-// 캘린더(달력/일정목록), 여행(여행/여행 계획) 등 같은 탭 그룹 안에서
-// 하위 뷰를 전환할 때 공통 UX.
+/**
+ * PageHeader actions 슬롯의 뷰 전환 컨트롤.
+ *
+ * 이전: 햄버거 + 드롭다운(N개 항목 숨김). 항목이 2개뿐이라 hidden nav 패턴이
+ * 발견성을 깎아먹는다는 리뷰가 있어서, 모든 항목을 인라인 아이콘 버튼으로 직접
+ * 노출. 활성 항목은 primary 톤 + bg-primary/10 + aria-current="page" 로 강조.
+ *
+ * 한 페이지당 항목 2~3개를 가정. 그 이상이면 햄버거 폴백을 다시 검토.
+ */
 export default function HeaderViewMenu({ items }: { items: HeaderViewMenuItem[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent | TouchEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    document.addEventListener("touchstart", handler);
-    return () => {
-      document.removeEventListener("mousedown", handler);
-      document.removeEventListener("touchstart", handler);
-    };
-  }, [open]);
-
   return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-        aria-label="메뉴"
-      >
-        <Menu className="h-[22px] w-[22px]" strokeWidth={1.6} />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-popover p-1 shadow-lg">
-          {items.map(({ key, label, icon: Icon, active, onSelect }) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => {
-                onSelect();
-                setOpen(false);
-              }}
-              className={`flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
-                active ? "bg-accent font-medium" : "hover:bg-accent/50"
-              }`}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
+    <div className="flex items-center gap-1">
+      {items.map(({ key, label, icon: Icon, active, onSelect }) => (
+        <button
+          key={key}
+          type="button"
+          onClick={onSelect}
+          aria-label={label}
+          aria-current={active ? "page" : undefined}
+          className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors ${
+            active
+              ? "text-primary bg-primary/10"
+              : "text-muted-foreground hover:bg-accent"
+          }`}
+        >
+          <Icon className="h-[20px] w-[20px]" strokeWidth={active ? 1.8 : 1.6} />
+        </button>
+      ))}
     </div>
   );
 }

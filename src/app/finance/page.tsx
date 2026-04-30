@@ -8,6 +8,7 @@ import PageHeader from "@/components/layout/page-header";
 import { useTransactions } from "@/hooks/use-transactions";
 import { useFixedExpenses } from "@/hooks/use-fixed-expenses";
 import { useUrlStringParam } from "@/hooks/use-url-param";
+import HeaderViewMenu from "@/components/layout/header-view-menu";
 import MonthlySummary from "@/components/finance/monthly-summary";
 import TransactionList from "@/components/finance/transaction-list";
 import TransactionForm from "@/components/finance/transaction-form";
@@ -191,26 +192,23 @@ function FinancePageInner() {
       <PageHeader
         title="가계부"
         actions={
-          // 햄버거 → 두 아이콘 직접 노출 (가계부 활성/쇼핑기록 비활성).
-          // 발견성 ↑ + 한 탭 전환 — 항목 2개에 햄버거는 과한 hidden nav.
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="가계부"
-              aria-current="page"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-primary bg-primary/10"
-            >
-              <Wallet className="h-[20px] w-[20px]" strokeWidth={1.8} />
-            </button>
-            <button
-              type="button"
-              onClick={() => router.push("/products")}
-              aria-label="쇼핑기록"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-accent"
-            >
-              <ShoppingBag className="h-[20px] w-[20px]" strokeWidth={1.6} />
-            </button>
-          </div>
+          <HeaderViewMenu
+            items={[
+              {
+                key: "finance",
+                label: "가계부",
+                icon: Wallet,
+                active: true,
+                onSelect: () => {},
+              },
+              {
+                key: "products",
+                label: "쇼핑기록",
+                icon: ShoppingBag,
+                onSelect: () => router.push("/products"),
+              },
+            ]}
+          />
         }
       />
     <div className="flex flex-col h-[calc(100%-3.5rem)]">
