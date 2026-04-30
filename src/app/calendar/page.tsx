@@ -99,7 +99,8 @@ function CalendarPageInner() {
     | null
   >(null);
   const { weatherMap } = useWeather(year, month);
-  const { tags, addTag, deleteTag, updateTagColor, updateTagName } = useEventTags();
+  // 공유 owner 의 태그까지 색상이 보이려면 visibleUserIds 전달.
+  const { tags, addTag, deleteTag, updateTagColor, updateTagName } = useEventTags(visibleUserIds);
 
   const handleSave = async (data: Omit<CalendarEvent, "id" | "created_at">, repeatCount?: number) => {
     if (editing) {
@@ -384,6 +385,7 @@ function CalendarPageInner() {
         events={events}
         weather={weatherMap[selectedDate]}
         tags={tags}
+        visibleUserIds={visibleUserIds}
         holiday={selectedDate ? getHolidayMap(new Date(selectedDate + "T00:00:00").getFullYear())[selectedDate] : undefined}
         onAddEvent={handleAddFromDay}
         onEditEvent={(ev) => { setDayDetailOpen(false); setEditing(ev); setFormOpen(true); }}

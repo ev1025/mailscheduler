@@ -42,6 +42,8 @@ interface DayDetailProps {
   weather?: WeatherData;
   tags?: EventTag[];
   holiday?: string;
+  /** 공유받은 owner 의 travel_tags 까지 색상이 보이도록. */
+  visibleUserIds?: string[];
   onAddEvent: () => void;
   onEditEvent?: (event: CalendarEvent) => void;
   onDeleteEvent?: (id: string) => void;
@@ -152,12 +154,13 @@ export default function DayDetail({
   weather,
   tags: tagList = [],
   holiday,
+  visibleUserIds,
   onAddEvent,
   onEditEvent,
   onDeleteEvent,
   onReorder,
 }: DayDetailProps) {
-  const { tags: travelTags } = useTravelTags();
+  const { tags: travelTags } = useTravelTags(visibleUserIds);
   const currentUserId = useCurrentUserId();
   const { users } = useAppUsers();
   const usersById = new Map(users.map((u) => [u.id, u]));

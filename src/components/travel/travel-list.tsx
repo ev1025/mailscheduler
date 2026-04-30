@@ -191,8 +191,9 @@ interface TravelListProps {
 
 export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTagToCalendar, onDeleteCalendarEventsByTitleDate, visibleUserIds }: TravelListProps = {}) {
   const { items, loading, addItem, updateItem, deleteItem, toggleVisited } = useTravelItems(visibleUserIds);
-  const { tags, addTag, deleteTag, updateTagColor } = useTravelTags();
-  const { tags: eventTags, addTag: addEventTag, deleteTag: deleteEventTag, updateTagColor: updateEventTagColor, updateTagName: updateEventTagName, refetch: refetchEventTags } = useEventTags();
+  // 공유 owner 의 태그까지 색상이 보이려면 visibleUserIds 전달.
+  const { tags, addTag, deleteTag, updateTagColor } = useTravelTags(visibleUserIds);
+  const { tags: eventTags, addTag: addEventTag, deleteTag: deleteEventTag, updateTagColor: updateEventTagColor, updateTagName: updateEventTagName, refetch: refetchEventTags } = useEventTags(visibleUserIds);
 
   const [search, setSearch] = useState("");
   const [showVisited, setShowVisited] = useState(() => {
