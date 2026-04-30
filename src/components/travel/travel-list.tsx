@@ -166,7 +166,7 @@ const TravelRow = memo(function TravelRow({
           {item.tag ? item.tag.split(",").map((t) => {
             const tc = tagColorMap[t] || "#6B7280";
             return (
-              <Badge key={t} className="text-[10px] font-normal px-1.5 py-0 shrink-0" style={{ backgroundColor: tc + "20", color: tc, borderColor: tc + "40" }}>
+              <Badge key={t} className="text-[10px] h-4 font-normal px-1.5 py-0 shrink-0" style={{ backgroundColor: tc + "20", color: tc, borderColor: tc + "40" }}>
                 {t}
               </Badge>
             );
