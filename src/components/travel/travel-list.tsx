@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import RowActionPopover from "@/components/ui/row-action-popover";
 import FilterPanel from "@/components/ui/filter-panel";
 import SearchInput from "@/components/ui/search-input";
-import { useMediaQuery } from "@/lib/use-media-query";
 import TravelForm from "./travel-form";
 import TravelToCalendarDialog from "./travel-to-calendar-dialog";
 import AddToPlanDialog from "./add-to-plan-dialog";
@@ -178,121 +177,6 @@ const TravelRow = memo(function TravelRow({
   );
 });
 
-// 모바일 컴팩트 카드 — 한 줄 레이아웃으로 좌우 스크롤 제거 + 테이블과 비슷한 정보 밀도 유지.
-// 우선순위: 메뉴 → 제목(flex-1, truncate) → 분류 배지 → 시기·위치(작은 글씨, max-w 제한) → 태그(첫 1개 + N개 표시).
-// 데스크탑은 기존 TravelRow(테이블) 사용.
-const TravelCardRow = memo(function TravelCardRow({
-  item,
-  tagColorMap,
-  categoryColors,
-  dragEnabled,
-  onEdit,
-  onToggleVisited,
-  onAddToCalendar,
-  onAddToPlan,
-  onDelete,
-}: TravelRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id, disabled: !dragEnabled });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-  const color = categoryColors[item.category] || CATEGORY_COLORS[item.category] || "#6B7280";
-  const tags = item.tag ? item.tag.split(",").map((t) => t.trim()).filter(Boolean) : [];
-  const firstTag = tags[0];
-  const extraTags = tags.length - 1;
-  const meta = [
-    item.month ? `${item.month}월` : null,
-    item.place_name || item.region || null,
-  ].filter(Boolean).join(" · ");
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      role="button"
-      tabIndex={0}
-      onClick={onEdit}
-      onKeyDown={(e) => { if (e.key === "Enter") onEdit(); }}
-      className={`flex items-center gap-1.5 px-2 py-1.5 border-b last:border-b-0 hover:bg-accent/50 active:bg-accent transition-colors cursor-pointer ${item.visited ? "opacity-60" : ""}`}
-    >
-      {/* 메뉴 + 드래그 핸들 */}
-      <div className="w-6 shrink-0 flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
-        <RowActionPopover
-          triggerLabel="행 메뉴"
-          dragAttributes={dragEnabled ? (attributes as unknown as React.HTMLAttributes<HTMLElement>) : undefined}
-          dragListeners={dragEnabled ? (listeners as unknown as React.HTMLAttributes<HTMLElement>) : undefined}
-          items={[
-            {
-              icon: <Check className="h-3.5 w-3.5" />,
-              iconClassName: "text-finance-gain",
-              label: item.visited ? "가본 곳 해제" : "가본 곳으로 표시",
-              textClassName: item.visited ? "text-finance-gain" : undefined,
-              onClick: onToggleVisited,
-            },
-            {
-              icon: <CalendarPlus className="h-3.5 w-3.5 text-blue-600" />,
-              label: "달력에 추가",
-              onClick: onAddToCalendar,
-            },
-            {
-              icon: <Route className="h-3.5 w-3.5 text-purple-600" />,
-              label: "계획에 추가",
-              onClick: onAddToPlan,
-            },
-            {
-              icon: <Trash2 className="h-3.5 w-3.5" />,
-              label: "삭제",
-              destructive: true,
-              onClick: onDelete,
-            },
-          ]}
-        />
-      </div>
-
-      {/* 제목 — flex-1, 좁아지면 truncate */}
-      <span className="text-xs font-medium truncate flex-1 min-w-0">{item.title}</span>
-
-      {/* 분류 */}
-      <Badge
-        variant="outline"
-        className="shrink-0 text-[10px] h-4 px-1"
-        style={{ borderColor: color + "60", color }}
-      >
-        {item.category}
-      </Badge>
-
-      {/* 메타: 시기 · 위치 — 좁은 폭에서 truncate. 둘 다 없으면 자체 미렌더. */}
-      {meta && (
-        <span className="text-[10px] text-muted-foreground shrink-0 truncate max-w-[88px]">
-          {meta}
-        </span>
-      )}
-
-      {/* 태그 — 첫 1개 + N */}
-      {firstTag && (
-        <span className="shrink-0 flex items-center gap-0.5">
-          <Badge
-            className="text-[10px] font-normal px-1 py-0"
-            style={{
-              backgroundColor: (tagColorMap[firstTag] || "#6B7280") + "20",
-              color: tagColorMap[firstTag] || "#6B7280",
-              borderColor: (tagColorMap[firstTag] || "#6B7280") + "40",
-            }}
-          >
-            {firstTag}
-          </Badge>
-          {extraTags > 0 && (
-            <span className="text-[10px] text-muted-foreground tabular-nums">+{extraTags}</span>
-          )}
-        </span>
-      )}
-    </div>
-  );
-});
-
 interface TravelListProps {
   onNavigateToMonth?: (year: number, month: number) => void;
   onAddEvent?: (event: Omit<CalendarEvent, "id" | "created_at">) => Promise<{ error: unknown }>;
@@ -303,9 +187,6 @@ interface TravelListProps {
 }
 
 export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTagToCalendar, onDeleteCalendarEventsByTitleDate, visibleUserIds }: TravelListProps = {}) {
-  // 모바일(<768px) 은 컴팩트 카드 리스트, 데스크탑은 6열 테이블 — 좌우 스크롤 제거 목적.
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-
   const { items, loading, addItem, updateItem, deleteItem, toggleVisited } = useTravelItems(visibleUserIds);
   const { tags, addTag, deleteTag, updateTagColor } = useTravelTags();
   const { tags: eventTags, addTag: addEventTag, deleteTag: deleteEventTag, updateTagColor: updateEventTagColor, updateTagName: updateEventTagName, refetch: refetchEventTags } = useEventTags();
@@ -645,8 +526,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
             <p className="text-xs text-muted-foreground/60">+ 추가 버튼으로 시작하세요</p>
           )}
         </div>
-      ) : isDesktop ? (
-        // ── 데스크탑: 기존 6열 테이블 — 컬럼 헤더 정렬 그대로 유지 ──
+      ) : (
         <div className="rounded-lg border max-h-[65vh] overflow-auto">
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <table className="w-full border-collapse">
@@ -697,28 +577,6 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
                 </SortableContext>
               </tbody>
             </table>
-          </DndContext>
-        </div>
-      ) : (
-        // ── 모바일: 한 줄 컴팩트 카드 리스트 — 좌우 스크롤 제거, 정보 밀도 유지 ──
-        <div className="rounded-lg border max-h-[65vh] overflow-auto">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={filtered.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-              {filtered.map((item) => (
-                <TravelCardRow
-                  key={item.id}
-                  item={item}
-                  tagColorMap={tagColorMap}
-                  categoryColors={categoryColors}
-                  dragEnabled={dragEnabled}
-                  onEdit={() => { setEditing(item); setFormOpen(true); }}
-                  onToggleVisited={() => toggleVisited(item.id, item.visited)}
-                  onAddToCalendar={() => setCalendarItem(item)}
-                  onAddToPlan={() => setPlanItem(item)}
-                  onDelete={() => deleteItem(item.id)}
-                />
-              ))}
-            </SortableContext>
           </DndContext>
         </div>
       )}
