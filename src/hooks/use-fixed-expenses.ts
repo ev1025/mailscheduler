@@ -61,51 +61,75 @@ export function useFixedExpenses() {
    * - repeatMonths = N : 이번달 포함 N개월 연속
    * - repeatMonths = -1 (계속) : 120개월(10년) 까지
    *
-   * 캘린더 일정의 "반복 횟수" 와 동일한 의미. 페이지 마운트 자동 적용은 제거되어
-   * 있으므로 거래는 여기서만 생성됨 → 중복 없음.
+   * **체감 0초** 를 위해 두 단계로 분리:
+   *  ① fx row INSERT 만 await (1 RTT) — 끝나면 즉시 로컬 state 에 추가(optimistic) 후 반환.
+   *     호출자(폼)는 이 시점에 폼을 닫음.
+   *  ② expense bulk INSERT 는 fire-and-forget — `bulkDone` Promise 로 노출해 caller 가
+   *     transactions refetch 같은 후속 작업을 attach 할 수 있게 함.
+   *
+   * 페이지 마운트 자동 적용은 제거되어 있으므로 거래는 여기서만 생성됨 → 중복 없음.
    */
   const addFixed = async (
     item: Omit<FixedExpense, "id" | "created_at" | "category" | "is_active">,
     repeatMonths: number = 1,
-  ) => {
-    // repeat_months 컬럼에 같이 저장 — 수정 폼에서 그대로 표시.
-    const { error } = await supabase
+  ): Promise<{ error: unknown; bulkDone?: Promise<void> }> => {
+    // ── ① fx row INSERT (단일 RTT) — joined category 까지 한 번에 가져와 optimistic 에 사용 ──
+    const insertPayload = { ...item, user_id: userId, repeat_months: repeatMonths };
+    let inserted: FixedExpense | null = null;
+    const r1 = await supabase
       .from("fixed_expenses")
-      .insert({ ...item, user_id: userId, repeat_months: repeatMonths });
-    if (error) {
+      .insert(insertPayload)
+      .select("*, category:expense_categories(*)")
+      .single();
+    if (r1.error) {
       // repeat_months 컬럼 없는 구 DB 폴백.
-      const { title, repeat_months, ...rest } = item as typeof item & { repeat_months?: number };
+      const { title, repeat_months, ...rest } = insertPayload as typeof insertPayload & { repeat_months?: number };
       void title;
       void repeat_months;
-      const retry = await supabase.from("fixed_expenses").insert(rest);
+      const retry = await supabase
+        .from("fixed_expenses")
+        .insert(rest)
+        .select("*, category:expense_categories(*)")
+        .single();
       if (retry.error) return { error: retry.error };
+      inserted = retry.data as FixedExpense;
+    } else {
+      inserted = r1.data as FixedExpense;
     }
 
-    // N개월 거래 일괄 생성. 무한(-1) → 120개월 (캘린더 monthly 무한과 동일).
-    const months = repeatMonths === -1 ? 120 : Math.max(1, repeatMonths);
-    const today = new Date();
-    const baseYear = today.getFullYear();
-    const baseMonth = today.getMonth() + 1; // 1-indexed
-    const txs: Record<string, unknown>[] = [];
-    for (let i = 0; i < months; i++) {
-      const t = new Date(baseYear, baseMonth - 1 + i, 1);
-      const yi = t.getFullYear();
-      const mi = t.getMonth() + 1;
-      const lastDay = new Date(yi, mi, 0).getDate();
-      const day = Math.min(item.day_of_month, lastDay);
-      const date = `${yi}-${String(mi).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-      txs.push({
-        title: item.title,
-        amount: item.amount,
-        category_id: item.category_id,
-        description: item.description,
-        date,
-        type: item.type,
-        payment_method: item.payment_method,
-        user_id: userId,
-      });
+    // Optimistic — 로컬 state 에 즉시 추가. day_of_month 정렬이 fetchFixed 와 동일하게 적용되도록 sort.
+    if (inserted) {
+      setFixedExpenses((prev) =>
+        [...prev, inserted!].sort((a, b) => a.day_of_month - b.day_of_month),
+      );
     }
-    if (txs.length > 0) {
+
+    // ── ② expense bulk INSERT — fire-and-forget. caller 가 await 하지 않으면 폼이 즉시 닫힘 ──
+    const bulkDone = (async () => {
+      const months = repeatMonths === -1 ? 120 : Math.max(1, repeatMonths);
+      const today = new Date();
+      const baseYear = today.getFullYear();
+      const baseMonth = today.getMonth() + 1; // 1-indexed
+      const txs: Record<string, unknown>[] = [];
+      for (let i = 0; i < months; i++) {
+        const t = new Date(baseYear, baseMonth - 1 + i, 1);
+        const yi = t.getFullYear();
+        const mi = t.getMonth() + 1;
+        const lastDay = new Date(yi, mi, 0).getDate();
+        const day = Math.min(item.day_of_month, lastDay);
+        const date = `${yi}-${String(mi).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        txs.push({
+          title: item.title,
+          amount: item.amount,
+          category_id: item.category_id,
+          description: item.description,
+          date,
+          type: item.type,
+          payment_method: item.payment_method,
+          user_id: userId,
+        });
+      }
+      if (txs.length === 0) return;
       const ins = await supabase.from("expenses").insert(txs);
       if (ins.error) {
         // user_id/title 미지원 구 DB 폴백
@@ -117,9 +141,9 @@ export function useFixedExpenses() {
         });
         await supabase.from("expenses").insert(fallback);
       }
-    }
-    await fetchFixed();
-    return { error: null };
+    })();
+
+    return { error: null, bulkDone };
   };
 
   const updateFixed = async (

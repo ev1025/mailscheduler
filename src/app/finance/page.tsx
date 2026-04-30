@@ -335,9 +335,18 @@ function FinancePageInner() {
         defaultYear={year}
         defaultMonth={month}
         onAdd={async (item, repeatMonths) => {
+          // addFixed 는 fx row INSERT(1 RTT) 만 await 하고 즉시 반환 → 폼 즉시 닫힘.
+          // expense bulk INSERT 는 bulkDone 으로 fire-and-forget. 끝나면 transactions 도
+          // refresh — 이 await 도 caller 에서 빼서 폼 응답이 막히지 않게 함.
           const r = await addFixed(item, repeatMonths);
-          if (!r.error) await refetchTransactions();
-          return r;
+          if (!r.error && r.bulkDone) {
+            r.bulkDone
+              .then(() => refetchTransactions())
+              .catch((e) => {
+                console.error("[fixed-expense bulk insert]", e);
+              });
+          }
+          return { error: r.error };
         }}
         onUpdate={async (id, updates) => {
           const r = await updateFixed(id, updates);
