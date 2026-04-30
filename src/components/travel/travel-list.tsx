@@ -144,7 +144,7 @@ const TravelRow = memo(function TravelRow({
       </td>
       {/* 제목 */}
       <td className="px-2 py-1 md:py-2 border-r overflow-hidden">
-        <span className="text-xs font-medium truncate block">{item.title}</span>
+        <span className="text-[11px] font-medium truncate block">{item.title}</span>
       </td>
       {/* 분류 */}
       <td className="px-2 py-1 md:py-2 border-r whitespace-nowrap">
@@ -153,11 +153,11 @@ const TravelRow = memo(function TravelRow({
         </Badge>
       </td>
       {/* 시기 */}
-      <td className="px-2 py-1 md:py-2 border-r text-xs text-muted-foreground whitespace-nowrap">
+      <td className="px-2 py-1 md:py-2 border-r text-[11px] text-muted-foreground whitespace-nowrap">
         {item.month ? `${item.month}월` : "-"}
       </td>
       {/* 위치 — place_name 있으면 우선, 없으면 region */}
-      <td className="px-2 py-1 md:py-2 border-r text-xs text-muted-foreground whitespace-nowrap">
+      <td className="px-2 py-1 md:py-2 border-r text-[11px] text-muted-foreground whitespace-nowrap">
         {item.place_name || item.region || "-"}
       </td>
       {/* 태그 */}
@@ -170,7 +170,7 @@ const TravelRow = memo(function TravelRow({
                 {t}
               </Badge>
             );
-          }) : <span className="text-xs text-muted-foreground/40">-</span>}
+          }) : <span className="text-[11px] text-muted-foreground/40">-</span>}
         </div>
       </td>
     </tr>
@@ -422,7 +422,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
           <button
             type="button"
             onClick={() => updateShowVisited(!showVisited)}
-            className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-8 text-xs transition-colors ${
+            className={`flex items-center gap-1 shrink-0 rounded-md border px-2.5 h-8 text-[11px] transition-colors ${
               showVisited ? "border-primary text-primary bg-primary/10" : "text-muted-foreground hover:bg-accent"
             }`}
           >
@@ -431,7 +431,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
           </button>
           {allCategories.length > 0 && (
             <div
-              className={`flex items-center shrink-0 rounded-md border h-8 text-xs transition-colors ${
+              className={`flex items-center shrink-0 rounded-md border h-8 text-[11px] transition-colors ${
                 filterCategories.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground"
               }`}
             >
@@ -459,7 +459,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
           )}
           {allItemTags.length > 0 && (
             <div
-              className={`flex items-center shrink-0 rounded-md border h-8 text-xs transition-colors ${
+              className={`flex items-center shrink-0 rounded-md border h-8 text-[11px] transition-colors ${
                 filterTags.length > 0 ? "border-primary text-primary bg-primary/10" : "text-muted-foreground"
               }`}
             >
@@ -523,7 +523,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
             {items.length === 0 ? "여행 항목이 없습니다" : "검색 결과가 없습니다"}
           </p>
           {items.length === 0 && (
-            <p className="text-xs text-muted-foreground/60">+ 추가 버튼으로 시작하세요</p>
+            <p className="text-[11px] text-muted-foreground/60">+ 추가 버튼으로 시작하세요</p>
           )}
         </div>
       ) : (
@@ -539,7 +539,7 @@ export default function TravelList({ onNavigateToMonth, onAddEvent, onAddEventTa
                 <col style={{ width: "1%" }} />
                 <col />
               </colgroup>
-              <thead className="sticky top-0 z-10 bg-muted text-xs text-muted-foreground">
+              <thead className="sticky top-0 z-10 bg-muted text-[11px] text-muted-foreground">
                 <tr>
                   {columns.map((col) => (
                     <th
