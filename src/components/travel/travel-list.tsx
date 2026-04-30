@@ -108,7 +108,7 @@ const TravelRow = memo(function TravelRow({
       onClick={onEdit}
     >
       {/* 왼쪽 드래그 핸들 + 액션 팝오버 — 너비·여백 최소화로 본문 영역 확보. */}
-      <td className="px-0 py-1 border-r whitespace-nowrap w-6" onClick={(e) => e.stopPropagation()}>
+      <td className="px-0 py-1 border-r whitespace-nowrap w-6 align-middle" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-center">
           <RowActionPopover
             triggerLabel="행 메뉴"
@@ -143,26 +143,29 @@ const TravelRow = memo(function TravelRow({
         </div>
       </td>
       {/* 제목 */}
-      <td className="px-2 py-1 md:py-2 border-r overflow-hidden">
+      <td className="px-2 py-1 md:py-2 border-r overflow-hidden align-middle">
         <span className="text-[11px] font-medium truncate block">{item.title}</span>
       </td>
-      {/* 분류 */}
-      <td className="px-2 py-1 md:py-2 border-r whitespace-nowrap">
-        <Badge variant="outline" className="text-[10px] h-4 px-1.5" style={{ borderColor: color + "60", color }}>
-          {item.category}
-        </Badge>
+      {/* 분류 — Badge 를 flex items-center 로 감싸 다른 cell 들과 세로 정렬 통일.
+          이전엔 Badge 만 직접 자식이라 td 의 baseline 정렬에 끌려가 살짝 떠 보였음. */}
+      <td className="px-2 py-1 md:py-2 border-r whitespace-nowrap align-middle">
+        <div className="flex items-center">
+          <Badge variant="outline" className="text-[10px] h-4 px-1.5" style={{ borderColor: color + "60", color }}>
+            {item.category}
+          </Badge>
+        </div>
       </td>
       {/* 시기 */}
-      <td className="px-2 py-1 md:py-2 border-r text-[11px] text-muted-foreground whitespace-nowrap">
+      <td className="px-2 py-1 md:py-2 border-r text-[11px] text-muted-foreground whitespace-nowrap align-middle">
         {item.month ? `${item.month}월` : "-"}
       </td>
       {/* 위치 — place_name 있으면 우선, 없으면 region */}
-      <td className="px-2 py-1 md:py-2 border-r text-[11px] text-muted-foreground whitespace-nowrap">
+      <td className="px-2 py-1 md:py-2 border-r text-[11px] text-muted-foreground whitespace-nowrap align-middle">
         {item.place_name || item.region || "-"}
       </td>
       {/* 태그 */}
-      <td className="px-2 py-1 md:py-2 whitespace-nowrap">
-        <div className="flex gap-1">
+      <td className="px-2 py-1 md:py-2 whitespace-nowrap align-middle">
+        <div className="flex items-center gap-1">
           {item.tag ? item.tag.split(",").map((t) => {
             const tc = tagColorMap[t] || "#6B7280";
             return (
